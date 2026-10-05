@@ -142,6 +142,28 @@
     font-size: 14px;
     margin-top: 40px;
   }
+
+  /* sign in once here: the four games read the same saved student */
+  .who { max-width: 980px; margin: 0 auto 28px; background: var(--card); border: 1px solid var(--card-border); border-radius: 18px; padding: 18px 20px; }
+  .who h2 { margin: 0 0 4px; font-size: 13px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
+  .who p { margin: 0; color: var(--muted); }
+  .who form { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: 10px 12px; align-items: end; margin-top: 12px; }
+  .who label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); min-width: 0; }
+  .who input[type="text"] { font: 600 17px "Josefin Sans", system-ui, sans-serif; color: var(--text); background: var(--bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 11px 12px 8px; width: 100%; }
+  .who input[type="text"]:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+  .who input:disabled { opacity: .4; }
+  .who button { font: 700 14px "Josefin Sans", system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; border-radius: 999px; padding: 12px 20px 9px; cursor: pointer; border: 1px solid var(--gold); background: var(--gold); color: #10131a; }
+  .who button.ghost { background: transparent; color: var(--text); border-color: var(--card-border); }
+  .who button:hover { filter: brightness(1.08); }
+  .who button:disabled { opacity: .5; cursor: default; }
+  .who .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 12px; }
+  .who .solo { flex-direction: row; align-items: center; gap: 8px; font-size: 15px; letter-spacing: 0; text-transform: none; color: var(--text); cursor: pointer; }
+  .who .solo input { width: 18px; height: 18px; accent-color: var(--gold); }
+  .who .err { color: #ff8a7a; min-height: 1.3em; margin-top: 8px; }
+  .who .me { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+  .who .me b { color: var(--text); font-size: 22px; font-weight: 700; }
+  .who .me .cls { color: var(--gold); font-weight: 700; }
+  @media (max-width: 720px) { .who form { grid-template-columns: minmax(0, 1fr) 110px; } .who form .code { grid-column: 1 / -1; } .who form button { grid-column: 1 / -1; } }
   @media (max-width: 640px) {
     header { padding: 40px 0 28px; }
     main { grid-template-columns: minmax(0, 1fr); gap: 18px; }
@@ -156,6 +178,32 @@
     <div class="staff" aria-hidden="true"></div>
     <p class="sub">Pick a game to start practicing</p>
   </header>
+
+  <section class="who" id="who" aria-label="Sign in">
+    <div id="who-in" hidden>
+      <h2>Signed in for all four games</h2>
+      <div class="me"><b id="who-name"></b><span class="cls" id="who-class"></span></div>
+      <div class="row">
+        <button class="ghost" type="button" id="who-class-btn">Change class</button>
+        <button class="ghost" type="button" id="who-switch">Not you? Switch student</button>
+      </div>
+    </div>
+    <div id="who-out">
+      <h2>Sign in once, play every game</h2>
+      <p id="who-help">Sign in here and all four games remember you on this computer.</p>
+      <form id="who-form" autocomplete="off" novalidate>
+        <label for="w-first">First name<input type="text" id="w-first" maxlength="15" autocapitalize="words" spellcheck="false"></label>
+        <label for="w-init">Last initial<input type="text" id="w-init" maxlength="1" autocapitalize="characters" spellcheck="false"></label>
+        <label class="code" for="w-code">Class code<input type="text" id="w-code" maxlength="7" autocapitalize="characters" spellcheck="false" placeholder="From your teacher"></label>
+        <button type="submit" id="w-go">Sign in</button>
+      </form>
+      <div class="row">
+        <label class="solo" for="w-solo"><input type="checkbox" id="w-solo"> I'm not in a class</label>
+        <button class="ghost" type="button" id="w-guest">Play as guest</button>
+      </div>
+      <p class="err" id="w-error" role="alert"></p>
+    </div>
+  </section>
 
   <main>
     <a class="game tidal" href="https://drkeyzzz.github.io/tidal-tones/">
@@ -203,6 +251,89 @@
     </a>
   </main>
 
-  <footer>One sign-in works across all four games.</footer>
+  <footer>One sign-in works across all four games on this computer.</footer>
+
+<script>
+(() => {
+// The same saved student every game reads: localStorage 'rdt_profile_v1' = {first, init, classCode, className, classOwner},
+// with guests marked for this tab in sessionStorage 'music_guest'. Class codes are checked in the shared Firebase project.
+const $ = id => document.getElementById(id);
+const PROFILE_KEY = 'rdt_profile_v1', GUEST_KEY = 'music_guest';
+const FIREBASE = { apiKey: 'AIzaSyDU9vbCWJ4yWuD8bAX984DmQF4dvo13BHs', authDomain: 'rhythm-trainer-fc313.firebaseapp.com', projectId: 'rhythm-trainer-fc313', appId: '1:956677028482:web:c3ec72a279e61b6f6c929b' };
+let fbP = null;
+function fb() {
+  const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+  fbP = fbP || Promise.all([import(SDK + 'firebase-app.js'), import(SDK + 'firebase-firestore.js')])
+    .then(([appMod, fs]) => ({ fs, db: fs.getFirestore(appMod.initializeApp(FIREBASE)) }))
+    .catch(e => { fbP = null; throw e; });
+  return fbP;
+}
+const wait = p => Promise.race([p, new Promise((_, bad) => setTimeout(() => bad(new Error('timeout')), 12000))]);
+const isGuest = () => { try { return sessionStorage.getItem(GUEST_KEY) === '1'; } catch { return false; } };
+function getProfile() { if (isGuest()) return null; try { const p = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null'); return p && p.first && p.init ? p : null; } catch { return null; } }
+function setProfile(p) { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); sessionStorage.removeItem(GUEST_KEY); } catch {} }
+const displayName = p => `${p.first.charAt(0).toUpperCase()}${p.first.slice(1)} ${p.init}.`;
+const cleanCode = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+
+function render(focus) {
+  const p = getProfile();
+  $('who-in').hidden = !p; $('who-out').hidden = !!p;
+  if (p) {
+    $('who-name').textContent = displayName(p);
+    $('who-class').textContent = p.classCode ? (p.className && p.className !== p.classCode ? `${p.className} · code ${p.classCode}` : `Class ${p.classCode}`) : 'Not in a class · World leaderboards only';
+  } else {
+    $('who-help').textContent = isGuest() ? "You're playing as a guest in this tab, so nothing is saved. Sign in to keep your scores and progress." : 'Sign in here and all four games remember you on this computer.';
+    if (focus) setTimeout(() => $(focus).focus(), 30);
+  }
+}
+async function submit(e) {
+  e.preventDefault();
+  const first = $('w-first').value.trim().replace(/\s+/g, ' '), init = $('w-init').value.trim().toUpperCase();
+  const solo = $('w-solo').checked, code = cleanCode($('w-code').value), err = $('w-error');
+  err.textContent = '';
+  if (!/^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ' -]{0,14}$/.test(first)) { err.textContent = 'Enter your first name (letters only).'; $('w-first').focus(); return; }
+  if (!/^[A-Z]$/.test(init)) { err.textContent = 'Enter the first letter of your last name.'; $('w-init').focus(); return; }
+  let className = '', classOwner = '';
+  if (!solo) {
+    if (!code) { err.textContent = 'Enter the class code from your teacher, or check "I\'m not in a class."'; $('w-code').focus(); return; }
+    $('w-go').disabled = true; $('w-go').textContent = 'Checking…';
+    try {
+      const { fs, db } = await fb(), d = await wait(fs.getDoc(fs.doc(db, 'classes', code)));
+      if (!d.exists()) { err.textContent = "We couldn't find that class code. Check it with your teacher."; $('w-code').focus(); return; }
+      className = d.data().name; classOwner = d.data().ownerEmail || '';
+    } catch { err.textContent = "Couldn't check the code. Check your internet connection and try again."; return; }
+    finally { $('w-go').disabled = false; $('w-go').textContent = 'Sign in'; }
+  }
+  setProfile({ first, init, classCode: solo ? '' : code, className, classOwner });
+  render();
+}
+// keep the class name current, the way the games do (a deleted class leaves the student signed in with no class)
+async function refreshClass() {
+  const p = getProfile(); if (!p || !p.classCode) return;
+  try {
+    const { fs, db } = await fb(), d = await wait(fs.getDoc(fs.doc(db, 'classes', p.classCode)));
+    setProfile(d.exists() ? { ...p, className: d.data().name, classOwner: d.data().ownerEmail || '' } : { ...p, classCode: '', className: '', classOwner: '' });
+    render();
+  } catch {}
+}
+function openForm(keep) {
+  const p = keep ? getProfile() : null;
+  $('w-first').value = p ? p.first : ''; $('w-init').value = p ? p.init : ''; $('w-code').value = p ? p.classCode || '' : '';
+  $('w-solo').checked = !!(p && !p.classCode); $('w-code').disabled = $('w-solo').checked; $('w-error').textContent = '';
+  $('who-in').hidden = true; $('who-out').hidden = false;
+  setTimeout(() => (keep ? $('w-code') : $('w-first')).focus(), 30);
+}
+$('who-form').addEventListener('submit', submit);
+$('w-solo').addEventListener('change', e => { $('w-code').disabled = e.target.checked; if (e.target.checked) $('w-code').value = ''; });
+$('w-code').addEventListener('input', e => { const c = cleanCode(e.target.value); if (c !== e.target.value) e.target.value = c; });
+$('w-guest').addEventListener('click', () => { try { sessionStorage.setItem(GUEST_KEY, '1'); } catch {} render(); $('who-help').textContent = "Playing as a guest in this tab: scores and progress aren't saved. Pick a game below."; });
+$('who-switch').addEventListener('click', () => openForm(false));
+$('who-class-btn').addEventListener('click', () => openForm(true));
+// a sign-in made in a game in another tab shows up here too
+addEventListener('storage', e => { if (e.key === PROFILE_KEY) render(); });
+render(); refreshClass();
+})();
+</script>
+
 </body>
 </html>
