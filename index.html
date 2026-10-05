@@ -154,7 +154,8 @@
   .who input:disabled { opacity: .4; }
   .who button { font: 700 14px "Josefin Sans", system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; border-radius: 999px; padding: 12px 20px 9px; cursor: pointer; border: 1px solid var(--gold); background: var(--gold); color: #10131a; }
   .who button.ghost { background: transparent; color: var(--text); border-color: var(--card-border); }
-  .who button:hover { filter: brightness(1.08); }
+  .who button:hover, .who a.report:hover { filter: brightness(1.08); }
+  .who a.report { font: 700 14px "Josefin Sans", system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; border-radius: 999px; padding: 12px 20px 9px; border: 1px solid var(--gold); background: var(--gold); color: #10131a; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
   .who button:disabled { opacity: .5; cursor: default; }
   .who .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 12px; }
   .who .solo { flex-direction: row; align-items: center; gap: 8px; font-size: 15px; letter-spacing: 0; text-transform: none; color: var(--text); cursor: pointer; }
@@ -184,6 +185,7 @@
       <h2>Signed in for all four games</h2>
       <div class="me"><b id="who-name"></b><span class="cls" id="who-class"></span></div>
       <div class="row">
+        <a class="report" href="report/"><span aria-hidden="true">🏆</span> My Report</a>
         <button class="ghost" type="button" id="who-class-btn">Change class</button>
         <button class="ghost" type="button" id="who-switch">Not you? Switch student</button>
       </div>
