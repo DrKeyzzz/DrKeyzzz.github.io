@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Music Theory Games</title>
+<meta name="description" content="Four browser games for practicing music theory: note reading, rhythm, scales, and sight reading.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Josefin+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1420;
+    --bg-glow: #1b2a44;
+    --card: #141d2c;
+    --card-border: #26344b;
+    --text: #f1ece0;
+    --muted: #9aa7bb;
+    --gold: #ffc85c;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    min-height: 100vh;
+    background: radial-gradient(1200px 700px at 50% -10%, var(--bg-glow), var(--bg) 70%) fixed, var(--bg);
+    color: var(--text);
+    font-family: "Josefin Sans", system-ui, sans-serif;
+    padding: 0 16px 48px;
+  }
+  header {
+    text-align: center;
+    padding: 56px 0 36px;
+  }
+  .eyebrow {
+    color: var(--gold);
+    letter-spacing: .25em;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin: 0 0 10px;
+  }
+  h1 {
+    font-family: "Abril Fatface", Georgia, serif;
+    font-weight: 400;
+    font-size: clamp(40px, 7vw, 72px);
+    line-height: 1.05;
+    margin: 0;
+  }
+  .staff {
+    width: min(360px, 70%);
+    height: 26px;
+    margin: 18px auto 0;
+    background: repeating-linear-gradient(to bottom, var(--muted) 0 1px, transparent 1px 6px);
+    opacity: .35;
+  }
+  .sub {
+    color: var(--muted);
+    font-size: 18px;
+    margin: 16px 0 0;
+  }
+  main {
+    max-width: 980px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+  }
+  .game {
+    --accent: var(--gold);
+    display: flex;
+    flex-direction: column;
+    aspect-ratio: 1 / 1;
+    background: var(--card);
+    border: 1px solid var(--card-border);
+    border-radius: 18px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+  }
+  .game:hover, .game:focus-visible {
+    transform: translateY(-4px);
+    border-color: var(--accent);
+    box-shadow: 0 10px 30px -10px var(--accent);
+    outline: none;
+  }
+  .shot {
+    flex: 1;
+    min-height: 0;
+    background: var(--shot-bg, #000);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+  }
+  .shot img, .shot video {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+    transition: transform .25s ease;
+  }
+  .game:hover .shot img, .game:hover .shot video { transform: scale(1.03); }
+  .info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--card-border);
+  }
+  .name {
+    font-size: 21px;
+    font-weight: 700;
+    margin: 0 0 4px;
+  }
+  .desc {
+    color: var(--muted);
+    font-size: 15px;
+    margin: 0;
+  }
+  .play {
+    flex: none;
+    background: var(--accent);
+    color: #10131a;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    font-size: 14px;
+    padding: 10px 18px 8px;
+    border-radius: 999px;
+  }
+  .tidal   { --accent: #ffc85c; --shot-bg: #0c1a23; }
+  .rhythm  { --accent: #8b7bff; --shot-bg: #0d1015; }
+  .scale   { --accent: #3ee8f0; --shot-bg: #0e0a25; }
+  .rooftop { --accent: #ff4fa3; --shot-bg: #121025; }
+  @media (prefers-reduced-motion: reduce) { .game, .shot img, .shot video { transition: none; } }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+    margin-top: 40px;
+  }
+  @media (max-width: 640px) {
+    header { padding: 40px 0 28px; }
+    main { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+    .name { font-size: 19px; }
+  }
+</style>
+</head>
+<body>
+  <header>
+    <p class="eyebrow">Mr. Milnes's</p>
+    <h1>Music Theory Games</h1>
+    <div class="staff" aria-hidden="true"></div>
+    <p class="sub">Pick a game to start practicing</p>
+  </header>
+
+  <main>
+    <a class="game tidal" href="https://drkeyzzz.github.io/tidal-tones/">
+      <div class="shot"><video src="screenshots/tidal-tones.mp4" poster="screenshots/tidal-tones.jpg" autoplay muted loop playsinline aria-label="Tidal Tones gameplay: boats sail toward the lighthouse as notes are named"></video></div>
+      <div class="info">
+        <div>
+          <p class="name">Tidal Tones</p>
+          <p class="desc">Note reading and intervals</p>
+        </div>
+        <span class="play">Play</span>
+      </div>
+    </a>
+
+    <a class="game rhythm" href="https://drkeyzzz.github.io/rhythm-trainer/">
+      <div class="shot"><img src="screenshots/rhythm-trainer.jpg" alt="Rhythm Dictation Trainer: rebuilding a rhythm from the answer bank"></div>
+      <div class="info">
+        <div>
+          <p class="name">Rhythm Trainer</p>
+          <p class="desc">Rhythmic dictation</p>
+        </div>
+        <span class="play">Play</span>
+      </div>
+    </a>
+
+    <a class="game scale" href="https://drkeyzzz.github.io/scale-quest/">
+      <div class="shot"><img src="screenshots/scale-quest.jpg" alt="Scale Quest: building the C major scale on the piano"></div>
+      <div class="info">
+        <div>
+          <p class="name">Scale Quest</p>
+          <p class="desc">Major scales, arcade style</p>
+        </div>
+        <span class="play">Play</span>
+      </div>
+    </a>
+
+    <a class="game rooftop" href="https://drkeyzzz.github.io/rooftop-runner/">
+      <div class="shot"><video src="screenshots/rooftop-runner.mp4" poster="screenshots/rooftop-runner.jpg" autoplay muted loop playsinline aria-label="Rooftop Sight Reading Runner gameplay: the runner jumps across rooftops as notes reach the line"></video></div>
+      <div class="info">
+        <div>
+          <p class="name">Rooftop Sight Reading Runner</p>
+          <p class="desc">Sight reading</p>
+        </div>
+        <span class="play">Play</span>
+      </div>
+    </a>
+  </main>
+
+  <footer>One sign-in works across all four games.</footer>
+</body>
+</html>
