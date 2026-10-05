@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Music Report · Music Theory Games</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Josefin+Sans:wght@400;600;700&family=Bungee&display=swap">
+<style>
+/* Layout: the home page's look turned into a player card: header card with level, XP and streak, a tab per game in that game's color, then a big "good job" hero, trophy tiles, strengths and badges, and "next quest" items to work on. */
+:root {
+  --bg: #0d1420;
+  --glow: #1b2a44;
+  --card: #141d2c;
+  --line: #26344b;
+  --text: #f1ece0;
+  --muted: #9aa7bb;
+  --gold: #ffc85c;
+  --win: #7dffb0;
+  --work: #ff9d6e;
+  --f-display: "Abril Fatface", Georgia, serif;
+  --f-ui: "Josefin Sans", system-ui, sans-serif;
+  --f-pop: "Bungee", "Impact", sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; background: var(--bg); color: var(--text); }
+body { background: radial-gradient(1200px 700px at 50% -10%, var(--glow), var(--bg) 70%) fixed, var(--bg); font-family: var(--f-ui); font-size: 16px; line-height: 1.45; }
+.wrap { max-width: 1000px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 56px; display: flex; flex-direction: column; gap: 18px; }
+.top { display: flex; flex-wrap: wrap; gap: 8px; }
+.pill { display: inline-flex; align-items: center; gap: 7px; font: 600 13px/1 system-ui, -apple-system, "Segoe UI", sans-serif; letter-spacing: .06em; color: var(--text); text-decoration: none; opacity: .85; padding: 6px 12px 6px 10px; border: 1px solid color-mix(in srgb, currentColor 35%, transparent); border-radius: 999px; }
+.pill:hover { opacity: 1; border-color: currentColor; }
+.pill svg { width: 15px; height: 15px; }
+
+.player { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 16px 22px; align-items: center; background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 18px 22px; }
+@media (max-width: 640px) { .player { grid-template-columns: auto minmax(0, 1fr); } .streak { grid-column: 1 / -1; } }
+.avatar { width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center; font-family: var(--f-display); font-size: 34px; color: var(--bg); background: conic-gradient(var(--gold), #ff4fa3, #8b7bff, #3ee8f0, var(--gold)); box-shadow: 0 0 24px -4px var(--gold); }
+.who h1 { font-family: var(--f-display); font-weight: 400; font-size: clamp(30px, 5vw, 44px); line-height: 1; margin: 0; }
+.who .cls { color: var(--muted); margin: 4px 0 8px; }
+.lvl { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.lvl b { font-family: var(--f-pop); font-weight: 400; color: var(--gold); font-size: 16px; letter-spacing: .04em; }
+.xp { flex: 1 1 200px; height: 12px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; min-width: 0; }
+.xp i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--gold), #ff4fa3); border-radius: 999px; transition: width 1s ease; }
+.lvl small { color: var(--muted); font-size: 14px; }
+.streak { text-align: center; background: var(--bg); border: 1px solid var(--line); border-radius: 16px; padding: 10px 16px; }
+.streak .f { font-size: 30px; line-height: 1; }
+.streak b { display: block; font-family: var(--f-pop); font-weight: 400; font-size: 26px; color: var(--work); }
+.streak span { font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tabs button { font: 700 15px var(--f-ui); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 10px 16px 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; }
+.tabs button i { width: 10px; height: 10px; border-radius: 50%; background: var(--acc, var(--gold)); }
+.tabs button[aria-selected="true"] { color: var(--bg); background: var(--acc, var(--gold)); border-color: var(--acc, var(--gold)); }
+.tabs button[aria-selected="true"] i { background: var(--bg); }
+.tabs button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+.panel { --acc: var(--gold); display: flex; flex-direction: column; gap: 16px; }
+.hero { position: relative; overflow: hidden; border-radius: 22px; padding: 26px 24px; background: radial-gradient(600px 260px at 15% 0%, color-mix(in srgb, var(--acc) 35%, transparent), transparent 70%), var(--card); border: 1px solid color-mix(in srgb, var(--acc) 55%, var(--line)); }
+.hero .gj { position: relative; font-family: var(--f-pop); font-weight: 400; font-size: clamp(40px, 9vw, 78px); line-height: .95; margin: 0; color: var(--acc); text-shadow: 0 0 28px color-mix(in srgb, var(--acc) 60%, transparent); transform-origin: left center; animation: pop .6s cubic-bezier(.2, 1.6, .4, 1) both; }
+.hero p { position: relative; margin: 10px 0 0; font-size: 19px; max-width: 56ch; text-wrap: pretty; }
+.hero p b { color: var(--acc); }
+@keyframes pop { from { transform: scale(.6); opacity: .2; } to { transform: scale(1); opacity: 1; } }
+.confetti { position: absolute; inset: 0; pointer-events: none; }
+
+.trophies { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.trophy { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.trophy .k { font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.trophy .v { font-family: var(--f-pop); font-weight: 400; font-size: 30px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.trophy .n { font-size: 14px; color: var(--win); font-weight: 700; min-height: 1.2em; }
+.trophy.best { border-color: var(--acc); box-shadow: inset 0 0 0 1px var(--acc); }
+.trophy.best .v { color: var(--acc); }
+
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+@media (max-width: 760px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+.box { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.box h2 { margin: 0; font-family: var(--f-pop); font-weight: 400; font-size: 20px; letter-spacing: .02em; }
+.box.good h2 { color: var(--win); }
+.box.work h2 { color: var(--work); }
+.box .sub { margin: -4px 0 2px; color: var(--muted); font-size: 15px; }
+.win { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--win) 8%, var(--bg)); border: 1px solid color-mix(in srgb, var(--win) 35%, var(--line)); }
+.win .ic { font-size: 22px; }
+.win b { font-size: 17px; }
+.win .s { color: var(--muted); font-size: 14px; grid-column: 2; }
+.win .stars { color: var(--gold); letter-spacing: 2px; font-size: 16px; grid-row: 1 / span 2; grid-column: 3; white-space: nowrap; }
+.badges { display: flex; flex-wrap: wrap; gap: 8px; }
+.badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px 4px; border-radius: 999px; font-weight: 700; font-size: 14px; background: color-mix(in srgb, var(--gold) 14%, var(--bg)); border: 1px solid color-mix(in srgb, var(--gold) 55%, var(--line)); color: var(--gold); }
+.badge.locked { color: var(--muted); background: var(--bg); border-color: var(--line); border-style: dashed; }
+.badge small { font-weight: 600; color: var(--muted); }
+
+.quest { padding: 12px 14px; border-radius: 12px; background: color-mix(in srgb, var(--work) 7%, var(--bg)); border: 1px solid color-mix(in srgb, var(--work) 35%, var(--line)); display: flex; flex-direction: column; gap: 6px; }
+.quest .qtop { display: flex; justify-content: space-between; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.quest b { font-size: 17px; }
+.quest .pct { font-family: var(--f-pop); font-weight: 400; color: var(--work); font-size: 18px; }
+.qbar { height: 10px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; position: relative; }
+.qbar i { display: block; height: 100%; background: var(--work); border-radius: 999px; }
+.qbar em { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--win); left: 85%; }
+.quest .tip { color: var(--muted); font-size: 15px; }
+.quest .tip strong { color: var(--text); }
+.go { align-self: flex-start; text-decoration: none; font: 700 14px var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--bg); background: var(--acc); border-radius: 999px; padding: 10px 16px 8px; }
+.empty { text-align: center; padding: 36px 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.empty .big { font-size: 46px; }
+.empty p { margin: 0; color: var(--muted); max-width: 46ch; }
+.note { color: var(--muted); font-size: 14px; margin: 0; }
+.signin { background: var(--card); border: 1px solid var(--line); border-radius: 20px; padding: 28px 22px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.signin h1 { font-family: var(--f-display); font-weight: 400; margin: 0; font-size: 40px; }
+.signin p { margin: 0; color: var(--muted); max-width: 50ch; }
+@media (prefers-reduced-motion: reduce) { .hero .gj { animation: none; } .xp i { transition: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <a class="pill" href="https://drkeyzzz.github.io/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 12 3l9 8"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/></svg>Music Theory Games</a>
+  </div>
+
+  <section class="signin" id="signin" hidden>
+    <h1>My Music Report</h1>
+    <p>Sign in on the home page with your name and class code, then come back here to see your trophies, badges and what to practice next.</p>
+    <a class="go" style="--acc: var(--gold)" href="https://drkeyzzz.github.io/">Sign in on the home page →</a>
+  </section>
+
+  <div id="report" hidden style="display:flex;flex-direction:column;gap:18px">
+    <section class="player" aria-label="Player card">
+      <div class="avatar" id="avatar" aria-hidden="true">?</div>
+      <div class="who">
+        <h1 id="p-name"></h1>
+        <p class="cls" id="p-class"></p>
+        <div class="lvl"><b id="p-level"></b><div class="xp" id="p-xpbar"><i id="p-xp"></i></div><small id="p-xptext"></small></div>
+      </div>
+      <div class="streak"><div class="f" aria-hidden="true">🔥</div><b id="p-streak">0 days</b><span>Practice streak</span></div>
+    </section>
+    <nav class="tabs" role="tablist" aria-label="Games" id="tabs"></nav>
+    <section class="panel" id="panel" role="tabpanel"></section>
+    <p class="note" id="note">Your trophies come from your leaderboard scores. Your strengths and quests come from the practice saved on this computer.</p>
+  </div>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const fmt = n => Number(n || 0).toLocaleString();
+const PROFILE_KEY = 'rdt_profile_v1', GUEST_KEY = 'music_guest';
+const FIREBASE = { apiKey: 'AIzaSyDU9vbCWJ4yWuD8bAX984DmQF4dvo13BHs', authDomain: 'rhythm-trainer-fc313.firebaseapp.com', projectId: 'rhythm-trainer-fc313', appId: '1:956677028482:web:c3ec72a279e61b6f6c929b' };
+let fbP = null;
+function fb() {
+  const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+  fbP = fbP || Promise.all([import(SDK + 'firebase-app.js'), import(SDK + 'firebase-firestore.js')])
+    .then(([appMod, fs]) => ({ fs, db: fs.getFirestore(appMod.initializeApp(FIREBASE)) }))
+    .catch(e => { fbP = null; throw e; });
+  return fbP;
+}
+const wait = p => Promise.race([p, new Promise((_, bad) => setTimeout(() => bad(new Error('timeout')), 12000))]);
+function getProfile() { try { if (sessionStorage.getItem(GUEST_KEY) === '1') return null; const p = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null'); return p && p.first && p.init ? p : null; } catch { return null; } }
+const displayName = p => `${p.first.charAt(0).toUpperCase()}${p.first.slice(1)} ${p.init}.`;
+const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const daysAgo = n => { const d = new Date(); d.setDate(d.getDate() - n); return dayKey(d); };
+
+const GAMES = [
+  { id: 'rooftop', name: 'Rooftop Runner', acc: '#ff4fa3', url: 'https://drkeyzzz.github.io/rooftop-runner/', col: 'sight_scores', unit: 'notes on time', cheers: ['GOOD JOB!', 'ON FIRE!', 'NAILED IT!'] },
+  { id: 'tidal', name: 'Tidal Tones', acc: '#ffc85c', url: 'https://drkeyzzz.github.io/tidal-tones/', col: 'tidal_scores', unit: 'notes named', cheers: ['AWESOME!', 'SMOOTH SAILING!', 'GREAT WORK!'] },
+  { id: 'rhythm', name: 'Rhythm Trainer', acc: '#8b7bff', url: 'https://drkeyzzz.github.io/rhythm-trainer/', col: 'rhythm_scores', unit: 'rhythms right', cheers: ['NICE WORK!', 'GROOVY!', 'IN THE POCKET!'] },
+  { id: 'scale', name: 'Scale Quest', acc: '#3ee8f0', url: 'https://drkeyzzz.github.io/scale-quest/', col: 'scale_scores', unit: 'answers right', cheers: ['WAY TO GO!', 'SCALE STAR!', 'LEVEL UP!'] },
+];
+
+// ---------- data: practice saved on this computer, plus posted leaderboard scores ----------
+function history(p) {
+  let h = null; try { h = JSON.parse(localStorage.getItem('mtg_hist_v1:' + (p.first + p.init).toLowerCase().replace(/[^a-z]/g, '')) || 'null'); } catch {}
+  return h && h.days ? h.days : {};
+}
+async function scores(p) {
+  const out = {}; GAMES.forEach(g => out[g.id] = []);
+  try {
+    const { fs, db } = await fb(), name = displayName(p);
+    await Promise.all(GAMES.map(async g => {
+      try {
+        const snap = await wait(fs.getDocs(fs.query(fs.collection(db, g.col), fs.where('name', '==', name))));
+        // the same name in another class is a different student
+        out[g.id] = snap.docs.map(d => { const r = d.data(); return { ...r, at: r.created_at && r.created_at.toDate ? r.created_at.toDate() : null }; })
+          .filter(r => (r.class_code || '') === (p.classCode || ''));
+      } catch {}
+    }));
+  } catch {}
+  return out;
+}
+// per game: totals from the history, all-time and this week
+function practice(days, gid) {
+  const t = { answers: 0, correct: 0, ms: 0, plays: 0, best: 0, level: 0, bpm: 0, caught: 0, acc: 0, skills: {}, days: 0, week: { answers: 0, correct: 0, plays: 0, best: 0 }, prev: { answers: 0, correct: 0, best: 0 } };
+  const wk = daysAgo(6), pw = daysAgo(13);
+  for (const [d, games] of Object.entries(days)) {
+    const g = games[gid]; if (!g) continue;
+    t.days++; t.answers += g.answers || 0; t.correct += g.correct || 0; t.ms += g.ms || 0; t.plays += g.plays || 0;
+    t.best = Math.max(t.best, g.best || 0); t.level = Math.max(t.level, g.level || 0); t.bpm = Math.max(t.bpm, g.bpm || 0); t.caught += g.caught || 0; t.acc = Math.max(t.acc, g.acc || 0);
+    for (const [lab, [r, n]] of Object.entries(g.skills || {})) { const s = t.skills[lab] || (t.skills[lab] = [0, 0]); s[0] += r; s[1] += n; }
+    const bucket = d >= wk ? t.week : d >= pw ? t.prev : null;
+    if (bucket) { bucket.answers += g.answers || 0; bucket.correct += g.correct || 0; bucket.best = Math.max(bucket.best, g.best || 0); if (bucket.plays != null) bucket.plays += g.plays || 0; }
+  }
+  return t;
+}
+const pct = (r, n) => n ? Math.round(100 * r / n) : 0;
+
+// ---------- tips for the things to work on ----------
+const TIPS = [
+  [/^[A-G][♯♭]?\d? in [A-G]/, 'Check the <strong>key signature</strong> before you start. It changes this note every time it appears.'],
+  [/build the scale/i, 'Start on the tonic and follow <strong>W W H W W W H</strong>. Say each note name as you click it.'],
+  [/piano notes/i, 'Find the two black-key group and the three black-key group first. <strong>C is left of the two.</strong>'],
+  [/staff notes/i, 'Name the line or space first, then add the <strong>sharp or flat from the key signature</strong>.'],
+  [/syncopat/i, 'Tap the beat with your foot and <strong>clap between the taps</strong>.'],
+  [/compound|6\/8/i, 'In 6/8, feel <strong>two big beats</strong>, each split into three: "1-la-li 2-la-li".'],
+  [/ time$/i, 'Count the beats in each bar before you listen. <strong>The top number tells you how many.</strong>'],
+  [/eighth/i, 'Count <strong>"1 and 2 and"</strong> out loud while you play. Slow the tempo down in Practice mode.'],
+  [/sixteenth/i, 'Count <strong>"1 e and a"</strong>. Clap it first, then play it.'],
+  [/triplet/i, 'Say <strong>"tri-po-let"</strong> evenly on each beat.'],
+  [/dotted/i, 'A dot adds <strong>half the note\'s value</strong>. Count it, then play.'],
+  [/half note|held|hold/i, 'Hold half notes for <strong>two full beats</strong>. Keep the sound going to the end.'],
+  [/whole/i, 'Hold whole notes for <strong>all four beats</strong>.'],
+  [/tied/i, 'Play the first note and <strong>hold through the tie</strong>. Don\'t play it again.'],
+  [/rest/i, 'Keep counting through rests. <strong>Silence is part of the rhythm.</strong>'],
+  [/ledger/i, 'Count the lines and spaces <strong>out from the staff</strong>, one step at a time.'],
+  [/bass clef/i, 'Bass clef spaces: <strong>All Cows Eat Grass</strong>. Lines: <strong>Good Boys Do Fine Always</strong>.'],
+  [/treble clef/i, 'Treble clef spaces spell <strong>F A C E</strong>. Lines: <strong>Every Good Boy Does Fine</strong>.'],
+  [/alto clef/i, 'In alto clef, the middle line is <strong>middle C</strong>.'],
+  [/major/i, 'Say the key signature first, then build the scale: <strong>W W H W W W H</strong>.'],
+  [/interval|2nd|3rd|4th|5th|6th|7th|octave/i, 'Count every line and space from the bottom note to the top note, <strong>including both notes</strong>.'],
+  [/live|instrument|tuning/i, 'Tune up first, and use headphones so the game hears only you.'],
+  [/[A-G][♯♭]?\d/, 'Find this note on your instrument, then say its name every time you see it.'],
+];
+const tipFor = lab => (TIPS.find(([re]) => re.test(lab)) || [null, 'Practice this one slowly, then speed up a little each time.'])[1];
+const iconFor = lab => /note|rest|rhythm|eighth|sixteenth|triplet|dotted|tied|whole|half|quarter/i.test(lab) ? '🥁' : /major|scale/i.test(lab) ? '🎹' : /clef|ledger/i.test(lab) ? '🎼' : /live/i.test(lab) ? '🎤' : '🎵';
+const stars = a => a >= 97 ? 5 : a >= 92 ? 4 : a >= 85 ? 3 : 2;
+
+// ---------- badges: earned from scores and practice ----------
+function badges(gid, t, sc) {
+  const best = Math.max(t.best, ...sc.map(r => r.score || 0), 0), runs = Math.max(t.plays, sc.length);
+  const common = [['🎮', 'First Game', runs >= 1], ['🔁', 'Ten Games', runs >= 10], ['💯', '100 Right', t.correct >= 100], ['🏅', '500 Right', t.correct >= 500]];
+  const per = {
+    rooftop: [['🦹', 'Villain Catcher', t.caught >= 1 || sc.some(r => (r.level || 0) >= 2)], ['🚀', '100 BPM Club', Math.max(t.bpm, ...sc.map(r => r.bpm || 0), 0) >= 100], ['🏙️', 'Level 5 Runner', Math.max(t.level, ...sc.map(r => r.level || 0), 0) >= 5], ['🎤', 'Live Performer', sc.some(r => r.style === 'live') || Object.keys(t.skills).some(k => /^Live/.test(k))], ['👑', 'Expert Runner', sc.some(r => r.diff === 'expert')]],
+    tidal: [['⚓', 'Harbor Master', Math.max(t.level, ...sc.map(r => r.level || 0), 0) >= 5], ['🎯', 'Sharpshooter', sc.some(r => (r.acc || 0) >= 95)], ['📐', 'Interval Explorer', sc.some(r => r.answer === 'intervals') || Object.keys(t.skills).includes('Intervals')], ['🎼', 'Bass Clef Pro', sc.some(r => r.clef === 'bass' && (r.acc || 0) >= 90)]],
+    rhythm: [['👂', 'Golden Ear', sc.some(r => (r.score || 0) >= 90)], ['🥁', 'Perfect Score', sc.some(r => (r.score || 0) >= 100)], ['🏆', 'Hard Level', sc.some(r => r.level === 'hard' || r.level === 'extreme')], ['🔥', 'Extreme Level', sc.some(r => r.level === 'extreme')]],
+    scale: [['⭐', 'Scale Star', t.acc >= 90 || sc.some(r => (r.accuracy || 0) >= 90)], ['🗝️', 'Key Collector', t.level >= 6 || sc.some(r => (r.key_count || 0) >= 6)], ['🌀', 'CHAOS Survivor', sc.length >= 1 || t.best > 0], ['💎', 'CHAOS 3000', best >= 3000]],
+  };
+  return per[gid].concat(common);
+}
+
+// ---------- build one game's tab ----------
+function gamePanel(g, t, sc) {
+  const best = Math.max(t.best, ...sc.map(r => r.score || 0), 0);
+  const runs = Math.max(t.plays, sc.length);
+  if (!runs && !t.answers) {
+    return `<div class="box empty"><div class="big">🎮</div><h2 style="color:var(--acc)">Your ${esc(g.name)} adventure starts here!</h2><p>Play a game while you're signed in and this page fills up with your trophies, badges and next quests.</p><a class="go" href="${g.url}">Play ${esc(g.name)} →</a></div>`;
+  }
+  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+  const recent = sc.filter(r => r.at && r.at >= weekAgo), older = sc.filter(r => !r.at || r.at < weekAgo);
+  const bestRecent = Math.max(0, ...recent.map(r => r.score || 0)), bestOlder = Math.max(0, ...older.map(r => r.score || 0));
+  const record = recent.length && bestRecent >= best && bestRecent > bestOlder;
+  const accAll = pct(t.correct, t.answers);
+  // trophies
+  const tro = [];
+  const scoreFmt = g.id === 'rhythm' ? v => v + '%' : fmt;
+  tro.push(['Best score', best ? scoreFmt(best) : '—', record ? '🏆 New record this week!' : bestOlder && bestRecent > 0 ? `▲ ${scoreFmt(bestRecent)} this week` : '', true]);
+  tro.push(['Games played', fmt(runs), recent.length ? `${recent.length} this week` : '']);
+  if (g.id === 'rooftop') {
+    const lvl = Math.max(t.level, ...sc.map(r => r.level || 0), 0), bpm = Math.max(t.bpm, ...sc.map(r => r.bpm || 0), 0);
+    tro.push(['Top tempo', bpm ? bpm + ' BPM' : '—', lvl ? `Reached level ${lvl}` : '']);
+    tro.push(['Villains caught', fmt(t.caught), t.caught ? 'Got \'em!' : 'Catch your first!']);
+  } else if (g.id === 'tidal') {
+    tro.push(['Best level', Math.max(t.level, ...sc.map(r => r.level || 0), 0) || '—', '']);
+    tro.push(['Best accuracy', Math.max(t.acc, ...sc.map(r => r.acc || 0), 0) + '%', '']);
+  } else if (g.id === 'rhythm') {
+    tro.push(['Rhythms right', fmt(t.correct || sc.reduce((s, r) => s + (r.correct || 0), 0)), '']);
+    tro.push(['Hardest level', sc.some(r => r.level === 'extreme') ? 'Extreme' : sc.some(r => r.level === 'hard') ? 'Hard' : sc.length ? 'Easy' : '—', '']);
+  } else {
+    tro.push(['Best accuracy', Math.max(t.acc, ...sc.map(r => r.accuracy || 0), 0) + '%', '']);
+    tro.push(['Most keys', Math.max(0, ...sc.map(r => r.key_count || 0)) || '—', '']);
+  }
+  if (t.answers) {
+    const wk = pct(t.week.correct, t.week.answers), pv = pct(t.prev.correct, t.prev.answers);
+    tro.push(['Accuracy', accAll + '%', t.prev.answers && t.week.answers && wk > pv ? `▲ +${wk - pv}% this week` : t.week.answers ? `${wk}% this week` : '']);
+  }
+  // strengths and quests from the skills practiced on this computer
+  const skills = Object.entries(t.skills).map(([lab, [r, n]]) => ({ lab, r, n, a: pct(r, n) }));
+  const wins = skills.filter(s => s.n >= 5 && s.a >= 85).sort((x, y) => y.a * Math.log(y.n + 1) - x.a * Math.log(x.n + 1)).slice(0, 3);
+  const quests = skills.filter(s => s.n >= 4 && s.a < 85).sort((x, y) => x.a - y.a).slice(0, 3);
+  // always celebrate something
+  if (wins.length < 2) {
+    if (best) wins.push({ lab: `Best score: ${scoreFmt(best)}`, s: 'Your top run so far', star: 4 });
+    if (runs >= 3) wins.push({ lab: `${fmt(runs)} games played`, s: 'Practice makes progress!', star: Math.min(5, 2 + Math.floor(runs / 5)) });
+    if (t.correct) wins.push({ lab: `${fmt(t.correct)} ${g.unit}`, s: 'Every one counts', star: 4 });
+  }
+  const winRows = wins.slice(0, 3).map(w => `<div class="win"><span class="ic" aria-hidden="true">${w.s ? '🏆' : iconFor(w.lab)}</span><b>${esc(w.lab)}</b><span class="stars" aria-label="${w.star || stars(w.a)} of 5 stars">${'★'.repeat(w.star || stars(w.a))}${'☆'.repeat(5 - (w.star || stars(w.a)))}</span><span class="s">${w.s ? esc(w.s) : `${w.a}% right (${w.r} of ${w.n})`}</span></div>`).join('');
+  const bd = badges(g.id, t, sc), earned = bd.filter(b => b[2]).length;
+  const questRows = quests.length ? quests.map(q => `<div class="quest"><div class="qtop"><b>${esc(q.lab)}</b><span class="pct">${q.a}%</span></div><div class="qbar" aria-label="${q.a}% right, goal 85%"><i style="width:${q.a}%"></i><em></em></div><span class="tip">${tipFor(q.lab)}</span><a class="go" href="${g.url}">Practice it →</a></div>`).join('')
+    : `<div class="quest"><div class="qtop"><b>${t.answers ? 'Nothing below 85%. Amazing!' : 'Unlock your skill breakdown'}</b></div><span class="tip">${t.answers ? 'Try the <strong>next difficulty up</strong> or a faster tempo to find your next challenge.' : 'Play a few games on this computer while signed in and your strongest and weakest skills show up here.'}</span><a class="go" href="${g.url}">Play ${esc(g.name)} →</a></div>`;
+  const cheer = g.cheers[(runs + t.correct) % g.cheers.length];
+  const lineBits = [];
+  if (t.week.answers) lineBits.push(`you got <b>${fmt(t.week.correct)} ${g.unit}</b> this week`);
+  else if (t.correct) lineBits.push(`you've got <b>${fmt(t.correct)} ${g.unit}</b> so far`);
+  if (g.id === 'rooftop' && t.caught) lineBits.push(`caught <b>${t.caught} villain${t.caught > 1 ? 's' : ''}</b>`);
+  if (best) lineBits.push(`your best score is <b>${scoreFmt(best)}</b>`);
+  if (record) lineBits.push(`and you set a <b>new record</b>`);
+  const line = lineBits.length ? lineBits.join(', ').replace(/^./, c => c.toUpperCase()) + '!' : 'Great start! Keep playing to fill your trophy case.';
+  return `
+    <div class="hero"><canvas class="confetti" aria-hidden="true"></canvas><h2 class="gj">${cheer}</h2><p>${line}</p></div>
+    <div class="trophies">${tro.map(([k, v, n, b]) => `<div class="trophy${b ? ' best' : ''}"><span class="k">${k}</span><span class="v">${esc(v)}</span><span class="n">${n}</span></div>`).join('')}</div>
+    <div class="cols">
+      <div class="box good">
+        <h2>You're crushing it</h2>
+        ${winRows}
+        <h2 style="margin-top:6px;font-size:16px;color:var(--gold)">Badges <small style="font-family:var(--f-ui);color:var(--muted);font-size:14px">${earned} of ${bd.length}</small></h2>
+        <div class="badges">${bd.map(([ic, n, ok]) => `<span class="badge${ok ? '' : ' locked'}">${ok ? ic : '🔒'} ${esc(n)}</span>`).join('')}</div>
+      </div>
+      <div class="box work">
+        <h2>Your next quest</h2>
+        <p class="sub">Level these up to 85% to master them.</p>
+        ${questRows}
+      </div>
+    </div>`;
+}
+
+function confetti(panel, acc) {
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const cv = panel.querySelector('.confetti'); if (!cv) return;
+  const ctx = cv.getContext('2d'), r = cv.getBoundingClientRect(), d = Math.min(2, devicePixelRatio || 1);
+  cv.width = r.width * d; cv.height = r.height * d; ctx.scale(d, d);
+  const cols = [acc, '#ffc85c', '#7dffb0', '#f1ece0'], P = Array.from({ length: 70 }, (_, i) => ({ x: r.width * (.1 + .8 * Math.random()), y: -10 - Math.random() * 60, vx: (Math.random() - .5) * 2.4, vy: 1.5 + Math.random() * 2.5, s: 4 + Math.random() * 5, a: Math.random() * 6, c: cols[i % 4] }));
+  const t0 = performance.now();
+  (function f(now) {
+    const t = now - t0; ctx.clearRect(0, 0, r.width, r.height);
+    for (const p of P) { p.x += p.vx; p.y += p.vy; p.vy += .03; p.a += .12; ctx.save(); ctx.globalAlpha = Math.max(0, 1 - t / 2600); ctx.translate(p.x, p.y); ctx.rotate(p.a); ctx.fillStyle = p.c; ctx.fillRect(-p.s / 2, -p.s / 4, p.s, p.s / 2); ctx.restore(); }
+    if (t < 2600) requestAnimationFrame(f);
+  })(t0);
+}
+
+// ---------- the page ----------
+async function boot() {
+  const p = getProfile();
+  if (!p) { $('signin').hidden = false; return; }
+  $('report').hidden = false;
+  $('avatar').textContent = p.first.charAt(0).toUpperCase();
+  $('p-name').textContent = displayName(p);
+  $('p-class').textContent = p.classCode ? `${p.className && p.className !== p.classCode ? p.className + ' · ' : ''}${p.classCode}` : 'Not in a class';
+  const days = history(p), T = {};
+  GAMES.forEach(g => T[g.id] = practice(days, g.id));
+  let S = {}; GAMES.forEach(g => S[g.id] = []);
+  const render = () => {
+    // XP: every right answer and every game counts, across all four games
+    const xp = GAMES.reduce((s, g) => s + T[g.id].correct * 2 + Math.max(T[g.id].plays, S[g.id].length) * 25, 0);
+    let level = 1, need = 200, base = 0;
+    while (xp >= base + need) { base += need; level++; need = Math.round(need * 1.25); }
+    const titles = ['Beginner', 'Rookie', 'Rising Star', 'Musician', 'Performer', 'Virtuoso', 'Maestro', 'Legend'];
+    $('p-level').textContent = `LEVEL ${level} ${titles[Math.min(titles.length - 1, Math.floor((level - 1) / 2))].toUpperCase()}`;
+    $('p-xp').style.width = Math.round(100 * (xp - base) / need) + '%';
+    $('p-xptext').textContent = `${fmt(xp - base)} / ${fmt(need)} XP to level ${level + 1}`;
+    // streak: days in a row with any practice or posted score, ending today or yesterday
+    const active = new Set(Object.keys(days).filter(d => Object.values(days[d]).some(g => (g.answers || 0) + (g.plays || 0) > 0)));
+    GAMES.forEach(g => S[g.id].forEach(r => r.at && active.add(dayKey(r.at))));
+    let n = 0, start = active.has(dayKey()) ? 0 : 1;
+    while (active.has(daysAgo(start + n))) n++;
+    $('p-streak').textContent = `${n} day${n === 1 ? '' : 's'}`;
+    showTab(current);
+  };
+  // open on the game played most recently
+  const lastPlayed = gid => { const ds = Object.keys(days).filter(d => days[d][gid]).sort(); return ds.length ? ds[ds.length - 1] : ''; };
+  let current = GAMES.map((g, i) => [lastPlayed(g.id), i]).sort().pop()[1];
+  $('tabs').innerHTML = GAMES.map((g, i) => `<button role="tab" id="tab-${g.id}" aria-controls="panel" style="--acc:${g.acc}" data-i="${i}"><i></i>${esc(g.name)}</button>`).join('');
+  function showTab(i) {
+    current = i; const g = GAMES[i];
+    for (const b of $('tabs').children) { b.setAttribute('aria-selected', String(+b.dataset.i === i)); b.tabIndex = +b.dataset.i === i ? 0 : -1; }
+    const panel = $('panel'); panel.style.setProperty('--acc', g.acc); panel.setAttribute('aria-labelledby', 'tab-' + g.id);
+    panel.innerHTML = gamePanel(g, T[g.id], S[g.id]);
+    confetti(panel, g.acc);
+  }
+  $('tabs').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (b) showTab(+b.dataset.i); });
+  $('tabs').addEventListener('keydown', e => { if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return; const n = (current + (e.key === 'ArrowRight' ? 1 : GAMES.length - 1)) % GAMES.length; showTab(n); $('tabs').children[n].focus(); });
+  render();
+  S = await scores(p);
+  render();
+}
+boot();
+})();
+</script>
+</body>
+</html>
