@@ -242,19 +242,39 @@ const GAMES = [
 const history = p => { const h = load('mtg_hist_v1:' + sidOf(p)); return h && h.days ? h.days : {}; };
 // per game: totals from the history, all-time and this week
 function practice(days, gid) {
-  const t = { answers: 0, correct: 0, ms: 0, plays: 0, best: 0, level: 0, bpm: 0, caught: 0, acc: 0, skills: {}, days: 0, week: { answers: 0, correct: 0 }, prev: { answers: 0, correct: 0 } };
+  const t = { answers: 0, correct: 0, ms: 0, plays: 0, best: 0, level: 0, bpm: 0, caught: 0, acc: 0, skills: {}, skW: {}, skP: {}, days: 0, week: { answers: 0, correct: 0 }, prev: { answers: 0, correct: 0 } };
   const wk = daysAgo(6), pw = daysAgo(13);
   for (const [d, games] of Object.entries(days)) {
     const g = games[gid]; if (!g) continue;
     t.days++; t.answers += g.answers || 0; t.correct += g.correct || 0; t.ms += g.ms || 0; t.plays += g.plays || 0;
     t.best = Math.max(t.best, g.best || 0); t.level = Math.max(t.level, g.level || 0); t.bpm = Math.max(t.bpm, g.bpm || 0); t.caught += g.caught || 0; t.acc = Math.max(t.acc, g.acc || 0);
-    for (const [lab, [r, n]] of Object.entries(g.skills || {})) { const s = t.skills[lab] || (t.skills[lab] = [0, 0]); s[0] += r; s[1] += n; }
-    const bucket = d >= wk ? t.week : d >= pw ? t.prev : null;
+    const bucket = d >= wk ? t.week : d >= pw ? t.prev : null, skB = d >= wk ? t.skW : d >= pw ? t.skP : null;
+    for (const [lab, [r, n]] of Object.entries(g.skills || {})) {
+      const s = t.skills[lab] || (t.skills[lab] = [0, 0]); s[0] += r; s[1] += n;
+      if (skB) { const b = skB[lab] || (skB[lab] = [0, 0]); b[0] += r; b[1] += n; }
+    }
     if (bucket) { bucket.answers += g.answers || 0; bucket.correct += g.correct || 0; }
   }
   return t;
 }
 const pct = (r, n) => n ? Math.round(100 * r / n) : 0;
+// skills that went up at least 5 points this week compared with last week (with enough answers both weeks to mean something)
+function improvements(t) {
+  return Object.keys(t.skW).map(lab => {
+    const [r1, n1] = t.skW[lab], p = t.skP[lab];
+    if (!p || n1 < 5 || p[1] < 5) return null;
+    const now = pct(r1, n1), d = now - pct(p[0], p[1]);
+    return d >= 5 ? { lab, d, now } : null;
+  }).filter(Boolean).sort((x, y) => y.d - x.d);
+}
+// "Practice this" opens the game already set up for the skill (each game reads ?focus=)
+const FOCUS = {
+  scale: lab => /(major|minor|Dorian|Phrygian|Lydian|Mixolydian|Aeolian|Locrian)$/.test(lab),
+  rhythm: lab => /^(Quarters & eighths|Sixteenths|Dotted rhythms|Rests|Syncopation|Compound beat|Triplets|Hemiola & duplets)$/.test(lab) || / (level|time)$/.test(lab),
+  tidal: lab => /^(Treble|Bass|Alto) clef notes$|^Ledger lines$|^Intervals$|^[A-G][♯♭]?\d|^([MmPAd][2-8]|2nd|3rd|[4-7]th|Octave)$/.test(lab),
+  rooftop: lab => /^(Sixteenth triplets|Syncopation|Eighth notes|Quarter notes|Dotted quarters|Half notes|Dotted halves|Whole notes|Sixteenth notes|Dotted eighths|Triplets)$/.test(lab),
+};
+const practiceLink = (g, lab) => (FOCUS[g.id] && FOCUS[g.id](lab) ? `${g.url}?focus=${encodeURIComponent(lab)}` : g.url);
 
 // ---------- leaderboard scores: a running summary per game, saved on this computer ----------
 // The first visit reads the student's own scores once; later visits read only scores posted since then.
@@ -490,14 +510,17 @@ function gamePanel(g, t, a, list) {
     if (runs >= 3) wins.push({ lab: `${fmt(runs)} games played`, s: 'Practice makes progress!', star: Math.min(5, 2 + Math.floor(runs / 5)) });
     if (t.correct) wins.push({ lab: `${fmt(t.correct)} ${g.unit}`, s: 'Every one counts', star: 4 });
   }
-  const winRows = wins.slice(0, 3).map(w => `<div class="win"><span class="ic" aria-hidden="true">${w.s ? '🏆' : iconFor(w.lab)}</span><b>${esc(w.lab)}</b><span class="stars" aria-label="${w.star || stars(w.a)} of 5 stars">${'★'.repeat(w.star || stars(w.a))}${'☆'.repeat(5 - (w.star || stars(w.a)))}</span><span class="s">${w.s ? esc(w.s) : `${w.a}% right (${w.r} of ${w.n})`}</span></div>`).join('');
-  const questRows = quests.length ? quests.map(q => `<div class="quest"><div class="qtop"><b>${esc(q.lab)}</b><span class="pct">${q.a}%</span></div><div class="qbar" aria-label="${q.a}% right, goal 85%"><i style="width:${q.a}%"></i><em></em></div><span class="tip">${tipFor(q.lab)}</span><a class="go" href="${g.url}">Practice it →</a></div>`).join('')
+  const imp = improvements(t);
+  const impRows = imp.slice(0, 2).map(x => `<div class="win"><span class="ic" aria-hidden="true">📈</span><b>+${x.d}% in ${esc(x.lab)}</b><span class="stars" aria-hidden="true">${'★'.repeat(stars(x.now))}${'☆'.repeat(5 - stars(x.now))}</span><span class="s">You improved ${x.d}% this week. Now ${x.now}% right!</span></div>`).join('');
+  const winRows = impRows + wins.slice(0, Math.max(1, 3 - Math.min(2, imp.length))).map(w => `<div class="win"><span class="ic" aria-hidden="true">${w.s ? '🏆' : iconFor(w.lab)}</span><b>${esc(w.lab)}</b><span class="stars" aria-label="${w.star || stars(w.a)} of 5 stars">${'★'.repeat(w.star || stars(w.a))}${'☆'.repeat(5 - (w.star || stars(w.a)))}</span><span class="s">${w.s ? esc(w.s) : `${w.a}% right (${w.r} of ${w.n})`}</span></div>`).join('');
+  const questRows = quests.length ? quests.map(q => `<div class="quest"><div class="qtop"><b>${esc(q.lab)}</b><span class="pct">${q.a}%</span></div><div class="qbar" aria-label="${q.a}% right, goal 85%"><i style="width:${q.a}%"></i><em></em></div><span class="tip">${tipFor(q.lab)}</span><a class="go" href="${practiceLink(g, q.lab)}">${FOCUS[g.id] && FOCUS[g.id](q.lab) ? 'Practice this ▶' : 'Practice it →'}</a></div>`).join('')
     : `<div class="quest"><div class="qtop"><b>${t.answers ? 'Nothing below 85%. Amazing!' : 'Unlock your skill breakdown'}</b></div><span class="tip">${t.answers ? 'Try the <strong>next difficulty up</strong> or a faster tempo to find your next challenge.' : 'Play a few games on this computer while signed in and your strongest and weakest skills show up here.'}</span><a class="go" href="${g.url}">Play ${esc(g.name)} →</a></div>`;
   // the next badge level that's closest, as an extra quest
   const near = list.filter(b => !b.def.special && b.tier < b.def.tiers.length).map(b => { const goal = b.def.tiers[b.tier], from = b.tier ? b.def.tiers[b.tier - 1] : 0; return { b, goal, p: (b.v - from) / Math.max(1, goal - from) }; }).sort((x, y) => y.p - x.p)[0];
   const badgeQuest = near ? `<div class="quest"><div class="qtop"><b>${near.b.def.ic} ${esc(near.b.def.name)}: ${TIERS[near.b.tier][0]}</b><span class="pct">${Math.round(near.p * 100)}%</span></div><div class="qbar" aria-hidden="true"><i style="width:${Math.round(near.p * 100)}%"></i></div><span class="tip">${esc(near.b.def.left(near.b.v, near.goal))} to level up this badge!</span></div>` : '';
   const cheer = g.cheers[(runs + t.correct) % g.cheers.length];
   const lineBits = [];
+  if (imp.length) lineBits.push(`you improved <b>${imp[0].d}%</b> in <b>${esc(imp[0].lab)}</b> this week`);
   if (t.week.answers) lineBits.push(`you got <b>${fmt(t.week.correct)} ${g.unit}</b> this week`);
   else if (t.correct) lineBits.push(`you've got <b>${fmt(t.correct)} ${g.unit}</b> so far`);
   if (g.id === 'rooftop' && t.caught) lineBits.push(`caught <b>${t.caught} villain${t.caught > 1 ? 's' : ''}</b>`);
@@ -528,6 +551,8 @@ function allPanel(ctx) {
       <div class="trophy"><span class="k">Badges</span><span class="v">${earned.length} / ${everything.length}</span><span class="n">${everything.filter(b => !b.def.special && b.tier >= 3).length} Gold or better</span></div>
       <div class="trophy"><span class="k">Right answers</span><span class="v">${fmt(X.correct)}</span><span class="n">${fmt(X.minutes)} minutes practiced</span></div>
     </div>
+    ${(() => { const ups = GAMES.flatMap(g => improvements(ctx.T[g.id]).map(x => ({ ...x, g }))).sort((a, b) => b.d - a.d).slice(0, 4);
+      return ups.length ? `<div class="box good"><h2>📈 This week's level-ups</h2>${ups.map(x => `<div class="win"><span class="ic" aria-hidden="true">📈</span><b>+${x.d}% in ${esc(x.lab)}</b><span class="stars" style="font-size:13px;color:var(--muted);letter-spacing:0">${esc(x.g.name)}</span><span class="s">Now ${x.now}% right. Keep it up!</span></div>`).join('')}</div>` : ''; })()}
     ${rare.length ? `<div class="shelfbox"><div class="hd"><h2>Your rarest badges</h2><span class="count">Your highest levels</span></div><div class="shelf">${rare.map(medal).join('')}</div></div>` : ''}
     ${shelf(all, 'All-games badges')}
     <div class="games4">${GAMES.map((g, i) => { const l = perGame[g.id], e = l.filter(b => b.tier > 0).length; return `<button type="button" class="gcard" data-goto="${i + 1}" style="--gacc:${g.acc}"><b>${esc(g.name)}</b><span class="gb">${e} of ${l.length} badges</span><span>See this game's report →</span></button>`; }).join('')}</div>`;
@@ -575,7 +600,8 @@ async function boot() {
   const p = getProfile();
   if (!p) { $('signin').hidden = false; return; }
   $('report').hidden = false;
-  $('avatar').textContent = p.first.charAt(0).toUpperCase();
+  const ICONS = ['🎹','🎸','🎺','🎷','🥁','🎻','🪕','🎤','🎧','🎼','🎵','🪘','🪗','⭐','🔥','🚀'];
+  $('avatar').textContent = ICONS.includes(p.icon) ? p.icon : p.first.charAt(0).toUpperCase();
   $('p-name').textContent = displayName(p);
   $('p-class').textContent = p.classCode ? `${p.className && p.className !== p.classCode ? p.className + ' · ' : ''}${p.classCode}` : 'Not in a class';
   const sid = sidOf(p), days = history(p), T = {}, PH = {};
@@ -606,7 +632,7 @@ async function boot() {
     // XP: every right answer, every game and every badge level counts
     const levels = GAMES.flatMap(g => perGame[g.id]).concat(all).reduce((s, b) => s + b.tier, 0);
     const xp = GAMES.reduce((s, g) => s + T[g.id].correct * 2 + Math.max(T[g.id].plays, A[g.id].n) * 25, 0) + levels * 50;
-    return { perGame, all, X, active, xp, rank: rankOf(xp) };
+    return { perGame, all, X, active, xp, rank: rankOf(xp), T };
   };
   const tabs = [{ id: 'all', name: 'All games', acc: '#ffc85c' }].concat(GAMES);
   let current = 0;

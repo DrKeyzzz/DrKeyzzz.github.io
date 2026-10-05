@@ -273,6 +273,26 @@ function fb() {
 const wait = p => Promise.race([p, new Promise((_, bad) => setTimeout(() => bad(new Error('timeout')), 12000))]);
 const isGuest = () => { try { return sessionStorage.getItem(GUEST_KEY) === '1'; } catch { return false; } };
 function getProfile() { if (isGuest()) return null; try { const p = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null'); return p && p.first && p.init ? p : null; } catch { return null; } }
+// ---------- player icons (shared by every game: saved with the sign-in, shown next to names on leaderboards) ----------
+const ICONS = ['🎹','🎸','🎺','🎷','🥁','🎻','🪕','🎤','🎧','🎼','🎵','🪘','🪗','⭐','🔥','🚀'];   // must match iconOk() in firestore.rules
+const iconOf = p => (p && ICONS.includes(p.icon) ? p.icon : '');
+let iconBox = null;
+function iconPicker() {
+  if (iconBox) return iconBox;
+  const before = document.querySelector('label[for="wCode"], label.w-code, label[for="w-code"]'); if (!before) return null;
+  const st = document.createElement('style');
+  st.textContent = '.icon-pick{display:flex;flex-direction:column;gap:6px;text-align:left}.icon-pick .ip-l{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.8}.icon-pick .ip-g{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}.icon-pick button{font-size:22px;line-height:1;padding:7px 0;border-radius:10px;background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.18);cursor:pointer;font-family:inherit}.icon-pick button:hover{border-color:rgba(255,255,255,.5)}.icon-pick button[aria-pressed="true"]{border-color:#ffc85c;background:rgba(255,200,92,.22);box-shadow:0 0 12px -2px #ffc85c}.nm-ic{margin-right:6px}';
+  document.head.appendChild(st);
+  iconBox = document.createElement('div'); iconBox.className = 'icon-pick';
+  iconBox.innerHTML = '<span class="ip-l">Pick your icon</span><div class="ip-g" role="group" aria-label="Your icon">' + ICONS.map(i => '<button type="button" data-icon="' + i + '" aria-pressed="false" aria-label="Icon ' + i + '">' + i + '</button>').join('') + '</div>';
+  before.parentNode.insertBefore(iconBox, before);
+  iconBox.addEventListener('click', e => { const b = e.target.closest('[data-icon]'); if (b) setPickedIcon(b.dataset.icon); });
+  return iconBox;
+}
+function setPickedIcon(ic) { const box = iconPicker(); if (!box) return; box.dataset.icon = ic || ''; box.querySelectorAll('[data-icon]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.icon === ic))); }
+// no pick = a random icon, so every name still stands out
+const pickedIcon = () => { const box = iconPicker(); return box && ICONS.includes(box.dataset.icon) ? box.dataset.icon : ICONS[Math.floor(Math.random() * ICONS.length)]; };
+
 function setProfile(p) { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); sessionStorage.removeItem(GUEST_KEY); } catch {} }
 const displayName = p => `${p.first.charAt(0).toUpperCase()}${p.first.slice(1)} ${p.init}.`;
 const cleanCode = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -281,7 +301,7 @@ function render(focus) {
   const p = getProfile();
   $('who-in').hidden = !p; $('who-out').hidden = !!p;
   if (p) {
-    $('who-name').textContent = displayName(p);
+    $('who-name').textContent = (iconOf(p) ? iconOf(p) + ' ' : '') + displayName(p);
     $('who-class').textContent = p.classCode ? (p.className && p.className !== p.classCode ? `${p.className} · code ${p.classCode}` : `Class ${p.classCode}`) : 'Not in a class · World leaderboards only';
   } else {
     $('who-help').textContent = isGuest() ? "You're playing as a guest in this tab, so nothing is saved. Sign in to keep your scores and progress." : 'Sign in here and all four games remember you on this computer.';
@@ -295,6 +315,7 @@ async function submit(e) {
   err.textContent = '';
   if (!/^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ' -]{0,14}$/.test(first)) { err.textContent = 'Enter your first name (letters only).'; $('w-first').focus(); return; }
   if (!/^[A-Z]$/.test(init)) { err.textContent = 'Enter the first letter of your last name.'; $('w-init').focus(); return; }
+  if (/^\s*milnes\s*d\.?\s*$/i.test(first + ' ' + init)) { err.textContent = 'That name is reserved. Use your own first name and last initial.'; return; }   // the developer signs in from inside a game (Google check)
   let className = '', classOwner = '';
   if (!solo) {
     if (!code) { err.textContent = 'Enter the class code from your teacher, or check "I\'m not in a class."'; $('w-code').focus(); return; }
@@ -306,7 +327,7 @@ async function submit(e) {
     } catch { err.textContent = "Couldn't check the code. Check your internet connection and try again."; return; }
     finally { $('w-go').disabled = false; $('w-go').textContent = 'Sign in'; }
   }
-  setProfile({ first, init, classCode: solo ? '' : code, className, classOwner });
+  setProfile({ first, init, classCode: solo ? '' : code, className, classOwner, icon: pickedIcon() });
   render();
 }
 // keep the class name current, the way the games do (a deleted class leaves the student signed in with no class)
@@ -320,6 +341,7 @@ async function refreshClass() {
 }
 function openForm(keep) {
   const p = keep ? getProfile() : null;
+  setPickedIcon(p && p.icon);
   $('w-first').value = p ? p.first : ''; $('w-init').value = p ? p.init : ''; $('w-code').value = p ? p.classCode || '' : '';
   $('w-solo').checked = !!(p && !p.classCode); $('w-code').disabled = $('w-solo').checked; $('w-error').textContent = '';
   $('who-in').hidden = true; $('who-out').hidden = false;
