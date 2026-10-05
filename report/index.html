@@ -107,6 +107,71 @@ body { background: radial-gradient(1200px 700px at 50% -10%, var(--glow), var(--
 .signin h1 { font-family: var(--f-display); font-weight: 400; margin: 0; font-size: 40px; }
 .signin p { margin: 0; color: var(--muted); max-width: 50ch; }
 @media (prefers-reduced-motion: reduce) { .hero .gj { animation: none; } .xp i { transition: none; } }
+
+/* ---------- badges: medals with 5 levels (Bronze to Diamond), hover cards, NEW! pops ---------- */
+.shelfbox { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.shelfbox .hd { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 14px; }
+.shelfbox h2 { margin: 0; font-family: var(--f-pop); font-weight: 400; font-size: 20px; color: var(--gold); }
+.shelfbox .count { color: var(--muted); font-weight: 700; font-size: 15px; }
+.shelfbox .count b { color: var(--text); }
+.shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 12px 6px; justify-items: center; }
+.medal { all: unset; box-sizing: border-box; position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; width: 104px; padding: 8px 2px 6px; border-radius: 14px; cursor: pointer; text-align: center; -webkit-tap-highlight-color: transparent; }
+.medal:hover, .medal[aria-expanded="true"] { background: color-mix(in srgb, var(--tc) 10%, transparent); }
+.medal:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.disc { position: relative; width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; overflow: hidden;
+  background: radial-gradient(circle at 34% 28%, color-mix(in srgb, var(--tc) 55%, white), var(--tc) 48%, color-mix(in srgb, var(--tc) 55%, black));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tc) 45%, var(--bg)), 0 0 0 5px color-mix(in srgb, var(--tc) 25%, transparent), 0 0 20px -2px var(--tc); }
+.disc .ic { position: relative; z-index: 2; font-size: 31px; line-height: 1; filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
+.disc::after { content: ''; position: absolute; inset: -40%; z-index: 3; background: linear-gradient(115deg, transparent 42%, rgba(255,255,255,.6) 50%, transparent 58%); transform: translateX(-80%); pointer-events: none; }
+.medal:hover .disc::after, .medal.new .disc::after { animation: shine 1.3s ease .2s; }
+.t5 .disc::before { content: ''; position: absolute; inset: 0; z-index: 1; background: conic-gradient(#ffd1f0, #c8b6ff, #9ff3ff, #fff6b8, #ffd1f0); animation: prism 4s linear infinite; opacity: .9; }
+.t5 .spark { position: absolute; z-index: 4; color: #fff; font-size: 13px; text-shadow: 0 0 6px #fff; animation: twinkle 1.6s ease-in-out infinite; pointer-events: none; }
+.t5 .spark.s1 { top: 4px; left: 12px; } .t5 .spark.s2 { top: 30px; right: 12px; animation-delay: .5s; font-size: 10px; } .t5 .spark.s3 { bottom: 26px; left: 18px; animation-delay: 1s; font-size: 9px; }
+.pips { font-size: 9px; letter-spacing: 2px; color: var(--tc); line-height: 1; }
+.medal .disc { margin-bottom: 7px; flex: none; }
+.medal .nm { font-size: 13px; font-weight: 700; line-height: 1.15; color: var(--text); }
+.medal .tn { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--tc); font-weight: 700; }
+.medal.locked .disc { background: var(--bg); box-shadow: 0 0 0 2px var(--line); }
+.medal.locked .disc .ic { filter: grayscale(1) opacity(.3); }
+.medal.locked .lk { position: absolute; z-index: 4; right: 6px; bottom: 6px; font-size: 15px; }
+.medal.locked .nm { color: var(--muted); }
+.medal.locked .tn { color: var(--muted); }
+.medal .ribbon { position: absolute; top: 0; right: 4px; z-index: 5; font: 10px var(--f-pop); color: #fff; background: #ff4fa3; padding: 3px 6px 2px; border-radius: 6px; transform: rotate(10deg); box-shadow: 0 2px 8px rgba(255,79,163,.5); animation: wob 1.4s ease-in-out infinite; }
+.medal.new .disc { animation: medalPop .8s cubic-bezier(.2, 1.7, .4, 1) both; }
+@keyframes shine { to { transform: translateX(80%); } }
+@keyframes prism { to { filter: hue-rotate(360deg); } }
+@keyframes twinkle { 0%, 100% { opacity: .15; transform: scale(.6); } 50% { opacity: 1; transform: scale(1.15); } }
+@keyframes wob { 0%, 100% { transform: rotate(10deg) scale(1); } 50% { transform: rotate(4deg) scale(1.12); } }
+@keyframes medalPop { 0% { transform: scale(.2) rotate(-30deg); } 70% { transform: scale(1.15) rotate(6deg); } 100% { transform: scale(1) rotate(0); } }
+
+.tipcard { position: fixed; z-index: 50; width: min(310px, calc(100vw - 24px)); background: var(--card); border: 2px solid var(--tc, var(--gold)); border-radius: 16px; padding: 14px 16px; box-shadow: 0 18px 40px -10px rgba(0,0,0,.7), 0 0 26px -8px var(--tc, var(--gold)); display: flex; flex-direction: column; gap: 8px; font-size: 15px; }
+.tipcard .th { display: flex; gap: 12px; align-items: center; }
+.tipcard .th .bic { font-size: 34px; line-height: 1; }
+.tipcard .th b { display: block; font-family: var(--f-pop); font-weight: 400; font-size: 18px; line-height: 1.1; }
+.tipcard .th span { font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--tc); }
+.tipcard p { margin: 0; }
+.tipcard .when { color: var(--muted); font-size: 14px; }
+.tipcard .when b { color: var(--text); }
+.tipcard .ladder { display: flex; gap: 4px; }
+.tipcard .ladder i { flex: 1; height: 6px; border-radius: 999px; background: var(--line); }
+.tipcard .ladder i.on { background: var(--c); box-shadow: 0 0 8px -1px var(--c); }
+.tipcard .next { color: var(--text); font-weight: 700; }
+.tipcard .qbar i { background: var(--tc); }
+.tipcard .max { color: var(--gold); font-weight: 700; }
+
+.newbar { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; cursor: pointer; padding: 14px 18px; border-radius: 18px; background: linear-gradient(100deg, #ff4fa3, #ffc85c 55%, #7dffb0); color: #10131a; font-family: var(--f-pop); font-size: clamp(16px, 3.4vw, 22px); line-height: 1.15; box-shadow: 0 10px 30px -10px rgba(255,200,92,.6); animation: pop .6s cubic-bezier(.2, 1.6, .4, 1) both; }
+.newbar small { font-family: var(--f-ui); font-weight: 700; font-size: 14px; letter-spacing: .06em; text-transform: uppercase; opacity: .8; }
+.newbar:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+
+.ranktag { display: inline-flex; align-items: center; gap: 6px; }
+.games4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.gcard { all: unset; box-sizing: border-box; cursor: pointer; background: var(--card); border: 1px solid color-mix(in srgb, var(--gacc) 50%, var(--line)); border-radius: 16px; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px; }
+.gcard:hover { border-color: var(--gacc); }
+.gcard:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.gcard b { font-family: var(--f-pop); font-weight: 400; color: var(--gacc); font-size: 18px; }
+.gcard span { color: var(--muted); font-size: 14px; }
+.gcard .gb { color: var(--text); font-weight: 700; font-size: 15px; }
+@media (prefers-reduced-motion: reduce) { .t5 .disc::before, .t5 .spark, .medal .ribbon, .medal.new .disc, .newbar { animation: none; } .medal:hover .disc::after, .medal.new .disc::after { animation: none; } }
 </style>
 </head>
 <body>
@@ -114,6 +179,7 @@ body { background: radial-gradient(1200px 700px at 50% -10%, var(--glow), var(--
   <div class="top">
     <a class="pill" href="https://drkeyzzz.github.io/"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 12 3l9 8"/><path d="M5 9.5V21h5v-6h4v6h5V9.5"/></svg>Music Theory Games</a>
   </div>
+
 
   <section class="signin" id="signin" hidden>
     <h1>My Music Report</h1>
@@ -131,11 +197,13 @@ body { background: radial-gradient(1200px 700px at 50% -10%, var(--glow), var(--
       </div>
       <div class="streak"><div class="f" aria-hidden="true">🔥</div><b id="p-streak">0 days</b><span>Practice streak</span></div>
     </section>
+    <button class="newbar" id="newbar" type="button" hidden></button>
     <nav class="tabs" role="tablist" aria-label="Games" id="tabs"></nav>
     <section class="panel" id="panel" role="tabpanel"></section>
-    <p class="note" id="note">Your trophies come from your leaderboard scores. Your strengths and quests come from the practice saved on this computer.</p>
+    <p class="note" id="note">Your trophies come from your leaderboard scores. Your strengths and quests come from the practice saved on this computer. Hover over or tap a badge to see what it's for.</p>
   </div>
 </div>
+<div class="tipcard" id="tip" role="tooltip" hidden></div>
 
 <script>
 (() => {
@@ -152,11 +220,16 @@ function fb() {
     .catch(e => { fbP = null; throw e; });
   return fbP;
 }
-const wait = p => Promise.race([p, new Promise((_, bad) => setTimeout(() => bad(new Error('timeout')), 12000))]);
+const wait = p => Promise.race([p, new Promise((_, bad) => setTimeout(() => bad(new Error('timeout')), 15000))]);
+const load = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } };
+const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 function getProfile() { try { if (sessionStorage.getItem(GUEST_KEY) === '1') return null; const p = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null'); return p && p.first && p.init ? p : null; } catch { return null; } }
 const displayName = p => `${p.first.charAt(0).toUpperCase()}${p.first.slice(1)} ${p.init}.`;
+const sidOf = p => (p.first + p.init).toLowerCase().replace(/[^a-z]/g, '');
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const daysAgo = n => { const d = new Date(); d.setDate(d.getDate() - n); return dayKey(d); };
+const nextDay = k => { const [y, m, d] = k.split('-').map(Number); return dayKey(new Date(y, m - 1, d + 1)); };
+const niceDate = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); };
 
 const GAMES = [
   { id: 'rooftop', name: 'Rooftop Runner', acc: '#ff4fa3', url: 'https://drkeyzzz.github.io/rooftop-runner/', col: 'sight_scores', unit: 'notes on time', cheers: ['GOOD JOB!', 'ON FIRE!', 'NAILED IT!'] },
@@ -165,29 +238,11 @@ const GAMES = [
   { id: 'scale', name: 'Scale Quest', acc: '#3ee8f0', url: 'https://drkeyzzz.github.io/scale-quest/', col: 'scale_scores', unit: 'answers right', cheers: ['WAY TO GO!', 'SCALE STAR!', 'LEVEL UP!'] },
 ];
 
-// ---------- data: practice saved on this computer, plus posted leaderboard scores ----------
-function history(p) {
-  let h = null; try { h = JSON.parse(localStorage.getItem('mtg_hist_v1:' + (p.first + p.init).toLowerCase().replace(/[^a-z]/g, '')) || 'null'); } catch {}
-  return h && h.days ? h.days : {};
-}
-async function scores(p) {
-  const out = {}; GAMES.forEach(g => out[g.id] = []);
-  try {
-    const { fs, db } = await fb(), name = displayName(p);
-    await Promise.all(GAMES.map(async g => {
-      try {
-        const snap = await wait(fs.getDocs(fs.query(fs.collection(db, g.col), fs.where('name', '==', name))));
-        // the same name in another class is a different student
-        out[g.id] = snap.docs.map(d => { const r = d.data(); return { ...r, at: r.created_at && r.created_at.toDate ? r.created_at.toDate() : null }; })
-          .filter(r => (r.class_code || '') === (p.classCode || ''));
-      } catch {}
-    }));
-  } catch {}
-  return out;
-}
+// ---------- practice saved on this computer (MTG_HIST, written by every game) ----------
+const history = p => { const h = load('mtg_hist_v1:' + sidOf(p)); return h && h.days ? h.days : {}; };
 // per game: totals from the history, all-time and this week
 function practice(days, gid) {
-  const t = { answers: 0, correct: 0, ms: 0, plays: 0, best: 0, level: 0, bpm: 0, caught: 0, acc: 0, skills: {}, days: 0, week: { answers: 0, correct: 0, plays: 0, best: 0 }, prev: { answers: 0, correct: 0, best: 0 } };
+  const t = { answers: 0, correct: 0, ms: 0, plays: 0, best: 0, level: 0, bpm: 0, caught: 0, acc: 0, skills: {}, days: 0, week: { answers: 0, correct: 0 }, prev: { answers: 0, correct: 0 } };
   const wk = daysAgo(6), pw = daysAgo(13);
   for (const [d, games] of Object.entries(days)) {
     const g = games[gid]; if (!g) continue;
@@ -195,11 +250,140 @@ function practice(days, gid) {
     t.best = Math.max(t.best, g.best || 0); t.level = Math.max(t.level, g.level || 0); t.bpm = Math.max(t.bpm, g.bpm || 0); t.caught += g.caught || 0; t.acc = Math.max(t.acc, g.acc || 0);
     for (const [lab, [r, n]] of Object.entries(g.skills || {})) { const s = t.skills[lab] || (t.skills[lab] = [0, 0]); s[0] += r; s[1] += n; }
     const bucket = d >= wk ? t.week : d >= pw ? t.prev : null;
-    if (bucket) { bucket.answers += g.answers || 0; bucket.correct += g.correct || 0; bucket.best = Math.max(bucket.best, g.best || 0); if (bucket.plays != null) bucket.plays += g.plays || 0; }
+    if (bucket) { bucket.answers += g.answers || 0; bucket.correct += g.correct || 0; }
   }
   return t;
 }
 const pct = (r, n) => n ? Math.round(100 * r / n) : 0;
+
+// ---------- leaderboard scores: a running summary per game, saved on this computer ----------
+// The first visit reads the student's own scores once; later visits read only scores posted since then.
+const newAgg = () => ({ upTo: 0, n: 0, best: 0, prevBest: 0, bestAt: 0, lvl: 0, bpm: 0, acc: 0, keys: 0, g90: 0, flags: {}, days: [], recent: [], first: '', hit: {} });
+function foldRow(g, a, r) {
+  const at = r.at, s = r.score || 0, acc = g.id === 'rhythm' ? s : (r.acc ?? r.accuracy ?? 0);
+  a.n++;
+  if (s > a.best) { a.prevBest = a.best; a.best = s; a.bestAt = at; }
+  a.lvl = Math.max(a.lvl, typeof r.level === 'number' ? r.level : 0); a.bpm = Math.max(a.bpm, r.bpm || 0); a.acc = Math.max(a.acc, Math.round(acc || 0)); a.keys = Math.max(a.keys, r.key_count || 0);
+  const f = a.flags;
+  if (r.style === 'live') f.live = 1;
+  if (r.diff === 'expert') f.expert = 1;
+  if (r.answer === 'intervals') f.ivl = 1;
+  if (r.clef === 'bass' && (r.acc || 0) >= 90) f.bass90 = 1;
+  if (r.level === 'hard' || r.level === 'extreme') f.hard = 1;
+  if (r.level === 'extreme') f.extreme = 1;
+  if (g.id === 'rhythm' && s >= 90) a.g90++;
+  if (g.id === 'rhythm' && s >= 100) f.perfect = 1;
+  const d = dayKey(new Date(at));
+  if (!a.days.includes(d)) a.days.push(d);
+  if (!a.first || d < a.first) a.first = d;
+  a.recent.push([at, s]); a.recent = a.recent.filter(([t]) => t > Date.now() - 15 * 864e5);
+  // the day each badge level was first reached, from the scores
+  const ZT = practice({}, g.id);
+  for (const b of BADGES[g.id]) { const k = tierOf(b, b.m(ZT, a)), h = a.hit[b.id] || (a.hit[b.id] = {}); for (let i = 1; i <= k; i++) h[i] = h[i] || d; }
+}
+const noIndex = {};
+async function syncScores(p, store) {
+  const { fs, db } = await fb(), name = displayName(p);
+  await Promise.all(GAMES.map(async g => {
+    const a = store.games[g.id];
+    try {
+      let docs = null;
+      if (!noIndex[g.col]) {
+        try {
+          docs = [];
+          for (let page = 0, from = a.upTo; page < 20; page++) {
+            const snap = await wait(fs.getDocs(fs.query(fs.collection(db, g.col), fs.where('name', '==', name), fs.where('created_at', '>', fs.Timestamp.fromMillis(from)), fs.orderBy('created_at'), fs.limit(500))));
+            docs.push(...snap.docs); if (snap.size < 500) break;
+            from = snap.docs[snap.size - 1].data().created_at.toMillis();
+          }
+        } catch (e) { if (e.code !== 'failed-precondition') throw e; noIndex[g.col] = 1; docs = null; console.warn('[index needed]', e.message); }
+      }
+      if (!docs) docs = (await wait(fs.getDocs(fs.query(fs.collection(db, g.col), fs.where('name', '==', name))))).docs;
+      const rows = docs.map(d => { const r = d.data(); return { ...r, at: r.created_at && r.created_at.toMillis ? r.created_at.toMillis() : 0 }; })
+        .filter(r => r.at > a.upTo && (r.class_code || '') === (p.classCode || ''))   // the same name in another class is a different student
+        .sort((x, y) => x.at - y.at);
+      for (const r of rows) { foldRow(g, a, r); a.upTo = r.at; }
+    } catch {}
+  }));
+}
+
+// ---------- badges ----------
+const TIERS = [['Bronze', '#e39a5e'], ['Silver', '#cfd8e6'], ['Gold', '#ffc85c'], ['Platinum', '#7ff0e0'], ['Diamond', '#d4c4ff']];
+const more = (one, many) => (v, goal) => `${fmt(goal - v)} more ${goal - v === 1 ? one : many}`;
+const reach = f => (v, goal) => f(goal);
+const tierOf = (b, v) => { let k = 0; while (k < b.tiers.length && v >= b.tiers[k]) k++; return k; };
+const special = (id, ic, name, desc, how, m) => ({ id, ic, name, desc, how, tiers: [1], special: true, m: (t, a) => m(t, a) ? 1 : 0 });
+const sharp = { id: 'sharp', ic: '🎯', name: 'Sharpshooter', desc: 'Your best accuracy in a single game.', tiers: [85, 90, 95, 98, 100], m: (t, a) => Math.max(t.acc, a.acc), left: reach(g => `Finish a game with ${g}% accuracy`) };
+const BADGES = {
+  rooftop: [
+    { id: 'right', ic: '🥷', name: 'Note Ninja', desc: 'Every note you play right on time counts.', tiers: [50, 200, 500, 1500, 5000], m: t => t.correct, left: more('note on time', 'notes on time') },
+    { id: 'runs', ic: '🏃', name: 'Rooftop Marathon', desc: 'Every run you finish counts.', tiers: [1, 10, 50, 150, 400], m: (t, a) => Math.max(t.plays, a.n), left: more('run', 'runs') },
+    { id: 'villain', ic: '🦹', name: 'Villain Catcher', desc: 'Catch villains by stringing Perfects together.', tiers: [1, 5, 15, 40, 100], m: t => t.caught, left: more('villain to catch', 'villains to catch') },
+    { id: 'speed', ic: '🚀', name: 'Speed Demon', desc: 'The fastest tempo you have kept up with in a run.', tiers: [70, 90, 110, 130, 150], m: (t, a) => Math.max(t.bpm, a.bpm), left: reach(g => `Reach ${g} BPM in a run`) },
+    { id: 'sky', ic: '🏙️', name: 'Skyline Climber', desc: 'The highest level you have reached in a run.', tiers: [3, 5, 8, 12, 16], m: (t, a) => Math.max(t.level, a.lvl), left: reach(g => `Reach level ${g} in a run`) },
+    sharp,
+    special('live', '🎤', 'Live Performer', 'You played your own instrument (or sang) into the mic.', 'Finish a run in Live mode with your instrument.', (t, a) => a.flags.live || Object.keys(t.skills).some(k => /^Live/.test(k))),
+    special('expert', '👑', 'Expert Runner', 'You posted a score on Expert.', 'Finish a run on Expert difficulty.', (t, a) => a.flags.expert),
+  ],
+  tidal: [
+    { id: 'right', ic: '🗼', name: 'Lighthouse Keeper', desc: 'Every note you name right counts.', tiers: [50, 200, 500, 1500, 5000], m: t => t.correct, left: more('note named', 'notes named') },
+    { id: 'runs', ic: '⛵', name: 'Sea Voyager', desc: 'Every game you finish counts.', tiers: [1, 10, 50, 150, 400], m: (t, a) => Math.max(t.plays, a.n), left: more('game', 'games') },
+    { id: 'harbor', ic: '⚓', name: 'Harbor Master', desc: 'The highest Arcade level you have reached.', tiers: [3, 5, 8, 12, 16], m: (t, a) => Math.max(t.level, a.lvl), left: reach(g => `Reach level ${g} in Arcade`) },
+    sharp,
+    special('ivl', '📐', 'Interval Explorer', 'You took on the Intervals game.', 'Play a game of Intervals.', (t, a) => a.flags.ivl || t.skills.Intervals),
+    special('bass', '🎼', 'Bass Clef Pro', 'You named bass clef notes with 90% accuracy or better.', 'Finish a bass clef game with 90% accuracy.', (t, a) => { const s = t.skills['Bass clef notes']; return a.flags.bass90 || (s && s[1] >= 20 && s[0] / s[1] >= .9); }),
+  ],
+  rhythm: [
+    { id: 'right', ic: '🥁', name: 'Groove Machine', desc: 'Every rhythm you get right counts.', tiers: [50, 200, 500, 1500, 5000], m: t => t.correct, left: more('rhythm right', 'rhythms right') },
+    { id: 'runs', ic: '🎧', name: 'Challenge Champ', desc: 'Every challenge you finish counts.', tiers: [1, 10, 50, 150, 400], m: (t, a) => Math.max(t.plays, a.n), left: more('challenge', 'challenges') },
+    { id: 'golden', ic: '👂', name: 'Golden Ear', desc: 'Challenges you scored 90% or higher on.', tiers: [1, 3, 10, 25, 50], m: (t, a) => a.g90, left: more('challenge at 90% or higher', 'challenges at 90% or higher') },
+    sharp,
+    special('hard', '🏆', 'Hard Hitter', 'You finished a Hard or Extreme challenge.', 'Finish a challenge on Hard.', (t, a) => a.flags.hard),
+    special('extreme', '🔥', 'Extreme Ears', 'You finished an Extreme challenge.', 'Finish a challenge on Extreme.', (t, a) => a.flags.extreme),
+    special('perfect', '💯', 'Perfect Score', 'You scored 100% on a challenge.', 'Score 100% on a challenge.', (t, a) => a.flags.perfect),
+  ],
+  scale: [
+    { id: 'right', ic: '🗝️', name: 'Key Master', desc: 'Every scale question you get right counts.', tiers: [50, 200, 500, 1500, 5000], m: t => t.correct, left: more('right answer', 'right answers') },
+    { id: 'runs', ic: '🎮', name: 'Quest Veteran', desc: 'Every round you finish counts.', tiers: [1, 10, 50, 150, 400], m: (t, a) => Math.max(t.plays, a.n), left: more('round', 'rounds') },
+    { id: 'chaos', ic: '🌀', name: 'CHAOS Crusher', desc: 'Your best CHAOS final score.', tiers: [1000, 2500, 5000, 8000, 12000], m: (t, a) => Math.max(t.best, a.best), left: reach(g => `Score ${fmt(g)} in CHAOS`) },
+    { id: 'keys', ic: '🎹', name: 'Key Collector', desc: 'The most keys you have played in one round.', tiers: [3, 6, 9, 12, 15], m: (t, a) => Math.max(t.level, a.keys), left: reach(g => `Play a round with ${g} keys`) },
+    sharp,
+    special('flawless', '💎', 'Flawless', 'You finished a CHAOS round with 100% accuracy.', 'Get every question right in a CHAOS round.', (t, a) => a.acc >= 100),
+  ],
+  // across all four games; X = { streak, correct, minutes, tried }
+  all: [
+    { id: 'streak', ic: '🔥', name: 'On Fire', desc: 'Your longest practice streak: days in a row with any game.', tiers: [2, 5, 10, 20, 40], m: X => X.streak, left: reach(g => `Practice ${g} days in a row`) },
+    { id: 'titan', ic: '🧠', name: 'Theory Titan', desc: 'Right answers in all four games added together.', tiers: [100, 500, 2000, 5000, 10000], m: X => X.correct, left: more('right answer', 'right answers') },
+    { id: 'time', ic: '⏱️', name: 'Practice Hero', desc: 'Minutes practiced in all four games.', tiers: [30, 120, 300, 600, 1200], m: X => X.minutes, left: more('minute of practice', 'minutes of practice') },
+    { id: 'rounder', ic: '🌈', name: 'All-Rounder', desc: 'How many of the four games you have played.', tiers: [2, 3, 4], m: X => X.tried, left: (v, g) => `Try ${g - v} more game${g - v > 1 ? 's' : ''}` },
+  ],
+};
+const RANKS = [[0, 'Rookie Listener'], [250, 'Beat Keeper'], [700, 'Note Reader'], [1500, 'Rhythm Rider'], [2800, 'Scale Climber'], [4600, 'Harmony Hero'], [7000, 'Theory Wizard'], [10500, 'Virtuoso'], [15000, 'Maestro'], [21000, 'Superior Music Theory Master']];
+const rankOf = xp => { let i = 0; while (i + 1 < RANKS.length && xp >= RANKS[i + 1][0]) i++; return i; };
+
+// the day each badge level was first reached in the practice history (walking the days in order)
+function practiceHits(days, gid) {
+  const out = {}, sub = {};
+  for (const d of Object.keys(days).sort()) {
+    if (!days[d][gid]) continue;
+    sub[d] = days[d]; const t = practice(sub, gid);
+    for (const b of BADGES[gid]) { const k = tierOf(b, b.m(t, newAgg())), h = out[b.id] || (out[b.id] = {}); for (let i = 1; i <= k; i++) h[i] = h[i] || d; }
+  }
+  return out;
+}
+// the all-games numbers, day by day, so the cross-game badges get their dates too
+function allStats(days, A, onDay) {
+  const active = new Set(Object.keys(days).filter(d => Object.values(days[d]).some(g => (g.answers || 0) + (g.plays || 0) > 0)));
+  GAMES.forEach(g => A[g.id].days.forEach(d => active.add(d)));
+  const tried = new Set(); let correct = 0, ms = 0, run = 0, streak = 0, prev = '';
+  const X = () => ({ streak, correct, minutes: Math.round(ms / 60000), tried: tried.size });
+  for (const d of [...active].sort()) {
+    for (const g of GAMES) { const p = days[d] && days[d][g.id]; if (p) { correct += p.correct || 0; ms += p.ms || 0; } if (p || A[g.id].days.includes(d)) tried.add(g.id); }
+    run = prev && nextDay(prev) === d ? run + 1 : 1; streak = Math.max(streak, run); prev = d;
+    if (onDay) onDay(d, X());
+  }
+  return { X: X(), active };
+}
 
 // ---------- tips for the things to work on ----------
 const TIPS = [
@@ -222,77 +406,96 @@ const TIPS = [
   [/bass clef/i, 'Bass clef spaces: <strong>All Cows Eat Grass</strong>. Lines: <strong>Good Boys Do Fine Always</strong>.'],
   [/treble clef/i, 'Treble clef spaces spell <strong>F A C E</strong>. Lines: <strong>Every Good Boy Does Fine</strong>.'],
   [/alto clef/i, 'In alto clef, the middle line is <strong>middle C</strong>.'],
+  [/minor|dorian|phrygian|lydian|mixolydian|locrian|aeolian|ionian/i, 'Start from the major scale you know, then <strong>change only the notes that make this one different</strong>.'],
   [/major/i, 'Say the key signature first, then build the scale: <strong>W W H W W W H</strong>.'],
   [/interval|2nd|3rd|4th|5th|6th|7th|octave/i, 'Count every line and space from the bottom note to the top note, <strong>including both notes</strong>.'],
   [/live|instrument|tuning/i, 'Tune up first, and use headphones so the game hears only you.'],
   [/[A-G][♯♭]?\d/, 'Find this note on your instrument, then say its name every time you see it.'],
 ];
 const tipFor = lab => (TIPS.find(([re]) => re.test(lab)) || [null, 'Practice this one slowly, then speed up a little each time.'])[1];
-const iconFor = lab => /note|rest|rhythm|eighth|sixteenth|triplet|dotted|tied|whole|half|quarter/i.test(lab) ? '🥁' : /major|scale/i.test(lab) ? '🎹' : /clef|ledger/i.test(lab) ? '🎼' : /live/i.test(lab) ? '🎤' : '🎵';
+const iconFor = lab => /note|rest|rhythm|eighth|sixteenth|triplet|dotted|tied|whole|half|quarter/i.test(lab) ? '🥁' : /major|minor|scale/i.test(lab) ? '🎹' : /clef|ledger/i.test(lab) ? '🎼' : /live/i.test(lab) ? '🎤' : '🎵';
 const stars = a => a >= 97 ? 5 : a >= 92 ? 4 : a >= 85 ? 3 : 2;
 
-// ---------- badges: earned from scores and practice ----------
-function badges(gid, t, sc) {
-  const best = Math.max(t.best, ...sc.map(r => r.score || 0), 0), runs = Math.max(t.plays, sc.length);
-  const common = [['🎮', 'First Game', runs >= 1], ['🔁', 'Ten Games', runs >= 10], ['💯', '100 Right', t.correct >= 100], ['🏅', '500 Right', t.correct >= 500]];
-  const per = {
-    rooftop: [['🦹', 'Villain Catcher', t.caught >= 1 || sc.some(r => (r.level || 0) >= 2)], ['🚀', '100 BPM Club', Math.max(t.bpm, ...sc.map(r => r.bpm || 0), 0) >= 100], ['🏙️', 'Level 5 Runner', Math.max(t.level, ...sc.map(r => r.level || 0), 0) >= 5], ['🎤', 'Live Performer', sc.some(r => r.style === 'live') || Object.keys(t.skills).some(k => /^Live/.test(k))], ['👑', 'Expert Runner', sc.some(r => r.diff === 'expert')]],
-    tidal: [['⚓', 'Harbor Master', Math.max(t.level, ...sc.map(r => r.level || 0), 0) >= 5], ['🎯', 'Sharpshooter', sc.some(r => (r.acc || 0) >= 95)], ['📐', 'Interval Explorer', sc.some(r => r.answer === 'intervals') || Object.keys(t.skills).includes('Intervals')], ['🎼', 'Bass Clef Pro', sc.some(r => r.clef === 'bass' && (r.acc || 0) >= 90)]],
-    rhythm: [['👂', 'Golden Ear', sc.some(r => (r.score || 0) >= 90)], ['🥁', 'Perfect Score', sc.some(r => (r.score || 0) >= 100)], ['🏆', 'Hard Level', sc.some(r => r.level === 'hard' || r.level === 'extreme')], ['🔥', 'Extreme Level', sc.some(r => r.level === 'extreme')]],
-    scale: [['⭐', 'Scale Star', t.acc >= 90 || sc.some(r => (r.accuracy || 0) >= 90)], ['🗝️', 'Key Collector', t.level >= 6 || sc.some(r => (r.key_count || 0) >= 6)], ['🌀', 'CHAOS Survivor', sc.length >= 1 || t.best > 0], ['💎', 'CHAOS 3000', best >= 3000]],
-  };
-  return per[gid].concat(common);
+// ---------- drawing a badge ----------
+let BMAP = {};
+const colorOf = b => b.def.special ? b.acc : TIERS[Math.max(0, b.tier - 1)][1];
+function medal(b) {
+  BMAP[b.key] = b;
+  const on = b.tier > 0, n = b.def.tiers.length, top = !b.def.special && b.tier === 5;
+  const tn = !on ? 'Locked' : b.def.special ? 'Special' : TIERS[b.tier - 1][0];
+  return `<button type="button" class="medal${on ? '' : ' locked'}${top ? ' t5' : ''}${b.isNew ? ' new' : ''}" data-k="${esc(b.key)}" style="--tc:${on ? colorOf(b) : 'var(--muted)'}" aria-expanded="false" aria-label="${esc(b.def.name)}, ${tn}">
+    <span class="disc"><span class="ic" aria-hidden="true">${b.def.ic}</span>${top ? '<span class="spark s1">✦</span><span class="spark s2">✦</span><span class="spark s3">✦</span>' : ''}${on ? '' : '<span class="lk" aria-hidden="true">🔒</span>'}</span>
+    ${b.def.special ? '' : `<span class="pips" aria-hidden="true">${'●'.repeat(b.tier)}${'○'.repeat(n - b.tier)}</span>`}
+    <span class="nm">${esc(b.def.name)}</span><span class="tn">${tn}</span>${b.isNew ? '<span class="ribbon">NEW!</span>' : ''}
+  </button>`;
+}
+function tipHTML(b) {
+  const d = b.def, on = b.tier > 0, n = d.tiers.length;
+  const tierName = !on ? 'Locked' : d.special ? 'Special badge' : `${TIERS[b.tier - 1][0]} · level ${b.tier} of ${n}`;
+  let when = '';
+  if (on && d.special) when = `<p class="when">🗓️ Unlocked <b>${niceDate(b.dates[1])}</b></p>`;
+  else if (on) when = `<p class="when">🗓️ ${Array.from({ length: b.tier }, (_, i) => `${TIERS[i][0]} <b>${niceDate(b.dates[i + 1])}</b>`).join(' · ')}</p>`;
+  const ladder = d.special ? '' : `<div class="ladder" aria-hidden="true">${d.tiers.map((_, i) => `<i class="${i < b.tier ? 'on' : ''}" style="--c:${TIERS[i][1]}"></i>`).join('')}</div>`;
+  let next;
+  if (b.tier >= n) next = `<p class="max">${d.special ? '🌟 You earned it!' : '💎 Top level! You maxed out this badge.'}</p>`;
+  else {
+    const goal = d.tiers[b.tier], from = b.tier ? d.tiers[b.tier - 1] : 0, p = Math.max(0, Math.min(100, Math.round(100 * (b.v - from) / Math.max(1, goal - from))));
+    const what = d.special ? d.how : `${d.left(b.v, goal)} to reach ${TIERS[b.tier][0]}!`;
+    next = `<p class="next">${on ? '⬆️ ' : '🔒 How to unlock: '}${esc(what)}</p>${d.special ? '' : `<div class="qbar" aria-hidden="true"><i style="width:${p}%"></i></div>`}`;
+  }
+  return `<div class="th"><span class="bic" aria-hidden="true">${d.ic}</span><div><b>${esc(d.name)}</b><span>${tierName}</span></div></div><p>${esc(d.desc)}</p>${when}${ladder}${next}`;
+}
+function shelf(list, title) {
+  const earned = list.filter(b => b.tier > 0), gold = list.filter(b => !b.def.special && b.tier >= 3).length;
+  const order = [...list].sort((x, y) => (y.tier > 0) - (x.tier > 0) || (y.def.special ? 2.5 : y.tier) - (x.def.special ? 2.5 : x.tier));
+  return `<div class="shelfbox"><div class="hd"><h2>${title}</h2><span class="count"><b>${earned.length}</b> of ${list.length} badges${gold ? ` · <b>${gold}</b> Gold or better` : ''}</span></div><div class="shelf">${order.map(medal).join('')}</div></div>`;
 }
 
-// ---------- build one game's tab ----------
-function gamePanel(g, t, sc) {
-  const best = Math.max(t.best, ...sc.map(r => r.score || 0), 0);
-  const runs = Math.max(t.plays, sc.length);
+// ---------- one game's tab ----------
+function gamePanel(g, t, a, list) {
+  const best = Math.max(t.best, a.best), runs = Math.max(t.plays, a.n);
   if (!runs && !t.answers) {
-    return `<div class="box empty"><div class="big">🎮</div><h2 style="color:var(--acc)">Your ${esc(g.name)} adventure starts here!</h2><p>Play a game while you're signed in and this page fills up with your trophies, badges and next quests.</p><a class="go" href="${g.url}">Play ${esc(g.name)} →</a></div>`;
+    return `<div class="box empty"><div class="big">🎮</div><h2 style="color:var(--acc)">Your ${esc(g.name)} adventure starts here!</h2><p>Play a game while you're signed in and this page fills up with your trophies, badges and next quests.</p><a class="go" href="${g.url}">Play ${esc(g.name)} →</a></div>${shelf(list, 'Badges to unlock')}`;
   }
-  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
-  const recent = sc.filter(r => r.at && r.at >= weekAgo), older = sc.filter(r => !r.at || r.at < weekAgo);
-  const bestRecent = Math.max(0, ...recent.map(r => r.score || 0)), bestOlder = Math.max(0, ...older.map(r => r.score || 0));
-  const record = recent.length && bestRecent >= best && bestRecent > bestOlder;
-  const accAll = pct(t.correct, t.answers);
-  // trophies
-  const tro = [];
+  const weekAgo = Date.now() - 7 * 864e5, recent = a.recent.filter(([at]) => at >= weekAgo), bestRecent = Math.max(0, ...recent.map(r => r[1]));
+  const record = a.bestAt >= weekAgo && a.prevBest > 0;
   const scoreFmt = g.id === 'rhythm' ? v => v + '%' : fmt;
-  tro.push(['Best score', best ? scoreFmt(best) : '—', record ? '🏆 New record this week!' : bestOlder && bestRecent > 0 ? `▲ ${scoreFmt(bestRecent)} this week` : '', true]);
+  const tro = [];
+  tro.push(['Best score', best ? scoreFmt(best) : '—', record ? '🏆 New record this week!' : bestRecent ? `▲ ${scoreFmt(bestRecent)} this week` : '', true]);
   tro.push(['Games played', fmt(runs), recent.length ? `${recent.length} this week` : '']);
   if (g.id === 'rooftop') {
-    const lvl = Math.max(t.level, ...sc.map(r => r.level || 0), 0), bpm = Math.max(t.bpm, ...sc.map(r => r.bpm || 0), 0);
+    const lvl = Math.max(t.level, a.lvl), bpm = Math.max(t.bpm, a.bpm);
     tro.push(['Top tempo', bpm ? bpm + ' BPM' : '—', lvl ? `Reached level ${lvl}` : '']);
     tro.push(['Villains caught', fmt(t.caught), t.caught ? 'Got \'em!' : 'Catch your first!']);
   } else if (g.id === 'tidal') {
-    tro.push(['Best level', Math.max(t.level, ...sc.map(r => r.level || 0), 0) || '—', '']);
-    tro.push(['Best accuracy', Math.max(t.acc, ...sc.map(r => r.acc || 0), 0) + '%', '']);
+    tro.push(['Best level', Math.max(t.level, a.lvl) || '—', '']);
+    tro.push(['Best accuracy', Math.max(t.acc, a.acc) + '%', '']);
   } else if (g.id === 'rhythm') {
-    tro.push(['Rhythms right', fmt(t.correct || sc.reduce((s, r) => s + (r.correct || 0), 0)), '']);
-    tro.push(['Hardest level', sc.some(r => r.level === 'extreme') ? 'Extreme' : sc.some(r => r.level === 'hard') ? 'Hard' : sc.length ? 'Easy' : '—', '']);
+    tro.push(['Rhythms right', fmt(t.correct), '']);
+    tro.push(['Hardest level', a.flags.extreme ? 'Extreme' : a.flags.hard ? 'Hard' : a.n ? 'Easy' : '—', '']);
   } else {
-    tro.push(['Best accuracy', Math.max(t.acc, ...sc.map(r => r.accuracy || 0), 0) + '%', '']);
-    tro.push(['Most keys', Math.max(0, ...sc.map(r => r.key_count || 0)) || '—', '']);
+    tro.push(['Best accuracy', Math.max(t.acc, a.acc) + '%', '']);
+    tro.push(['Most keys', Math.max(a.keys, t.level) || '—', '']);
   }
   if (t.answers) {
     const wk = pct(t.week.correct, t.week.answers), pv = pct(t.prev.correct, t.prev.answers);
-    tro.push(['Accuracy', accAll + '%', t.prev.answers && t.week.answers && wk > pv ? `▲ +${wk - pv}% this week` : t.week.answers ? `${wk}% this week` : '']);
+    tro.push(['Accuracy', pct(t.correct, t.answers) + '%', t.prev.answers && t.week.answers && wk > pv ? `▲ +${wk - pv}% this week` : t.week.answers ? `${wk}% this week` : '']);
   }
   // strengths and quests from the skills practiced on this computer
   const skills = Object.entries(t.skills).map(([lab, [r, n]]) => ({ lab, r, n, a: pct(r, n) }));
   const wins = skills.filter(s => s.n >= 5 && s.a >= 85).sort((x, y) => y.a * Math.log(y.n + 1) - x.a * Math.log(x.n + 1)).slice(0, 3);
   const quests = skills.filter(s => s.n >= 4 && s.a < 85).sort((x, y) => x.a - y.a).slice(0, 3);
-  // always celebrate something
-  if (wins.length < 2) {
+  if (wins.length < 2) {   // always celebrate something
     if (best) wins.push({ lab: `Best score: ${scoreFmt(best)}`, s: 'Your top run so far', star: 4 });
     if (runs >= 3) wins.push({ lab: `${fmt(runs)} games played`, s: 'Practice makes progress!', star: Math.min(5, 2 + Math.floor(runs / 5)) });
     if (t.correct) wins.push({ lab: `${fmt(t.correct)} ${g.unit}`, s: 'Every one counts', star: 4 });
   }
   const winRows = wins.slice(0, 3).map(w => `<div class="win"><span class="ic" aria-hidden="true">${w.s ? '🏆' : iconFor(w.lab)}</span><b>${esc(w.lab)}</b><span class="stars" aria-label="${w.star || stars(w.a)} of 5 stars">${'★'.repeat(w.star || stars(w.a))}${'☆'.repeat(5 - (w.star || stars(w.a)))}</span><span class="s">${w.s ? esc(w.s) : `${w.a}% right (${w.r} of ${w.n})`}</span></div>`).join('');
-  const bd = badges(g.id, t, sc), earned = bd.filter(b => b[2]).length;
   const questRows = quests.length ? quests.map(q => `<div class="quest"><div class="qtop"><b>${esc(q.lab)}</b><span class="pct">${q.a}%</span></div><div class="qbar" aria-label="${q.a}% right, goal 85%"><i style="width:${q.a}%"></i><em></em></div><span class="tip">${tipFor(q.lab)}</span><a class="go" href="${g.url}">Practice it →</a></div>`).join('')
     : `<div class="quest"><div class="qtop"><b>${t.answers ? 'Nothing below 85%. Amazing!' : 'Unlock your skill breakdown'}</b></div><span class="tip">${t.answers ? 'Try the <strong>next difficulty up</strong> or a faster tempo to find your next challenge.' : 'Play a few games on this computer while signed in and your strongest and weakest skills show up here.'}</span><a class="go" href="${g.url}">Play ${esc(g.name)} →</a></div>`;
+  // the next badge level that's closest, as an extra quest
+  const near = list.filter(b => !b.def.special && b.tier < b.def.tiers.length).map(b => { const goal = b.def.tiers[b.tier], from = b.tier ? b.def.tiers[b.tier - 1] : 0; return { b, goal, p: (b.v - from) / Math.max(1, goal - from) }; }).sort((x, y) => y.p - x.p)[0];
+  const badgeQuest = near ? `<div class="quest"><div class="qtop"><b>${near.b.def.ic} ${esc(near.b.def.name)}: ${TIERS[near.b.tier][0]}</b><span class="pct">${Math.round(near.p * 100)}%</span></div><div class="qbar" aria-hidden="true"><i style="width:${Math.round(near.p * 100)}%"></i></div><span class="tip">${esc(near.b.def.left(near.b.v, near.goal))} to level up this badge!</span></div>` : '';
   const cheer = g.cheers[(runs + t.correct) % g.cheers.length];
   const lineBits = [];
   if (t.week.answers) lineBits.push(`you got <b>${fmt(t.week.correct)} ${g.unit}</b> this week`);
@@ -304,19 +507,30 @@ function gamePanel(g, t, sc) {
   return `
     <div class="hero"><canvas class="confetti" aria-hidden="true"></canvas><h2 class="gj">${cheer}</h2><p>${line}</p></div>
     <div class="trophies">${tro.map(([k, v, n, b]) => `<div class="trophy${b ? ' best' : ''}"><span class="k">${k}</span><span class="v">${esc(v)}</span><span class="n">${n}</span></div>`).join('')}</div>
+    ${shelf(list, 'Badges')}
     <div class="cols">
-      <div class="box good">
-        <h2>You're crushing it</h2>
-        ${winRows}
-        <h2 style="margin-top:6px;font-size:16px;color:var(--gold)">Badges <small style="font-family:var(--f-ui);color:var(--muted);font-size:14px">${earned} of ${bd.length}</small></h2>
-        <div class="badges">${bd.map(([ic, n, ok]) => `<span class="badge${ok ? '' : ' locked'}">${ok ? ic : '🔒'} ${esc(n)}</span>`).join('')}</div>
-      </div>
-      <div class="box work">
-        <h2>Your next quest</h2>
-        <p class="sub">Level these up to 85% to master them.</p>
-        ${questRows}
-      </div>
+      <div class="box good"><h2>You're crushing it</h2>${winRows}</div>
+      <div class="box work"><h2>Your next quest</h2><p class="sub">Level these up to 85% to master them.</p>${questRows}${badgeQuest}</div>
     </div>`;
+}
+
+// ---------- the All games tab ----------
+function allPanel(ctx) {
+  const { rank, xp, all, X, perGame } = ctx;
+  const everything = GAMES.flatMap(g => perGame[g.id]).concat(all), earned = everything.filter(b => b.tier > 0);
+  const rare = [...earned].sort((x, y) => (y.def.special ? 2.5 : y.tier) - (x.def.special ? 2.5 : x.tier)).slice(0, 5);
+  const cheer = ['LOOK AT YOU GO!', 'SUPERSTAR!', 'UNSTOPPABLE!'][earned.length % 3];
+  return `
+    <div class="hero"><canvas class="confetti" aria-hidden="true"></canvas><h2 class="gj">${cheer}</h2><p>You're a <b>${esc(RANKS[rank][1])}</b> with <b>${fmt(xp)} XP</b> and <b>${earned.length} badge${earned.length === 1 ? '' : 's'}</b>${X.streak > 1 ? `, and your best streak is <b>${X.streak} days</b>` : ''}!</p></div>
+    <div class="trophies">
+      <div class="trophy best"><span class="k">Music rank</span><span class="v" style="font-size:22px">${esc(RANKS[rank][1])}</span><span class="n">Rank ${rank + 1} of ${RANKS.length}</span></div>
+      <div class="trophy"><span class="k">Total XP</span><span class="v">${fmt(xp)}</span><span class="n">${rank + 1 < RANKS.length ? `${fmt(RANKS[rank + 1][0] - xp)} to ${esc(RANKS[rank + 1][1])}` : 'Top rank! 👑'}</span></div>
+      <div class="trophy"><span class="k">Badges</span><span class="v">${earned.length} / ${everything.length}</span><span class="n">${everything.filter(b => !b.def.special && b.tier >= 3).length} Gold or better</span></div>
+      <div class="trophy"><span class="k">Right answers</span><span class="v">${fmt(X.correct)}</span><span class="n">${fmt(X.minutes)} minutes practiced</span></div>
+    </div>
+    ${rare.length ? `<div class="shelfbox"><div class="hd"><h2>Your rarest badges</h2><span class="count">Your highest levels</span></div><div class="shelf">${rare.map(medal).join('')}</div></div>` : ''}
+    ${shelf(all, 'All-games badges')}
+    <div class="games4">${GAMES.map((g, i) => { const l = perGame[g.id], e = l.filter(b => b.tier > 0).length; return `<button type="button" class="gcard" data-goto="${i + 1}" style="--gacc:${g.acc}"><b>${esc(g.name)}</b><span class="gb">${e} of ${l.length} badges</span><span>See this game's report →</span></button>`; }).join('')}</div>`;
 }
 
 function confetti(panel, acc) {
@@ -333,6 +547,29 @@ function confetti(panel, acc) {
   })(t0);
 }
 
+// ---------- hover / tap cards ----------
+let tipFor_ = null, pinned = false;
+function showTip(btn, pin) {
+  const b = BMAP[btn.dataset.k], tip = $('tip'); if (!b) return;
+  if (tipFor_ && tipFor_ !== btn) tipFor_.setAttribute('aria-expanded', 'false');
+  tipFor_ = btn; pinned = !!pin; btn.setAttribute('aria-expanded', 'true');
+  tip.style.setProperty('--tc', b.tier > 0 ? colorOf(b) : 'var(--line)');
+  tip.innerHTML = tipHTML(b); tip.hidden = false;
+  const r = btn.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight, vw = document.documentElement.clientWidth, vh = innerHeight;
+  const left = Math.max(12, Math.min(vw - w - 12, r.left + r.width / 2 - w / 2));
+  const top = r.top - h - 10 >= 8 ? r.top - h - 10 : Math.min(vh - h - 8, r.bottom + 10);
+  tip.style.left = left + 'px'; tip.style.top = Math.max(8, top) + 'px';
+}
+function hideTip() { if (tipFor_) tipFor_.setAttribute('aria-expanded', 'false'); tipFor_ = null; pinned = false; $('tip').hidden = true; }
+document.addEventListener('mouseover', e => { const m = e.target.closest('.medal'); if (m && !pinned) showTip(m); });
+document.addEventListener('mouseout', e => { const m = e.target.closest('.medal'); if (m && !pinned && !m.contains(e.relatedTarget)) hideTip(); });
+document.addEventListener('focusin', e => { const m = e.target.closest('.medal'); if (m) showTip(m); });
+document.addEventListener('focusout', e => { if (e.target.closest('.medal') && !pinned) hideTip(); });
+document.addEventListener('click', e => { const m = e.target.closest('.medal'); if (m) { if (pinned && tipFor_ === m) hideTip(); else showTip(m, true); } else if (!e.target.closest('#tip')) hideTip(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') hideTip(); });
+addEventListener('scroll', hideTip, { passive: true });
+addEventListener('resize', () => { if (tipFor_) showTip(tipFor_, pinned); });
+
 // ---------- the page ----------
 async function boot() {
   const p = getProfile();
@@ -341,42 +578,74 @@ async function boot() {
   $('avatar').textContent = p.first.charAt(0).toUpperCase();
   $('p-name').textContent = displayName(p);
   $('p-class').textContent = p.classCode ? `${p.className && p.className !== p.classCode ? p.className + ' · ' : ''}${p.classCode}` : 'Not in a class';
-  const days = history(p), T = {};
-  GAMES.forEach(g => T[g.id] = practice(days, g.id));
-  let S = {}; GAMES.forEach(g => S[g.id] = []);
-  const render = () => {
-    // XP: every right answer and every game counts, across all four games
-    const xp = GAMES.reduce((s, g) => s + T[g.id].correct * 2 + Math.max(T[g.id].plays, S[g.id].length) * 25, 0);
-    let level = 1, need = 200, base = 0;
-    while (xp >= base + need) { base += need; level++; need = Math.round(need * 1.25); }
-    const titles = ['Beginner', 'Rookie', 'Rising Star', 'Musician', 'Performer', 'Virtuoso', 'Maestro', 'Legend'];
-    $('p-level').textContent = `LEVEL ${level} ${titles[Math.min(titles.length - 1, Math.floor((level - 1) / 2))].toUpperCase()}`;
-    $('p-xp').style.width = Math.round(100 * (xp - base) / need) + '%';
-    $('p-xptext').textContent = `${fmt(xp - base)} / ${fmt(need)} XP to level ${level + 1}`;
-    // streak: days in a row with any practice or posted score, ending today or yesterday
-    const active = new Set(Object.keys(days).filter(d => Object.values(days[d]).some(g => (g.answers || 0) + (g.plays || 0) > 0)));
-    GAMES.forEach(g => S[g.id].forEach(r => r.at && active.add(dayKey(r.at))));
-    let n = 0, start = active.has(dayKey()) ? 0 : 1;
-    while (active.has(daysAgo(start + n))) n++;
-    $('p-streak').textContent = `${n} day${n === 1 ? '' : 's'}`;
-    showTab(current);
+  const sid = sidOf(p), days = history(p), T = {}, PH = {};
+  GAMES.forEach(g => { T[g.id] = practice(days, g.id); PH[g.id] = practiceHits(days, g.id); });
+  const SKEY = 'mtg_scores_v1:' + sid, BKEY = 'mtg_badges_v1:' + sid;
+  let store = load(SKEY);
+  if (!store || store.v !== 1 || store.classCode !== (p.classCode || '')) store = { v: 1, classCode: p.classCode || '', games: {} };
+  GAMES.forEach(g => { store.games[g.id] = Object.assign(newAgg(), store.games[g.id] || {}); });
+  const A = store.games;
+  const bstore = Object.assign({ seen: {}, at: {}, rank: -1 }, load(BKEY) || {});
+  const seen0 = { ...bstore.seen }, rank0 = bstore.rank, today = dayKey();
+  let ctx = null;
+  const evalOne = (key, def, v, hits, acc) => {
+    const tier = tierOf(def, v), dates = {};
+    for (let i = 1; i <= tier; i++) {
+      const cands = hits.map(h => h && h[i]).concat((bstore.at[key] || {})[i]).filter(Boolean).sort();
+      dates[i] = cands[0] || today;
+    }
+    bstore.at[key] = dates;
+    return { key, def, v, tier, dates, acc, isNew: tier > (seen0[key] || 0) };
   };
-  // open on the game played most recently
-  const lastPlayed = gid => { const ds = Object.keys(days).filter(d => days[d][gid]).sort(); return ds.length ? ds[ds.length - 1] : ''; };
-  let current = GAMES.map((g, i) => [lastPlayed(g.id), i]).sort().pop()[1];
-  $('tabs').innerHTML = GAMES.map((g, i) => `<button role="tab" id="tab-${g.id}" aria-controls="panel" style="--acc:${g.acc}" data-i="${i}"><i></i>${esc(g.name)}</button>`).join('');
+  const compute = () => {
+    const perGame = {};
+    for (const g of GAMES) perGame[g.id] = BADGES[g.id].map(def => evalOne(`${g.id}:${def.id}`, def, def.m(T[g.id], A[g.id]), [PH[g.id][def.id], A[g.id].hit[def.id]], g.acc));
+    const allHits = {};
+    const { X, active } = allStats(days, A, (d, x) => { for (const def of BADGES.all) { const k = tierOf(def, def.m(x)), h = allHits[def.id] || (allHits[def.id] = {}); for (let i = 1; i <= k; i++) h[i] = h[i] || d; } });
+    const all = BADGES.all.map(def => evalOne(`all:${def.id}`, def, def.m(X), [allHits[def.id]], '#ffc85c'));
+    // XP: every right answer, every game and every badge level counts
+    const levels = GAMES.flatMap(g => perGame[g.id]).concat(all).reduce((s, b) => s + b.tier, 0);
+    const xp = GAMES.reduce((s, g) => s + T[g.id].correct * 2 + Math.max(T[g.id].plays, A[g.id].n) * 25, 0) + levels * 50;
+    return { perGame, all, X, active, xp, rank: rankOf(xp) };
+  };
+  const tabs = [{ id: 'all', name: 'All games', acc: '#ffc85c' }].concat(GAMES);
+  let current = 0;
+  $('tabs').innerHTML = tabs.map((g, i) => `<button role="tab" id="tab-${g.id}" aria-controls="panel" style="--acc:${g.acc}" data-i="${i}"><i></i>${esc(g.name)}</button>`).join('');
   function showTab(i) {
-    current = i; const g = GAMES[i];
+    current = i; const g = tabs[i]; hideTip(); BMAP = {};
     for (const b of $('tabs').children) { b.setAttribute('aria-selected', String(+b.dataset.i === i)); b.tabIndex = +b.dataset.i === i ? 0 : -1; }
     const panel = $('panel'); panel.style.setProperty('--acc', g.acc); panel.setAttribute('aria-labelledby', 'tab-' + g.id);
-    panel.innerHTML = gamePanel(g, T[g.id], S[g.id]);
+    panel.innerHTML = i === 0 ? allPanel(ctx) : gamePanel(g, T[g.id], A[g.id], ctx.perGame[g.id]);
     confetti(panel, g.acc);
   }
+  const render = () => {
+    ctx = compute();
+    const { xp, rank } = ctx, lo = RANKS[rank][0], hi = rank + 1 < RANKS.length ? RANKS[rank + 1][0] : null;
+    $('p-level').innerHTML = `<span class="ranktag">RANK ${rank + 1} · ${esc(RANKS[rank][1].toUpperCase())}</span>`;
+    $('p-xp').style.width = (hi ? Math.round(100 * (xp - lo) / (hi - lo)) : 100) + '%';
+    $('p-xptext').textContent = hi ? `${fmt(hi - xp)} XP to ${RANKS[rank + 1][1]}` : 'Top rank reached! 👑';
+    // current streak: days in a row ending today or yesterday
+    let n = 0; const start = ctx.active.has(today) ? 0 : 1;
+    while (ctx.active.has(daysAgo(start + n))) n++;
+    $('p-streak').textContent = `${n} day${n === 1 ? '' : 's'}`;
+    // celebrate what's new since the last visit
+    const fresh = GAMES.flatMap(g => ctx.perGame[g.id]).concat(ctx.all).filter(b => b.isNew).length, rankUp = rank0 >= 0 && rank > rank0;
+    const bar = $('newbar');
+    bar.hidden = !fresh && !rankUp;
+    bar.innerHTML = [rankUp ? `🎉 RANK UP! You're now a ${esc(RANKS[rank][1])}!` : '', fresh ? `🏅 You unlocked ${fresh} new badge${fresh > 1 ? 's' : ''}${fresh > 1 ? ' and levels' : ''}!` : ''].filter(Boolean).join(' ') + ' <small>See them →</small>';
+    showTab(current);
+  };
+  $('newbar').addEventListener('click', () => { showTab(0); const m = $('panel').querySelector('.medal.new'); (m || $('panel')).scrollIntoView({ behavior: 'smooth', block: 'center' }); });
   $('tabs').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (b) showTab(+b.dataset.i); });
-  $('tabs').addEventListener('keydown', e => { if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return; const n = (current + (e.key === 'ArrowRight' ? 1 : GAMES.length - 1)) % GAMES.length; showTab(n); $('tabs').children[n].focus(); });
+  $('tabs').addEventListener('keydown', e => { if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return; const n = (current + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length; showTab(n); $('tabs').children[n].focus(); });
+  $('panel').addEventListener('click', e => { const c = e.target.closest('[data-goto]'); if (c) { showTab(+c.dataset.goto); $('tabs').children[+c.dataset.goto].focus(); } });
   render();
-  S = await scores(p);
+  try { await syncScores(p, store); } catch {}
+  save(SKEY, store);
   render();
+  // remember what has been seen, so NEW! only shows once
+  for (const b of GAMES.flatMap(g => ctx.perGame[g.id]).concat(ctx.all)) bstore.seen[b.key] = b.tier;
+  bstore.rank = ctx.rank; save(BKEY, bstore);
 }
 boot();
 })();
