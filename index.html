@@ -148,6 +148,8 @@
   .who h2 { margin: 0 0 4px; font-size: 13px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
   .who p { margin: 0; color: var(--muted); }
   .who form { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: 10px 12px; align-items: end; margin-top: 12px; }
+  .who form .icon-pick { grid-column: 1 / -1; max-width: 560px; margin: 4px 0; }
+  .who form label.code { grid-column: 1 / 3; }
   .who label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); min-width: 0; }
   .who input[type="text"] { font: 600 17px "Josefin Sans", system-ui, sans-serif; color: var(--text); background: var(--bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 11px 12px 8px; width: 100%; }
   .who input[type="text"]:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
@@ -274,17 +276,23 @@ const wait = p => Promise.race([p, new Promise((_, bad) => setTimeout(() => bad(
 const isGuest = () => { try { return sessionStorage.getItem(GUEST_KEY) === '1'; } catch { return false; } };
 function getProfile() { if (isGuest()) return null; try { const p = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null'); return p && p.first && p.init ? p : null; } catch { return null; } }
 // ---------- player icons (shared by every game: saved with the sign-in, shown next to names on leaderboards) ----------
-const ICONS = ['🎹','🎸','🎺','🎷','🥁','🎻','🪕','🎤','🎧','🎼','🎵','🪘','🪗','⭐','🔥','🚀'];   // must match iconOk() in firestore.rules
+const ICONS = ['🎹','🎸','🎺','🪊','🎷','🥁','🎻','🪕','🎤','🎧','🎼','𝄢','🎵','🪘','🪗','⭐','🔥','🚀'];   // must match iconOk() in firestore.rules
+// Trombone and bass clef aren't on most school devices' emoji fonts yet, so they're drawn as small pictures.
+const ICON_SVG = {
+  '🪊': '<svg class="ic-svg" width="1.15em" height="1.15em" style="vertical-align:-.2em" viewBox="0 0 24 24" role="img" aria-label="trombone"><g fill="none" stroke="#e7b23a" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 13H5a2 2 0 0 0 0 4h11.5"/><path d="M15 8H6.5a2.5 2.5 0 0 0 0 5"/><path d="M11 8v5M19 17h2.5"/></g><path d="M14.5 6.6 22 3v10l-7.5-3.6z" fill="#e7b23a"/></svg>',
+  '𝄢': '<svg class="ic-svg" width="1.15em" height="1.15em" style="vertical-align:-.2em" viewBox="0 0 24 24" role="img" aria-label="bass clef"><circle cx="6.2" cy="8.6" r="2.7" fill="currentColor"/><path d="M4 8C4.3 4.6 7.3 3 10.4 3c4 0 6.8 2.7 6.8 6.6 0 5.8-5.5 10-12.2 12" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><circle cx="20.6" cy="6.6" r="1.4" fill="currentColor"/><circle cx="20.6" cy="12" r="1.4" fill="currentColor"/></svg>'
+};
+const iconHTML = ic => ICON_SVG[ic] || (ICONS.includes(ic) ? ic : '');
 const iconOf = p => (p && ICONS.includes(p.icon) ? p.icon : '');
 let iconBox = null;
 function iconPicker() {
   if (iconBox) return iconBox;
   const before = document.querySelector('label[for="wCode"], label.w-code, label[for="w-code"]'); if (!before) return null;
   const st = document.createElement('style');
-  st.textContent = '.icon-pick{display:flex;flex-direction:column;gap:6px;text-align:left}.icon-pick .ip-l{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.8}.icon-pick .ip-g{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}.icon-pick button{font-size:22px;line-height:1;padding:7px 0;border-radius:10px;background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.18);cursor:pointer;font-family:inherit}.icon-pick button:hover{border-color:rgba(255,255,255,.5)}.icon-pick button[aria-pressed="true"]{border-color:#ffc85c;background:rgba(255,200,92,.22);box-shadow:0 0 12px -2px #ffc85c}.nm-ic{margin-right:6px}';
+  st.textContent = '.icon-pick{display:flex;flex-direction:column;gap:6px;text-align:left}.icon-pick .ip-l{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.8}.icon-pick .ip-g{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:5px}.icon-pick button{font-size:20px;min-width:0;line-height:1;padding:7px 0;border-radius:10px;background:rgba(255,255,255,.05);border:2px solid rgba(255,255,255,.18);cursor:pointer;font-family:inherit}.icon-pick button:hover{border-color:rgba(255,255,255,.5)}.icon-pick button[aria-pressed="true"]{border-color:#ffc85c;background:rgba(255,200,92,.22);box-shadow:0 0 12px -2px #ffc85c}.nm-ic{margin-right:6px}.icon-pick{margin:12px 0 4px}.ic-svg{width:1.15em;height:1.15em;vertical-align:-.2em;display:inline-block}.icon-pick button .ic-svg{color:#f3efe2}';
   document.head.appendChild(st);
   iconBox = document.createElement('div'); iconBox.className = 'icon-pick';
-  iconBox.innerHTML = '<span class="ip-l">Pick your icon</span><div class="ip-g" role="group" aria-label="Your icon">' + ICONS.map(i => '<button type="button" data-icon="' + i + '" aria-pressed="false" aria-label="Icon ' + i + '">' + i + '</button>').join('') + '</div>';
+  iconBox.innerHTML = '<span class="ip-l">Pick your icon</span><div class="ip-g" role="group" aria-label="Your icon">' + ICONS.map(i => '<button type="button" data-icon="' + i + '" aria-pressed="false" aria-label="Icon ' + i + '">' + iconHTML(i) + '</button>').join('') + '</div>';
   before.parentNode.insertBefore(iconBox, before);
   iconBox.addEventListener('click', e => { const b = e.target.closest('[data-icon]'); if (b) setPickedIcon(b.dataset.icon); });
   return iconBox;
@@ -301,10 +309,11 @@ function render(focus) {
   const p = getProfile();
   $('who-in').hidden = !p; $('who-out').hidden = !!p;
   if (p) {
-    $('who-name').textContent = (iconOf(p) ? iconOf(p) + ' ' : '') + displayName(p);
+    $('who-name').innerHTML = (iconOf(p) ? iconHTML(iconOf(p)) + ' ' : '') + displayName(p).replace(/[&<>"']/g, c => '&#' + c.charCodeAt(0) + ';');
     $('who-class').textContent = p.classCode ? (p.className && p.className !== p.classCode ? `${p.className} · code ${p.classCode}` : `Class ${p.classCode}`) : 'Not in a class · World leaderboards only';
   } else {
     $('who-help').textContent = isGuest() ? "You're playing as a guest in this tab, so nothing is saved. Sign in to keep your scores and progress." : 'Sign in here and all four games remember you on this computer.';
+    iconPicker();
     if (focus) setTimeout(() => $(focus).focus(), 30);
   }
 }

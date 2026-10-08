@@ -600,8 +600,14 @@ async function boot() {
   const p = getProfile();
   if (!p) { $('signin').hidden = false; return; }
   $('report').hidden = false;
-  const ICONS = ['🎹','🎸','🎺','🎷','🥁','🎻','🪕','🎤','🎧','🎼','🎵','🪘','🪗','⭐','🔥','🚀'];
-  $('avatar').textContent = ICONS.includes(p.icon) ? p.icon : p.first.charAt(0).toUpperCase();
+  const ICONS = ['🎹','🎸','🎺','🪊','🎷','🥁','🎻','🪕','🎤','🎧','🎼','𝄢','🎵','🪘','🪗','⭐','🔥','🚀'];
+  // Trombone and bass clef aren't on most school devices' emoji fonts yet, so they're drawn as small pictures.
+  const ICON_SVG = {
+    '🪊': '<svg class="ic-svg" width="1.15em" height="1.15em" style="vertical-align:-.2em" viewBox="0 0 24 24" role="img" aria-label="trombone"><g fill="none" stroke="#e7b23a" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M16.5 13H5a2 2 0 0 0 0 4h11.5"/><path d="M15 8H6.5a2.5 2.5 0 0 0 0 5"/><path d="M11 8v5M19 17h2.5"/></g><path d="M14.5 6.6 22 3v10l-7.5-3.6z" fill="#e7b23a"/></svg>',
+    '𝄢': '<svg class="ic-svg" width="1.15em" height="1.15em" style="vertical-align:-.2em" viewBox="0 0 24 24" role="img" aria-label="bass clef"><circle cx="6.2" cy="8.6" r="2.7" fill="currentColor"/><path d="M4 8C4.3 4.6 7.3 3 10.4 3c4 0 6.8 2.7 6.8 6.6 0 5.8-5.5 10-12.2 12" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"/><circle cx="20.6" cy="6.6" r="1.4" fill="currentColor"/><circle cx="20.6" cy="12" r="1.4" fill="currentColor"/></svg>'
+  };
+  if (ICONS.includes(p.icon) && ICON_SVG[p.icon]) $('avatar').innerHTML = ICON_SVG[p.icon].replace('class="ic-svg"', 'style="width:60%;height:60%"');
+  else $('avatar').textContent = ICONS.includes(p.icon) ? p.icon : p.first.charAt(0).toUpperCase();
   $('p-name').textContent = displayName(p);
   $('p-class').textContent = p.classCode ? `${p.className && p.className !== p.classCode ? p.className + ' · ' : ''}${p.classCode}` : 'Not in a class';
   const sid = sidOf(p), days = history(p), T = {}, PH = {};
