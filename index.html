@@ -173,6 +173,11 @@
   .who .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 12px; }
   .who .solo { flex-direction: row; align-items: center; gap: 8px; font-size: 15px; letter-spacing: 0; text-transform: none; color: var(--text); cursor: pointer; }
   .who .solo input { width: 18px; height: 18px; accent-color: var(--gold); }
+  .who .more { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+  .who .extra { display: flex; align-items: center; gap: 6px; width: min(100%, 220px); }
+  .who button.x { padding: 6px 10px 4px; background: transparent; color: var(--muted); border-color: var(--card-border); }
+  .who button.add { padding: 2px 0; border: 0; background: none; color: var(--gold); letter-spacing: .04em; text-transform: none; font-size: 15px; }
+  .who button.add[hidden] { display: none; }
   .who .err { color: #ff8a7a; min-height: 1.3em; margin-top: 8px; }
   .who .me { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
   .who .me b { color: var(--text); font-size: 22px; font-weight: 700; }
@@ -199,7 +204,7 @@
       <div class="me"><b id="who-name"></b><span class="cls" id="who-class"></span></div>
       <div class="row">
         <a class="report" href="report/"><span aria-hidden="true">🏆</span> My Report</a>
-        <button class="ghost" type="button" id="who-class-btn">Change class</button>
+        <button class="ghost" type="button" id="who-class-btn">My classes</button>
         <button class="ghost" type="button" id="who-switch">Not you? Switch student</button>
       </div>
     </div>
@@ -211,6 +216,7 @@
         <label for="w-init">Last initial<input type="text" id="w-init" maxlength="1" autocapitalize="characters" spellcheck="false"></label>
         <label class="code" for="w-code">Class code<input type="text" id="w-code" maxlength="7" autocapitalize="characters" spellcheck="false" placeholder="From your teacher"></label>
         <button type="submit" id="w-go">Sign in</button>
+        <div class="more" id="w-more"><button class="add" type="button" id="w-add">+ Add another class</button></div>
       </form>
       <div class="row">
         <label class="solo" for="w-solo"><input type="checkbox" id="w-solo"> I'm not in a class</label>
@@ -282,7 +288,7 @@
 
 <script>
 (() => {
-// The same saved student every game reads: localStorage 'rdt_profile_v1' = {first, init, classCode, className, classOwner},
+// The same saved student every game reads: localStorage 'rdt_profile_v1' = {first, init, classCode, className, classOwner, classes},
 // with guests marked for this tab in sessionStorage 'music_guest'. Class codes are checked in the shared Firebase project.
 const $ = id => document.getElementById(id);
 const PROFILE_KEY = 'rdt_profile_v1', GUEST_KEY = 'music_guest';
@@ -299,6 +305,15 @@ const wait = p => Promise.race([p, new Promise((_, bad) => setTimeout(() => bad(
 const isGuest = () => { try { return sessionStorage.getItem(GUEST_KEY) === '1'; } catch { return false; } };
 function getProfile() { if (isGuest()) return null; try { const p = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null'); return p && p.first && p.init ? p : null; } catch { return null; } }
 function setProfile(p) { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); sessionStorage.removeItem(GUEST_KEY); } catch {} }
+// Every class this student is in, main class first (max 3); [] when not in a class.
+function classesOf(p) {
+  if (!p) return [];
+  const list = Array.isArray(p.classes) && p.classes.length ? p.classes
+    : (p.classCode ? [{ code: p.classCode, name: p.className || p.classCode, owner: p.classOwner || '' }] : []);
+  return list.filter(c => c && c.code).slice(0, 3);
+}
+// classes[0] is the main class: classCode/className/classOwner always mirror it, for code that only knows one class
+const withClasses = (p, cs) => ({ ...p, classes: cs, classCode: cs.length ? cs[0].code : '', className: cs.length ? cs[0].name : '', classOwner: cs.length ? cs[0].owner : '' });
 const displayName = p => `${p.first.charAt(0).toUpperCase()}${p.first.slice(1)} ${p.init}.`;
 const cleanCode = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 
@@ -307,7 +322,9 @@ function render(focus) {
   $('who-in').hidden = !p; $('who-out').hidden = !!p;
   if (p) {
     $('who-name').textContent = displayName(p);
-    $('who-class').textContent = p.classCode ? (p.className && p.className !== p.classCode ? `${p.className} · code ${p.classCode}` : `Class ${p.classCode}`) : 'Not in a class · World leaderboards only';
+    const cs = classesOf(p);
+    $('who-class').textContent = cs.length > 1 ? cs.map(c => c.name || c.code).join(' · ')
+      : p.classCode ? (p.className && p.className !== p.classCode ? `${p.className} · code ${p.classCode}` : `Class ${p.classCode}`) : 'Not in a class · World leaderboards only';
   } else {
     $('who-help').textContent = isGuest() ? "You're playing as a guest in this tab, so nothing is saved. Sign in to keep your scores and progress." : 'Sign in here and all five games remember you on this computer.';
     if (focus) setTimeout(() => $(focus).focus(), 30);
@@ -316,42 +333,65 @@ function render(focus) {
 async function submit(e) {
   e.preventDefault();
   const first = $('w-first').value.trim().replace(/\s+/g, ' '), init = $('w-init').value.trim().toUpperCase();
-  const solo = $('w-solo').checked, code = cleanCode($('w-code').value), err = $('w-error');
+  const solo = $('w-solo').checked, boxes = codeBoxes(), err = $('w-error');
+  const codes = [...new Set(boxes.map(b => cleanCode(b.value)).filter(Boolean))];   // blank extra boxes and repeats don't count
   err.textContent = '';
   if (!/^[A-Za-zÀ-ÿ][A-Za-zÀ-ÿ' -]{0,14}$/.test(first)) { err.textContent = 'Enter your first name (letters only).'; $('w-first').focus(); return; }
   if (!/^[A-Z]$/.test(init)) { err.textContent = 'Enter the first letter of your last name.'; $('w-init').focus(); return; }
-  let className = '', classOwner = '';
+  const classes = [];
   if (!solo) {
-    if (!code) { err.textContent = 'Enter the class code from your teacher, or check "I\'m not in a class."'; $('w-code').focus(); return; }
+    if (!codes.length) { err.textContent = 'Enter the class code from your teacher, or check "I\'m not in a class."'; $('w-code').focus(); return; }
     $('w-go').disabled = true; $('w-go').textContent = 'Checking…';
     try {
-      const { fs, db } = await fb(), d = await wait(fs.getDoc(fs.doc(db, 'classes', code)));
-      if (!d.exists()) { err.textContent = "We couldn't find that class code. Check it with your teacher."; $('w-code').focus(); return; }
-      className = d.data().name; classOwner = d.data().ownerEmail || '';
+      const { fs, db } = await fb(), ds = await wait(Promise.all(codes.map(c => fs.getDoc(fs.doc(db, 'classes', c)))));
+      const bad = codes.find((c, i) => !ds[i].exists());
+      if (bad) {
+        err.textContent = codes.length > 1 ? `We couldn't find the class code ${bad}. Check it with your teacher.` : "We couldn't find that class code. Check it with your teacher.";
+        (boxes.find(b => cleanCode(b.value) === bad) || $('w-code')).focus(); return;
+      }
+      ds.forEach((d, i) => classes.push({ code: codes[i], name: d.data().name, owner: d.data().ownerEmail || '' }));
     } catch { err.textContent = "Couldn't check the code. Check your internet connection and try again."; return; }
     finally { $('w-go').disabled = false; $('w-go').textContent = 'Sign in'; }
   }
-  setProfile({ first, init, classCode: solo ? '' : code, className, classOwner });
+  setProfile(withClasses({ first, init }, classes));
   render();
 }
-// keep the class name current, the way the games do (a deleted class leaves the student signed in with no class)
+// keep the class names current, the way the games do (a deleted class is dropped; with none left the student stays signed in with no class)
 async function refreshClass() {
-  const p = getProfile(); if (!p || !p.classCode) return;
+  const p = getProfile(), cs = classesOf(p); if (!cs.length) return;
   try {
-    const { fs, db } = await fb(), d = await wait(fs.getDoc(fs.doc(db, 'classes', p.classCode)));
-    setProfile(d.exists() ? { ...p, className: d.data().name, classOwner: d.data().ownerEmail || '' } : { ...p, classCode: '', className: '', classOwner: '' });
+    const { fs, db } = await fb(), ds = await wait(Promise.all(cs.map(c => fs.getDoc(fs.doc(db, 'classes', c.code)))));
+    setProfile(withClasses(p, cs.flatMap((c, i) => ds[i].exists() ? [{ code: c.code, name: ds[i].data().name, owner: ds[i].data().ownerEmail || '' }] : [])));
     render();
   } catch {}
 }
+// the Class code box plus up to two more ("+ Add another class"), each extra one with a ✕
+const codeBoxes = () => [$('w-code'), ...document.querySelectorAll('#w-more .extra input')];
+function addBox(value = '') {
+  if (codeBoxes().length >= 3) return null;
+  const row = document.createElement('div'), x = document.createElement('button'), box = document.createElement('input');
+  row.className = 'extra';
+  Object.assign(box, { type: 'text', maxLength: 7, spellcheck: false, placeholder: 'Another class code', value });
+  box.setAttribute('autocapitalize', 'characters'); box.setAttribute('aria-label', 'Another class code');
+  box.addEventListener('input', () => { const c = cleanCode(box.value); if (c !== box.value) box.value = c; });
+  Object.assign(x, { type: 'button', className: 'x', textContent: '✕' }); x.setAttribute('aria-label', 'Remove this class');
+  x.addEventListener('click', () => { row.remove(); syncAdd(); $('w-code').focus(); });
+  row.append(box, x); $('w-add').before(row); syncAdd();
+  return box;
+}
+const syncAdd = () => { $('w-add').hidden = $('w-solo').checked || codeBoxes().length >= 3; };
 function openForm(keep) {
   const p = keep ? getProfile() : null;
-  $('w-first').value = p ? p.first : ''; $('w-init').value = p ? p.init : ''; $('w-code').value = p ? p.classCode || '' : '';
-  $('w-solo').checked = !!(p && !p.classCode); $('w-code').disabled = $('w-solo').checked; $('w-error').textContent = '';
+  const cs = classesOf(p);
+  $('w-first').value = p ? p.first : ''; $('w-init').value = p ? p.init : ''; $('w-code').value = cs.length ? cs[0].code : '';
+  $('w-solo').checked = !!(p && !cs.length); $('w-code').disabled = $('w-solo').checked; $('w-error').textContent = '';
+  document.querySelectorAll('#w-more .extra').forEach(r => r.remove()); cs.slice(1).forEach(c => addBox(c.code)); syncAdd();
   $('who-in').hidden = true; $('who-out').hidden = false;
   setTimeout(() => (keep ? $('w-code') : $('w-first')).focus(), 30);
 }
 $('who-form').addEventListener('submit', submit);
-$('w-solo').addEventListener('change', e => { $('w-code').disabled = e.target.checked; if (e.target.checked) $('w-code').value = ''; });
+$('w-solo').addEventListener('change', e => { $('w-code').disabled = e.target.checked; if (e.target.checked) { $('w-code').value = ''; document.querySelectorAll('#w-more .extra').forEach(r => r.remove()); } syncAdd(); });
+$('w-add').addEventListener('click', () => { const b = addBox(); if (b) b.focus(); });
 $('w-code').addEventListener('input', e => { const c = cleanCode(e.target.value); if (c !== e.target.value) e.target.value = c; });
 $('w-guest').addEventListener('click', () => { try { sessionStorage.setItem(GUEST_KEY, '1'); } catch {} render(); $('who-help').textContent = "Playing as a guest in this tab: scores and progress aren't saved. Pick a game below."; });
 $('who-switch').addEventListener('click', () => openForm(false));

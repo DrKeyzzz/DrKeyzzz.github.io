@@ -224,6 +224,13 @@ const wait = p => Promise.race([p, new Promise((_, bad) => setTimeout(() => bad(
 const load = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } };
 const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
 function getProfile() { try { if (sessionStorage.getItem(GUEST_KEY) === '1') return null; const p = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null'); return p && p.first && p.init ? p : null; } catch { return null; } }
+// Every class this student is in, main class first (max 3); [] when not in a class.
+function classesOf(p) {
+  if (!p) return [];
+  const list = Array.isArray(p.classes) && p.classes.length ? p.classes
+    : (p.classCode ? [{ code: p.classCode, name: p.className || p.classCode, owner: p.classOwner || '' }] : []);
+  return list.filter(c => c && c.code).slice(0, 3);
+}
 const displayName = p => `${p.first.charAt(0).toUpperCase()}${p.first.slice(1)} ${p.init}.`;
 const sidOf = p => (p.first + p.init).toLowerCase().replace(/[^a-z]/g, '');
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -305,7 +312,9 @@ function foldRow(g, a, r) {
 }
 const noIndex = {};
 async function syncScores(p, store) {
-  const { fs, db } = await fb(), name = displayName(p);
+  const { fs, db } = await fb(), name = displayName(p), codes = classesOf(p).map(c => c.code);
+  // the same name in another class is a different student: a score is this student's when it's tagged with one of their classes (or with none, for a student not in a class)
+  const mine = r => { const tags = [r.class_code || ''].concat(Array.isArray(r.class_codes) ? r.class_codes : []).filter(Boolean); return codes.length ? tags.some(c => codes.includes(c)) : !tags.length; };
   await Promise.all(GAMES.map(async g => {
     const a = store.games[g.id];
     try {
@@ -322,7 +331,7 @@ async function syncScores(p, store) {
       }
       if (!docs) docs = (await wait(fs.getDocs(fs.query(fs.collection(db, g.col), fs.where('name', '==', name))))).docs;
       const rows = docs.map(d => { const r = d.data(); return { ...r, at: r.created_at && r.created_at.toMillis ? r.created_at.toMillis() : 0 }; })
-        .filter(r => r.at > a.upTo && (r.class_code || '') === (p.classCode || ''))   // the same name in another class is a different student
+        .filter(r => r.at > a.upTo && mine(r))
         .sort((x, y) => x.at - y.at);
       for (const r of rows) { foldRow(g, a, r); a.upTo = r.at; }
     } catch {}
@@ -628,12 +637,14 @@ async function boot() {
   if (ICONS.includes(p.icon) && ICON_SVG[p.icon]) $('avatar').innerHTML = ICON_SVG[p.icon].replace('class="ic-svg"', 'style="width:60%;height:60%"');
   else $('avatar').textContent = ICONS.includes(p.icon) ? p.icon : p.first.charAt(0).toUpperCase();
   $('p-name').textContent = displayName(p);
-  $('p-class').textContent = p.classCode ? `${p.className && p.className !== p.classCode ? p.className + ' · ' : ''}${p.classCode}` : 'Not in a class';
+  const cls = classesOf(p);
+  $('p-class').textContent = cls.length > 1 ? cls.map(c => c.name || c.code).join(' · ')
+    : p.classCode ? `${p.className && p.className !== p.classCode ? p.className + ' · ' : ''}${p.classCode}` : 'Not in a class';
   const sid = sidOf(p), days = history(p), T = {}, PH = {};
   GAMES.forEach(g => { T[g.id] = practice(days, g.id); PH[g.id] = practiceHits(days, g.id); });
   const SKEY = 'mtg_scores_v1:' + sid, BKEY = 'mtg_badges_v1:' + sid;
-  let store = load(SKEY);
-  if (!store || store.v !== 1 || store.classCode !== (p.classCode || '')) store = { v: 1, classCode: p.classCode || '', games: {} };
+  let store = load(SKEY), codeKey = cls.map(c => c.code).sort().join(',');   // one class: just its code, as before
+  if (!store || store.v !== 1 || store.classCode !== codeKey) store = { v: 1, classCode: codeKey, games: {} };
   GAMES.forEach(g => { store.games[g.id] = Object.assign(newAgg(), store.games[g.id] || {}); });
   const A = store.games;
   const bstore = Object.assign({ seen: {}, at: {}, rank: -1 }, load(BKEY) || {});
