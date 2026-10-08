@@ -236,6 +236,7 @@ const GAMES = [
   { id: 'tidal', name: 'Tidal Tones', acc: '#ffc85c', url: 'https://drkeyzzz.github.io/tidal-tones/', col: 'tidal_scores', unit: 'notes named', cheers: ['AWESOME!', 'SMOOTH SAILING!', 'GREAT WORK!'] },
   { id: 'rhythm', name: 'Rhythm Trainer', acc: '#8b7bff', url: 'https://drkeyzzz.github.io/rhythm-trainer/', col: 'rhythm_scores', unit: 'rhythms right', cheers: ['NICE WORK!', 'GROOVY!', 'IN THE POCKET!'] },
   { id: 'scale', name: 'Scale Quest', acc: '#3ee8f0', url: 'https://drkeyzzz.github.io/scale-quest/', col: 'scale_scores', unit: 'answers right', cheers: ['WAY TO GO!', 'SCALE STAR!', 'LEVEL UP!'] },
+  { id: 'earshot', name: 'Earshot Saloon', acc: '#ff9a4a', url: 'https://drkeyzzz.github.io/earshot-saloon/', col: 'earshot_scores', unit: 'intervals right', cheers: ['YEEHAW!', 'SHARP EARS!', 'SHERIFF STAR!'] },
 ];
 
 // ---------- practice saved on this computer (MTG_HIST, written by every game) ----------
@@ -272,6 +273,7 @@ const FOCUS = {
   scale: lab => /(major|minor|Dorian|Phrygian|Lydian|Mixolydian|Aeolian|Locrian)$/.test(lab) || /^(Tonic|Supertonic|Mediant|Subdominant|Dominant|Submediant|Leading Tone)$/.test(lab),
   rhythm: lab => /^(Quarters & eighths|Sixteenths|Dotted rhythms|Rests|Syncopation|Compound beat|Triplets|Hemiola & duplets)$/.test(lab) || / (level|time)$/.test(lab),
   tidal: lab => /^(Treble|Bass|Alto) clef notes$|^Ledger lines$|^Intervals$|^[A-G][♯♭]?\d|^([MmPAd][2-8]|2nd|3rd|[4-7]th|Octave)$/.test(lab),
+  earshot: lab => /^(Minor|Major|Perfect|Augmented|Diminished) (unison|2nd|3rd|4th|5th|6th|7th|octave)$|^Tritone$|^Octave$/.test(lab),
   rooftop: lab => /^(Sixteenth triplets|Syncopation|Eighth notes|Quarter notes|Dotted quarters|Half notes|Dotted halves|Whole notes|Sixteenth notes|Dotted eighths|Triplets)$/.test(lab),
 };
 const practiceLink = (g, lab) => (FOCUS[g.id] && FOCUS[g.id](lab) ? `${g.url}?focus=${encodeURIComponent(lab)}` : g.url);
@@ -283,7 +285,7 @@ function foldRow(g, a, r) {
   const at = r.at, s = r.score || 0, acc = g.id === 'rhythm' ? s : (r.acc ?? r.accuracy ?? 0);
   a.n++;
   if (s > a.best) { a.prevBest = a.best; a.best = s; a.bestAt = at; }
-  a.lvl = Math.max(a.lvl, typeof r.level === 'number' ? r.level : 0); a.bpm = Math.max(a.bpm, r.bpm || 0); a.acc = Math.max(a.acc, Math.round(acc || 0)); a.keys = Math.max(a.keys, r.key_count || 0);
+  a.lvl = Math.max(a.lvl, typeof r.level === 'number' ? r.level : typeof r.town === 'number' ? r.town : 0); a.bpm = Math.max(a.bpm, r.bpm || 0); a.acc = Math.max(a.acc, Math.round(acc || 0)); a.keys = Math.max(a.keys, r.key_count || 0);
   const f = a.flags;
   if (r.style === 'live') f.live = 1;
   if (r.diff === 'expert') f.expert = 1;
@@ -370,12 +372,21 @@ const BADGES = {
     sharp,
     special('flawless', '💎', 'Flawless', 'You finished a CHAOS round with 100% accuracy.', 'Get every question right in a CHAOS round.', (t, a) => a.acc >= 100),
   ],
-  // across all four games; X = { streak, correct, minutes, tried }
+  earshot: [
+    { id: 'right', ic: '👂', name: 'Sharp Ears', desc: 'Every interval you hear right counts.', tiers: [50, 200, 500, 1500, 5000], m: t => t.correct, left: more('interval heard right', 'intervals heard right') },
+    { id: 'runs', ic: '🐎', name: 'Trail Rider', desc: 'Every trail run you finish counts.', tiers: [1, 10, 50, 150, 400], m: (t, a) => Math.max(t.plays, a.n), left: more('run', 'runs') },
+    { id: 'outlaws', ic: '🤠', name: 'Bounty Hunter', desc: 'Interval Outlaws you have lassoed at High Noon.', tiers: [1, 5, 15, 40, 100], m: t => t.caught, left: more('outlaw to lasso', 'outlaws to lasso') },
+    { id: 'town', ic: '🏜️', name: 'Trailblazer', desc: 'The furthest town you have reached on the trail.', tiers: [2, 3, 5, 8, 12], m: (t, a) => Math.max(t.level, a.lvl), left: reach(g => `Reach town ${g}`) },
+    sharp,
+    special('disguise', '🥸', 'Disguise Detector', 'You heard through an outlaw\'s disguise: an augmented or diminished interval.', 'Get an augmented or diminished interval right on Expert.', t => Object.entries(t.skills).some(([k, [r]]) => /^(Augmented|Diminished)/.test(k) && r > 0)),
+    special('expert', '⭐', 'Expert Sheriff', 'You posted a score at the Expert table.', 'Finish a trail run on Expert.', (t, a) => a.flags.expert),
+  ],
+  // across all five games; X = { streak, correct, minutes, tried }
   all: [
     { id: 'streak', ic: '🔥', name: 'On Fire', desc: 'Your longest practice streak: days in a row with any game.', tiers: [2, 5, 10, 20, 40], m: X => X.streak, left: reach(g => `Practice ${g} days in a row`) },
-    { id: 'titan', ic: '🧠', name: 'Theory Titan', desc: 'Right answers in all four games added together.', tiers: [100, 500, 2000, 5000, 10000], m: X => X.correct, left: more('right answer', 'right answers') },
-    { id: 'time', ic: '⏱️', name: 'Practice Hero', desc: 'Minutes practiced in all four games.', tiers: [30, 120, 300, 600, 1200], m: X => X.minutes, left: more('minute of practice', 'minutes of practice') },
-    { id: 'rounder', ic: '🌈', name: 'All-Rounder', desc: 'How many of the four games you have played.', tiers: [2, 3, 4], m: X => X.tried, left: (v, g) => `Try ${g - v} more game${g - v > 1 ? 's' : ''}` },
+    { id: 'titan', ic: '🧠', name: 'Theory Titan', desc: 'Right answers in all five games added together.', tiers: [100, 500, 2000, 5000, 10000], m: X => X.correct, left: more('right answer', 'right answers') },
+    { id: 'time', ic: '⏱️', name: 'Practice Hero', desc: 'Minutes practiced in all five games.', tiers: [30, 120, 300, 600, 1200], m: X => X.minutes, left: more('minute of practice', 'minutes of practice') },
+    { id: 'rounder', ic: '🌈', name: 'All-Rounder', desc: 'How many of the five games you have played.', tiers: [2, 3, 4, 5], m: X => X.tried, left: (v, g) => `Try ${g - v} more game${g - v > 1 ? 's' : ''}` },
   ],
 };
 const RANKS = [[0, 'Rookie Listener'], [250, 'Beat Keeper'], [700, 'Note Reader'], [1500, 'Rhythm Rider'], [2800, 'Scale Climber'], [4600, 'Harmony Hero'], [7000, 'Theory Wizard'], [10500, 'Virtuoso'], [15000, 'Maestro'], [21000, 'Superior Music Theory Master']];
@@ -428,12 +439,16 @@ const TIPS = [
   [/alto clef/i, 'In alto clef, the middle line is <strong>middle C</strong>.'],
   [/minor|dorian|phrygian|lydian|mixolydian|locrian|aeolian|ionian/i, 'Start from the major scale you know, then <strong>change only the notes that make this one different</strong>.'],
   [/major/i, 'Say the key signature first, then build the scale: <strong>W W H W W W H</strong>.'],
+  [/^(Minor|Major|Perfect|Augmented|Diminished) (unison|2nd|3rd|4th|5th|6th|7th|octave)$|^Tritone$/, 'Open <strong>Hank\'s Songbook</strong> in Earshot Saloon and hear this interval with a song you know. Then sing it before the dealer plays it.'],
+  [/clara/i, 'Look at the two notes on the staff and <strong>hum the interval in your head</strong> before Clara plays it. Then listen: does it match?'],
+  [/going down/i, 'Sing the top note first, then <strong>step down</strong> to the bottom one. Downward songs from Hank\'s Songbook help.'],
+  [/both notes at once/i, 'Listen for the <strong>low note first</strong>, then hum up to the high one to turn it into an interval you know.'],
   [/interval|2nd|3rd|4th|5th|6th|7th|octave/i, 'Count every line and space from the bottom note to the top note, <strong>including both notes</strong>.'],
   [/live|instrument|tuning/i, 'Tune up first, and use headphones so the game hears only you.'],
   [/[A-G][♯♭]?\d/, 'Find this note on your instrument, then say its name every time you see it.'],
 ];
 const tipFor = lab => (TIPS.find(([re]) => re.test(lab)) || [null, 'Practice this one slowly, then speed up a little each time.'])[1];
-const iconFor = lab => /note|rest|rhythm|eighth|sixteenth|triplet|dotted|tied|whole|half|quarter/i.test(lab) ? '🥁' : /major|minor|scale/i.test(lab) ? '🎹' : /clef|ledger/i.test(lab) ? '🎼' : /live/i.test(lab) ? '🎤' : '🎵';
+const iconFor = lab => /^(Minor|Major|Perfect|Augmented|Diminished) (unison|2nd|3rd|4th|5th|6th|7th|octave)$|^Tritone$|clara|going down|both notes at once/i.test(lab) ? '👂' : /note|rest|rhythm|eighth|sixteenth|triplet|dotted|tied|whole|half|quarter/i.test(lab) ? '🥁' : /major|minor|scale/i.test(lab) ? '🎹' : /clef|ledger/i.test(lab) ? '🎼' : /live/i.test(lab) ? '🎤' : '🎵';
 const stars = a => a >= 97 ? 5 : a >= 92 ? 4 : a >= 85 ? 3 : 2;
 
 // ---------- drawing a badge ----------
@@ -479,7 +494,7 @@ function gamePanel(g, t, a, list) {
   }
   const weekAgo = Date.now() - 7 * 864e5, recent = a.recent.filter(([at]) => at >= weekAgo), bestRecent = Math.max(0, ...recent.map(r => r[1]));
   const record = a.bestAt >= weekAgo && a.prevBest > 0;
-  const scoreFmt = g.id === 'rhythm' ? v => v + '%' : fmt;
+  const scoreFmt = g.id === 'rhythm' ? v => v + '%' : g.id === 'earshot' ? v => '$' + fmt(v) : fmt;
   const tro = [];
   tro.push(['Best score', best ? scoreFmt(best) : '—', record ? '🏆 New record this week!' : bestRecent ? `▲ ${scoreFmt(bestRecent)} this week` : '', true]);
   tro.push(['Games played', fmt(runs), recent.length ? `${recent.length} this week` : '']);
@@ -490,6 +505,9 @@ function gamePanel(g, t, a, list) {
   } else if (g.id === 'tidal') {
     tro.push(['Best level', Math.max(t.level, a.lvl) || '—', '']);
     tro.push(['Best accuracy', Math.max(t.acc, a.acc) + '%', '']);
+  } else if (g.id === 'earshot') {
+    tro.push(['Furthest town', Math.max(t.level, a.lvl) || '—', '']);
+    tro.push(['Outlaws lassoed', fmt(t.caught), t.caught ? 'Yeehaw!' : 'Lasso your first at High Noon!']);
   } else if (g.id === 'rhythm') {
     tro.push(['Rhythms right', fmt(t.correct), '']);
     tro.push(['Hardest level', a.flags.extreme ? 'Extreme' : a.flags.hard ? 'Hard' : a.n ? 'Easy' : '—', '']);
@@ -524,6 +542,7 @@ function gamePanel(g, t, a, list) {
   if (t.week.answers) lineBits.push(`you got <b>${fmt(t.week.correct)} ${g.unit}</b> this week`);
   else if (t.correct) lineBits.push(`you've got <b>${fmt(t.correct)} ${g.unit}</b> so far`);
   if (g.id === 'rooftop' && t.caught) lineBits.push(`caught <b>${t.caught} villain${t.caught > 1 ? 's' : ''}</b>`);
+  if (g.id === 'earshot' && t.caught) lineBits.push(`lassoed <b>${t.caught} outlaw${t.caught > 1 ? 's' : ''}</b>`);
   if (best) lineBits.push(`your best score is <b>${scoreFmt(best)}</b>`);
   if (record) lineBits.push(`and you set a <b>new record</b>`);
   const line = lineBits.length ? lineBits.join(', ').replace(/^./, c => c.toUpperCase()) + '!' : 'Great start! Keep playing to fill your trophy case.';
