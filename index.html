@@ -7,7 +7,16 @@
 <meta name="description" content="Five browser games for practicing music theory: note reading, rhythm, scales, sight reading, and ear training.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Josefin+Sans:wght@400;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Josefin+Sans:wght@400;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+/* Look (skin), shared by every Music Theory Game: clean (default), day or classic. ?skin=day previews and saves one. */
+(function () {
+  var ok = ['clean', 'day', 'classic'], s = null;
+  try { var q = new URLSearchParams(location.search).get('skin'); if (ok.indexOf(q) >= 0) { s = q; localStorage.setItem('mtg_skin_v1', q); } } catch (e) {}
+  if (!s) try { s = localStorage.getItem('mtg_skin_v1'); } catch (e) {}
+  document.documentElement.dataset.skin = ok.indexOf(s) >= 0 ? s : 'clean';
+})();
+</script>
 <style>
   :root {
     --bg: #0d1420;
@@ -17,6 +26,11 @@
     --text: #f1ece0;
     --muted: #9aa7bb;
     --gold: #ffc85c;
+    --btn: #ffc85c;
+    --btn-ink: #10131a;
+    --err: #ff8a7a;
+    --f-ui: "Josefin Sans", system-ui, sans-serif;
+    --f-display: "Abril Fatface", Georgia, serif;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; }
@@ -24,7 +38,7 @@
     min-height: 100vh;
     background: radial-gradient(1200px 700px at 50% -10%, var(--bg-glow), var(--bg) 70%) fixed, var(--bg);
     color: var(--text);
-    font-family: "Josefin Sans", system-ui, sans-serif;
+    font-family: var(--f-ui);
     padding: 0 16px 48px;
   }
   header {
@@ -40,7 +54,7 @@
     margin: 0 0 10px;
   }
   h1 {
-    font-family: "Abril Fatface", Georgia, serif;
+    font-family: var(--f-display);
     font-weight: 400;
     font-size: clamp(40px, 7vw, 72px);
     line-height: 1.05;
@@ -136,19 +150,19 @@
   .scale   { --accent: #3ee8f0; --shot-bg: #0e0a25; }
   .rooftop { --accent: #ff4fa3; --shot-bg: #121025; }
   .earshot { --accent: #ff9a4a; --shot-bg: #1a120c; }
-  /* NEW badge: a little sheriff-star sticker on the newest game */
+  /* "Start here" path: numbered stickers on the cards for guests and new students */
   .game { position: relative; }
-  .new {
-    position: absolute; top: 14px; left: 14px; z-index: 2;
-    display: grid; place-items: center; width: 76px; height: 76px;
-    background: #ff4f4f; color: #fff;
-    clip-path: polygon(50% 0%, 61% 18%, 82% 10%, 79% 32%, 100% 40%, 84% 55%, 96% 75%, 74% 76%, 68% 98%, 50% 85%, 32% 98%, 26% 76%, 4% 75%, 16% 55%, 0% 40%, 21% 32%, 18% 10%, 39% 18%);
-    font: 700 17px "Josefin Sans", system-ui, sans-serif; letter-spacing: .08em; padding-top: 3px;
-    transform: rotate(-12deg); filter: drop-shadow(0 4px 10px rgba(0,0,0,.5));
-    animation: newpulse 1.8s ease-in-out infinite;
+  .step {
+    position: absolute; top: 12px; left: 12px; z-index: 2;
+    display: inline-flex; align-items: center; gap: 8px;
+    background: rgba(8, 12, 20, .82); color: #fff; border: 1px solid var(--accent); border-radius: 999px;
+    padding: 4px 12px 4px 4px; font: 700 13px var(--f-ui); letter-spacing: .06em; text-transform: uppercase;
   }
-  @keyframes newpulse { 50% { transform: rotate(-12deg) scale(1.08); } }
-  @media (prefers-reduced-motion: reduce) { .game, .shot img, .shot video { transition: none; } .new { animation: none; } }
+  .step b { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--accent); color: #10131a; font-size: 14px; letter-spacing: 0; padding-top: 2px; }
+  main:not(.path) .step { display: none; }
+  .path-note { max-width: 980px; margin: 0 auto 16px; color: var(--muted); font-size: 16px; text-align: center; }
+  .prog { margin: 6px 0 0; font-size: 14px; font-weight: 700; color: var(--text); opacity: .85; }
+  @media (prefers-reduced-motion: reduce) { .game, .shot img, .shot video { transition: none; } }
   footer {
     text-align: center;
     color: var(--muted);
@@ -162,13 +176,13 @@
   .who p { margin: 0; color: var(--muted); }
   .who form { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1.4fr) auto; gap: 10px 12px; align-items: end; margin-top: 12px; }
   .who label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); min-width: 0; }
-  .who input[type="text"] { font: 600 17px "Josefin Sans", system-ui, sans-serif; color: var(--text); background: var(--bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 11px 12px 8px; width: 100%; }
+  .who input[type="text"] { font: 600 17px var(--f-ui); color: var(--text); background: var(--bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 11px 12px 8px; width: 100%; }
   .who input[type="text"]:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
   .who input:disabled { opacity: .4; }
-  .who button { font: 700 14px "Josefin Sans", system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; border-radius: 999px; padding: 12px 20px 9px; cursor: pointer; border: 1px solid var(--gold); background: var(--gold); color: #10131a; }
+  .who button { font: 700 14px var(--f-ui); letter-spacing: .08em; text-transform: uppercase; border-radius: 999px; padding: 12px 20px 9px; cursor: pointer; border: 1px solid var(--btn); background: var(--btn); color: var(--btn-ink); }
   .who button.ghost { background: transparent; color: var(--text); border-color: var(--card-border); }
   .who button:hover, .who a.report:hover { filter: brightness(1.08); }
-  .who a.report { font: 700 14px "Josefin Sans", system-ui, sans-serif; letter-spacing: .08em; text-transform: uppercase; border-radius: 999px; padding: 12px 20px 9px; border: 1px solid var(--gold); background: var(--gold); color: #10131a; text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
+  .who a.report { font: 700 14px var(--f-ui); letter-spacing: .08em; text-transform: uppercase; border-radius: 999px; padding: 12px 20px 9px; border: 1px solid var(--btn); background: var(--btn); color: var(--btn-ink); text-decoration: none; display: inline-flex; align-items: center; gap: 6px; }
   .who button:disabled { opacity: .5; cursor: default; }
   .who .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 12px; }
   .who .solo { flex-direction: row; align-items: center; gap: 8px; font-size: 15px; letter-spacing: 0; text-transform: none; color: var(--text); cursor: pointer; }
@@ -178,15 +192,76 @@
   .who button.x { padding: 6px 10px 4px; background: transparent; color: var(--muted); border-color: var(--card-border); }
   .who button.add { padding: 2px 0; border: 0; background: none; color: var(--gold); letter-spacing: .04em; text-transform: none; font-size: 15px; }
   .who button.add[hidden] { display: none; }
-  .who .err { color: #ff8a7a; min-height: 1.3em; margin-top: 8px; }
+  .who .err { color: var(--err); min-height: 1.3em; margin-top: 8px; }
   .who .me { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
   .who .me b { color: var(--text); font-size: 22px; font-weight: 700; }
   .who .me .cls { color: var(--gold); font-weight: 700; }
+  /* signed in: "Hi Maya!" with rank, streak and a big Continue into the last game played */
+  .hi { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px 24px; }
+  .hi h2.hello { margin: 0; font: 400 clamp(28px, 4vw, 38px)/1.1 var(--f-display); letter-spacing: 0; text-transform: none; color: var(--text); }
+  .hi .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .hi .chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px 3px; border-radius: 999px; border: 1px solid var(--card-border); background: var(--bg); font-size: 15px; font-weight: 700; color: var(--text); }
+  .hi .me { display: block; margin-top: 10px; color: var(--muted); font-size: 15px; }
+  .hi .me b { font-size: inherit; color: var(--text); }
+  .hi .me .cls::before { content: " · "; color: var(--muted); font-weight: 400; }
+  .cont-box { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+  .cont { display: inline-flex; align-items: center; gap: 10px; font: 700 20px var(--f-ui); letter-spacing: .06em; text-transform: uppercase; text-decoration: none; color: var(--btn-ink); background: var(--btn); border-radius: 999px; padding: 15px 30px 12px; }
+  .cont:hover { filter: brightness(1.08); }
+  .cont:focus-visible, .q .go:focus-visible, .who a.report:focus-visible, .who button:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+  .cont-box small { color: var(--muted); font-size: 14px; }
+
+  /* today's quests: the two weakest skills across the games, plus the daily goal */
+  .quests { max-width: 980px; margin: 0 auto 28px; }
+  .quests > h2 { margin: 0 0 12px; font-size: 13px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
+  .qgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .q { --accent: var(--gold); display: flex; flex-direction: column; gap: 8px; background: var(--card); border: 1px solid var(--card-border); border-top: 3px solid var(--accent); border-radius: 16px; padding: 14px 16px 16px; min-width: 0; }
+  .q .qk { margin: 0; display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  .q .qk i { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); flex: none; }
+  .q .qn { font-size: 19px; font-weight: 700; overflow-wrap: anywhere; }
+  .q .qt { margin: 0; color: var(--muted); font-size: 15px; }
+  .q .qrow { display: flex; align-items: center; gap: 10px; }
+  .q .qp { font-weight: 700; font-variant-numeric: tabular-nums; min-width: 3.2em; text-align: right; }
+  .bar { flex: 1; position: relative; height: 10px; border-radius: 999px; background: var(--bg); border: 1px solid var(--card-border); overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--accent); border-radius: 999px; }
+  .bar em { position: absolute; top: 0; bottom: 0; left: 85%; width: 2px; background: var(--text); opacity: .5; }
+  .q .go { margin-top: auto; align-self: flex-start; text-decoration: none; font: 700 14px var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: #10131a; background: var(--accent); border-radius: 999px; padding: 10px 18px 8px; }
+  .q .go:hover { filter: brightness(1.08); }
+  .q.done .qn { color: var(--accent); animation: goal .6s cubic-bezier(.2, 1.6, .4, 1) both; transform-origin: left center; }
+  @keyframes goal { from { transform: scale(.7); opacity: .3; } }
+  @media (prefers-reduced-motion: reduce) { .q.done .qn { animation: none; } }
+  [hidden] { display: none !important; }
+
+  /* ---------- Look: html[data-skin] = clean (default) | day | classic ----------
+     Classic is the original look above, untouched. Clean and Day only swap colors, fonts and shadows. */
+  html:not([data-skin="classic"]) {
+    --bg: #0f1a2b; --bg-glow: #0f1a2b; --card: #16233a; --card-border: #263a56;
+    --text: #eef2f7; --muted: #a3b2c6; --gold: #ffcc66; --btn: #ffcc66; --btn-ink: #10131a; --err: #ff8a7a;
+    --f-ui: "Outfit", ui-sans-serif, system-ui, sans-serif; --f-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  }
+  html[data-skin="day"] {
+    color-scheme: light;
+    --bg: #f3f6fb; --bg-glow: #f3f6fb; --card: #ffffff; --card-border: #d8e0eb;
+    --text: #17233a; --muted: #52627a; --gold: #9a5b00; --btn: #ffc24d; --btn-ink: #17130a; --err: #c2410c;
+  }
+  html:not([data-skin="classic"]) h1 { font-weight: 800; letter-spacing: -.02em; }
+  html:not([data-skin="classic"]) .hi h2.hello { font-weight: 800; letter-spacing: -.01em; }
+  html:not([data-skin="classic"]) header { padding: 44px 0 28px; }
+  html:not([data-skin="classic"]) .game:hover, html:not([data-skin="classic"]) .game:focus-visible { box-shadow: 0 14px 28px -18px rgba(0, 0, 0, .7); }
+  html[data-skin="day"] .game:hover, html[data-skin="day"] .game:focus-visible { box-shadow: 0 14px 28px -18px rgba(23, 35, 58, .45); }
+  html[data-skin="day"] :is(.game, .who, .q) { box-shadow: 0 6px 18px -14px rgba(23, 35, 58, .35); }
+  html:not([data-skin="classic"]) :is(.play, .q .go, .who button, .who a.report) { padding-top: 10px; padding-bottom: 10px; }
+  html:not([data-skin="classic"]) .step b { padding-top: 0; }
+  html:not([data-skin="classic"]) .cont { padding: 14px 30px; }
+  html:not([data-skin="classic"]) :is(.who input[type="text"], .hi .chip) { padding-top: 9px; padding-bottom: 9px; }
+  html:not([data-skin="classic"]) .hi .chip { padding-top: 4px; padding-bottom: 4px; }
+  html:not([data-skin="classic"]) .play { padding: 9px 18px; }
   @media (max-width: 720px) { .who form { grid-template-columns: minmax(0, 1fr) 110px; } .who form .code { grid-column: 1 / -1; } .who form button { grid-column: 1 / -1; } }
   @media (max-width: 640px) {
     header { padding: 40px 0 28px; }
     main { grid-template-columns: minmax(0, 1fr); gap: 18px; }
     .name { font-size: 19px; }
+    .cont-box { width: 100%; }
+    .cont { width: 100%; justify-content: center; }
   }
 </style>
 </head>
@@ -200,8 +275,17 @@
 
   <section class="who" id="who" aria-label="Sign in">
     <div id="who-in" hidden>
-      <h2>Signed in for all five games</h2>
-      <div class="me"><b id="who-name"></b><span class="cls" id="who-class"></span></div>
+      <div class="hi">
+        <div>
+          <h2 class="hello" id="hi-name">Hi!</h2>
+          <div class="chips"><span class="chip" id="hi-rank"></span><span class="chip" id="hi-streak"></span></div>
+          <div class="me">Signed in for all five games as <b id="who-name"></b><span class="cls" id="who-class"></span></div>
+        </div>
+        <div class="cont-box" id="hi-go" hidden>
+          <a class="cont" id="hi-cont" href="#"><span aria-hidden="true">▶</span> Continue</a>
+          <small id="hi-last"></small>
+        </div>
+      </div>
       <div class="row">
         <a class="report" href="report/"><span aria-hidden="true">🏆</span> My Report</a>
         <button class="ghost" type="button" id="who-class-btn">My classes</button>
@@ -226,58 +310,73 @@
     </div>
   </section>
 
-  <main>
-    <a class="game tidal" href="https://drkeyzzz.github.io/tidal-tones/">
+  <section class="quests" id="quests" aria-labelledby="q-head" hidden>
+    <h2 id="q-head">Today's quests</h2>
+    <div class="qgrid" id="q-list"></div>
+  </section>
+
+  <p class="path-note" id="path-note">New here? Start with game 1 and work your way to 5.</p>
+  <main id="games" class="path">
+    <a class="game tidal" data-game="tidal" href="https://drkeyzzz.github.io/tidal-tones/">
+      <span class="step" aria-hidden="true"><b>1</b>Read notes</span>
       <div class="shot"><video src="screenshots/tidal-tones.mp4" poster="screenshots/tidal-tones.jpg" autoplay muted loop playsinline aria-label="Tidal Tones gameplay: boats sail toward the lighthouse as notes are named"></video></div>
       <div class="info">
         <div>
           <p class="name">Tidal Tones</p>
           <p class="desc">Note reading and intervals</p>
+          <p class="prog" hidden></p>
         </div>
         <span class="play">Play</span>
       </div>
     </a>
 
-    <a class="game rhythm" href="https://drkeyzzz.github.io/rhythm-trainer/">
-      <div class="shot"><img src="screenshots/rhythm-trainer.jpg" alt="The Big Score: a spy game for rhythmic and melodic dictation"></div>
-      <div class="info">
-        <div>
-          <p class="name">The Big Score</p>
-          <p class="desc">Rhythm &amp; melody dictation heist</p>
-        </div>
-        <span class="play">Play</span>
-      </div>
-    </a>
-
-    <a class="game scale" href="https://drkeyzzz.github.io/scale-quest/">
-      <div class="shot"><img src="screenshots/scale-quest.jpg" alt="Scale Quest: building the C major scale on the piano"></div>
-      <div class="info">
-        <div>
-          <p class="name">Scale Quest</p>
-          <p class="desc">Major scales, arcade style</p>
-        </div>
-        <span class="play">Play</span>
-      </div>
-    </a>
-
-    <a class="game rooftop" href="https://drkeyzzz.github.io/rooftop-runner/">
+    <a class="game rooftop" data-game="rooftop" href="https://drkeyzzz.github.io/rooftop-runner/">
+      <span class="step" aria-hidden="true"><b>2</b>Read rhythm</span>
       <div class="shot"><video src="screenshots/rooftop-runner.mp4" poster="screenshots/rooftop-runner.jpg" autoplay muted loop playsinline aria-label="Rooftop Sight Reading Runner gameplay: the runner jumps across rooftops as notes reach the line"></video></div>
       <div class="info">
         <div>
           <p class="name">Rooftop Sight Reading Runner</p>
           <p class="desc">Sight reading</p>
+          <p class="prog" hidden></p>
         </div>
         <span class="play">Play</span>
       </div>
     </a>
 
-    <a class="game earshot" href="https://drkeyzzz.github.io/earshot-saloon/">
-      <span class="new" aria-label="New game">NEW</span>
+    <a class="game earshot" data-game="earshot" href="https://drkeyzzz.github.io/earshot-saloon/">
+      <span class="step" aria-hidden="true"><b>3</b>Hear intervals</span>
       <div class="shot"><img src="screenshots/earshot-saloon.jpg" alt="Earshot Saloon: the dealer's card and four note cards on a round saloon table"></div>
       <div class="info">
         <div>
           <p class="name">Earshot Saloon</p>
           <p class="desc">Ear training: intervals</p>
+          <p class="prog" hidden></p>
+        </div>
+        <span class="play">Play</span>
+      </div>
+    </a>
+
+    <a class="game scale" data-game="scale" href="https://drkeyzzz.github.io/scale-quest/">
+      <span class="step" aria-hidden="true"><b>4</b>Build scales</span>
+      <div class="shot"><img src="screenshots/scale-quest.jpg" alt="Scale Quest: building the C major scale on the piano"></div>
+      <div class="info">
+        <div>
+          <p class="name">Scale Quest</p>
+          <p class="desc">Scales, modes and degrees</p>
+          <p class="prog" hidden></p>
+        </div>
+        <span class="play">Play</span>
+      </div>
+    </a>
+
+    <a class="game rhythm" data-game="rhythm" href="https://drkeyzzz.github.io/rhythm-trainer/">
+      <span class="step" aria-hidden="true"><b>5</b>Dictation</span>
+      <div class="shot"><img src="screenshots/rhythm-trainer.jpg" alt="The Big Score: a spy game for rhythmic and melodic dictation"></div>
+      <div class="info">
+        <div>
+          <p class="name">The Big Score</p>
+          <p class="desc">Rhythm &amp; melody dictation heist</p>
+          <p class="prog" hidden></p>
         </div>
         <span class="play">Play</span>
       </div>
@@ -317,9 +416,211 @@ const withClasses = (p, cs) => ({ ...p, classes: cs, classCode: cs.length ? cs[0
 const displayName = p => `${p.first.charAt(0).toUpperCase()}${p.first.slice(1)} ${p.init}.`;
 const cleanCode = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 
+// ---------- the student's hub: greeting, today's quests and a progress line on each game ----------
+// The rules below are copied from My Report (report/index.html) so the two pages agree: GAMES, history(), practice(),
+// FOCUS/practiceLink, the badges, XP, ranks and the streak. My Report also folds in the student's leaderboard scores
+// from Firestore; this page reads no Firestore for that, only the summary My Report saved on this computer (mtg_scores_v1).
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const fmt = n => Number(n || 0).toLocaleString();
+const load = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } };
+const sidOf = p => (p.first + p.init).toLowerCase().replace(/[^a-z]/g, '');
+const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const daysAgo = n => { const d = new Date(); d.setDate(d.getDate() - n); return dayKey(d); };
+const nextDay = k => { const [y, m, d] = k.split('-').map(Number); return dayKey(new Date(y, m - 1, d + 1)); };
+const GAMES = [
+  { id: 'rooftop', name: 'Rooftop Runner', acc: '#ff4fa3', url: 'https://drkeyzzz.github.io/rooftop-runner/' },
+  { id: 'tidal', name: 'Tidal Tones', acc: '#ffc85c', url: 'https://drkeyzzz.github.io/tidal-tones/' },
+  { id: 'rhythm', name: 'The Big Score', acc: '#f5c542', url: 'https://drkeyzzz.github.io/rhythm-trainer/' },
+  { id: 'scale', name: 'Scale Quest', acc: '#3ee8f0', url: 'https://drkeyzzz.github.io/scale-quest/' },
+  { id: 'earshot', name: 'Earshot Saloon', acc: '#ff9a4a', url: 'https://drkeyzzz.github.io/earshot-saloon/' },
+];
+const GAME = Object.fromEntries(GAMES.map(g => [g.id, g]));
+// the "Start here" order for new players: read notes, read rhythm, hear intervals, build scales, then dictation
+const PATH = ['tidal', 'rooftop', 'earshot', 'scale', 'rhythm'];
+const PITCH = { tidal: 'Name the notes on the staff to guide the boats home.', rooftop: 'Read the rhythm and jump across the rooftops.', earshot: 'Hear two notes and play the interval card.', scale: 'Build scales on the piano, arcade style.', rhythm: 'Listen and write down the rhythm to crack the safe.' };
+const DAILY_GOAL = 30;
+
+const history = p => { const h = load('mtg_hist_v1:' + sidOf(p)); return h && h.days ? h.days : {}; };
+// per game: totals from the history, all-time and this week
+function practice(days, gid) {
+  const t = { answers: 0, correct: 0, ms: 0, plays: 0, best: 0, level: 0, bpm: 0, caught: 0, acc: 0, skills: {}, skW: {}, skP: {}, days: 0, week: { answers: 0, correct: 0 }, prev: { answers: 0, correct: 0 } };
+  const wk = daysAgo(6), pw = daysAgo(13);
+  for (const [d, games] of Object.entries(days)) {
+    const g = games[gid]; if (!g) continue;
+    t.days++; t.answers += g.answers || 0; t.correct += g.correct || 0; t.ms += g.ms || 0; t.plays += g.plays || 0;
+    t.best = Math.max(t.best, g.best || 0); t.level = Math.max(t.level, g.level || 0); t.bpm = Math.max(t.bpm, g.bpm || 0); t.caught += g.caught || 0; t.acc = Math.max(t.acc, g.acc || 0);
+    const bucket = d >= wk ? t.week : d >= pw ? t.prev : null, skB = d >= wk ? t.skW : d >= pw ? t.skP : null;
+    for (const [lab, [r, n]] of Object.entries(g.skills || {})) {
+      const s = t.skills[lab] || (t.skills[lab] = [0, 0]); s[0] += r; s[1] += n;
+      if (skB) { const b = skB[lab] || (skB[lab] = [0, 0]); b[0] += r; b[1] += n; }
+    }
+    if (bucket) { bucket.answers += g.answers || 0; bucket.correct += g.correct || 0; }
+  }
+  return t;
+}
+const pct = (r, n) => n ? Math.round(100 * r / n) : 0;
+// "Practice" opens the game already set up for the skill (each game reads ?focus=)
+const FOCUS = {
+  scale: lab => /(major|minor|Dorian|Phrygian|Lydian|Mixolydian|Aeolian|Locrian)$/.test(lab) || /^(Tonic|Supertonic|Mediant|Subdominant|Dominant|Submediant|Leading Tone)$/.test(lab),
+  rhythm: lab => /^(Quarters & eighths|Sixteenths|Dotted rhythms|Rests|Syncopation|Compound beat|Triplets|Hemiola & duplets)$/.test(lab) || / (level|time)$/.test(lab),
+  tidal: lab => /^(Treble|Bass|Alto) clef notes$|^Ledger lines$|^Intervals$|^[A-G][♯♭]?\d|^([MmPAd][2-8]|2nd|3rd|[4-7]th|Octave)$/.test(lab),
+  earshot: lab => /^(Minor|Major|Perfect|Augmented|Diminished) (unison|2nd|3rd|4th|5th|6th|7th|octave)$|^Tritone$|^Octave$/.test(lab),
+  rooftop: lab => /^(Sixteenth triplets|Syncopation|Eighth notes|Quarter notes|Dotted quarters|Half notes|Dotted halves|Whole notes|Sixteenth notes|Dotted eighths|Triplets)$/.test(lab),
+};
+const practiceLink = (g, lab) => (FOCUS[g.id] && FOCUS[g.id](lab) ? `${g.url}?focus=${encodeURIComponent(lab)}` : g.url);
+
+// badges, XP and ranks: only what's needed to count badge levels the way My Report does
+const newAgg = () => ({ upTo: 0, n: 0, best: 0, prevBest: 0, bestAt: 0, lvl: 0, bpm: 0, acc: 0, keys: 0, g90: 0, flags: {}, days: [], recent: [], first: '', hit: {} });
+const tierOf = (b, v) => { let k = 0; while (k < b.tiers.length && v >= b.tiers[k]) k++; return k; };
+const special = m => ({ tiers: [1], m: (t, a) => m(t, a) ? 1 : 0 });
+const sharp = { tiers: [85, 90, 95, 98, 100], m: (t, a) => Math.max(t.acc, a.acc) };
+const BADGES = {
+  rooftop: [
+    { tiers: [50, 200, 500, 1500, 5000], m: t => t.correct },
+    { tiers: [1, 10, 50, 150, 400], m: (t, a) => Math.max(t.plays, a.n) },
+    { tiers: [1, 5, 15, 40, 100], m: t => t.caught },
+    { tiers: [70, 90, 110, 130, 150], m: (t, a) => Math.max(t.bpm, a.bpm) },
+    { tiers: [3, 5, 8, 12, 16], m: (t, a) => Math.max(t.level, a.lvl) },
+    sharp,
+    special((t, a) => a.flags.live || Object.keys(t.skills).some(k => /^Live/.test(k))),
+    special((t, a) => a.flags.expert),
+  ],
+  tidal: [
+    { tiers: [50, 200, 500, 1500, 5000], m: t => t.correct },
+    { tiers: [1, 10, 50, 150, 400], m: (t, a) => Math.max(t.plays, a.n) },
+    { tiers: [3, 5, 8, 12, 16], m: (t, a) => Math.max(t.level, a.lvl) },
+    sharp,
+    special((t, a) => a.flags.ivl || t.skills.Intervals),
+    special((t, a) => { const s = t.skills['Bass clef notes']; return a.flags.bass90 || (s && s[1] >= 20 && s[0] / s[1] >= .9); }),
+  ],
+  rhythm: [
+    { tiers: [50, 200, 500, 1500, 5000], m: t => t.correct },
+    { tiers: [1, 10, 50, 150, 400], m: (t, a) => Math.max(t.plays, a.n) },
+    { tiers: [1, 3, 10, 25, 50], m: (t, a) => a.g90 },
+    sharp,
+    special((t, a) => a.flags.hard),
+    special((t, a) => a.flags.extreme),
+    special((t, a) => a.flags.perfect),
+  ],
+  scale: [
+    { tiers: [50, 200, 500, 1500, 5000], m: t => t.correct },
+    { tiers: [1, 10, 50, 150, 400], m: (t, a) => Math.max(t.plays, a.n) },
+    { tiers: [1000, 2500, 5000, 8000, 12000], m: (t, a) => Math.max(t.best, a.best) },
+    { tiers: [3, 6, 9, 12, 15], m: (t, a) => Math.max(t.level, a.keys) },
+    sharp,
+    special((t, a) => a.acc >= 100),
+  ],
+  earshot: [
+    { tiers: [50, 200, 500, 1500, 5000], m: t => t.correct },
+    { tiers: [1, 10, 50, 150, 400], m: (t, a) => Math.max(t.plays, a.n) },
+    { tiers: [1, 5, 15, 40, 100], m: t => t.caught },
+    { tiers: [2, 3, 5, 8, 12], m: (t, a) => Math.max(t.level, a.lvl) },
+    sharp,
+    special(t => Object.entries(t.skills).some(([k, [r]]) => /^(Augmented|Diminished)/.test(k) && r > 0)),
+    special((t, a) => a.flags.expert),
+  ],
+  // across all five games; X = { streak, correct, minutes, tried }
+  all: [
+    { tiers: [2, 5, 10, 20, 40], m: X => X.streak },
+    { tiers: [100, 500, 2000, 5000, 10000], m: X => X.correct },
+    { tiers: [30, 120, 300, 600, 1200], m: X => X.minutes },
+    { tiers: [2, 3, 4, 5], m: X => X.tried },
+  ],
+};
+const RANKS = [[0, 'Rookie Listener'], [250, 'Beat Keeper'], [700, 'Note Reader'], [1500, 'Rhythm Rider'], [2800, 'Scale Climber'], [4600, 'Harmony Hero'], [7000, 'Theory Wizard'], [10500, 'Virtuoso'], [15000, 'Maestro'], [21000, 'Superior Music Theory Master']];
+const rankOf = xp => { let i = 0; while (i + 1 < RANKS.length && xp >= RANKS[i + 1][0]) i++; return i; };
+// the all-games numbers (streak, right answers, minutes, games tried) and the days with any practice
+function allStats(days, A) {
+  const active = new Set(Object.keys(days).filter(d => Object.values(days[d]).some(g => (g.answers || 0) + (g.plays || 0) > 0)));
+  GAMES.forEach(g => A[g.id].days.forEach(d => active.add(d)));
+  const tried = new Set(); let correct = 0, ms = 0, run = 0, streak = 0, prev = '';
+  for (const d of [...active].sort()) {
+    for (const g of GAMES) { const p = days[d] && days[d][g.id]; if (p) { correct += p.correct || 0; ms += p.ms || 0; } if (p || A[g.id].days.includes(d)) tried.add(g.id); }
+    run = prev && nextDay(prev) === d ? run + 1 : 1; streak = Math.max(streak, run); prev = d;
+  }
+  return { X: { streak, correct, minutes: Math.round(ms / 60000), tried: tried.size }, active };
+}
+// rank, XP and current streak, as My Report shows them (its saved score summary counts too, when it's for these classes)
+function standing(p, days, T) {
+  const store = load('mtg_scores_v1:' + sidOf(p)), codeKey = classesOf(p).map(c => c.code).sort().join(',');
+  const ok = store && store.v === 1 && store.classCode === codeKey && store.games, A = {};
+  GAMES.forEach(g => { A[g.id] = Object.assign(newAgg(), (ok && store.games[g.id]) || {}); });
+  const { X, active } = allStats(days, A);
+  const levels = GAMES.reduce((s, g) => s + BADGES[g.id].reduce((k, b) => k + tierOf(b, b.m(T[g.id], A[g.id])), 0), 0) + BADGES.all.reduce((k, b) => k + tierOf(b, b.m(X)), 0);
+  const xp = GAMES.reduce((s, g) => s + T[g.id].correct * 2 + Math.max(T[g.id].plays, A[g.id].n) * 25, 0) + levels * 50;
+  // current streak: days in a row ending today or yesterday
+  let streak = 0; const start = active.has(dayKey()) ? 0 : 1;
+  while (active.has(daysAgo(start + streak))) streak++;
+  return { xp, rank: rankOf(xp), streak };
+}
+const ago = ms => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} hr ago` : m < 2880 ? 'yesterday' : `${Math.floor(m / 1440)} days ago`; };
+// one short line per game card, from what that game saves
+function progLine(gid, t) {
+  if (!t.answers && !t.plays) return 'Not played yet';
+  const acc = t.answers ? `${pct(t.correct, t.answers)}% right` : '';
+  const bits = {
+    rooftop: [t.level && `Level ${t.level} reached`, t.best && `Best ${fmt(t.best)}`],
+    tidal: [t.level ? `Level ${t.level}` : t.best && `Best ${fmt(t.best)}`, acc],
+    earshot: [t.level && `Town ${t.level}`, t.level ? acc : t.best && `Best $${fmt(t.best)}`],
+    scale: [t.best && `Best ${fmt(t.best)}`, acc],
+    rhythm: [t.best && `Best ${t.best}%`, acc],
+  }[gid].filter(Boolean);
+  return (bits.length ? bits : [acc, `${fmt(t.plays)} played`].filter(Boolean)).slice(0, 2).join(' · ');
+}
+const bar = (v, label, goal) => `<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${v}" aria-label="${esc(label)}"><i style="width:${Math.min(100, v)}%"></i>${goal ? '<em></em>' : ''}</div>`;
+const card = (g, kicker, body) => `<article class="q" style="--accent:${g ? g.acc : 'var(--gold)'}"><p class="qk"><i></i>${esc(kicker)}</p>${body}</article>`;
+const playCard = (gid, kicker) => { const g = GAME[gid]; return card(g, kicker, `<b class="qn">${esc(g.name)}</b><p class="qt">${esc(PITCH[gid])}</p><a class="go" href="${g.url}">Play ${esc(g.name)}</a>`); };
+
+function renderHub(p) {
+  const days = p ? history(p) : {}, T = {};
+  GAMES.forEach(g => { T[g.id] = practice(days, g.id); });
+  const played = GAMES.filter(g => T[g.id].answers || T[g.id].plays);
+  // guests, signed-out visitors and brand-new students get the numbered "Start here" path
+  $('games').classList.toggle('path', !played.length);
+  $('path-note').hidden = !!played.length;
+  document.querySelectorAll('.game[data-game]').forEach(a => { const el = a.querySelector('.prog'); el.hidden = !p; if (p) el.textContent = progLine(a.dataset.game, T[a.dataset.game]); });
+  $('quests').hidden = !p;
+  if (!p) return;
+  $('hi-name').textContent = `Hi ${p.first.charAt(0).toUpperCase()}${p.first.slice(1)}!`;
+  const st = standing(p, days, T);
+  $('hi-rank').textContent = `🏅 ${RANKS[st.rank][1]}`;
+  $('hi-rank').title = `Rank ${st.rank + 1} of ${RANKS.length} · ${fmt(st.xp)} XP`;
+  $('hi-streak').textContent = st.streak ? `🔥 ${st.streak}-day streak` : '🔥 Start a streak today';
+  // Continue: the game with the latest answer saved in the history
+  let lastG = null, lastAt = 0;
+  for (const d of Object.values(days)) for (const g of GAMES) { const x = d[g.id]; if (x && (x.last || 0) > lastAt) { lastAt = x.last; lastG = g; } }
+  $('hi-go').hidden = !lastG;
+  if (lastG) {
+    $('hi-cont').href = lastG.url;
+    $('hi-cont').setAttribute('aria-label', `Continue ${lastG.name}`);
+    $('hi-last').textContent = `Last played: ${lastG.name} · ${ago(lastAt)}`;
+  }
+  // today's quests: the two weakest skills in any game (at least 4 answers and below 85%, lowest first), then the daily goal
+  const cards = [];
+  if (!played.length) cards.push(playCard('tidal', 'Start here'));
+  else {
+    const weak = GAMES.flatMap(g => Object.entries(T[g.id].skills).map(([lab, [r, n]]) => ({ g, lab, n, a: pct(r, n) })))
+      .filter(s => s.n >= 4 && s.a < 85).sort((x, y) => x.a - y.a).slice(0, 2);
+    for (const s of weak) {
+      cards.push(card(s.g, s.g.name, `<b class="qn">${esc(s.lab)}</b><div class="qrow">${bar(s.a, `${s.lab}: ${s.a}% right, goal 85%`, true)}<span class="qp">${s.a}%</span></div><a class="go" href="${esc(practiceLink(s.g, s.lab))}" aria-label="Practice ${esc(s.lab)} in ${esc(s.g.name)}">Practice</a>`));
+    }
+    // room left: suggest the next game on the path they haven't tried yet
+    const next = PATH.find(id => !played.includes(GAME[id]));
+    if (weak.length < 2 && next) cards.push(playCard(next, 'Try something new'));
+    else if (!weak.length) cards.push(card(null, 'Skills', `<b class="qn">Nothing below 85%! 🌟</b><p class="qt">Try a harder level or a faster tempo to find your next challenge.</p>`));
+  }
+  const today = GAMES.reduce((s, g) => s + (((days[dayKey()] || {})[g.id] || {}).answers || 0), 0), done = today >= DAILY_GOAL;
+  cards.push(`<article class="q${done ? ' done' : ''}" style="--accent:#7dd3a8"><p class="qk"><i></i>Daily goal</p><b class="qn">${done ? 'Goal done! 🎉' : `Answer ${DAILY_GOAL} today`}</b>
+    <div class="qrow">${bar(Math.round(100 * today / DAILY_GOAL), `${today} of ${DAILY_GOAL} answers today`)}<span class="qp">${Math.min(today, 999)}/${DAILY_GOAL}</span></div>
+    <p class="qt">${done ? `You answered ${fmt(today)} today. Nice work!` : today ? `${DAILY_GOAL - today} more in any game.` : 'Any game counts.'}</p></article>`);
+  $('q-list').innerHTML = cards.join('');
+}
+
 function render(focus) {
   const p = getProfile();
   $('who-in').hidden = !p; $('who-out').hidden = !!p;
+  $('who').setAttribute('aria-label', p ? 'Your games' : 'Sign in');
+  renderHub(p);
   if (p) {
     $('who-name').textContent = displayName(p);
     const cs = classesOf(p);
@@ -397,7 +698,10 @@ $('w-guest').addEventListener('click', () => { try { sessionStorage.setItem(GUES
 $('who-switch').addEventListener('click', () => openForm(false));
 $('who-class-btn').addEventListener('click', () => openForm(true));
 // a sign-in made in a game in another tab shows up here too
-addEventListener('storage', e => { if (e.key === PROFILE_KEY) render(); });
+addEventListener('storage', e => { if (e.key === PROFILE_KEY) render(); else if (e.key && e.key.startsWith('mtg_hist_v1:') && getProfile()) renderHub(getProfile()); });
+// coming back from a game (or the back button): fresh progress and Continue
+addEventListener('pageshow', e => { if (e.persisted) render(); });
+document.addEventListener('visibilitychange', () => { if (!document.hidden && getProfile() && !$('who-in').hidden) renderHub(getProfile()); });
 render(); refreshClass();
 })();
 </script>
