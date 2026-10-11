@@ -227,6 +227,14 @@
   .q .go { margin-top: auto; align-self: flex-start; text-decoration: none; font: 700 14px var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: #10131a; background: var(--accent); border-radius: 999px; padding: 10px 18px 8px; }
   .q .go:hover { filter: brightness(1.08); }
   .q.done .qn { color: var(--accent); animation: goal .6s cubic-bezier(.2, 1.6, .4, 1) both; transform-origin: left center; }
+  /* "From your teacher": the class's assignment for today, before the other quests */
+  .q.tq { background: linear-gradient(color-mix(in srgb, var(--accent) 7%, transparent), transparent 70%), var(--card); }
+  .q.tq .qk { color: var(--text); }
+  .q.tq .qp { min-width: 0; white-space: nowrap; font-size: 15px; }
+  .q.tq.done .qp { color: var(--accent); }
+  html[data-skin="day"] .q.tq.done :is(.qn, .qp) { color: var(--text); }
+  footer a { color: inherit; }
+  footer .teach { display: block; margin-top: 10px; font-size: 13px; opacity: .8; }
   @keyframes goal { from { transform: scale(.7); opacity: .3; } }
   @media (prefers-reduced-motion: reduce) { .q.done .qn { animation: none; } }
   [hidden] { display: none !important; }
@@ -383,7 +391,7 @@
     </a>
   </main>
 
-  <footer>One sign-in works across all five games on this computer.</footer>
+  <footer>One sign-in works across all five games on this computer.<a class="teach" href="teacher/">Teachers: assign today's practice →</a></footer>
 
 <script>
 (() => {
@@ -571,6 +579,60 @@ const bar = (v, label, goal) => `<div class="bar" role="progressbar" aria-valuem
 const card = (g, kicker, body) => `<article class="q" style="--accent:${g ? g.acc : 'var(--gold)'}"><p class="qk"><i></i>${esc(kicker)}</p>${body}</article>`;
 const playCard = (gid, kicker) => { const g = GAME[gid]; return card(g, kicker, `<b class="qn">${esc(g.name)}</b><p class="qt">${esc(PITCH[gid])}</p><a class="go" href="${g.url}">Play ${esc(g.name)}</a>`); };
 
+// ---------- "From your teacher": classes/<code>.hub_assignment, set on the teacher page (teacher/) ----------
+// { start: 'YYYY-MM-DD', end: 'YYYY-MM-DD', tasks: [{ game: 'tidal'|…|'any', skill: '' = any practice, goal, unit: 'answers'|'minutes' }] }
+// refreshClass() already reads every class doc, so this costs no extra reads: it keeps each class's assignment here
+// (per student, on this computer) so the cards show right away on the next visit.
+const ASSIGN_KEY = p => 'mtg_assign_v1:' + sidOf(p);
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+function cleanAssign(a) {
+  if (!a || !DATE_RE.test(a.start) || !DATE_RE.test(a.end) || !Array.isArray(a.tasks)) return null;
+  const tasks = a.tasks.filter(t => t && (GAME[t.game] || t.game === 'any') && Number(t.goal) > 0).slice(0, 3)
+    .map(t => ({ game: t.game, skill: t.game === 'any' ? '' : String(t.skill || ''), goal: Math.min(500, Math.round(Number(t.goal))), unit: t.unit === 'minutes' ? 'minutes' : 'answers' }));
+  return tasks.length ? { start: a.start, end: a.end, tasks } : null;
+}
+function saveAssigns(p, cs, ds) {
+  const by = {}; cs.forEach((c, i) => { if (ds[i].exists()) by[c.code] = cleanAssign(ds[i].data().hub_assignment); });
+  try { localStorage.setItem(ASSIGN_KEY(p), JSON.stringify(by)); } catch {}
+}
+const dueText = end => {
+  if (end === dayKey()) return 'due today';
+  if (end === nextDay(dayKey())) return 'due tomorrow';
+  const [y, m, d] = end.split('-').map(Number), dt = new Date(y, m - 1, d);
+  return 'due ' + (end <= daysAgo(-6) ? dt.toLocaleDateString(undefined, { weekday: 'short' }) : dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+};
+// progress inside the assignment's dates, from the practice history: answers in that skill (or in the game, or in every game), or minutes played
+function assignDone(days, a, t) {
+  const gids = t.game === 'any' ? GAMES.map(g => g.id) : [t.game];
+  let n = 0;
+  for (const [d, games] of Object.entries(days)) {
+    if (d < a.start || d > a.end) continue;
+    for (const gid of gids) {
+      const g = games[gid]; if (!g) continue;
+      n += t.unit === 'minutes' ? (g.ms || 0) : t.skill ? ((g.skills || {})[t.skill] || [0, 0])[1] : (g.answers || 0);
+    }
+  }
+  return t.unit === 'minutes' ? Math.floor(n / 60000) : n;
+}
+function teacherCards(p, days) {
+  const by = load(ASSIGN_KEY(p)) || {}, cs = classesOf(p), today = dayKey(), out = [];
+  for (const c of cs) {
+    const a = cleanAssign(by[c.code]);
+    if (!a || a.start > today || a.end < today) continue;
+    for (const t of a.tasks) {
+      if (out.length >= 3) break;
+      const g = GAME[t.game] || null, what = t.skill || 'any practice', title = `${g ? g.name : 'Any game'}: ${what}`;
+      const v = assignDone(days, a, t), done = v >= t.goal, unit = t.unit === 'minutes' ? 'min' : 'answers';
+      const href = g ? (t.skill ? practiceLink(g, t.skill) : g.url) : '#games';
+      out.push(`<article class="q tq${done ? ' done' : ''}" style="--accent:${g ? g.acc : 'var(--gold)'}"><p class="qk"><i></i>From your teacher · ${esc(dueText(a.end))}</p>
+        <b class="qn">${esc(title)}</b>${cs.length > 1 ? `<p class="qt">${esc(c.name || c.code)}</p>` : ''}
+        <div class="qrow">${bar(Math.round(100 * v / t.goal), `${title}: ${v} of ${t.goal} ${unit}`)}<span class="qp">${done ? '✓ Done' : `${fmt(v)} of ${t.goal} ${unit}`}</span></div>
+        <a class="go" href="${esc(href)}" aria-label="${done ? 'Practice more' : 'Start'}: ${esc(title)}">${g ? (done ? 'Practice more' : 'Start') : 'Pick a game'}</a></article>`);
+    }
+  }
+  return out;
+}
+
 function renderHub(p) {
   const days = p ? history(p) : {}, T = {};
   GAMES.forEach(g => { T[g.id] = practice(days, g.id); });
@@ -595,8 +657,8 @@ function renderHub(p) {
     $('hi-cont').setAttribute('aria-label', `Continue ${lastG.name}`);
     $('hi-last').textContent = `Last played: ${lastG.name} · ${ago(lastAt)}`;
   }
-  // today's quests: the two weakest skills in any game (at least 4 answers and below 85%, lowest first), then the daily goal
-  const cards = [];
+  // today's quests: the teacher's assignment first, then the two weakest skills in any game (at least 4 answers and below 85%, lowest first), then the daily goal
+  const cards = teacherCards(p, days);
   if (!played.length) cards.push(playCard('tidal', 'Start here'));
   else {
     const weak = GAMES.flatMap(g => Object.entries(T[g.id].skills).map(([lab, [r, n]]) => ({ g, lab, n, a: pct(r, n) })))
@@ -651,6 +713,7 @@ async function submit(e) {
         (boxes.find(b => cleanCode(b.value) === bad) || $('w-code')).focus(); return;
       }
       ds.forEach((d, i) => classes.push({ code: codes[i], name: d.data().name, owner: d.data().ownerEmail || '' }));
+      saveAssigns({ first, init }, classes, ds);
     } catch { err.textContent = "Couldn't check the code. Check your internet connection and try again."; return; }
     finally { $('w-go').disabled = false; $('w-go').textContent = 'Sign in'; }
   }
@@ -662,6 +725,7 @@ async function refreshClass() {
   const p = getProfile(), cs = classesOf(p); if (!cs.length) return;
   try {
     const { fs, db } = await fb(), ds = await wait(Promise.all(cs.map(c => fs.getDoc(fs.doc(db, 'classes', c.code)))));
+    saveAssigns(p, cs, ds);
     setProfile(withClasses(p, cs.flatMap((c, i) => ds[i].exists() ? [{ code: c.code, name: ds[i].data().name, owner: ds[i].data().ownerEmail || '' }] : [])));
     render();
   } catch {}

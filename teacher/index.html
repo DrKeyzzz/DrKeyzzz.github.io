@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Assign Practice · Music Theory Games</title>
+<meta name="description" content="Teachers: set today's practice for a class in the Music Theory Games.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Josefin+Sans:wght@400;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+/* Look (skin), shared by every Music Theory Game: clean (default), day or classic. ?skin=day previews and saves one. */
+(function () {
+  var ok = ['clean', 'day', 'classic'], s = null;
+  try { var q = new URLSearchParams(location.search).get('skin'); if (ok.indexOf(q) >= 0) { s = q; localStorage.setItem('mtg_skin_v1', q); } } catch (e) {}
+  if (!s) try { s = localStorage.getItem('mtg_skin_v1'); } catch (e) {}
+  document.documentElement.dataset.skin = ok.indexOf(s) >= 0 ? s : 'clean';
+})();
+</script>
+<style>
+  :root {
+    --bg: #0d1420;
+    --bg-glow: #1b2a44;
+    --card: #141d2c;
+    --card-border: #26344b;
+    --text: #f1ece0;
+    --muted: #9aa7bb;
+    --gold: #ffc85c;
+    --btn: #ffc85c;
+    --btn-ink: #10131a;
+    --err: #ff8a7a;
+    --ok: #7dd3a8;
+    --f-ui: "Josefin Sans", system-ui, sans-serif;
+    --f-display: "Abril Fatface", Georgia, serif;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body {
+    min-height: 100vh;
+    background: radial-gradient(1200px 700px at 50% -10%, var(--bg-glow), var(--bg) 70%) fixed, var(--bg);
+    color: var(--text);
+    font-family: var(--f-ui);
+    padding: 0 16px 48px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  .back { display: inline-block; margin-top: 18px; color: var(--muted); text-decoration: none; font-weight: 700; font-size: 15px; padding: 6px 0; }
+  .back:hover { color: var(--text); }
+  header { padding: 18px 0 24px; }
+  .eyebrow { color: var(--gold); letter-spacing: .25em; font-size: 13px; font-weight: 700; text-transform: uppercase; margin: 0 0 8px; }
+  h1 { font-family: var(--f-display); font-weight: 400; font-size: clamp(34px, 6vw, 54px); line-height: 1.05; margin: 0; }
+  .sub { color: var(--muted); font-size: 17px; margin: 12px 0 0; max-width: 60ch; }
+  .card { background: var(--card); border: 1px solid var(--card-border); border-radius: 18px; padding: 18px 20px; margin-bottom: 20px; }
+  .card > h2 { margin: 0 0 12px; font-size: 13px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
+  .card p { margin: 0 0 10px; color: var(--muted); }
+  .card p:last-child { margin-bottom: 0; }
+  .who { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin: -8px 0 16px; color: var(--muted); font-size: 15px; }
+  .who b { color: var(--text); }
+  label.f { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); min-width: 0; }
+  select, input[type="number"], input[type="date"] {
+    font: 600 16px var(--f-ui); color: var(--text); background: var(--bg); border: 1px solid var(--card-border); border-radius: 10px;
+    padding: 10px 12px 8px; width: 100%; min-width: 0; letter-spacing: 0; text-transform: none;
+  }
+  select:focus, input:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+  .btn { font: 700 14px var(--f-ui); letter-spacing: .08em; text-transform: uppercase; border-radius: 999px; padding: 12px 20px 9px; cursor: pointer; border: 1px solid var(--btn); background: var(--btn); color: var(--btn-ink); }
+  .btn.ghost { background: transparent; color: var(--text); border-color: var(--card-border); }
+  .btn.sm { padding: 7px 14px 5px; font-size: 13px; }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .btn:focus-visible, .add:focus-visible, .x:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+  .msg { min-height: 1.3em; margin: 12px 0 0; color: var(--err); font-weight: 600; }
+  .msg.ok { color: var(--ok); }
+
+  /* every class with its current assignment */
+  .classes { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  .classes li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 10px 12px; border-radius: 12px; background: var(--bg); border: 1px solid var(--card-border); }
+  .classes li.on { border-color: var(--gold); }
+  .classes .cn { font-weight: 700; }
+  .classes .cc { font-size: 13px; letter-spacing: .08em; color: var(--muted); }
+  .classes .ca { flex-basis: 100%; color: var(--muted); font-size: 15px; }
+  .classes .ca b { color: var(--text); font-weight: 600; }
+
+  /* when */
+  fieldset { border: 0; margin: 0 0 18px; padding: 0; min-width: 0; }
+  legend { padding: 0; margin-bottom: 8px; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .opts { display: flex; flex-wrap: wrap; gap: 8px; }
+  .opt { position: relative; }
+  .opt input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+  .opt span { display: inline-block; padding: 9px 16px 7px; border-radius: 999px; border: 1px solid var(--card-border); background: var(--bg); font-weight: 700; font-size: 15px; }
+  .opt input:checked + span { background: var(--btn); color: var(--btn-ink); border-color: var(--btn); }
+  .opt input:focus-visible + span { outline: 2px solid var(--text); outline-offset: 2px; }
+  .dates { display: grid; grid-template-columns: repeat(2, minmax(0, 200px)); gap: 10px 12px; margin-top: 12px; }
+
+  /* tasks */
+  .tasks { display: flex; flex-direction: column; gap: 10px; }
+  .task { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.6fr) 92px minmax(0, .9fr) auto; gap: 10px; align-items: end; padding: 12px; border-radius: 14px; background: var(--bg); border: 1px solid var(--card-border); }
+  .task select, .task input { background: var(--card); height: 42px; }
+  .x { font: 700 15px var(--f-ui); width: 40px; height: 40px; border-radius: 999px; border: 1px solid var(--card-border); background: transparent; color: var(--muted); cursor: pointer; }
+  .x:hover { color: var(--text); border-color: var(--muted); }
+  .x:disabled { visibility: hidden; }
+  .add { margin-top: 10px; padding: 4px 0; border: 0; background: none; color: var(--gold); font: 700 15px var(--f-ui); cursor: pointer; }
+  .hint { font-size: 14px; color: var(--muted); margin: 10px 0 0; }
+  .actions { margin-top: 20px; }
+  footer { text-align: center; color: var(--muted); font-size: 14px; margin-top: 28px; }
+
+  /* ---------- Look: html[data-skin] = clean (default) | day | classic (same as the home page) ---------- */
+  html:not([data-skin="classic"]) {
+    --bg: #0f1a2b; --bg-glow: #0f1a2b; --card: #16233a; --card-border: #263a56;
+    --text: #eef2f7; --muted: #a3b2c6; --gold: #ffcc66; --btn: #ffcc66; --btn-ink: #10131a; --err: #ff8a7a;
+    --f-ui: "Outfit", ui-sans-serif, system-ui, sans-serif; --f-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  }
+  html[data-skin="day"] {
+    color-scheme: light;
+    --bg: #f3f6fb; --bg-glow: #f3f6fb; --card: #ffffff; --card-border: #d8e0eb;
+    --text: #17233a; --muted: #52627a; --gold: #9a5b00; --btn: #ffc24d; --btn-ink: #17130a; --err: #c2410c; --ok: #15803d;
+  }
+  html:not([data-skin="day"]) { color-scheme: dark; }
+  html:not([data-skin="classic"]) h1 { font-weight: 800; letter-spacing: -.02em; }
+  html:not([data-skin="classic"]) :is(.btn, .opt span) { padding-top: 10px; padding-bottom: 10px; }
+  html:not([data-skin="classic"]) .btn.sm { padding-top: 6px; padding-bottom: 6px; }
+  html:not([data-skin="classic"]) :is(select, input[type="number"], input[type="date"]) { padding-top: 9px; padding-bottom: 9px; }
+  html[data-skin="day"] .card { box-shadow: 0 6px 18px -14px rgba(23, 35, 58, .35); }
+  html[data-skin="day"] .task :is(select, input) { background: var(--card); }
+  @media (max-width: 720px) {
+    .task { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; }
+    .task .tg, .task .ts { grid-column: 1 / -1; }
+  }
+  @media (max-width: 420px) { .dates { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">← Music Theory Games</a>
+  <header>
+    <p class="eyebrow">For teachers</p>
+    <h1>Assign practice</h1>
+    <p class="sub">Pick a class, the days, and up to 3 tasks. Your students see them at the top of the home page under "From your teacher", with a progress bar and a Start button.</p>
+  </header>
+
+  <section class="card" id="gate" aria-live="polite"><p>Loading…</p></section>
+
+  <div id="main" hidden>
+    <div class="who"><span id="who"></span><button class="btn ghost sm" type="button" id="signout">Sign out</button></div>
+
+    <section class="card" aria-labelledby="c-head">
+      <h2 id="c-head">Class</h2>
+      <label class="f" for="cls">Assign to<select id="cls"></select></label>
+      <ul class="classes" id="classes" aria-label="Your classes and their current assignments"></ul>
+    </section>
+
+    <form class="card" id="form" novalidate aria-labelledby="a-head">
+      <h2 id="a-head">New assignment</h2>
+      <fieldset>
+        <legend>When</legend>
+        <div class="opts">
+          <label class="opt"><input type="radio" name="when" value="today" checked><span>Today only</span></label>
+          <label class="opt"><input type="radio" name="when" value="week"><span id="week-label">This week</span></label>
+          <label class="opt"><input type="radio" name="when" value="custom"><span>Pick dates</span></label>
+        </div>
+        <div class="dates" id="dates" hidden>
+          <label class="f" for="d-start">Start<input type="date" id="d-start"></label>
+          <label class="f" for="d-end">End<input type="date" id="d-end"></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>Tasks</legend>
+        <div class="tasks" id="tasks"></div>
+        <button class="add" type="button" id="add">+ Add a task</button>
+        <p class="hint">Answers count only in the chosen skill. Minutes count all time in that game. Each Start button opens the game set up for the skill.</p>
+      </fieldset>
+      <div class="row actions">
+        <button class="btn" type="submit" id="save">Save assignment</button>
+        <button class="btn ghost" type="button" id="clear" hidden>Clear assignment</button>
+      </div>
+      <p class="msg" id="msg" role="status"></p>
+    </form>
+  </div>
+
+  <footer>Students need to be signed in on the home page with this class's code.</footer>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+// the same Firebase project, Google sign-in and teacher check as the games' Teacher dashboards
+const FIREBASE = { apiKey: 'AIzaSyDU9vbCWJ4yWuD8bAX984DmQF4dvo13BHs', authDomain: 'rhythm-trainer-fc313.firebaseapp.com', projectId: 'rhythm-trainer-fc313', appId: '1:956677028482:web:c3ec72a279e61b6f6c929b' };
+const TEACHER_EMAILS = ['milnesda@eht.k12.nj.us'];   // must match firestore.rules
+const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+let fbP = null, fbAuthP = null;
+function fb() {
+  fbP = fbP || Promise.all([import(SDK + 'firebase-app.js'), import(SDK + 'firebase-firestore.js')])
+    .then(([appMod, fs]) => ({ fs, db: fs.getFirestore(appMod.initializeApp(FIREBASE)) }))
+    .catch(e => { fbP = null; throw e; });
+  return fbP;
+}
+function fbAuth() {
+  fbAuthP = fbAuthP || Promise.all([fb(), import(SDK + 'firebase-auth.js')])
+    .then(([f, authMod]) => ({ ...f, authMod, auth: authMod.getAuth(f.db.app) }))
+    .catch(e => { fbAuthP = null; throw e; });
+  return fbAuthP;
+}
+const wait = p => Promise.race([p, new Promise((_, bad) => setTimeout(() => bad(new Error('timeout')), 15000))]);
+async function run(fn) { const f = await fbAuth(); return wait(fn(f)); }
+function errText(e, saving) {
+  const c = e && e.code;
+  if (c === 'permission-denied') return saving ? "Saving isn't allowed yet. The Firebase rules need the hub_assignment update." : "That isn't allowed. Sign in with the Google account that owns this class.";
+  if (c === 'auth/popup-closed-by-user' || c === 'auth/cancelled-popup-request') return 'Sign-in was cancelled.';
+  if (c === 'auth/popup-blocked') return 'Your browser blocked the sign-in window. Allow pop-ups for this site and try again.';
+  if (c === 'auth/unauthorized-domain') return 'Add this website to Firebase → Authentication → Settings → Authorized domains.';
+  if (e && e.message === 'timeout') return 'The database took too long to answer. Check your internet connection.';
+  if (c === 'unavailable' || (e && /fetch|network|load/i.test(e.message || ''))) return "Couldn't reach the database. Check your internet connection and try again.";
+  return (e && e.message) || 'Something went wrong. Try again.';
+}
+
+// ---------- dates (the student's own computer decides what "today" is) ----------
+const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const addDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return dayKey(d); };
+const toDate = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
+const niceDay = k => toDate(k).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// ---------- games and skills ----------
+// Each skill is a label the game itself saves in the practice history (MTG_HIST) AND opens with ?focus=<label>,
+// so the home page can count progress and its Start button sets the game up. '' = any practice in that game.
+const GAMES = [
+  { id: 'tidal', name: 'Tidal Tones' },
+  { id: 'rooftop', name: 'Rooftop Runner' },
+  { id: 'earshot', name: 'Earshot Saloon' },
+  { id: 'scale', name: 'Scale Quest' },
+  { id: 'rhythm', name: 'The Big Score' },
+  { id: 'any', name: 'Any game' },
+];
+const GNAME = Object.fromEntries(GAMES.map(g => [g.id, g.name]));
+const MAJ = ['C', 'G', 'D', 'A', 'E', 'B', 'F♯', 'C♯', 'F', 'B♭', 'E♭', 'A♭', 'D♭', 'G♭', 'C♭'];
+const MIN = ['A', 'E', 'B', 'F♯', 'C♯', 'G♯', 'D♯', 'A♯', 'D', 'G', 'C', 'F', 'B♭', 'E♭', 'A♭'];
+const MODES = ['Dorian', 'Phrygian', 'Lydian', 'Mixolydian', 'Aeolian', 'Locrian'];
+const SKILLS = {
+  tidal: [['Notes', ['Treble clef notes', 'Bass clef notes', 'Alto clef notes', 'Ledger lines']], ['Intervals', ['Intervals']]],
+  rooftop: [['Rhythms', ['Whole notes', 'Half notes', 'Dotted halves', 'Quarter notes', 'Dotted quarters', 'Eighth notes', 'Triplets', 'Sixteenth notes', 'Dotted eighths', 'Syncopation', 'Sixteenth triplets']]],
+  earshot: [
+    ['Intervals', ['Minor 2nd', 'Major 2nd', 'Minor 3rd', 'Major 3rd', 'Perfect 4th', 'Tritone', 'Perfect 5th', 'Minor 6th', 'Major 6th', 'Minor 7th', 'Major 7th', 'Octave']],
+    ['Augmented & diminished (Expert)', ['Augmented unison', 'Augmented 2nd', 'Diminished 4th', 'Augmented 5th', 'Augmented 6th', 'Diminished 7th', 'Diminished octave']],
+  ],
+  scale: [
+    ['Scale degrees', ['Tonic', 'Supertonic', 'Mediant', 'Subdominant', 'Dominant', 'Submediant', 'Leading Tone']],
+    ['Major scales', MAJ.map(t => `${t} major`)],
+    ['Natural minor', MIN.map(t => `${t} natural minor`)],
+    ['Harmonic minor', MIN.map(t => `${t} harmonic minor`)],
+    ['Melodic minor', MIN.map(t => `${t} melodic minor`)],
+    ...MODES.map(m => [m, MAJ.map(t => `${t} ${m}`)]),
+  ],
+  rhythm: [
+    ['Rhythms', ['Quarters & eighths', 'Sixteenths', 'Dotted rhythms', 'Rests', 'Syncopation', 'Compound beat', 'Triplets', 'Hemiola & duplets']],
+    ['Levels', ['Beginner level', 'Beginner + 16ths level', 'Easy level', 'Hard level', 'Extreme level']],
+    ['Meters', ['2/4 time', '3/4 time', '4/4 time', '6/8 time', '9/8 time', '12/8 time']],
+  ],
+  any: [],
+};
+const hasSkill = (g, s) => !s || (SKILLS[g] || []).some(([, l]) => l.includes(s));
+const DEFAULT_GOAL = { answers: 20, minutes: 10 };
+const newTask = () => ({ game: 'tidal', skill: '', goal: DEFAULT_GOAL.answers, unit: 'answers' });
+const taskText = t => `${GNAME[t.game] || t.game}: ${t.skill || 'any practice'}, ${t.goal} ${t.unit === 'minutes' ? 'min' : 'answers'}`;
+function whenText(a) {
+  const today = dayKey();
+  const span = a.start === a.end ? niceDay(a.start) : `${niceDay(a.start)} to ${niceDay(a.end)}`;
+  if (a.end < today) return `Ended · ${span}`;
+  if (a.start > today) return `Starts later · ${span}`;
+  return a.end === today ? 'Today only' : `Now through ${niceDay(a.end)}`;
+}
+
+// ---------- state ----------
+const S = { email: '', classes: [], code: '', when: 'today', tasks: [newTask()] };
+const cls = () => S.classes.find(c => c.code === S.code);
+function msg(text, ok) { const e = $('msg'); e.textContent = text || ''; e.className = 'msg' + (ok ? ' ok' : ''); }
+
+// ---------- sign in ----------
+function gate(html) { $('main').hidden = true; $('gate').hidden = false; $('gate').innerHTML = html; }
+function signInScreen(err) {
+  gate(`<h2>Teacher sign-in</h2><p>Sign in with Google to set practice for your classes. Use the same Google account as your games' Teacher dashboards.</p>
+    <p class="msg" id="g-err" role="alert"></p><div class="row"><button class="btn" type="button" id="g-go">Sign in with Google</button></div>`);
+  if (err) $('g-err').textContent = err;
+  $('g-go').onclick = async () => {
+    $('g-go').disabled = true;
+    try { const { auth, authMod } = await fbAuth(); const r = await authMod.signInWithPopup(auth, new authMod.GoogleAuthProvider()); await signedIn(String(r.user.email).toLowerCase()); }
+    catch (e) { $('g-err').textContent = errText(e); $('g-go').disabled = false; }
+  };
+}
+async function isTeacherEmail(email) {
+  if (TEACHER_EMAILS.includes(email)) return true;
+  return run(async ({ fs, db }) => (await fs.getDoc(fs.doc(db, 'teachers', email))).exists());
+}
+async function signedIn(email) {
+  let ok = false;
+  try { ok = await isTeacherEmail(email); } catch (e) { return signInScreen(errText(e)); }
+  if (!ok) {
+    gate(`<h2>Not a teacher account yet</h2><p><b>${esc(email)}</b> isn't set up as a teacher. Open the Teacher dashboard in any of the games and request teacher access, then come back here once it's approved.</p>
+      <div class="row"><button class="btn ghost" type="button" id="g-out">Sign out</button></div>`);
+    $('g-out').onclick = signOut; return;
+  }
+  S.email = email; $('who').innerHTML = `Signed in as <b>${esc(email)}</b>`;
+  $('gate').hidden = true; $('main').hidden = false;
+  await loadClasses();
+}
+async function signOut() {
+  try { const { auth, authMod } = await fbAuth(); await authMod.signOut(auth); } catch {}
+  S.email = ''; S.classes = []; signInScreen();
+}
+async function start() {
+  try {
+    const { auth, authMod } = await fbAuth();
+    const user = await wait(new Promise(res => { const off = authMod.onAuthStateChanged(auth, u => { off(); res(u); }); }));
+    if (user && user.email) return signedIn(String(user.email).toLowerCase());
+  } catch {}
+  signInScreen();
+}
+
+// ---------- classes ----------
+async function loadClasses() {
+  msg('');
+  try {
+    S.classes = await run(async ({ fs, db }) => (await fs.getDocs(fs.query(fs.collection(db, 'classes'), fs.where('ownerEmail', '==', S.email)))).docs
+      .map(d => ({ code: d.id, ...d.data() })).sort((a, b) => String(a.name).localeCompare(String(b.name))));
+  } catch (e) { S.classes = []; $('classes').innerHTML = `<li class="msg" role="alert">${esc(errText(e))}</li>`; }
+  if (!S.classes.some(c => c.code === S.code)) S.code = S.classes.length ? S.classes[0].code : '';
+  $('cls').innerHTML = S.classes.length ? S.classes.map(c => `<option value="${esc(c.code)}">${esc(c.name)} · ${esc(c.code)}</option>`).join('') : '<option value="">No classes yet</option>';
+  $('cls').value = S.code;
+  $('cls').disabled = !S.classes.length;
+  $('form').hidden = !S.classes.length;
+  if (!S.classes.length && !$('classes').querySelector('.msg')) $('classes').innerHTML = '<li>You have no classes yet. Create one in any game\'s Teacher dashboard (Classes tab).</li>';
+  pickClass();
+}
+function renderClasses() {
+  if (!S.classes.length) return;
+  $('classes').innerHTML = S.classes.map(c => {
+    const a = c.hub_assignment;
+    const what = a && a.tasks && a.tasks.length ? `<b>${esc(whenText(a))}</b> · ${a.tasks.map(t => esc(taskText(t))).join(' · ')}` : 'No assignment';
+    return `<li class="${c.code === S.code ? 'on' : ''}"><span class="cn">${esc(c.name)}</span><span class="cc">${esc(c.code)}</span><span class="ca">${what}</span></li>`;
+  }).join('');
+}
+// the form starts from the class's current assignment (if it hasn't ended), otherwise from the defaults
+function pickClass() {
+  const c = cls(), a = c && c.hub_assignment, today = dayKey();
+  if (a && DATE_RE.test(a.start) && DATE_RE.test(a.end) && a.end >= today && Array.isArray(a.tasks) && a.tasks.length) {
+    S.tasks = a.tasks.slice(0, 3).map(t => ({ game: GNAME[t.game] ? t.game : 'any', skill: hasSkill(t.game, t.skill) ? t.skill || '' : '', goal: t.goal, unit: t.unit === 'minutes' ? 'minutes' : 'answers' }));
+    S.when = a.start === today && a.end === today ? 'today' : a.start === today && a.end === addDays(6) ? 'week' : 'custom';
+    $('d-start').value = a.start; $('d-end').value = a.end;
+  } else {
+    S.tasks = [newTask()]; S.when = 'today';
+    $('d-start').value = today; $('d-end').value = addDays(6);
+  }
+  document.querySelector(`input[name="when"][value="${S.when}"]`).checked = true;
+  $('clear').hidden = !(c && c.hub_assignment);
+  renderWhen(); renderTasks(); renderClasses();
+}
+
+// ---------- the form ----------
+function renderWhen() {
+  $('week-label').textContent = `This week (through ${toDate(addDays(6)).toLocaleDateString(undefined, { weekday: 'short' })})`;
+  $('dates').hidden = S.when !== 'custom';
+  $('d-start').min = $('d-end').min = dayKey();
+}
+const skillOptions = (g, sel) => `<option value="">Any practice</option>` + (SKILLS[g] || []).map(([grp, list]) =>
+  `<optgroup label="${esc(grp)}">${list.map(s => `<option value="${esc(s)}"${s === sel ? ' selected' : ''}>${esc(s)}</option>`).join('')}</optgroup>`).join('');
+function renderTasks() {
+  $('tasks').innerHTML = S.tasks.map((t, i) => `<div class="task" data-i="${i}" role="group" aria-label="Task ${i + 1}">
+    <label class="f tg">Game<select data-k="game">${GAMES.map(g => `<option value="${g.id}"${g.id === t.game ? ' selected' : ''}>${esc(g.name)}</option>`).join('')}</select></label>
+    <label class="f ts">Skill<select data-k="skill"${t.game === 'any' ? ' disabled' : ''}>${skillOptions(t.game, t.skill)}</select></label>
+    <label class="f">Goal<input type="number" data-k="goal" min="1" max="500" step="1" inputmode="numeric" value="${esc(t.goal)}"></label>
+    <label class="f">Unit<select data-k="unit"><option value="answers"${t.unit === 'answers' ? ' selected' : ''}>answers</option><option value="minutes"${t.unit === 'minutes' ? ' selected' : ''}>minutes</option></select></label>
+    <button class="x" type="button" data-k="remove" aria-label="Remove task ${i + 1}"${S.tasks.length < 2 ? ' disabled' : ''}>✕</button>
+  </div>`).join('');
+  $('add').hidden = S.tasks.length >= 3;
+}
+$('tasks').addEventListener('change', e => {
+  const row = e.target.closest('.task'), k = e.target.dataset.k; if (!row || !k) return;
+  const t = S.tasks[+row.dataset.i];
+  if (k === 'game') { t.game = e.target.value; t.skill = ''; renderTasks(); }
+  else if (k === 'skill') t.skill = e.target.value;
+  else if (k === 'goal') t.goal = e.target.value;
+  else if (k === 'unit') {
+    // switching units swaps a default goal for the other default (20 answers <-> 10 minutes)
+    if (+t.goal === DEFAULT_GOAL[t.unit]) t.goal = DEFAULT_GOAL[e.target.value];
+    t.unit = e.target.value; renderTasks();
+  }
+  msg('');
+});
+$('tasks').addEventListener('input', e => { const row = e.target.closest('.task'); if (row && e.target.dataset.k === 'goal') S.tasks[+row.dataset.i].goal = e.target.value; });
+$('tasks').addEventListener('click', e => {
+  const b = e.target.closest('[data-k="remove"]'); if (!b) return;
+  S.tasks.splice(+b.closest('.task').dataset.i, 1); renderTasks(); msg('');
+  const first = $('tasks').querySelector('select'); if (first) first.focus();
+});
+$('add').addEventListener('click', () => {
+  if (S.tasks.length >= 3) return;
+  S.tasks.push(newTask()); renderTasks();
+  const rows = $('tasks').querySelectorAll('.task'); rows[rows.length - 1].querySelector('select').focus();
+});
+document.querySelectorAll('input[name="when"]').forEach(r => r.addEventListener('change', () => { S.when = r.value; renderWhen(); msg(''); }));
+$('cls').addEventListener('change', e => { S.code = e.target.value; msg(''); pickClass(); });
+
+// the one field the home page reads: classes/<code>.hub_assignment
+function build() {
+  const today = dayKey();
+  let start = today, end = today;
+  if (S.when === 'week') end = addDays(6);
+  if (S.when === 'custom') {
+    start = $('d-start').value; end = $('d-end').value;
+    if (!DATE_RE.test(start) || !DATE_RE.test(end)) return { err: 'Pick a start date and an end date.', focus: DATE_RE.test(start) ? 'd-end' : 'd-start' };
+    if (end < start) return { err: 'The end date is before the start date.', focus: 'd-end' };
+    if (end < today) return { err: 'Those dates are already over. Pick an end date of today or later.', focus: 'd-end' };
+    if ((toDate(end) - toDate(start)) / 864e5 > 60) return { err: 'Keep an assignment to 60 days or less.', focus: 'd-end' };
+  }
+  const tasks = [];
+  for (const [i, t] of S.tasks.entries()) {
+    const goal = Number(t.goal);
+    if (!Number.isInteger(goal) || goal < 1 || goal > 500) return { err: `Task ${i + 1}: the goal must be a whole number from 1 to 500.`, focus: null, row: i };
+    tasks.push({ game: t.game, skill: t.game === 'any' ? '' : t.skill || '', goal, unit: t.unit === 'minutes' ? 'minutes' : 'answers' });
+  }
+  if (!tasks.length) return { err: 'Add at least one task.' };
+  return { a: { start, end, tasks } };
+}
+$('form').addEventListener('submit', async e => {
+  e.preventDefault();
+  const c = cls(); if (!c) return;
+  const b = build();
+  if (b.err) { msg(b.err); if (b.focus) $(b.focus).focus(); else if (b.row != null) $('tasks').querySelectorAll('input[data-k="goal"]')[b.row].focus(); return; }
+  $('save').disabled = true; $('save').textContent = 'Saving…'; msg('');
+  try {
+    await run(({ fs, db }) => fs.updateDoc(fs.doc(db, 'classes', c.code), { hub_assignment: { ...b.a, set_at: fs.serverTimestamp() } }));
+    c.hub_assignment = b.a; pickClass();
+    msg(`Saved for ${c.name}. Students see it on the home page the next time it loads.`, true);
+  } catch (err) { msg(errText(err, true)); }
+  finally { $('save').disabled = false; $('save').textContent = 'Save assignment'; }
+});
+$('clear').addEventListener('click', async () => {
+  const c = cls(); if (!c) return;
+  if (!confirm(`Clear the assignment for ${c.name}?`)) return;
+  $('clear').disabled = true; msg('');
+  try {
+    await run(({ fs, db }) => fs.updateDoc(fs.doc(db, 'classes', c.code), { hub_assignment: null }));
+    c.hub_assignment = null; pickClass(); msg(`Cleared the assignment for ${c.name}.`, true);
+  } catch (err) { msg(errText(err, true)); }
+  finally { $('clear').disabled = false; }
+});
+$('signout').addEventListener('click', signOut);
+start();
+})();
+</script>
+</body>
+</html>
