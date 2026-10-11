@@ -238,6 +238,13 @@
   @keyframes goal { from { transform: scale(.7); opacity: .3; } }
   @media (prefers-reduced-motion: reduce) { .q.done .qn { animation: none; } }
   [hidden] { display: none !important; }
+  /* tooltips on the top area's buttons (hover, keyboard focus, long press on touch) */
+  .tip { position: fixed; z-index: 50; left: 0; top: 0; max-width: min(260px, calc(100vw - 16px)); padding: 8px 12px 5px; border-radius: 8px; border: 1px solid var(--gold); background: var(--card); color: var(--text); font: 600 14px/1.35 var(--f-ui); text-align: left; box-shadow: 0 10px 24px -12px rgba(0, 0, 0, .8); pointer-events: none; animation: tip .12s ease-out both; }
+  [data-tip] { -webkit-touch-callout: none; }
+  @keyframes tip { from { opacity: 0; transform: translateY(-3px); } }
+  .tip.up { animation-name: tip-up; }
+  @keyframes tip-up { from { opacity: 0; transform: translateY(3px); } }
+  @media (prefers-reduced-motion: reduce) { .tip { animation: none; } }
 
   /* ---------- Look: html[data-skin] = clean (default) | day | classic ----------
      Classic is the original look above, untouched. Clean and Day only swap colors, fonts and shadows. */
@@ -263,6 +270,8 @@
   html:not([data-skin="classic"]) :is(.who input[type="text"], .hi .chip) { padding-top: 9px; padding-bottom: 9px; }
   html:not([data-skin="classic"]) .hi .chip { padding-top: 4px; padding-bottom: 4px; }
   html:not([data-skin="classic"]) .play { padding: 9px 18px; }
+  html:not([data-skin="classic"]) .tip { padding: 7px 11px; border-color: transparent; background: #eef2f7; color: #0f1a2b; font-weight: 500; }
+  html[data-skin="day"] .tip { background: #17233a; color: #fff; box-shadow: 0 10px 24px -12px rgba(23, 35, 58, .6); }
   @media (max-width: 720px) { .who form { grid-template-columns: minmax(0, 1fr) 110px; } .who form .code { grid-column: 1 / -1; } .who form button { grid-column: 1 / -1; } }
   @media (max-width: 640px) {
     header { padding: 40px 0 28px; }
@@ -290,14 +299,14 @@
           <div class="me">Signed in for all five games as <b id="who-name"></b><span class="cls" id="who-class"></span></div>
         </div>
         <div class="cont-box" id="hi-go" hidden>
-          <a class="cont" id="hi-cont" href="#"><span aria-hidden="true">▶</span> Continue</a>
+          <a class="cont" id="hi-cont" href="#" data-tip="Jump back into the last game you played"><span aria-hidden="true">▶</span> Continue</a>
           <small id="hi-last"></small>
         </div>
       </div>
       <div class="row">
-        <a class="report" href="report/"><span aria-hidden="true">🏆</span> My Report</a>
-        <button class="ghost" type="button" id="who-class-btn">My classes</button>
-        <button class="ghost" type="button" id="who-switch">Not you? Switch student</button>
+        <a class="report" href="report/" data-tip="See your badges, scores and progress in every game"><span aria-hidden="true">🏆</span> My Report</a>
+        <button class="ghost" type="button" id="who-class-btn" data-tip="See or change your class codes">My classes</button>
+        <button class="ghost" type="button" id="who-switch" data-tip="Sign in as a different student on this computer">Not you? Switch student</button>
       </div>
     </div>
     <div id="who-out">
@@ -307,16 +316,18 @@
         <label for="w-first">First name<input type="text" id="w-first" maxlength="15" autocapitalize="words" spellcheck="false"></label>
         <label for="w-init">Last initial<input type="text" id="w-init" maxlength="1" autocapitalize="characters" spellcheck="false"></label>
         <label class="code" for="w-code">Class code<input type="text" id="w-code" maxlength="7" autocapitalize="characters" spellcheck="false" placeholder="From your teacher"></label>
-        <button type="submit" id="w-go">Sign in</button>
-        <div class="more" id="w-more"><button class="add" type="button" id="w-add">+ Add another class</button></div>
+        <button type="submit" id="w-go" data-tip="Save your name and class so every game remembers you">Sign in</button>
+        <div class="more" id="w-more"><button class="add" type="button" id="w-add" data-tip="In more than one class? Add another code (up to 3)">+ Add another class</button></div>
       </form>
       <div class="row">
         <label class="solo" for="w-solo"><input type="checkbox" id="w-solo"> I'm not in a class</label>
-        <button class="ghost" type="button" id="w-guest">Play as guest</button>
+        <button class="ghost" type="button" id="w-guest" data-tip="Play without signing in. Nothing is saved.">Play as guest</button>
       </div>
       <p class="err" id="w-error" role="alert"></p>
     </div>
   </section>
+  <div class="tip" id="tip" role="tooltip" aria-hidden="true" hidden></div>
+  <div id="tips" hidden></div>
 
   <section class="quests" id="quests" aria-labelledby="q-head" hidden>
     <h2 id="q-head">Today's quests</h2>
@@ -366,7 +377,7 @@
 
     <a class="game scale" data-game="scale" href="https://drkeyzzz.github.io/scale-quest/">
       <span class="step" aria-hidden="true"><b>4</b>Build scales</span>
-      <div class="shot"><img src="screenshots/scale-quest.jpg" alt="Scale Quest: building the C major scale on the piano"></div>
+      <div class="shot"><img src="screenshots/scale-quest.jpg" alt="Scale Quest: building the D major scale on the piano"></div>
       <div class="info">
         <div>
           <p class="name">Scale Quest</p>
@@ -577,10 +588,11 @@ function progLine(gid, t) {
 }
 const bar = (v, label, goal) => `<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${v}" aria-label="${esc(label)}"><i style="width:${Math.min(100, v)}%"></i>${goal ? '<em></em>' : ''}</div>`;
 const card = (g, kicker, body) => `<article class="q" style="--accent:${g ? g.acc : 'var(--gold)'}"><p class="qk"><i></i>${esc(kicker)}</p>${body}</article>`;
-const playCard = (gid, kicker) => { const g = GAME[gid]; return card(g, kicker, `<b class="qn">${esc(g.name)}</b><p class="qt">${esc(PITCH[gid])}</p><a class="go" href="${g.url}">Play ${esc(g.name)}</a>`); };
+const playCard = (gid, kicker) => { const g = GAME[gid]; return card(g, kicker, `<b class="qn">${esc(g.name)}</b><p class="qt">${esc(PITCH[gid])}</p><a class="go" href="${g.url}" data-tip="Opens ${esc(g.name)}">Play ${esc(g.name)}</a>`); };
 
 // ---------- "From your teacher": classes/<code>.hub_assignment, set on the teacher page (teacher/) ----------
-// { start: 'YYYY-MM-DD', end: 'YYYY-MM-DD', tasks: [{ game: 'tidal'|…|'any', skill: '' = any practice, goal, unit: 'answers'|'minutes' }] }
+// { start: 'YYYY-MM-DD', end: 'YYYY-MM-DD', tasks: [{ game: 'tidal'|…|'any', skill: '' = any practice, goal, unit: 'answers'|'minutes',
+//   settings: { every game option the teacher's form showed } (none for 'any') }] }
 // refreshClass() already reads every class doc, so this costs no extra reads: it keeps each class's assignment here
 // (per student, on this computer) so the cards show right away on the next visit.
 const ASSIGN_KEY = p => 'mtg_assign_v1:' + sidOf(p);
@@ -588,7 +600,8 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 function cleanAssign(a) {
   if (!a || !DATE_RE.test(a.start) || !DATE_RE.test(a.end) || !Array.isArray(a.tasks)) return null;
   const tasks = a.tasks.filter(t => t && (GAME[t.game] || t.game === 'any') && Number(t.goal) > 0).slice(0, 3)
-    .map(t => ({ game: t.game, skill: t.game === 'any' ? '' : String(t.skill || ''), goal: Math.min(500, Math.round(Number(t.goal))), unit: t.unit === 'minutes' ? 'minutes' : 'answers' }));
+    .map(t => ({ game: t.game, skill: t.game === 'any' ? '' : String(t.skill || ''), goal: Math.min(500, Math.round(Number(t.goal))), unit: t.unit === 'minutes' ? 'minutes' : 'answers',
+      ...(t.game !== 'any' && t.settings && typeof t.settings === 'object' && !Array.isArray(t.settings) && Object.keys(t.settings).length ? { settings: t.settings } : {}) }));
   return tasks.length ? { start: a.start, end: a.end, tasks } : null;
 }
 function saveAssigns(p, cs, ds) {
@@ -614,6 +627,15 @@ function assignDone(days, a, t) {
   }
   return t.unit === 'minutes' ? Math.floor(n / 60000) : n;
 }
+// the teacher's settings open the game as ?settings=<base64url of the JSON> (each game reads it), plus &focus=<skill> when the game takes the skill
+const b64url = o => { let bin = ''; new TextEncoder().encode(JSON.stringify(o)).forEach(b => { bin += String.fromCharCode(b); }); return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+function taskLink(g, t) {
+  if (!t.settings) return t.skill ? practiceLink(g, t.skill) : g.url;
+  const focus = t.skill && FOCUS[g.id] && FOCUS[g.id](t.skill);
+  return `${g.url}?settings=${b64url(t.settings)}${focus ? '&focus=' + encodeURIComponent(t.skill) : ''}`;
+}
+const taskTip = (g, t) => !g ? 'Any game counts: pick one below' : t.settings ? `Opens ${g.name} with your teacher's settings${t.skill ? `, set up for ${t.skill}` : ''}`
+  : t.skill && FOCUS[g.id] && FOCUS[g.id](t.skill) ? `Opens ${g.name} set up to practice ${t.skill}` : `Opens ${g.name}`;
 function teacherCards(p, days) {
   const by = load(ASSIGN_KEY(p)) || {}, cs = classesOf(p), today = dayKey(), out = [];
   for (const c of cs) {
@@ -623,11 +645,11 @@ function teacherCards(p, days) {
       if (out.length >= 3) break;
       const g = GAME[t.game] || null, what = t.skill || 'any practice', title = `${g ? g.name : 'Any game'}: ${what}`;
       const v = assignDone(days, a, t), done = v >= t.goal, unit = t.unit === 'minutes' ? 'min' : 'answers';
-      const href = g ? (t.skill ? practiceLink(g, t.skill) : g.url) : '#games';
+      const href = g ? taskLink(g, t) : '#games';
       out.push(`<article class="q tq${done ? ' done' : ''}" style="--accent:${g ? g.acc : 'var(--gold)'}"><p class="qk"><i></i>From your teacher · ${esc(dueText(a.end))}</p>
         <b class="qn">${esc(title)}</b>${cs.length > 1 ? `<p class="qt">${esc(c.name || c.code)}</p>` : ''}
         <div class="qrow">${bar(Math.round(100 * v / t.goal), `${title}: ${v} of ${t.goal} ${unit}`)}<span class="qp">${done ? '✓ Done' : `${fmt(v)} of ${t.goal} ${unit}`}</span></div>
-        <a class="go" href="${esc(href)}" aria-label="${done ? 'Practice more' : 'Start'}: ${esc(title)}">${g ? (done ? 'Practice more' : 'Start') : 'Pick a game'}</a></article>`);
+        <a class="go" href="${esc(href)}" data-tip="${esc(taskTip(g, t))}" aria-label="${done ? 'Practice more' : 'Start'}: ${esc(title)}">${g ? (done ? 'Practice more' : 'Start') : 'Pick a game'}</a></article>`);
     }
   }
   return out;
@@ -655,6 +677,7 @@ function renderHub(p) {
   if (lastG) {
     $('hi-cont').href = lastG.url;
     $('hi-cont').setAttribute('aria-label', `Continue ${lastG.name}`);
+    $('hi-cont').dataset.tip = `Jump back into ${lastG.name}, the last game you played`;
     $('hi-last').textContent = `Last played: ${lastG.name} · ${ago(lastAt)}`;
   }
   // today's quests: the teacher's assignment first, then the two weakest skills in any game (at least 4 answers and below 85%, lowest first), then the daily goal
@@ -664,7 +687,7 @@ function renderHub(p) {
     const weak = GAMES.flatMap(g => Object.entries(T[g.id].skills).map(([lab, [r, n]]) => ({ g, lab, n, a: pct(r, n) })))
       .filter(s => s.n >= 4 && s.a < 85).sort((x, y) => x.a - y.a).slice(0, 2);
     for (const s of weak) {
-      cards.push(card(s.g, s.g.name, `<b class="qn">${esc(s.lab)}</b><div class="qrow">${bar(s.a, `${s.lab}: ${s.a}% right, goal 85%`, true)}<span class="qp">${s.a}%</span></div><a class="go" href="${esc(practiceLink(s.g, s.lab))}" aria-label="Practice ${esc(s.lab)} in ${esc(s.g.name)}">Practice</a>`));
+      cards.push(card(s.g, s.g.name, `<b class="qn">${esc(s.lab)}</b><div class="qrow">${bar(s.a, `${s.lab}: ${s.a}% right, goal 85%`, true)}<span class="qp">${s.a}%</span></div><a class="go" href="${esc(practiceLink(s.g, s.lab))}" data-tip="Opens ${esc(s.g.name)} set up to practice ${esc(s.lab)}" aria-label="Practice ${esc(s.lab)} in ${esc(s.g.name)}">Practice</a>`));
     }
     // room left: suggest the next game on the path they haven't tried yet
     const next = PATH.find(id => !played.includes(GAME[id]));
@@ -676,6 +699,7 @@ function renderHub(p) {
     <div class="qrow">${bar(Math.round(100 * today / DAILY_GOAL), `${today} of ${DAILY_GOAL} answers today`)}<span class="qp">${Math.min(today, 999)}/${DAILY_GOAL}</span></div>
     <p class="qt">${done ? `You answered ${fmt(today)} today. Nice work!` : today ? `${DAILY_GOAL - today} more in any game.` : 'Any game counts.'}</p></article>`);
   $('q-list').innerHTML = cards.join('');
+  tipIds();
 }
 
 function render(focus) {
@@ -739,9 +763,9 @@ function addBox(value = '') {
   Object.assign(box, { type: 'text', maxLength: 7, spellcheck: false, placeholder: 'Another class code', value });
   box.setAttribute('autocapitalize', 'characters'); box.setAttribute('aria-label', 'Another class code');
   box.addEventListener('input', () => { const c = cleanCode(box.value); if (c !== box.value) box.value = c; });
-  Object.assign(x, { type: 'button', className: 'x', textContent: '✕' }); x.setAttribute('aria-label', 'Remove this class');
+  Object.assign(x, { type: 'button', className: 'x', textContent: '✕' }); x.setAttribute('aria-label', 'Remove this class'); x.dataset.tip = 'Remove this class code';
   x.addEventListener('click', () => { row.remove(); syncAdd(); $('w-code').focus(); });
-  row.append(box, x); $('w-add').before(row); syncAdd();
+  row.append(box, x); $('w-add').before(row); syncAdd(); tipIds();
   return box;
 }
 const syncAdd = () => { $('w-add').hidden = $('w-solo').checked || codeBoxes().length >= 3; };
@@ -766,7 +790,45 @@ addEventListener('storage', e => { if (e.key === PROFILE_KEY) render(); else if 
 // coming back from a game (or the back button): fresh progress and Continue
 addEventListener('pageshow', e => { if (e.persisted) render(); });
 document.addEventListener('visibilitychange', () => { if (!document.hidden && getProfile() && !$('who-in').hidden) renderHub(getProfile()); });
-render(); refreshClass();
+
+// ---------- tooltips: what each button in the top area does, on hover, keyboard focus, or a long press on touch ----------
+// The text is in data-tip; each control also points (aria-describedby) at a hidden copy, so screen readers read it as well.
+function tipIds() {
+  document.querySelectorAll('[data-tip]').forEach(el => {
+    let d = [...$('tips').children].find(n => n.textContent === el.dataset.tip);
+    if (!d) { d = document.createElement('span'); d.id = 'tip-' + $('tips').children.length; d.textContent = el.dataset.tip; $('tips').append(d); }
+    el.setAttribute('aria-describedby', d.id);
+  });
+}
+let tipOn = null, tipT = 0, pressT = 0, pressed = false, touch = false;
+function showTip(el) {
+  const tip = $('tip'); clearTimeout(tipT); tipOn = el;
+  tip.textContent = el.dataset.tip; tip.hidden = false;
+  const r = el.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight, below = r.bottom + 8 + h <= innerHeight;
+  tip.style.left = Math.round(Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2))) + 'px';
+  tip.style.top = Math.round(below ? r.bottom + 8 : r.top - h - 8) + 'px';
+  tip.classList.toggle('up', !below);
+}
+function hideTip() { clearTimeout(tipT); tipOn = null; $('tip').hidden = true; }
+const tipOf = e => (e.target.closest ? e.target.closest('[data-tip]') : null);
+document.addEventListener('mouseover', e => { const el = tipOf(e); if (el && !touch && el !== tipOn) { clearTimeout(tipT); tipT = setTimeout(() => showTip(el), 250); } });
+document.addEventListener('mouseout', e => { const el = tipOf(e); if (el && !el.contains(e.relatedTarget)) { clearTimeout(tipT); if (tipOn === el && document.activeElement !== el) hideTip(); } });
+document.addEventListener('focusin', e => { const el = tipOf(e); if (el && el.matches(':focus-visible')) showTip(el); });
+document.addEventListener('focusout', e => { if (tipOf(e) && tipOf(e) === tipOn) hideTip(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && tipOn) hideTip(); });
+// scrolling hides a hover tip; a tip on the focused control (keyboard focus scrolls it into view) moves with it
+addEventListener('scroll', () => { if (tipOn && !pressed) { if (document.activeElement === tipOn) showTip(tipOn); else hideTip(); } }, { passive: true });
+addEventListener('resize', hideTip);
+// touch: hold for half a second to read the tip; letting go after a long press doesn't press the button
+document.addEventListener('pointerdown', e => {
+  touch = e.pointerType === 'touch'; clearTimeout(pressT); pressed = false;
+  if (tipOn) hideTip();
+  const el = touch && tipOf(e); if (el) pressT = setTimeout(() => { pressed = true; showTip(el); tipT = setTimeout(hideTip, 2500); }, 500);
+});
+['pointerup', 'pointercancel'].forEach(t => document.addEventListener(t, () => clearTimeout(pressT)));
+document.addEventListener('contextmenu', e => { if (touch && tipOf(e)) e.preventDefault(); });
+document.addEventListener('click', e => { if (pressed) { pressed = false; e.preventDefault(); e.stopPropagation(); return; } if (tipOn) hideTip(); }, true);
+render(); refreshClass(); tipIds();
 })();
 </script>
 
