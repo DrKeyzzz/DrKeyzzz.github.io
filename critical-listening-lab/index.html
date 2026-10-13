@@ -167,6 +167,22 @@ kbd{font-family:var(--mono);font-size:.72rem;border:1px solid var(--line);border
 .who{display:flex;align-items:center;gap:10px;font-weight:600}
 .who .btn{padding:5px 10px;font-size:.82rem}
 #report{width:100%;min-height:110px;font:12px var(--mono);color:var(--fg);background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:8px}
+
+/* Beat Maker (free play) */
+.bm-bar{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end}
+.bm-bar .group{display:flex;flex-direction:column;gap:3px}
+.bm-bar output{font:500 .9rem var(--mono)}
+.seq.free{grid-template-columns:minmax(150px,190px) repeat(16,minmax(18px,1fr));min-width:560px}
+.bm-row{display:flex;gap:4px;align-items:center;min-width:0}
+.bm-row select{flex:1;min-width:0;font-size:.82rem;padding:4px}
+.bm-row .ic{border:1px solid var(--line);background:var(--panel-2);border-radius:5px;width:26px;height:26px;padding:0;cursor:pointer;font:600 .75rem var(--mono);flex:none}
+.bm-row .ic[aria-pressed=true]{background:var(--fg);color:var(--bg)}
+.bm-new{grid-column:1/-1;border:1px dashed var(--line);background:transparent;border-radius:6px;padding:9px;cursor:pointer;color:var(--muted);font-weight:600;text-align:left}
+.bm-new:hover{border-color:var(--accent);color:var(--fg)}
+.picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;border:1px solid var(--line);border-radius:8px;padding:14px;background:var(--panel-2)}
+.picker h4{margin:0 0 6px;font-family:var(--display);text-transform:uppercase;letter-spacing:.06em;font-size:.95rem}
+.picker .opts{display:flex;flex-wrap:wrap;gap:6px}
+.cell.muted{opacity:.35}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -283,6 +299,29 @@ kbd{font-family:var(--mono);font-size:.72rem;border:1px solid var(--line);border
     <div class="panel">
       <div class="rowsb" style="margin-bottom:8px"><span class="label">Analyzer (output)</span><span class="status">Opens after you answer</span></div>
       <div class="analyzer"><canvas id="spec"></canvas><div class="cover" id="cover">Locked until you answer. Trust your ears.</div></div>
+    </div>
+  </section>
+
+  <!-- BEAT MAKER -->
+  <section id="vFree" class="view" hidden>
+    <div class="panel" style="display:grid;gap:14px">
+      <div class="play-head">
+        <div style="display:grid;gap:4px"><span class="label sk-Rhythm">Rhythm · Free play</span><h2>Beat Maker</h2></div>
+        <button class="btn" id="bmBack">Back to gym</button>
+      </div>
+      <div class="bm-bar">
+        <button class="btn primary big" id="bmPlay">Play</button>
+        <div class="group"><label class="label" for="bmTempo">Tempo <output id="bmTempoOut">96</output> BPM</label><input type="range" id="bmTempo" min="60" max="170" value="96"></div>
+        <div class="group"><label class="label" for="bmSwing">Swing <output id="bmSwingOut">0</output>%</label><input type="range" id="bmSwing" min="0" max="60" value="0"></div>
+        <button class="btn" id="bmClear">Clear steps</button>
+        <button class="btn" id="bmReset">New beat</button>
+      </div>
+      <p class="hint">Click a cell for soft, again for medium, again for hard, and a fourth time to clear. M mutes a row. Your beat saves on this computer.</p>
+    </div>
+    <div class="panel">
+      <div class="vel-legend"><span><i class="cell v1" style="aspect-ratio:auto"></i>Soft</span><span><i class="cell v2" style="aspect-ratio:auto"></i>Medium</span><span><i class="cell v3" style="aspect-ratio:auto"></i>Hard</span></div>
+      <div class="seq-wrap"><div class="seq free" id="bmGrid"></div></div>
+      <div id="bmPicker" hidden style="margin-top:12px"></div>
     </div>
   </section>
 
@@ -619,6 +658,128 @@ function checkGrid() {
   return { ok, acc, extra };
 }
 
+
+/* ================= Beat Maker: free play with a sound library ================= */
+const KIT = [
+  ['Kick', [['k808','808 kick'],['klive','Live kick'],['kpunch','Punchy kick'],['ksub','Sub kick']]],
+  ['Snare', [['slive','Live snare'],['s808','808 snare'],['strap','Trap snare'],['sbrush','Brush snare'],['rim','Rimshot']]],
+  ['Clap', [['clap','Clap'],['snap','Finger snap']]],
+  ['Hi-hat', [['hclosed','Closed hat'],['h808','808 hat'],['hopen','Open hat'],['hpedal','Pedal hat']]],
+  ['Percussion', [['tamb','Tambourine'],['shaker','Shaker'],['cowbell','Cowbell'],['congahi','Conga high'],['congalo','Conga low'],['wood','Woodblock']]],
+  ['Toms', [['tomhi','High tom'],['tommid','Mid tom'],['tomlo','Floor tom']]],
+  ['Cymbals', [['crash','Crash'],['ride','Ride']]],
+];
+const SOUND_NAME = Object.fromEntries(KIT.flatMap(([, list]) => list));
+function osc(type, f0, f1, t, dur, gain, glide = 0.05) {
+  const o = ctx.createOscillator(), g = ctx.createGain(); o.type = type;
+  o.frequency.setValueAtTime(f0, t); if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(f1, t + glide);
+  g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+  o.connect(g).connect(master); o.start(t); o.stop(t + dur + 0.02);
+}
+function metal(t, dur, gain, hp = 7000) {   // six detuned squares, the classic 808 cymbal recipe
+  const f = ctx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = hp;
+  const g = ctx.createGain(); g.gain.setValueAtTime(gain, t); g.gain.exponentialRampToValueAtTime(0.0008, t + dur); f.connect(g).connect(master);
+  [205.3, 304.4, 369.6, 522.7, 540, 800].forEach(fr => { const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = fr * 1.7; o.connect(f); o.start(t); o.stop(t + dur + 0.02); });
+}
+function voice(id, t, v = 1) {
+  switch (id) {
+    case 'k808': osc('sine', 110, 48, t, 1.1, v, 0.06); break;
+    case 'klive': hit('kick', t, v); nz(t, 0.012, 'highpass', 3000, 0.7, 0.3 * v); break;
+    case 'kpunch': osc('sine', 200, 50, t, 0.25, v, 0.035); osc('triangle', 600, 120, t, 0.02, 0.5 * v, 0.02); break;
+    case 'ksub': osc('sine', 60, 42, t, 0.8, v, 0.1); break;
+    case 'slive': hit('snare', t, v); break;
+    case 's808': nz(t, 0.18, 'highpass', 1200, 0.7, 0.6 * v); osc('sine', 330, 300, t, 0.08, 0.35 * v); osc('sine', 185, 175, t, 0.1, 0.4 * v); break;
+    case 'strap': nz(t, 0.12, 'bandpass', 3200, 0.8, 0.9 * v); osc('sine', 230, 200, t, 0.05, 0.3 * v); break;
+    case 'sbrush': { const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = noiseBuf(); f.type = 'bandpass'; f.frequency.value = 3500; f.Q.value = 0.5;
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.5 * v, t + 0.03); g.gain.exponentialRampToValueAtTime(0.0008, t + 0.3); s.connect(f).connect(g).connect(master); s.start(t); s.stop(t + 0.32); break; }
+    case 'rim': osc('triangle', 1700, 1700, t, 0.04, 0.5 * v); nz(t, 0.02, 'bandpass', 3000, 2, 0.4 * v); break;
+    case 'clap': [0, 0.011, 0.023].forEach(d => nz(t + d, 0.02, 'bandpass', 1200, 1.5, 0.7 * v)); nz(t + 0.03, 0.18, 'bandpass', 1200, 1.2, 0.45 * v); break;
+    case 'snap': nz(t, 0.05, 'bandpass', 2600, 4, 0.9 * v); break;
+    case 'hclosed': hit('hat', t, v); break;
+    case 'h808': metal(t, 0.06, 0.25 * v); break;
+    case 'hopen': metal(t, 0.4, 0.2 * v, 6500); nz(t, 0.35, 'highpass', 7000, 0.7, 0.12 * v); break;
+    case 'hpedal': nz(t, 0.035, 'bandpass', 6000, 1.5, 0.25 * v); break;
+    case 'tamb': hit('tamb', t, v); break;
+    case 'shaker': { const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(); s.buffer = noiseBuf(); f.type = 'bandpass'; f.frequency.value = 6500; f.Q.value = 1.2;
+      g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.3 * v, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0008, t + 0.09); s.connect(f).connect(g).connect(master); s.start(t); s.stop(t + 0.1); break; }
+    case 'cowbell': { const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 800; f.Q.value = 2; const g = ctx.createGain();
+      g.gain.setValueAtTime(0.5 * v, t); g.gain.exponentialRampToValueAtTime(0.0008, t + 0.3); f.connect(g).connect(master);
+      [540, 800].forEach(fr => { const o = ctx.createOscillator(); o.type = 'square'; o.frequency.value = fr; o.connect(f); o.start(t); o.stop(t + 0.32); }); break; }
+    case 'congahi': osc('sine', 360, 320, t, 0.22, 0.7 * v, 0.03); break;
+    case 'congalo': osc('sine', 240, 205, t, 0.3, 0.7 * v, 0.03); break;
+    case 'wood': osc('triangle', 1250, 1150, t, 0.06, 0.6 * v, 0.01); break;
+    case 'tomhi': osc('sine', 220, 160, t, 0.4, 0.8 * v, 0.15); break;
+    case 'tommid': osc('sine', 160, 115, t, 0.45, 0.8 * v, 0.15); break;
+    case 'tomlo': osc('sine', 105, 75, t, 0.6, 0.85 * v, 0.18); break;
+    case 'crash': metal(t, 1.6, 0.15 * v, 4000); nz(t, 1.6, 'highpass', 5000, 0.7, 0.25 * v); break;
+    case 'ride': metal(t, 0.9, 0.12 * v, 5000); nz(t, 0.5, 'bandpass', 9000, 3, 0.12 * v); break;
+  }
+}
+const defaultBeat = () => ({ bpm:96, swing:0, rows:[
+  { sound:'hclosed', steps:P16('s.m.s.m.s.m.s.m.'), mute:false },
+  { sound:'slive', steps:P16('....x.......x...'), mute:false },
+  { sound:'klive', steps:P16('x.......x.x.....'), mute:false } ] });
+let FB = null, bmTimer = null, bmNext = 0, bmStep = 0;
+function openFree() {
+  stop(); FB = P.freeBeat ||= defaultBeat();
+  $('bmTempo').value = FB.bpm; $('bmTempoOut').textContent = FB.bpm; $('bmSwing').value = FB.swing; $('bmSwingOut').textContent = FB.swing;
+  $('bmPicker').hidden = true; renderFree(); show('vFree');
+}
+function renderFree() {
+  const g = $('bmGrid');
+  g.innerHTML = '<span></span>' + Array.from({ length:16 }, (_, i) => `<span class="num">${i % 4 === 0 ? i / 4 + 1 : ['', 'e', '+', 'a'][i % 4]}</span>`).join('');
+  FB.rows.forEach((row, ri) => {
+    const lab = document.createElement('div'); lab.className = 'bm-row';
+    const sel = document.createElement('select'); sel.setAttribute('aria-label', 'Sound for row ' + (ri + 1));
+    sel.innerHTML = KIT.map(([cat, list]) => `<optgroup label="${cat}">${list.map(([id, n]) => `<option value="${id}"${id === row.sound ? ' selected' : ''}>${n}</option>`).join('')}</optgroup>`).join('');
+    sel.onchange = () => { row.sound = sel.value; ensureCtx(); voice(row.sound, ctx.currentTime + 0.01); save(); };
+    const m = document.createElement('button'); m.className = 'ic'; m.textContent = 'M'; m.title = 'Mute'; m.setAttribute('aria-pressed', row.mute);
+    m.onclick = () => { row.mute = !row.mute; save(); renderFree(); };
+    const x = document.createElement('button'); x.className = 'ic'; x.textContent = '×'; x.title = 'Remove row';
+    x.onclick = () => { FB.rows.splice(ri, 1); save(); renderFree(); };
+    lab.append(sel, m, x); g.appendChild(lab);
+    row.steps.forEach((v, i) => {
+      const c = document.createElement('button'); c.className = 'cell' + (Math.floor(i / 4) % 2 ? ' alt' : '') + (v ? ' v' + v : '') + (row.mute ? ' muted' : '');
+      c.dataset.s = i; c.setAttribute('aria-label', `${SOUND_NAME[row.sound]} step ${i + 1}${v ? ', ' + VEL_NAME[v] : ''}`);
+      c.onclick = () => { ensureCtx(); const nv = row.steps[i] = (row.steps[i] + 1) % 4; c.classList.remove('v1', 'v2', 'v3'); if (nv) { c.classList.add('v' + nv); voice(row.sound, ctx.currentTime + 0.01, VEL[nv]); }
+        c.setAttribute('aria-label', `${SOUND_NAME[row.sound]} step ${i + 1}${nv ? ', ' + VEL_NAME[nv] : ''}`); save(); };
+      g.appendChild(c);
+    });
+  });
+  if (FB.rows.length < 12) { const add = document.createElement('button'); add.className = 'bm-new'; add.textContent = '+ New row: pick a sound'; add.onclick = showPicker; g.appendChild(add); }
+}
+function showPicker() {
+  const pk = $('bmPicker'); pk.hidden = false;
+  pk.innerHTML = '<div class="rowsb" style="margin-bottom:8px"><span class="label">What sound do you want?</span><button class="chip" id="pkClose">Cancel</button></div><div class="picker">'
+    + KIT.map(([cat, list]) => `<div><h4>${cat}</h4><div class="opts">${list.map(([id, n]) => `<button class="chip" data-snd="${id}">${n}</button>`).join('')}</div></div>`).join('') + '</div>';
+  pk.querySelector('#pkClose').onclick = () => { pk.hidden = true; };
+  pk.querySelectorAll('[data-snd]').forEach(b => {
+    b.onmouseenter = () => { if (ctx) voice(b.dataset.snd, ctx.currentTime + 0.01, 0.8); };
+    b.onclick = () => { ensureCtx(); voice(b.dataset.snd, ctx.currentTime + 0.01); FB.rows.push({ sound:b.dataset.snd, steps:Array(16).fill(0), mute:false }); pk.hidden = true; save(); renderFree(); };
+  });
+  pk.scrollIntoView({ block:'nearest', behavior:'smooth' });
+}
+function bmStart() {
+  ensureCtx(); bmStop(); bmNext = ctx.currentTime + 0.06; bmStep = 0;
+  bmTimer = setInterval(() => {
+    const step = 60 / FB.bpm / 4;
+    while (bmNext < ctx.currentTime + 0.12) {
+      const st = bmStep, at = bmNext + (st % 2 ? FB.swing / 100 * step * 0.66 : 0);   // swing delays the off-beat 16ths
+      FB.rows.forEach(r => { const v = r.steps[st]; if (v && !r.mute) voice(r.sound, at, VEL[v]); });
+      setTimeout(() => { document.querySelectorAll('#bmGrid .cell.now').forEach(c => c.classList.remove('now')); document.querySelectorAll(`#bmGrid .cell[data-s="${st}"]`).forEach(c => c.classList.add('now')); }, Math.max(0, (at - ctx.currentTime) * 1000));
+      bmNext += step; bmStep = (bmStep + 1) % 16;
+    }
+  }, 25);
+  $('bmPlay').textContent = 'Stop';
+}
+function bmStop() { if (bmTimer) clearInterval(bmTimer); bmTimer = null; $('bmPlay').textContent = 'Play'; document.querySelectorAll('#bmGrid .cell.now').forEach(c => c.classList.remove('now')); }
+$('bmPlay').onclick = () => bmTimer ? bmStop() : bmStart();
+$('bmBack').onclick = () => { bmStop(); renderHome(); };
+$('bmTempo').oninput = e => { FB.bpm = +e.target.value; $('bmTempoOut').textContent = FB.bpm; save(); };
+$('bmSwing').oninput = e => { FB.swing = +e.target.value; $('bmSwingOut').textContent = FB.swing; save(); };
+$('bmClear').onclick = () => { FB.rows.forEach(r => r.steps.fill(0)); save(); renderFree(); };
+$('bmReset').onclick = () => { bmStop(); P.freeBeat = defaultBeat(); openFree(); };
+
 /* ================= Games ================= */
 const BANDS = [['Low',100],['Low-mid',400],['Mid',1000],['High-mid',3000],['High',8000]];
 const btns = (opts, answer, build, reveal, freq) => ({ ui:'buttons', options:opts, answer, build, reveal, freq });
@@ -761,7 +922,7 @@ function todaysWorkout() {
 }
 
 /* ================= Views ================= */
-function show(v) { ['vLogin','vHome','vPlay','vResults'].forEach(id => $(id).hidden = id !== v); window.scrollTo(0, 0); }
+function show(v) { if (v !== 'vFree' && typeof bmStop === 'function') bmStop(); ['vLogin','vHome','vPlay','vResults','vFree'].forEach(id => $(id).hidden = id !== v); window.scrollTo(0, 0); }
 const svgIcon = (name) => `<svg viewBox="0 0 64 32" aria-hidden="true"><path d="${ICONS[name]}" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const pips = (l, n = 5) => `<span class="pips">${Array.from({ length:n }, (_, k) => k + 1).map(i => `<i class="${i<=l?'on':''}"></i>`).join('')}</span>`;
 
@@ -786,7 +947,10 @@ function renderHome() {
       <div class="meta"><span class="tag sk-${g.skill}">${g.skill}</span><span class="sk-${g.skill}">${pips(p.level, g.levels.length)}</span></div>
       <p>Level ${p.level}: ${g.levels[p.level - 1]}</p>
       <div class="meta"><span>Best ${p.best}</span><span>${p.plays} plays</span></div></button>`; }).join('');
-  $('games').querySelectorAll('.card').forEach(c => c.onclick = () => startSession(c.dataset.g, 10, null));
+  $('games').insertAdjacentHTML('beforeend', `<button class="card" id="freeCard"><span class="sk-Rhythm">${svgIcon('beat')}</span><h3>Beat Maker</h3><p>Free play. Build your own beat from 808s, live kits, claps and percussion.</p>
+      <div class="meta"><span class="tag sk-Rhythm">Free play</span><span>${P.freeBeat ? P.freeBeat.rows.length + ' rows saved' : 'No score, just make beats'}</span></div></button>`);
+  $('games').querySelectorAll('.card[data-g]').forEach(c => c.onclick = () => startSession(c.dataset.g, 10, null));
+  $('freeCard').onclick = openFree;
   show('vHome');
 }
 
