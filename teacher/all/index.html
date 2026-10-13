@@ -66,6 +66,9 @@
   .seg { display: inline-flex; border: 1px solid var(--card-border); border-radius: 999px; overflow: hidden; }
   .seg button { font: 700 14px var(--f-ui); letter-spacing: .06em; text-transform: uppercase; background: var(--bg); color: var(--muted); border: 0; padding: 11px 18px 9px; cursor: pointer; }
   .seg button[aria-pressed="true"] { background: var(--gc); color: #10131a; }
+  .seg .segl { font: 700 14px var(--f-ui); letter-spacing: .06em; text-transform: uppercase; background: var(--bg); color: var(--gold); text-decoration: none; padding: 11px 18px 9px; border-left: 1px solid var(--card-border); }
+  .seg .segl:hover { color: var(--text); }
+  .seg .segl:focus-visible { outline: 2px solid var(--text); outline-offset: -3px; }
   .seg button:focus-visible { outline: 2px solid var(--text); outline-offset: -3px; }
   .grow { flex: 1; }
 
@@ -113,7 +116,7 @@
 </head>
 <body>
 <div class="wrap">
-  <a class="back" href="../">← Music Theory Games</a>
+  <a class="back" href="../../">← Music Theory Games</a>
   <header>
     <p class="eyebrow">For teachers</p>
     <h1>All games dashboard</h1>
@@ -139,6 +142,7 @@
           <button type="button" data-v="progress" aria-pressed="true">Progress</button>
           <button type="button" data-v="scores" aria-pressed="false">Scores</button>
           <button type="button" data-v="feedback" aria-pressed="false">Feedback</button>
+          <a class="segl" href="../" data-tip="Set practice for a class">Assign</a>
         </div>
         <span class="grow"></span>
         <button class="btn ghost sm" type="button" id="csv">Download CSV</button>

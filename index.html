@@ -41,7 +41,7 @@
     font-family: var(--f-ui);
     padding: 0 16px 48px;
   }
-  .topbar { display: flex; justify-content: flex-end; padding-top: 16px; max-width: 980px; margin: 0 auto; }
+  .topbar { display: flex; justify-content: flex-end; gap: 10px; padding-top: 16px; max-width: 980px; margin: 0 auto; }
   .iconbtn { font: 600 12px var(--f-ui); letter-spacing: .1em; text-transform: uppercase; text-decoration: none; color: var(--muted); background: var(--card); border: 1px solid var(--card-border); border-radius: 999px; padding: 8px 14px 6px; cursor: pointer; }
   .iconbtn:hover { color: var(--text); border-color: var(--muted); }
   .iconbtn:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
@@ -287,7 +287,7 @@
 </style>
 </head>
 <body>
-  <nav class="topbar" aria-label="Teachers"><a class="iconbtn" href="teacher/all/">Teacher Dashboard</a></nav>
+  <nav class="topbar" aria-label="Teachers"><a class="iconbtn" href="teacher/all/">Teacher Dashboard</a><a class="iconbtn" href="teacher/">Assign Practice</a></nav>
   <header>
     <p class="eyebrow">Mr. Milnes's</p>
     <h1>Music Theory Games</h1>
