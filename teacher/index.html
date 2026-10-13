@@ -95,8 +95,14 @@
 
   /* tasks */
   .tasks { display: flex; flex-direction: column; gap: 10px; }
-  .task { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.6fr) 92px minmax(0, .9fr) auto; gap: 10px; align-items: end; padding: 12px; border-radius: 14px; background: var(--bg); border: 1px solid var(--card-border); }
+  .task { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.6fr) 92px minmax(0, .9fr) auto; gap: 10px; align-items: start; padding: 12px; border-radius: 14px; background: var(--bg); border: 1px solid var(--card-border); }
   .task select, .task input { background: var(--card); height: 42px; }
+  .ts { min-width: 0; }
+  .task > .x { margin-top: 19px; }
+  .skchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+  .skchip { display: inline-flex; align-items: center; gap: 6px; background: var(--card); border: 1px solid var(--gold); border-radius: 999px; padding: 3px 4px 2px 12px; font-size: 14px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--text); }
+  .skchip button { border: 0; background: none; color: var(--muted); cursor: pointer; font: 700 13px var(--f-ui); padding: 2px 6px; border-radius: 999px; }
+  .skchip button:hover { color: var(--err); }
   .x { font: 700 15px var(--f-ui); width: 40px; height: 40px; border-radius: 999px; border: 1px solid var(--card-border); background: transparent; color: var(--muted); cursor: pointer; }
   .x:hover { color: var(--text); border-color: var(--muted); }
   .x:disabled { visibility: hidden; }
@@ -213,7 +219,7 @@
         <legend>Tasks</legend>
         <div class="tasks" id="tasks"></div>
         <button class="add" type="button" id="add">+ Add a task</button>
-        <p class="hint">Answers count only in the chosen skill. Minutes count all time in that game. Each Start button opens the game with the task's Settings, set up for the skill.</p>
+        <p class="hint">Pick one skill or several (add as many scales as you like). Answers count in any of the chosen skills. Minutes count all time in that game. Each Start button opens the game with the task's Settings, set up for the skill.</p>
       </fieldset>
       <div class="row actions">
         <button class="btn" type="submit" id="save">Save assignment</button>
@@ -307,9 +313,10 @@ const SKILLS = {
 const hasSkill = (g, s) => !s || (SKILLS[g] || []).some(([, l]) => l.includes(s));
 const DEFAULT_GOAL = { answers: 20, minutes: 10 };
 // settings = every option of the task's game (see SPECS below); open = its Settings area is unfolded
-const newTask = () => ({ game: 'tidal', skill: '', goal: DEFAULT_GOAL.answers, unit: 'answers', settings: setsFrom('tidal'), open: false });
+const newTask = () => ({ game: 'tidal', skills: [], goal: DEFAULT_GOAL.answers, unit: 'answers', settings: setsFrom('tidal'), open: false });
 const hasSets = t => !!(SPECS[t.game] && t.settings && typeof t.settings === 'object' && isCustom(t.game, setsFrom(t.game, t.settings)));
-const taskText = t => `${GNAME[t.game] || t.game}: ${t.skill || 'any practice'}, ${t.goal} ${t.unit === 'minutes' ? 'min' : 'answers'}${hasSets(t) ? ' · custom settings' : ''}`;
+const skillsOf = t => Array.isArray(t.skills) ? t.skills.filter(x => typeof x === 'string' && x) : t.skill ? [String(t.skill)] : [];
+const taskText = t => `${GNAME[t.game] || t.game}: ${skillsOf(t).join(', ') || 'any practice'}, ${t.goal} ${t.unit === 'minutes' ? 'min' : 'answers'}${hasSets(t) ? ' · custom settings' : ''}`;
 function whenText(a) {
   const today = dayKey();
   const span = a.start === a.end ? niceDay(a.start) : `${niceDay(a.start)} to ${niceDay(a.end)}`;
@@ -539,7 +546,7 @@ function pickClass() {
   const c = cls(), a = c && c.hub_assignment, today = dayKey();
   if (a && DATE_RE.test(a.start) && DATE_RE.test(a.end) && a.end >= today && Array.isArray(a.tasks) && a.tasks.length) {
     S.tasks = a.tasks.slice(0, 3).map(t => { const game = GNAME[t.game] ? t.game : 'any';
-      return { game, skill: hasSkill(t.game, t.skill) ? t.skill || '' : '', goal: t.goal, unit: t.unit === 'minutes' ? 'minutes' : 'answers', settings: setsFrom(game, t.settings), open: false }; });
+      return { game, skills: skillsOf(t).filter(x => hasSkill(t.game, x)).slice(0, 12), goal: t.goal, unit: t.unit === 'minutes' ? 'minutes' : 'answers', settings: setsFrom(game, t.settings), open: false }; });
     S.when = a.start === today && a.end === today ? 'today' : a.start === today && a.end === addDays(6) ? 'week' : 'custom';
     $('d-start').value = a.start; $('d-end').value = a.end;
   } else {
@@ -557,12 +564,14 @@ function renderWhen() {
   $('dates').hidden = S.when !== 'custom';
   $('d-start').min = $('d-end').min = dayKey();
 }
-const skillOptions = (g, sel) => `<option value="">Any practice</option>` + (SKILLS[g] || []).map(([grp, list]) =>
-  `<optgroup label="${esc(grp)}">${list.map(s => `<option value="${esc(s)}"${s === sel ? ' selected' : ''}>${esc(s)}</option>`).join('')}</optgroup>`).join('');
+const skillOptions = (g, chosen) => `<option value="">${chosen.length ? 'Add another skill…' : 'Any practice'}</option>` + (SKILLS[g] || []).map(([grp, list]) => {
+  const l = list.filter(s => !chosen.includes(s)); return l.length ? `<optgroup label="${esc(grp)}">${l.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('')}</optgroup>` : '';
+}).join('');
+const skillChips = t => skillsOf(t).length ? `<div class="skchips">${skillsOf(t).map((s, j) => `<span class="skchip">${esc(s)}<button type="button" data-k="unskill" data-j="${j}" aria-label="Remove ${esc(s)}">✕</button></span>`).join('')}</div>` : '';
 function renderTasks() {
   $('tasks').innerHTML = S.tasks.map((t, i) => `<div class="task" data-i="${i}" role="group" aria-label="Task ${i + 1}">
     <label class="f tg">Game<select data-k="game">${GAMES.map(g => `<option value="${g.id}"${g.id === t.game ? ' selected' : ''}>${esc(g.name)}</option>`).join('')}</select></label>
-    <label class="f ts">Skill<select data-k="skill"${t.game === 'any' ? ' disabled' : ''}>${skillOptions(t.game, t.skill)}</select></label>
+    <div class="f ts"><label class="f" style="gap:5px">Skills<select data-k="skill"${t.game === 'any' ? ' disabled' : ''}>${skillOptions(t.game, skillsOf(t))}</select></label>${skillChips(t)}</div>
     <label class="f">Goal<input type="number" data-k="goal" min="1" max="500" step="1" inputmode="numeric" value="${esc(t.goal)}"></label>
     <label class="f">Unit<select data-k="unit"><option value="answers"${t.unit === 'answers' ? ' selected' : ''}>answers</option><option value="minutes"${t.unit === 'minutes' ? ' selected' : ''}>minutes</option></select></label>
     <button class="x" type="button" data-k="remove" aria-label="Remove task ${i + 1}"${S.tasks.length < 2 ? ' disabled' : ''}>✕</button>
@@ -574,8 +583,8 @@ function renderTasks() {
 $('tasks').addEventListener('change', e => {
   const row = e.target.closest('.task'), k = e.target.dataset.k; if (!row || !k) return;
   const t = S.tasks[+row.dataset.i];
-  if (k === 'game') { t.game = e.target.value; t.skill = ''; t.settings = setsFrom(t.game); t.open = false; renderTasks(); }
-  else if (k === 'skill') t.skill = e.target.value;
+  if (k === 'game') { t.game = e.target.value; t.skills = []; t.settings = setsFrom(t.game); t.open = false; renderTasks(); }
+  else if (k === 'skill') { if (e.target.value && skillsOf(t).length < 12) t.skills = [...skillsOf(t), e.target.value]; renderTasks(); const sel = $('tasks').querySelectorAll('.task')[+row.dataset.i].querySelector('select[data-k="skill"]'); if (sel) sel.focus(); }
   else if (k === 'goal') t.goal = e.target.value;
   else if (k === 'unit') {
     // switching units swaps a default goal for the other default (20 answers <-> 10 minutes)
@@ -586,6 +595,8 @@ $('tasks').addEventListener('change', e => {
 });
 $('tasks').addEventListener('input', e => { const row = e.target.closest('.task'); if (row && e.target.dataset.k === 'goal') S.tasks[+row.dataset.i].goal = e.target.value; });
 $('tasks').addEventListener('click', e => {
+  const u = e.target.closest('[data-k="unskill"]');
+  if (u) { const row = u.closest('.task'), t = S.tasks[+row.dataset.i]; t.skills = skillsOf(t).filter((_, j) => j !== +u.dataset.j); renderTasks(); const sel = $('tasks').querySelectorAll('.task')[+row.dataset.i].querySelector('select[data-k="skill"]'); if (sel) sel.focus(); return; }
   const b = e.target.closest('[data-k="remove"]'); if (!b) return;
   S.tasks.splice(+b.closest('.task').dataset.i, 1); renderTasks(); msg('');
   const first = $('tasks').querySelector('select'); if (first) first.focus();
@@ -640,7 +651,13 @@ function build() {
     if (bad) return { err: `Task ${i + 1} settings: ${bad[1]}`, row: i, set: bad[0] };
     // settings: every option shown for the game (see setsOut); "Any game" has none
     const settings = SPECS[t.game] ? setsOut(t.game, t.settings) : {};
-    tasks.push({ game: t.game, skill: t.game === 'any' ? '' : t.skill || '', goal, unit: t.unit === 'minutes' ? 'minutes' : 'answers', ...(Object.keys(settings).length ? { settings } : {}) });
+    const sk = t.game === 'any' ? [] : skillsOf(t).slice(0, 12);
+    // several scales picked in Scale Quest: those scales become the task's Scales setting
+    if (t.game === 'scale' && sk.length > 1) {
+      const ids = SPECS.scale.fields[0].groups.flatMap(g => g.options).filter(o => sk.includes(o.label)).map(o => o.value);
+      if (ids.length) settings.keys = ids;
+    }
+    tasks.push({ game: t.game, skill: sk[0] || '', ...(sk.length > 1 ? { skills: sk } : {}), goal, unit: t.unit === 'minutes' ? 'minutes' : 'answers', ...(Object.keys(settings).length ? { settings } : {}) });
   }
   if (!tasks.length) return { err: 'Add at least one task.' };
   return { a: { start, end, tasks } };

@@ -601,7 +601,7 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 function cleanAssign(a) {
   if (!a || !DATE_RE.test(a.start) || !DATE_RE.test(a.end) || !Array.isArray(a.tasks)) return null;
   const tasks = a.tasks.filter(t => t && (GAME[t.game] || t.game === 'any') && Number(t.goal) > 0).slice(0, 3)
-    .map(t => ({ game: t.game, skill: t.game === 'any' ? '' : String(t.skill || ''), goal: Math.min(500, Math.round(Number(t.goal))), unit: t.unit === 'minutes' ? 'minutes' : 'answers',
+    .map(t => ({ game: t.game, skill: t.game === 'any' ? '' : String(t.skill || ''), ...(t.game !== 'any' && Array.isArray(t.skills) && t.skills.length > 1 ? { skills: t.skills.filter(x => typeof x === 'string' && x).slice(0, 12).map(String) } : {}), goal: Math.min(500, Math.round(Number(t.goal))), unit: t.unit === 'minutes' ? 'minutes' : 'answers',
       ...(t.game !== 'any' && t.settings && typeof t.settings === 'object' && !Array.isArray(t.settings) && Object.keys(t.settings).length ? { settings: t.settings } : {}) }));
   return tasks.length ? { start: a.start, end: a.end, tasks } : null;
 }
@@ -616,6 +616,7 @@ const dueText = end => {
   return 'due ' + (end <= daysAgo(-6) ? dt.toLocaleDateString(undefined, { weekday: 'short' }) : dt.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
 };
 // progress inside the assignment's dates, from the practice history: answers in that skill (or in the game, or in every game), or minutes played
+const skl = t => (t.skills && t.skills.length ? t.skills : t.skill ? [t.skill] : []);
 function assignDone(days, a, t) {
   const gids = t.game === 'any' ? GAMES.map(g => g.id) : [t.game];
   let n = 0;
@@ -623,7 +624,7 @@ function assignDone(days, a, t) {
     if (d < a.start || d > a.end) continue;
     for (const gid of gids) {
       const g = games[gid]; if (!g) continue;
-      n += t.unit === 'minutes' ? (g.ms || 0) : t.skill ? ((g.skills || {})[t.skill] || [0, 0])[1] : (g.answers || 0);
+      n += t.unit === 'minutes' ? (g.ms || 0) : skl(t).length ? skl(t).reduce((m, k) => m + (((g.skills || {})[k] || [0, 0])[1]), 0) : (g.answers || 0);
     }
   }
   return t.unit === 'minutes' ? Math.floor(n / 60000) : n;
@@ -631,11 +632,11 @@ function assignDone(days, a, t) {
 // the teacher's settings open the game as ?settings=<base64url of the JSON> (each game reads it), plus &focus=<skill> when the game takes the skill
 const b64url = o => { let bin = ''; new TextEncoder().encode(JSON.stringify(o)).forEach(b => { bin += String.fromCharCode(b); }); return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
 function taskLink(g, t) {
-  if (!t.settings) return t.skill ? practiceLink(g, t.skill) : g.url;
-  const focus = t.skill && FOCUS[g.id] && FOCUS[g.id](t.skill);
+  if (!t.settings) return t.skill && !(t.skills && t.skills.length > 1) ? practiceLink(g, t.skill) : g.url;
+  const focus = !(t.skills && t.skills.length > 1) && t.skill && FOCUS[g.id] && FOCUS[g.id](t.skill);
   return `${g.url}?settings=${b64url(t.settings)}${focus ? '&focus=' + encodeURIComponent(t.skill) : ''}`;
 }
-const taskTip = (g, t) => !g ? 'Any game counts: pick one below' : t.settings ? `Opens ${g.name} with your teacher's settings${t.skill ? `, set up for ${t.skill}` : ''}`
+const taskTip = (g, t) => !g ? 'Any game counts: pick one below' : t.settings ? `Opens ${g.name} with your teacher's settings${skl(t).length ? `, set up for ${skl(t).join(', ')}` : ''}`
   : t.skill && FOCUS[g.id] && FOCUS[g.id](t.skill) ? `Opens ${g.name} set up to practice ${t.skill}` : `Opens ${g.name}`;
 function teacherCards(p, days) {
   const by = load(ASSIGN_KEY(p)) || {}, cs = classesOf(p), today = dayKey(), out = [];
@@ -644,7 +645,7 @@ function teacherCards(p, days) {
     if (!a || a.start > today || a.end < today) continue;
     for (const t of a.tasks) {
       if (out.length >= 3) break;
-      const g = GAME[t.game] || null, what = t.skill || 'any practice', title = `${g ? g.name : 'Any game'}: ${what}`;
+      const g = GAME[t.game] || null, what = skl(t).join(', ') || 'any practice', title = `${g ? g.name : 'Any game'}: ${what}`;
       const v = assignDone(days, a, t), done = v >= t.goal, unit = t.unit === 'minutes' ? 'min' : 'answers';
       const href = g ? taskLink(g, t) : '#games';
       out.push(`<article class="q tq${done ? ' done' : ''}" style="--accent:${g ? g.acc : 'var(--gold)'}"><p class="qk"><i></i>From your teacher · ${esc(dueText(a.end))}</p>
