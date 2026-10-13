@@ -66,7 +66,7 @@
   .seg { display: inline-flex; border: 1px solid var(--card-border); border-radius: 999px; overflow: hidden; }
   .seg button { font: 700 14px var(--f-ui); letter-spacing: .06em; text-transform: uppercase; background: var(--bg); color: var(--muted); border: 0; padding: 11px 18px 9px; cursor: pointer; }
   .seg button[aria-pressed="true"] { background: var(--gc); color: #10131a; }
-  .seg .segl { font: 700 14px var(--f-ui); letter-spacing: .06em; text-transform: uppercase; background: var(--bg); color: var(--gold); text-decoration: none; padding: 11px 18px 9px; border-left: 1px solid var(--card-border); }
+  .xseg .segl { font: 700 14px var(--f-ui); letter-spacing: .06em; text-transform: uppercase; background: var(--bg); color: var(--gold); text-decoration: none; padding: 11px 18px 9px; border-left: 1px solid var(--card-border); }
   .seg .segl:hover { color: var(--text); }
   .seg .segl:focus-visible { outline: 2px solid var(--text); outline-offset: -3px; }
   .seg button:focus-visible { outline: 2px solid var(--text); outline-offset: -3px; }
@@ -141,16 +141,19 @@
         <div class="seg" id="views" role="group" aria-label="What to show">
           <button type="button" data-v="progress" aria-pressed="true">Progress</button>
           <button type="button" data-v="scores" aria-pressed="false">Scores</button>
+          <button type="button" data-v="assign" aria-pressed="false">Assign</button>
           <button type="button" data-v="feedback" aria-pressed="false">Feedback</button>
-          <a class="segl" href="../" data-tip="Set practice for a class">Assign</a>
         </div>
         <span class="grow"></span>
         <button class="btn ghost sm" type="button" id="csv">Download CSV</button>
       </div>
       <p class="msg" id="msg" role="status"></p>
-      <p class="count" id="count"></p>
-      <div class="tw"><table id="tbl"></table></div>
-      <p class="note" id="note"></p>
+      <div id="data">
+        <p class="count" id="count"></p>
+        <div class="tw"><table id="tbl"></table></div>
+        <p class="note" id="note"></p>
+      </div>
+      <div id="assignbox" hidden><iframe id="aframe" title="Assign practice" style="width:100%;border:0;min-height:700px;margin-top:14px;background:transparent"></iframe></div>
     </section>
   </div>
   <footer>Click any column heading to sort. Click again to reverse.</footer>
@@ -348,6 +351,8 @@ function render() {
   const g = G[S.game]; document.documentElement.style.setProperty('--gc', g.color);
   document.querySelectorAll('.gt').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.g === S.game)));
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view)));
+  const asg = S.view === 'assign'; $('data').hidden = asg; $('assignbox').hidden = !asg; $('csv').hidden = asg; $('cls').closest('label').hidden = asg; $('rng').closest('label').hidden = asg;
+  if (asg) { showAssign(); return; }
   const cols = COLS[S.view]; const st = S.sort[S.view] || DEFAULT_SORT[S.view]; const rows = visible();
   const head = cols.map(c => c.t === 'x' ? '<th></th>' : `<th class="${c.num ? 'num' : ''}" aria-sort="${st.k === c.k ? (st.dir > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" data-k="${c.k}">${esc(c.h)}<span class="ar" aria-hidden="true">${st.k === c.k ? (st.dir > 0 ? '▲' : '▼') : ''}</span></button></th>`).join('');
   const body = rows.length ? rows.map(r => '<tr>' + cols.map(c => `<td class="${(c.num ? 'num ' : '') + (c.cls || '')}">${cellText(c, r)}</td>`).join('') + '</tr>').join('')
@@ -360,6 +365,7 @@ function render() {
     : S.view === 'progress' ? 'One row per student per game per day. Accuracy is correct answers out of all answers.' : '';
 }
 async function load() {
+  if (S.view === 'assign') { render(); return; }
   msg(''); S.rows = []; S.loading++; render();
   const my = ++load.n;
   try {
@@ -380,6 +386,15 @@ async function load() {
   S.loading--; render();
 }
 load.n = 0;
+
+// ---------- Assign: the Assign Practice page, shown inside the dashboard ----------
+function showAssign() {
+  const f = $('aframe');
+  if (!f.getAttribute('src')) {
+    f.src = '../index.html?embed=1';
+    f.onload = () => { try { const d = f.contentDocument; const fit = () => { f.style.height = (d.documentElement.scrollHeight + 10) + 'px'; }; fit(); new ResizeObserver(fit).observe(d.body); } catch (e) {} };
+  }
+}
 
 // ---------- CSV ----------
 function csv() {

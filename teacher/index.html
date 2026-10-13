@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Josefin+Sans:wght@400;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>if (/[?&]embed=1/.test(location.search)) document.documentElement.classList.add('embed');</script>
 <script>
 /* Look (skin), shared by every Music Theory Game: clean (default), day or classic. ?skin=day previews and saves one. */
 (function () {
@@ -153,6 +154,8 @@
   .chip[aria-pressed="true"] { background: var(--btn); color: var(--btn-ink); border-color: var(--btn); }
   :is(.lnk, .chip, .grp > summary):focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
   .actions { margin-top: 20px; }
+  html.embed .back, html.embed header, html.embed footer, html.embed .who { display: none !important; }
+  html.embed body { background: transparent; padding: 0; }
   footer { text-align: center; color: var(--muted); font-size: 14px; margin-top: 28px; }
 
   /* ---------- Look: html[data-skin] = clean (default) | day | classic (same as the home page) ---------- */
