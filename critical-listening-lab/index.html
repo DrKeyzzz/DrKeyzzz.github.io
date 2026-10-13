@@ -183,15 +183,13 @@ kbd{font-family:var(--mono);font-size:.72rem;border:1px solid var(--line);border
 
 /* ================= Graffiti layer ================= */
 body{
-  background-color:var(--bg);
+  background-color:#1a1614;
   background-image:
-    radial-gradient(38rem 26rem at 8% -4%, rgba(255,62,165,.20), transparent 70%),
-    radial-gradient(34rem 28rem at 104% 18%, rgba(46,230,255,.16), transparent 70%),
-    radial-gradient(40rem 30rem at 30% 108%, rgba(182,255,59,.12), transparent 70%),
-    linear-gradient(rgba(255,255,255,.028) 2px, transparent 2px),
-    linear-gradient(90deg, rgba(255,255,255,.022) 2px, transparent 2px);
-  background-size:auto, auto, auto, 120px 56px, 120px 112px;
-  background-attachment:fixed;
+    radial-gradient(38rem 26rem at 8% -4%, rgba(255,62,165,.16), transparent 70%),
+    radial-gradient(34rem 28rem at 104% 18%, rgba(46,230,255,.12), transparent 70%),
+    radial-gradient(ellipse at 50% 40%, rgba(14,12,12,.22), rgba(10,9,9,.6) 90%),
+    var(--wall, none);
+  background-size:auto, auto, auto, 1320px auto;
   min-height:100vh; overflow-x:hidden;
 }
 body::before{content:"LISTEN";position:fixed;right:-4vw;bottom:-6vh;font:400 min(34vw,22rem)/1 var(--tag);color:rgba(255,255,255,.035);transform:rotate(-12deg);pointer-events:none;z-index:0;white-space:nowrap}
@@ -1262,6 +1260,43 @@ $('copyReport').onclick = () => {
 };
 if (store.current && store.users[store.current]) { P = store.users[store.current]; renderWho(); renderHome(); } else showLogin();
 draw();
+})();
+
+// Weathered brick wall, painted once at load and used as the page background
+(function paintWall(){
+  try{
+    let seed=7331; const rnd=()=>((seed=(seed*16807)%2147483647)/2147483647);
+    const W=1320,H=960,bw=110,bh=40,m=7;
+    const c=document.createElement('canvas'); c.width=W; c.height=H; const x=c.getContext('2d');
+    x.fillStyle='#4a4440'; x.fillRect(0,0,W,H);
+    for(let i=0;i<9000;i++){x.fillStyle=`rgba(${rnd()<.5?0:255},${rnd()<.5?0:255},${rnd()<.5?0:255},${rnd()*.06})`;x.fillRect(rnd()*W,rnd()*H,2,2)}
+    const chip=(cx,cy,r,col)=>{x.fillStyle=col;x.beginPath();const n=6+(rnd()*5|0);for(let k=0;k<n;k++){const a=k/n*Math.PI*2,rr=r*(.45+rnd()*.7);x.lineTo(cx+Math.cos(a)*rr,cy+Math.sin(a)*rr)}x.closePath();x.fill()};
+    for(let row=0,y=0;y<H;row++,y+=bh){
+      const off=row%2?-bw/2:0;
+      for(let bx=off;bx<W;bx+=bw){
+        const X=bx+m/2,Y=y+m/2,w=bw-m,h=bh-m;
+        if(rnd()<.035) continue; // missing brick face: mortar shows through
+        const hue=6+rnd()*16,sat=22+rnd()*26,lit=24+rnd()*13;
+        const g=x.createLinearGradient(X,Y,X,Y+h);
+        g.addColorStop(0,`hsl(${hue},${sat}%,${lit+4}%)`); g.addColorStop(1,`hsl(${hue},${sat}%,${lit-5}%)`);
+        x.fillStyle=g; x.fillRect(X,Y,w,h);
+        for(let i=0;i<70;i++){x.fillStyle=`hsla(${hue},${sat}%,${rnd()<.5?lit-14:lit+12}%,${.15+rnd()*.35})`;x.fillRect(X+rnd()*w,Y+rnd()*h,1+rnd()*3,1+rnd()*2)}
+        x.strokeStyle='rgba(0,0,0,.35)'; x.lineWidth=2; x.strokeRect(X+1,Y+1,w-2,h-2);
+        x.fillStyle='rgba(255,230,210,.06)'; x.fillRect(X,Y,w,2);
+        const chips=rnd()*3|0;
+        for(let k=0;k<chips;k++){const cx=X+(rnd()<.5?rnd()*12:w-rnd()*12),cy=Y+(rnd()<.5?2:h-2);chip(cx,cy,4+rnd()*9,'#3e3934')}
+        if(rnd()<.12) chip(X+rnd()*w,Y+rnd()*h,6+rnd()*12,`hsl(${hue},${sat-8}%,${lit+10}%)`);
+      }
+    }
+    x.strokeStyle='rgba(10,8,8,.55)';
+    for(let k=0;k<14;k++){let px=rnd()*W,py=rnd()*H;x.lineWidth=1+rnd()*1.5;x.beginPath();x.moveTo(px,py);for(let s=0;s<14+rnd()*20;s++){px+=(rnd()-.5)*18;py+=4+rnd()*12;x.lineTo(px,py)}x.stroke()}
+    const blob=(cx,cy,r,col)=>{for(let i=0;i<26;i++){chip(cx+(rnd()-.5)*r*1.6,cy+(rnd()-.5)*r,r*(.25+rnd()*.4),col)}};
+    for(let k=0;k<7;k++) blob(rnd()*W,rnd()*H,60+rnd()*110,'rgba(225,218,205,.07)');
+    ['rgba(255,62,165,.05)','rgba(46,230,255,.045)','rgba(255,225,77,.045)'].forEach(col=>blob(rnd()*W,rnd()*H,50+rnd()*80,col));
+    for(let k=0;k<22;k++){const sx=rnd()*W,sw=8+rnd()*40,sy=rnd()*H*.6,sl=120+rnd()*420;const g=x.createLinearGradient(0,sy,0,sy+sl);g.addColorStop(0,'rgba(0,0,0,.28)');g.addColorStop(1,'rgba(0,0,0,0)');x.fillStyle=g;x.fillRect(sx,sy,sw,sl)}
+    x.fillStyle='rgba(40,36,34,.28)'; x.fillRect(0,0,W,H);
+    document.body.style.setProperty('--wall',`url(${c.toDataURL('image/jpeg',.82)})`);
+  }catch(e){}
 })();
 </script>
 
