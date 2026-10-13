@@ -139,6 +139,7 @@ kbd{font-family:var(--mono);font-size:.72rem;border:1px solid var(--line);border
 .strip .mk{position:absolute;top:0;bottom:0;width:3px;margin-left:-1px;pointer-events:none}
 .strip .mk.guess{background:var(--lamp)} .strip .mk.target{background:var(--ok)}
 .strip .band{position:absolute;top:0;bottom:0;background:var(--ok);opacity:.22;pointer-events:none}
+.strip .heat{position:absolute;inset:0;border-radius:8px;pointer-events:none;transition:background .08s}
 .strip .readout{position:absolute;top:6px;left:8px;font:500 13px var(--mono);color:var(--screen-fg);pointer-events:none}
 .strip-row{display:flex;gap:10px;align-items:center;justify-content:space-between;margin-top:10px;flex-wrap:wrap}
 .feedback{min-height:3em;margin:12px 0 0;font-weight:500}
@@ -810,7 +811,7 @@ const GAMES = [
     blurb:'B has one bell boost. Find its frequency on the strip, then lock in. Closer guesses score more.',
     levels:['Find the boost within 1 octave', 'Find the boost within ⅔ octave', 'Find a smaller boost within ½ octave', 'Find the boost within ⅓ octave', 'Find a small boost within ⅓ octave'],
     round(L) { const g = [12,12,9,9,6][L-1], tol = [1,2/3,1/2,1/3,1/3][L-1], f = logRand(80, 10000);
-      return { ui:'freq', target:f, tol, gain:g, bw:2, tune: L <= 2, build: eqChain(f, g, 2), freq:f, reveal:`+${g} dB at ${fmtHz(f)}.` }; } },
+      return { ui:'freq', target:f, tol, gain:g, bw:2, tune: L <= 2, heat: L === 1, build: eqChain(f, g, 2), freq:f, reveal:`+${g} dB at ${fmtHz(f)}.` }; } },
   { id:'eq', name:'Boost or Cut', skill:'Frequency', icon:'eq',
     tagline:'Boost or cut, then find the band: 2, 3, then 4 splits.',
     blurb:'B has one bell EQ band boosted or cut. Boosts jump out; cuts leave a hole.',
@@ -990,7 +991,7 @@ function renderAnswer() {
   const fromX = isF ? x => 20 * Math.pow(1000, x) : x => Math.round((x * 2 - 1) * 20) / 20;
   const ticks = isF ? [[50,'50'],[100,'100'],[200,'200'],[500,'500'],[1000,'1k'],[2000,'2k'],[5000,'5k'],[10000,'10k']] : [[-1,'L'],[-.5,''],[0,'C'],[.5,''],[1,'R']];
   strip.innerHTML = ticks.map(([v, l]) => `<i class="tick" style="left:${toX(v)*100}%"></i><span class="tl" style="left:${Math.min(toX(v)*100, 96)}%">${l}</span>`).join('')
-    + '<span class="readout">Click to place your guess</span><i class="mk guess" hidden></i>';
+    + '<i class="heat"></i><span class="readout">Click to place your guess</span><i class="mk guess" hidden></i>';
   const mk = strip.querySelector('.guess'), ro = strip.querySelector('.readout');
   let guess = null;
   const place = x => { if (answered) return; x = Math.max(0, Math.min(1, x)); guess = fromX(x); mk.hidden = false; mk.style.left = toX(guess) * 100 + '%';
@@ -1000,15 +1001,22 @@ function renderAnswer() {
   // Levels 1-2 can tune any time; higher levels only after answering.
   const canTune = () => isF && R.gain && (R.tune || answered);
   let tuneOn = false;
-  const tuneX = e => { const r = strip.getBoundingClientRect(); const f = fromX(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width))); tune(f); ro.textContent = 'Tuning ' + fmtHz(f); };
+  const heatEl = strip.querySelector('.heat');
+  // Level 1 heat map: the glow under the cursor goes from cold blue to hot red as it nears the boost (within 2 octaves).
+  const tuneX = e => { const r = strip.getBoundingClientRect(), x = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)), f = fromX(x); tune(f);
+    let label = 'Tuning ' + fmtHz(f);
+    if (R.heat && !answered) { const h = Math.max(0, 1 - Math.abs(Math.log2(f / R.target)) / 2);
+      heatEl.style.background = `radial-gradient(ellipse 18% 140% at ${x * 100}% 50%, hsla(${220 - 220 * h}, 85%, 55%, ${0.25 + 0.6 * h}), transparent)`;
+      label += h > .85 ? ' · Hot!' : h > .6 ? ' · Warm' : h > .3 ? ' · Cool' : ' · Cold'; }
+    ro.textContent = label; };
   const tuningEvt = e => canTune() && (e.shiftKey || tuneOn);
   strip.onpointerdown = e => { strip.setPointerCapture(e.pointerId); if (tuningEvt(e)) tuneX(e); else fromEvt(e); };
-  strip.onpointermove = e => { if (tuningEvt(e)) tuneX(e); else { if (tuning) { tune(null); ro.textContent = guess == null ? 'Click to place your guess' : fmtHz(guess); } if (e.buttons) fromEvt(e); } };
-  strip.onpointerleave = () => { if (tuning) tune(null); };
-  R._untune = () => { tune(null); if (ro.textContent.startsWith('Tuning')) ro.textContent = guess == null ? 'Click to place your guess' : fmtHz(guess); };
+  strip.onpointermove = e => { if (tuningEvt(e)) tuneX(e); else { if (tuning) R._untune(); if (e.buttons) fromEvt(e); } };
+  strip.onpointerleave = () => { if (tuning) R._untune(); };
+  R._untune = () => { heatEl.style.background = ''; tune(null); if (ro.textContent.startsWith('Tuning')) ro.textContent = guess == null ? 'Click to place your guess' : fmtHz(guess); };
   strip.onkeydown = e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); place((guess == null ? .5 : toX(guess)) + (e.key === 'ArrowRight' ? .01 : -.01)); } };
   const row = document.createElement('div'); row.className = 'strip-row';
-  const tuneHint = isF && R.gain ? (R.tune ? ' Hold <kbd>Shift</kbd> and move over the strip to hear the boost at each frequency.' : ' After you answer, hold <kbd>Shift</kbd> to sweep the boost.') : '';
+  const tuneHint = isF && R.gain ? (R.tune ? ' Hold <kbd>Shift</kbd> and move over the strip to hear the boost at each frequency.' + (R.heat ? ' The strip glows hotter as you get close.' : '') : ' After you answer, hold <kbd>Shift</kbd> to sweep the boost.') : '';
   row.innerHTML = `<span class="hint">${isF ? `Within ${tolText(R.tol)} counts as correct.` : `Within ${Math.round(R.tol*100)}% counts as correct.`}${tuneHint}</span>`;
   if (isF && R.gain) { const tb = document.createElement('button'); tb.className = 'btn'; tb.textContent = 'Tune'; tb.setAttribute('aria-pressed', 'false'); tb.id = 'tuneBtn';
     tb.title = 'While on, moving over the strip plays the boost there (same as holding Shift)';
