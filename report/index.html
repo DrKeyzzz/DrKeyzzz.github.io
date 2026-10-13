@@ -785,13 +785,39 @@ async function boot() {
     while (active.has(daysAgo(start + streak))) streak++;
     return { perGame, all, X, active, xp, rank: rankOf(xp), T, A, days, streak };
   };
-  const tabs = [{ id: 'all', name: 'All games', acc: GOLD_ACC }].concat(GAMES);
+  // ---------- the Tests tab: each test your teacher made for your classes, with your best score and tries ----------
+  const toMs = v => !v ? 0 : typeof v.toMillis === 'function' ? v.toMillis() : typeof v.seconds === 'number' ? v.seconds * 1000 : Number(v) || 0;
+  async function testsPanel(p, cls) {
+    const box = body => `<div class="box"><h2>Tests</h2>${body}</div>`;
+    if (!cls.length) return box('<p class="sub">Tests come from your teacher. Sign in with your class code on the home page to see them here.</p>');
+    try {
+      const { fs, db } = await fb(), sid = sidOf(p);
+      const lists = await wait(Promise.all(cls.map(c => fs.getDocs(fs.query(fs.collection(db, 'tests'), fs.where('class_code', '==', c.code))))));
+      const tests = lists.flatMap((l, i) => l.docs.map(d => ({ id: d.id, ...d.data(), className: cls[i].name || cls[i].code })))
+        .sort((a, b) => toMs(b.created_at) - toMs(a.created_at)).slice(0, 30);
+      const rs = await wait(Promise.all(tests.map(t => fs.getDoc(fs.doc(db, 'test_results', t.id + '_' + sid)))));
+      const rows = tests.map((t, i) => ({ t, r: rs[i].exists() ? rs[i].data() : null })).filter(x => x.r || x.t.open);
+      if (!rows.length) return box('<p class="sub">No tests yet. When your teacher gives a test, your scores show up here.</p>');
+      const gm = Object.fromEntries(GAMES.map(g => [g.id, g]));
+      const line = ({ t, r }) => {
+        const g = gm[t.game] || { name: t.game, acc: '#999' }, unit = t.grade === 'score' ? '' : '%';
+        const best = r ? `<b>${esc(r.best)}${unit}</b>` : '<span class="sub">Not taken yet</span>';
+        const left = t.tries ? Math.max(0, t.tries - (r ? r.tries : 0)) : null;
+        const when = r && toMs(r.updated_at) ? new Date(toMs(r.updated_at)).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '';
+        return `<tr><td><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${g.acc};margin-right:8px"></span><b>${esc(t.name)}</b><br><span class="sub">${esc(g.name)}${cls.length > 1 ? ' · ' + esc(t.className) : ''}${t.open ? '' : ' · closed'}</span></td>
+          <td style="text-align:right">${best}</td><td style="text-align:right">${r ? esc(r.tries) : 0}${t.tries ? ' / ' + t.tries : ''}</td><td style="text-align:right">${esc(when)}</td></tr>`;
+      };
+      return box(`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left">Test</th><th style="text-align:right">Best</th><th style="text-align:right">Tries</th><th style="text-align:right">Last try</th></tr></thead><tbody>${rows.map(line).join('')}</tbody></table></div><p class="sub" style="margin-top:12px">Your best score is the one your teacher records. Start a test from the card on the home page.</p>`);
+    } catch { return box("<p class=\"sub\">Couldn't load your tests. Check your internet connection and open this tab again.</p>"); }
+  }
+  const tabs = [{ id: 'all', name: 'All games', acc: GOLD_ACC }].concat(GAMES, [{ id: 'tests', name: 'Tests', acc: '#ff5d6c' }]);
   let current = 0;
   $('tabs').innerHTML = tabs.map((g, i) => `<button role="tab" id="tab-${g.id}" aria-controls="panel" style="--acc:${g.acc}" data-i="${i}"><i></i>${esc(g.name)}</button>`).join('');
   function showTab(i) {
     current = i; const g = tabs[i]; hideTip(); BMAP = {};
     for (const b of $('tabs').children) { b.setAttribute('aria-selected', String(+b.dataset.i === i)); b.tabIndex = +b.dataset.i === i ? 0 : -1; }
     const panel = $('panel'); panel.style.setProperty('--acc', g.acc); panel.setAttribute('aria-labelledby', 'tab-' + g.id);
+    if (g.id === 'tests') { panel.innerHTML = '<div class="box"><h2>Tests</h2><p class="sub">Loading your tests…</p></div>'; testsPanel(p, cls).then(h => { if (current === i) panel.innerHTML = h; }); return; }
     panel.innerHTML = i === 0 ? allPanel(ctx) : gamePanel(g, T[g.id], A[g.id], ctx.perGame[g.id], ctx);
     confetti(panel, g.acc);
   }

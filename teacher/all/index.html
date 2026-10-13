@@ -142,12 +142,24 @@
           <button type="button" data-v="progress" aria-pressed="true">Progress</button>
           <button type="button" data-v="scores" aria-pressed="false">Scores</button>
           <button type="button" data-v="assign" aria-pressed="false">Assign</button>
+          <button type="button" data-v="tests" aria-pressed="false">Tests</button>
           <button type="button" data-v="feedback" aria-pressed="false">Feedback</button>
         </div>
         <span class="grow"></span>
         <button class="btn ghost sm" type="button" id="csv">Download CSV</button>
       </div>
       <p class="msg" id="msg" role="status"></p>
+      <div id="testsbox" hidden>
+        <div class="opts" style="margin-top:14px">
+          <label class="f" for="tsel">Test<select id="tsel"></select></label>
+          <button class="btn sm" type="button" id="tnew">+ New test</button>
+          <button class="btn ghost sm" type="button" id="ttoggle">Close test</button>
+          <button class="btn ghost sm" type="button" id="treset">Reset a student</button>
+          <button class="btn ghost sm" type="button" id="tdel">Delete test</button>
+        </div>
+        <p class="note" id="tmeta"></p>
+      </div>
+      <div id="newtestbox" hidden><button class="btn ghost sm" type="button" id="tback" style="margin-top:14px">← Back to Tests</button><iframe id="tframe" title="Create a test" style="width:100%;border:0;min-height:700px;margin-top:8px;background:transparent"></iframe></div>
       <div id="data">
         <p class="count" id="count"></p>
         <div class="tw"><table id="tbl"></table></div>
@@ -180,7 +192,7 @@ const GAMES = [
 const G = Object.fromEntries(GAMES.map(g => [g.id, g]));
 const FB_NAME = { 'tidal-tones': 'tidal', 'rooftop-runner': 'rooftop', 'rhythm-trainer': 'rhythm', 'scale-quest': 'scale', 'earshot-saloon': 'earshot', hub: null };
 
-const S = { email: '', classes: [], code: '', game: 'all', view: 'progress', rows: [], sort: {}, loading: 0 };
+const S = { email: '', classes: [], code: '', game: 'all', view: 'progress', rows: [], sort: {}, loading: 0, tests: [], testId: '' };
 
 // ---------- Firebase ----------
 let fbP = null, fbAuthP = null;
@@ -305,7 +317,9 @@ function sample() {
   });
   const T = ['Loved the new level!', 'The piano sound is too quiet on my Chromebook.', 'Can we play Rooftop Runner in class tomorrow?', 'Scale Quest is hard but fun.'];
   T.forEach((t, i) => fbs.push({ id: 'f' + i, game: ['tidal', 'rooftop', 'rooftop', 'scale'][i], name: names[i], code: 'PREVW', text: t, dateMs: Date.now() - i * 86400000 * 1.3 }));
-  return { prog, scores, fbs };
+  const testList = [{ id: 'T1', name: 'Unit 3 scales quiz', game: 'scale', grade: 'acc', tries: 0, open: true }, { id: 'T2', name: 'Final scales test', game: 'scale', grade: 'acc', tries: 1, open: false }];
+  const tests = names.filter((_, i) => i !== 5).map((n, i) => ({ id: 'r' + i, game: 'scale', name: n, best: 60 + Math.floor(rnd() * 40), unit: '%', acc: 0, tries: 1 + Math.floor(rnd() * 4), dateMs: Date.now() - Math.floor(rnd() * 5) * 86400000 })); tests.forEach(t => { t.acc = t.best; });
+  return { prog, scores, fbs, tests, testList };
 }
 let SAMPLE = null;
 
@@ -320,12 +334,16 @@ const COLS = {
     { k: 'name', h: 'Student', t: 's' }, { k: 'game', h: 'Game', t: 'g' }, { k: 'score', h: 'Score', t: 'n', num: 1, f: r => esc(r.score.toLocaleString()) },
     { k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) }, { k: 'detail', h: 'Details', t: 's' }, { k: 'dateMs', h: 'Date', t: 'n', f: r => esc(fmtDate(r.dateMs)) },
   ],
+  tests: [
+    { k: 'name', h: 'Student', t: 's' }, { k: 'best', h: 'Best score', t: 'n', num: 1, f: r => esc(r.best + r.unit) }, { k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) },
+    { k: 'tries', h: 'Tries', t: 'n', num: 1 }, { k: 'dateMs', h: 'Last try', t: 'n', f: r => esc(fmtDate(r.dateMs)) },
+  ],
   feedback: [
     { k: 'dateMs', h: 'Date', t: 'n', f: r => esc(fmtDate(r.dateMs)) }, { k: 'name', h: 'Student', t: 's', f: r => esc(r.name || 'Guest') }, { k: 'game', h: 'Game', t: 'g' },
     { k: 'text', h: 'Feedback', t: 's', cls: 'fbtext' }, { k: 'x', h: '', t: 'x' },
   ],
 };
-const DEFAULT_SORT = { progress: { k: 'dateMs', dir: -1 }, scores: { k: 'score', dir: -1 }, feedback: { k: 'dateMs', dir: -1 } };
+const DEFAULT_SORT = { progress: { k: 'dateMs', dir: -1 }, scores: { k: 'score', dir: -1 }, tests: { k: 'best', dir: -1 }, feedback: { k: 'dateMs', dir: -1 } };
 function accCell(a) { return a == null ? '<span style="color:var(--muted)">–</span>' : `<span class="${a < 60 ? 'low' : a >= 85 ? 'good' : ''}">${a}%</span>`; }
 function cellText(c, r) {
   if (c.k === 'game') { const g = G[r.game]; return g ? `<span class="dot" style="background:${g.color}"></span>${esc(g.name)}` : esc(r.game); }
@@ -351,29 +369,38 @@ function render() {
   const g = G[S.game]; document.documentElement.style.setProperty('--gc', g.color);
   document.querySelectorAll('.gt').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.g === S.game)));
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view)));
-  const asg = S.view === 'assign'; $('data').hidden = asg; $('assignbox').hidden = !asg; $('csv').hidden = asg; $('cls').closest('label').hidden = asg; $('rng').closest('label').hidden = asg;
+  const asg = S.view === 'assign', nt = S.view === 'newtest', ts = S.view === 'tests';
+  $('data').hidden = asg || nt; $('assignbox').hidden = !asg; $('testsbox').hidden = !ts; $('newtestbox').hidden = !nt; $('csv').hidden = asg || nt;
+  $('cls').closest('label').hidden = asg; $('rng').closest('label').hidden = asg || nt || ts;
+  document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (nt && b.dataset.v === 'tests'))));
   if (asg) { showAssign(); return; }
+  if (nt) { showNewTest(); return; }
+  if (ts) renderTestsBox();
   const cols = COLS[S.view]; const st = S.sort[S.view] || DEFAULT_SORT[S.view]; const rows = visible();
   const head = cols.map(c => c.t === 'x' ? '<th></th>' : `<th class="${c.num ? 'num' : ''}" aria-sort="${st.k === c.k ? (st.dir > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" data-k="${c.k}">${esc(c.h)}<span class="ar" aria-hidden="true">${st.k === c.k ? (st.dir > 0 ? '▲' : '▼') : ''}</span></button></th>`).join('');
   const body = rows.length ? rows.map(r => '<tr>' + cols.map(c => `<td class="${(c.num ? 'num ' : '') + (c.cls || '')}">${cellText(c, r)}</td>`).join('') + '</tr>').join('')
     : `<tr><td class="empty" colspan="${cols.length}">${S.loading ? 'Loading…' : 'Nothing here yet for this class and time.'}</td></tr>`;
   $('tbl').innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
-  const label = { progress: 'practice records', scores: 'scores', feedback: 'notes' }[S.view];
-  $('count').textContent = S.loading ? '' : rows.length + ' ' + label + (S.game === 'all' ? ' across all games' : ' in ' + g.name);
+  const label = { progress: 'practice records', scores: 'scores', feedback: 'notes', tests: 'students with a result' }[S.view];
+  $('count').textContent = S.loading ? '' : rows.length + ' ' + label + (S.view === 'tests' ? '' : S.game === 'all' ? ' across all games' : ' in ' + g.name);
   $('note').textContent = S.view === 'progress' && (S.game === 'earshot')
     ? 'Earshot Saloon does not keep daily practice records yet. Open Scores to see its results.'
-    : S.view === 'progress' ? 'One row per student per game per day. Accuracy is correct answers out of all answers.' : '';
+    : S.view === 'progress' ? 'One row per student per game per day. Accuracy is correct answers out of all answers.'
+    : S.view === 'tests' ? 'Best score is the highest of all tries. Students who have not started do not appear.' : '';
 }
 async function load() {
-  if (S.view === 'assign') { render(); return; }
+  if (S.view === 'assign' || S.view === 'newtest') { render(); return; }
   msg(''); S.rows = []; S.loading++; render();
   const my = ++load.n;
   try {
     let rows = [];
     if (PREVIEW) {
       SAMPLE = SAMPLE || sample();
-      rows = S.view === 'progress' ? SAMPLE.prog : S.view === 'scores' ? SAMPLE.scores : SAMPLE.fbs;
+      rows = S.view === 'progress' ? SAMPLE.prog : S.view === 'scores' ? SAMPLE.scores : S.view === 'tests' ? SAMPLE.tests : SAMPLE.fbs;
+      if (S.view === 'tests') { S.tests = SAMPLE.testList; if (!S.testId) S.testId = S.tests[0].id; }
       await new Promise(r => setTimeout(r, 120));
+    } else if (S.view === 'tests') {
+      await loadTests(); rows = await fetchResults();
     } else if (S.view === 'feedback') {
       rows = (await fetchFeedback()).filter(r => !S.code || r.code === S.code);
     } else if (S.code) {
@@ -386,6 +413,51 @@ async function load() {
   S.loading--; render();
 }
 load.n = 0;
+
+// ---------- Tests: tests/<id> made here, results in test_results/<id>_<sid> ----------
+const curTest = () => S.tests.find(t => t.id === S.testId) || null;
+async function loadTests() {
+  if (!S.code) { S.tests = []; S.testId = ''; return; }
+  S.tests = await run(async ({ fs, db }) => (await fs.getDocs(fs.query(fs.collection(db, 'tests'), fs.where('class_code', '==', S.code)))).docs
+    .map(d => ({ id: d.id, ...d.data() })).sort((a, b) => toMs(b.created_at) - toMs(a.created_at)));
+  if (!S.tests.some(t => t.id === S.testId)) S.testId = S.tests.length ? S.tests[0].id : '';
+}
+async function fetchResults() {
+  const t = curTest(); if (!t) return [];
+  return run(async ({ fs, db }) => (await fs.getDocs(fs.query(fs.collection(db, 'test_results'), fs.where('test', '==', t.id), fs.where('owner', '==', S.email)))).docs
+    .map(d => { const r = d.data(); return { id: d.id, game: t.game, name: r.student || 'Student', best: num(r.best), unit: t.grade === 'score' ? '' : '%', acc: r.tries ? num(r.best_acc) : null, tries: num(r.tries), dateMs: toMs(r.updated_at) }; }));
+}
+function renderTestsBox() {
+  $('tsel').innerHTML = S.tests.length ? S.tests.map(t => `<option value="${esc(t.id)}">${esc(t.name)}${t.open ? '' : ' (closed)'}</option>`).join('') : '<option value="">No tests yet</option>';
+  $('tsel').value = S.testId; $('tsel').disabled = !S.tests.length;
+  const t = curTest();
+  ['ttoggle', 'treset', 'tdel'].forEach(id => { $(id).disabled = !t; });
+  $('ttoggle').textContent = t && t.open ? 'Close test' : 'Open test';
+  $('tmeta').textContent = t ? `${G[t.game] ? G[t.game].name : t.game} · ${t.tries ? (t.tries === 1 ? 'One and done' : t.tries + ' tries, best counts') : 'Unlimited tries, best counts'} · Scored by ${t.grade === 'score' ? 'points' : 'accuracy'} · ${t.open ? 'Open to students' : 'Closed'}` : 'Make a test with + New test. It shows up on your students\' home page.';
+}
+function showNewTest() {
+  const f = $('tframe'); const want = '../index.html?embed=1&test=1';
+  if (f.getAttribute('src') !== want) {
+    f.src = want;
+    f.onload = () => { try { const d = f.contentDocument; const fit = () => { f.style.height = (d.documentElement.scrollHeight + 10) + 'px'; }; fit(); new ResizeObserver(fit).observe(d.body); } catch (e) {} };
+  }
+}
+addEventListener('message', e => { if (e.origin === location.origin && e.data && e.data.type === 'mtg-test-saved') { S.view = 'tests'; S.testId = ''; load(); } });
+async function testAction(kind) {
+  const t = curTest(); if (!t) return;
+  try {
+    if (PREVIEW) { if (kind === 'toggle') t.open = !t.open; if (kind === 'delete') { S.tests = S.tests.filter(x => x.id !== t.id); S.testId = S.tests[0] ? S.tests[0].id : ''; } return render(); }
+    if (kind === 'toggle') { await run(({ fs, db }) => fs.updateDoc(fs.doc(db, 'tests', t.id), { open: !t.open })); t.open = !t.open; render(); }
+    if (kind === 'delete') { if (!confirm(`Delete the test "${t.name}"? Students' results stay in the database but you will no longer see them here.`)) return; await run(({ fs, db }) => fs.deleteDoc(fs.doc(db, 'tests', t.id))); S.testId = ''; load(); }
+  } catch (e) { msg(errText(e)); }
+}
+async function resetStudent() {
+  const t = curTest(); if (!t) return;
+  const rows = S.rows.filter(r => r.game === t.game); if (!rows.length) return msg('No results to reset yet.');
+  const name = prompt('Type the student\'s name exactly as shown in the table to give them their tries back:\n' + rows.map(r => r.name).join(', '));
+  const r = rows.find(x => x.name.toLowerCase() === String(name || '').trim().toLowerCase()); if (!r) { if (name) msg('That name is not in the table.'); return; }
+  try { if (!PREVIEW) await run(({ fs, db }) => fs.deleteDoc(fs.doc(db, 'test_results', r.id))); S.rows = S.rows.filter(x => x !== r); render(); msg(`${r.name} can take "${t.name}" again.`, true); } catch (e) { msg(errText(e)); }
+}
 
 // ---------- Assign: the Assign Practice page, shown inside the dashboard ----------
 function showAssign() {
@@ -427,6 +499,10 @@ function wire() {
     }
   };
   $('csv').onclick = csv;
+  $('tsel').onchange = () => { S.testId = $('tsel').value; load(); };
+  $('tnew').onclick = () => { S.view = 'newtest'; render(); };
+  $('tback').onclick = () => { S.view = 'tests'; load(); };
+  $('ttoggle').onclick = () => testAction('toggle'); $('tdel').onclick = () => testAction('delete'); $('treset').onclick = resetStudent;
   $('signout').onclick = signOut;
 }
 

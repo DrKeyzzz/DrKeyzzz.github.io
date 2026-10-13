@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Josefin+Sans:wght@400;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<script>if (/[?&]embed=1/.test(location.search)) document.documentElement.classList.add('embed');</script>
+<script>if (/[?&]embed=1/.test(location.search)) document.documentElement.classList.add('embed'); if (/[?&]test=1/.test(location.search)) document.documentElement.classList.add('testmode');</script>
 <script>
 /* Look (skin), shared by every Music Theory Game: clean (default), day or classic. ?skin=day previews and saves one. */
 (function () {
@@ -154,6 +154,15 @@
   .chip[aria-pressed="true"] { background: var(--btn); color: var(--btn-ink); border-color: var(--btn); }
   :is(.lnk, .chip, .grp > summary):focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
   .actions { margin-top: 20px; }
+  .testonly, .tmsg { display: none; }
+  html.testmode #classes { display: none; }
+  html.testmode .testonly { display: block; }
+  html.testmode .asgonly { display: none !important; }
+  html.testmode .task .ts, html.testmode .task .gl, html.testmode .task .un, html.testmode .task > .x { display: none; }
+  html.testmode .task { grid-template-columns: minmax(0, 1fr); }
+  .tgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px 14px; }
+  .tgrid input[type="text"] { font: 600 16px var(--f-ui); color: var(--text); background: var(--bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 10px 12px 8px; width: 100%; }
+  .tgrid .chk { flex-direction: row; align-items: center; gap: 10px; text-transform: none; letter-spacing: 0; font-size: 16px; color: var(--text); padding-top: 22px; }
   html.embed .back, html.embed header, html.embed footer, html.embed .who { display: none !important; }
   html.embed body { background: transparent; padding: 0; }
   footer { text-align: center; color: var(--muted); font-size: 14px; margin-top: 28px; }
@@ -206,7 +215,7 @@
 
     <form class="card" id="form" novalidate aria-labelledby="a-head">
       <h2 id="a-head">New assignment</h2>
-      <fieldset>
+      <fieldset class="asgonly">
         <legend>When</legend>
         <div class="opts">
           <label class="opt"><input type="radio" name="when" value="today" checked><span>Today only</span></label>
@@ -219,14 +228,24 @@
         </div>
       </fieldset>
       <fieldset>
-        <legend>Tasks</legend>
+        <legend class="asgonly">Tasks</legend>
         <div class="tasks" id="tasks"></div>
-        <button class="add" type="button" id="add">+ Add a task</button>
-        <p class="hint">Pick one skill or several (add as many scales as you like). Answers count in any of the chosen skills. Minutes count all time in that game. Each Start button opens the game with the task's Settings, set up for the skill.</p>
+        <button class="add asgonly" type="button" id="add">+ Add a task</button>
+        <p class="hint asgonly">Pick one skill or several (add as many scales as you like). Answers count in any of the chosen skills. Minutes count all time in that game. Each Start button opens the game with the task's Settings, set up for the skill.</p>
+      </fieldset>
+      <fieldset class="testonly">
+        <legend>Test details</legend>
+        <div class="tgrid">
+          <label class="f" for="t-name">Test name<input type="text" id="t-name" maxlength="60" placeholder="Unit 3 scales quiz"></label>
+          <label class="f" for="t-grade">Score by<select id="t-grade"><option value="acc">Accuracy (% correct)</option><option value="score">Points</option></select></label>
+          <label class="f" for="t-tries">Tries<select id="t-tries"><option value="0">Unlimited (best score counts)</option><option value="1">One and done</option><option value="2">2 tries (best counts)</option><option value="3">3 tries (best counts)</option><option value="5">5 tries (best counts)</option></select></label>
+          <label class="f chk" for="t-open"><input type="checkbox" id="t-open" checked> Open for students now</label>
+        </div>
+        <p class="hint">Pick the game and its settings above. In Scale Quest, open Settings and choose your scales. Students start the test from a card on the home page.</p>
       </fieldset>
       <div class="row actions">
         <button class="btn" type="submit" id="save">Save assignment</button>
-        <button class="btn ghost" type="button" id="clear" hidden>Clear assignment</button>
+        <button class="btn ghost asgonly" type="button" id="clear" hidden>Clear assignment</button>
       </div>
       <p class="msg" id="msg" role="status"></p>
     </form>
@@ -476,6 +495,8 @@ function syncSets(row) {
 }
 
 // ---------- state ----------
+const TESTMODE = document.documentElement.classList.contains('testmode');
+const TEST_GAMES = ['scale'];   // games that have a test hook (the home page's TEST_GAMES must match)
 const S = { email: '', classes: [], code: '', when: 'today', tasks: [newTask()] };
 const cls = () => S.classes.find(c => c.code === S.code);
 function msg(text, ok) { const e = $('msg'); e.textContent = text || ''; e.className = 'msg' + (ok ? ' ok' : ''); }
@@ -546,7 +567,8 @@ function renderClasses() {
 }
 // the form starts from the class's current assignment (if it hasn't ended), otherwise from the defaults
 function pickClass() {
-  const c = cls(), a = c && c.hub_assignment, today = dayKey();
+  const c = cls(), a = !TESTMODE && c && c.hub_assignment, today = dayKey();
+  if (TESTMODE) { if (!S.testInit) { S.testInit = true; S.tasks = [{ ...newTask(), game: 'scale', settings: setsFrom('scale'), open: true }]; } renderTasks(); renderClasses(); return; }
   if (a && DATE_RE.test(a.start) && DATE_RE.test(a.end) && a.end >= today && Array.isArray(a.tasks) && a.tasks.length) {
     S.tasks = a.tasks.slice(0, 3).map(t => { const game = GNAME[t.game] ? t.game : 'any';
       return { game, skills: skillsOf(t).filter(x => hasSkill(t.game, x)).slice(0, 12), goal: t.goal, unit: t.unit === 'minutes' ? 'minutes' : 'answers', settings: setsFrom(game, t.settings), open: false }; });
@@ -573,10 +595,10 @@ const skillOptions = (g, chosen) => `<option value="">${chosen.length ? 'Add ano
 const skillChips = t => skillsOf(t).length ? `<div class="skchips">${skillsOf(t).map((s, j) => `<span class="skchip">${esc(s)}<button type="button" data-k="unskill" data-j="${j}" aria-label="Remove ${esc(s)}">✕</button></span>`).join('')}</div>` : '';
 function renderTasks() {
   $('tasks').innerHTML = S.tasks.map((t, i) => `<div class="task" data-i="${i}" role="group" aria-label="Task ${i + 1}">
-    <label class="f tg">Game<select data-k="game">${GAMES.map(g => `<option value="${g.id}"${g.id === t.game ? ' selected' : ''}>${esc(g.name)}</option>`).join('')}</select></label>
+    <label class="f tg">Game<select data-k="game">${GAMES.filter(g => !TESTMODE || TEST_GAMES.includes(g.id)).map(g => `<option value="${g.id}"${g.id === t.game ? ' selected' : ''}>${esc(g.name)}</option>`).join('')}</select></label>
     <div class="f ts"><label class="f" style="gap:5px">Skills<select data-k="skill"${t.game === 'any' ? ' disabled' : ''}>${skillOptions(t.game, skillsOf(t))}</select></label>${skillChips(t)}</div>
-    <label class="f">Goal<input type="number" data-k="goal" min="1" max="500" step="1" inputmode="numeric" value="${esc(t.goal)}"></label>
-    <label class="f">Unit<select data-k="unit"><option value="answers"${t.unit === 'answers' ? ' selected' : ''}>answers</option><option value="minutes"${t.unit === 'minutes' ? ' selected' : ''}>minutes</option></select></label>
+    <label class="f gl">Goal<input type="number" data-k="goal" min="1" max="500" step="1" inputmode="numeric" value="${esc(t.goal)}"></label>
+    <label class="f un">Unit<select data-k="unit"><option value="answers"${t.unit === 'answers' ? ' selected' : ''}>answers</option><option value="minutes"${t.unit === 'minutes' ? ' selected' : ''}>minutes</option></select></label>
     <button class="x" type="button" data-k="remove" aria-label="Remove task ${i + 1}"${S.tasks.length < 2 ? ' disabled' : ''}>✕</button>
     ${setsHtml(t, i)}
   </div>`).join('');
@@ -665,9 +687,25 @@ function build() {
   if (!tasks.length) return { err: 'Add at least one task.' };
   return { a: { start, end, tasks } };
 }
+async function saveTest(c) {
+  const name = $('t-name').value.trim(), t = S.tasks[0];
+  if (!name) { msg('Give the test a name.'); $('t-name').focus(); return; }
+  const bad = SPECS[t.game] && setsErr(t.game, t.settings);
+  if (bad) { msg(`Settings: ${bad[1]}`); const box = $('tasks').querySelector('[data-sets]'); if (box) { t.open = box.open = true; const f = $('tasks').querySelector(`[data-s="${bad[0]}"]`); if (f) f.focus(); } return; }
+  const settings = SPECS[t.game] ? setsOut(t.game, t.settings) : {};
+  $('save').disabled = true; $('save').textContent = 'Saving…'; msg('');
+  try {
+    await run(({ fs, db }) => fs.addDoc(fs.collection(db, 'tests'), { name, game: t.game, class_code: c.code, owner: S.email, settings, grade: $('t-grade').value, tries: +$('t-tries').value, open: $('t-open').checked, created_at: fs.serverTimestamp() }));
+    msg(`Test "${name}" saved for ${c.name}.${$('t-open').checked ? ' Students see it on the home page now.' : ' It is closed. Open it from the Tests tab.'}`, true);
+    $('t-name').value = '';
+    try { parent.postMessage({ type: 'mtg-test-saved' }, location.origin); } catch {}
+  } catch (err) { msg(errText(err, true)); }
+  finally { $('save').disabled = false; $('save').textContent = 'Create test'; }
+}
 $('form').addEventListener('submit', async e => {
   e.preventDefault();
   const c = cls(); if (!c) return;
+  if (TESTMODE) return saveTest(c);
   const b = build();
   if (b.err) {
     msg(b.err);
@@ -695,6 +733,12 @@ $('clear').addEventListener('click', async () => {
   finally { $('clear').disabled = false; }
 });
 $('signout').addEventListener('click', signOut);
+if (TESTMODE) {
+  document.querySelector('h1').textContent = 'Create a test';
+  document.querySelector('.sub').textContent = 'Pick a game, its settings and the scales. Students take it from a card on the home page. You choose unlimited tries (best score counts) or one and done.';
+  $('a-head').textContent = 'New test'; $('save').textContent = 'Create test'; document.title = 'Create a Test · Music Theory Games';
+  document.querySelector('label[for="cls"]').firstChild.textContent = 'Class ';
+}
 start();
 })();
 </script>
