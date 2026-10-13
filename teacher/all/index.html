@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>All Games Dashboard · Music Theory Games</title>
+<meta name="description" content="Teachers: see every game and every student's scores in one place.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Josefin+Sans:wght@400;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+/* Look (skin), shared by every Music Theory Game: clean (default), day or classic. */
+(function () {
+  var ok = ['clean', 'day', 'classic'], s = null;
+  try { var q = new URLSearchParams(location.search).get('skin'); if (ok.indexOf(q) >= 0) { s = q; localStorage.setItem('mtg_skin_v1', q); } } catch (e) {}
+  if (!s) try { s = localStorage.getItem('mtg_skin_v1'); } catch (e) {}
+  document.documentElement.dataset.skin = ok.indexOf(s) >= 0 ? s : 'clean';
+})();
+</script>
+<style>
+  :root {
+    --bg: #0d1420; --bg-glow: #1b2a44; --card: #141d2c; --card-border: #26344b;
+    --text: #f1ece0; --muted: #9aa7bb; --gold: #ffc85c; --btn: #ffc85c; --btn-ink: #10131a;
+    --err: #ff8a7a; --ok: #7dd3a8;
+    --f-ui: "Josefin Sans", system-ui, sans-serif; --f-display: "Abril Fatface", Georgia, serif;
+    --gc: #ffc85c;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; }
+  body { min-height: 100vh; background: radial-gradient(1200px 700px at 50% -10%, var(--bg-glow), var(--bg) 70%) fixed, var(--bg); color: var(--text); font-family: var(--f-ui); padding: 0 16px 48px; }
+  .wrap { max-width: 1040px; margin: 0 auto; }
+  .back { display: inline-block; margin-top: 18px; color: var(--muted); text-decoration: none; font-weight: 700; font-size: 15px; padding: 6px 0; }
+  .back:hover { color: var(--text); }
+  header { padding: 14px 0 18px; }
+  .eyebrow { color: var(--gold); letter-spacing: .25em; font-size: 13px; font-weight: 700; text-transform: uppercase; margin: 0 0 8px; }
+  h1 { font-family: var(--f-display); font-weight: 400; font-size: clamp(32px, 6vw, 50px); line-height: 1.05; margin: 0; }
+  .card { background: var(--card); border: 1px solid var(--card-border); border-radius: 18px; padding: 18px 20px; margin-bottom: 20px; }
+  .card p { margin: 0 0 10px; color: var(--muted); }
+  .who { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin: 0 0 14px; color: var(--muted); font-size: 15px; }
+  .who b { color: var(--text); }
+  .btn { font: 700 14px var(--f-ui); letter-spacing: .08em; text-transform: uppercase; border-radius: 999px; padding: 12px 20px 9px; cursor: pointer; border: 1px solid var(--btn); background: var(--btn); color: var(--btn-ink); }
+  .btn.ghost { background: transparent; color: var(--text); border-color: var(--card-border); }
+  .btn.sm { padding: 7px 14px 5px; font-size: 13px; }
+  .btn:hover { filter: brightness(1.08); }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+  .msg { min-height: 1.3em; margin: 10px 0 0; color: var(--err); font-weight: 600; }
+  .msg.ok { color: var(--ok); }
+
+  /* game tabs, each in its game's color */
+  .games { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 16px; padding: 0; list-style: none; }
+  .gt { font: 700 16px var(--f-ui); color: var(--text); background: var(--card); border: 2px solid var(--gc); border-radius: 14px; padding: 12px 18px 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 9px; }
+  .gt i { width: 12px; height: 12px; border-radius: 50%; background: var(--gc); flex: none; }
+  .gt:hover { filter: brightness(1.12); }
+  .gt[aria-pressed="true"] { background: var(--gc); color: #10131a; }
+  .gt[aria-pressed="true"] i { background: #10131a; }
+  .gt:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+
+  /* options */
+  .opts { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; }
+  label.f { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); min-width: 0; }
+  select { font: 600 16px var(--f-ui); color: var(--text); background: var(--bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 10px 12px 8px; min-width: 190px; letter-spacing: 0; text-transform: none; }
+  select:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+  .seg { display: inline-flex; border: 1px solid var(--card-border); border-radius: 999px; overflow: hidden; }
+  .seg button { font: 700 14px var(--f-ui); letter-spacing: .06em; text-transform: uppercase; background: var(--bg); color: var(--muted); border: 0; padding: 11px 18px 9px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--gc); color: #10131a; }
+  .seg button:focus-visible { outline: 2px solid var(--text); outline-offset: -3px; }
+  .grow { flex: 1; }
+
+  /* table */
+  .tw { overflow-x: auto; margin-top: 14px; border: 1px solid var(--card-border); border-radius: 12px; }
+  table { border-collapse: collapse; width: 100%; font-size: 16px; }
+  th, td { text-align: left; padding: 10px 14px 8px; white-space: nowrap; }
+  td { border-top: 1px solid var(--card-border); }
+  th { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); background: var(--bg); padding: 0; }
+  th button { font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; background: none; border: 0; cursor: pointer; width: 100%; text-align: left; padding: 11px 14px 9px; display: inline-flex; gap: 6px; align-items: center; }
+  th button:hover { color: var(--text); }
+  th button:focus-visible { outline: 2px solid var(--text); outline-offset: -3px; }
+  th[aria-sort="ascending"] button, th[aria-sort="descending"] button { color: var(--gc); }
+  th .ar { font-size: 10px; width: 10px; display: inline-block; }
+  th.num button, td.num { justify-content: flex-end; text-align: right; }
+  th.num { text-align: right; }
+  tbody tr:hover td { background: color-mix(in srgb, var(--gc) 8%, transparent); }
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 8px; }
+  .low { color: var(--err); font-weight: 700; }
+  .good { color: var(--ok); font-weight: 700; }
+  .empty { padding: 26px 14px; text-align: center; color: var(--muted); }
+  .note { font-size: 15px; color: var(--muted); margin: 12px 0 0; }
+  .fbtext { white-space: normal; min-width: 260px; max-width: 520px; }
+  .x { font: 700 14px var(--f-ui); border: 1px solid var(--card-border); background: transparent; color: var(--muted); border-radius: 999px; padding: 4px 11px 2px; cursor: pointer; }
+  .x:hover { color: var(--err); border-color: var(--err); }
+  .count { color: var(--muted); font-size: 15px; margin: 14px 0 0; }
+  footer { text-align: center; color: var(--muted); font-size: 14px; margin-top: 28px; }
+  .pv { background: var(--gold); color: #10131a; font-weight: 700; text-align: center; padding: 6px; font-size: 14px; border-radius: 10px; margin: 12px 0 0; }
+
+  html:not([data-skin="classic"]) {
+    --bg: #0f1a2b; --bg-glow: #0f1a2b; --card: #16233a; --card-border: #263a56;
+    --text: #eef2f7; --muted: #a3b2c6; --gold: #ffcc66; --btn: #ffcc66; --btn-ink: #10131a; --err: #ff8a7a;
+    --f-ui: "Outfit", ui-sans-serif, system-ui, sans-serif; --f-display: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  }
+  html[data-skin="day"] {
+    color-scheme: light;
+    --bg: #f3f6fb; --bg-glow: #f3f6fb; --card: #ffffff; --card-border: #d8e0eb;
+    --text: #17233a; --muted: #52627a; --gold: #9a5b00; --btn: #ffc24d; --btn-ink: #17130a; --err: #c2410c; --ok: #15803d;
+  }
+  html:not([data-skin="day"]) { color-scheme: dark; }
+  html:not([data-skin="classic"]) h1 { font-weight: 800; letter-spacing: -.02em; }
+  html[data-skin="day"] .card { box-shadow: 0 6px 18px -14px rgba(23, 35, 58, .35); }
+  html[data-skin="day"] th[aria-sort] button { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="back" href="../">← Music Theory Games</a>
+  <header>
+    <p class="eyebrow">For teachers</p>
+    <h1>All games dashboard</h1>
+  </header>
+
+  <section class="card" id="gate" aria-live="polite"><p>Loading…</p></section>
+
+  <div id="main" hidden>
+    <div class="who"><span id="who"></span><button class="btn ghost sm" type="button" id="signout">Sign out</button></div>
+
+    <ul class="games" id="games" aria-label="Games"></ul>
+
+    <section class="card" id="panel">
+      <div class="opts">
+        <label class="f" for="cls">Class<select id="cls"></select></label>
+        <label class="f" for="rng">Time<select id="rng">
+          <option value="1">Today</option>
+          <option value="7" selected>Last 7 days</option>
+          <option value="30">Last 30 days</option>
+          <option value="0">All time</option>
+        </select></label>
+        <div class="seg" id="views" role="group" aria-label="What to show">
+          <button type="button" data-v="progress" aria-pressed="true">Progress</button>
+          <button type="button" data-v="scores" aria-pressed="false">Scores</button>
+          <button type="button" data-v="feedback" aria-pressed="false">Feedback</button>
+        </div>
+        <span class="grow"></span>
+        <button class="btn ghost sm" type="button" id="csv">Download CSV</button>
+      </div>
+      <p class="msg" id="msg" role="status"></p>
+      <p class="count" id="count"></p>
+      <div class="tw"><table id="tbl"></table></div>
+      <p class="note" id="note"></p>
+    </section>
+  </div>
+  <footer>Click any column heading to sort. Click again to reverse.</footer>
+</div>
+
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const FIREBASE = { apiKey: 'AIzaSyDU9vbCWJ4yWuD8bAX984DmQF4dvo13BHs', authDomain: 'rhythm-trainer-fc313.firebaseapp.com', projectId: 'rhythm-trainer-fc313', appId: '1:956677028482:web:c3ec72a279e61b6f6c929b' };
+const TEACHER_EMAILS = ['milnesda@eht.k12.nj.us'];   // must match firestore.rules
+const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+const PREVIEW = new URLSearchParams(location.search).get('preview') === '1';
+
+// ---------- the games ----------
+const GAMES = [
+  { id: 'all',     name: 'All games',      color: '#c9d4e6' },
+  { id: 'tidal',   name: 'Tidal Tones',    color: '#ffc85c', prog: 'tidal_progress',   scores: 'tidal_scores',   attempts: 'answers', url: '../../../tidal-tones/' },
+  { id: 'rooftop', name: 'Rooftop Runner', color: '#ff4fa3', prog: 'rooftop_progress', scores: 'sight_scores',   attempts: 'answers', url: '../../../rooftop-runner/' },
+  { id: 'rhythm',  name: 'Rhythm Trainer', color: '#f5c542', prog: 'progress',         scores: 'rhythm_scores',  attempts: 'slots',   url: '../../../rhythm-trainer/' },
+  { id: 'scale',   name: 'Scale Quest',    color: '#3ee8f0', prog: 'scale_progress',   scores: 'scale_scores',   attempts: 'questions', url: '../../../scale-quest/' },
+  { id: 'earshot', name: 'Earshot Saloon', color: '#ff9a4a', prog: null,               scores: 'earshot_scores', attempts: null,      url: '../../../earshot-saloon/' },
+];
+const G = Object.fromEntries(GAMES.map(g => [g.id, g]));
+const FB_NAME = { 'tidal-tones': 'tidal', 'rooftop-runner': 'rooftop', 'rhythm-trainer': 'rhythm', 'scale-quest': 'scale', 'earshot-saloon': 'earshot', hub: null };
+
+const S = { email: '', classes: [], code: '', game: 'all', view: 'progress', rows: [], sort: {}, loading: 0 };
+
+// ---------- Firebase ----------
+let fbP = null, fbAuthP = null;
+function fb() {
+  fbP = fbP || Promise.all([import(SDK + 'firebase-app.js'), import(SDK + 'firebase-firestore.js')])
+    .then(([appMod, fs]) => ({ fs, db: fs.getFirestore(appMod.initializeApp(FIREBASE)) }))
+    .catch(e => { fbP = null; throw e; });
+  return fbP;
+}
+function fbAuth() {
+  fbAuthP = fbAuthP || Promise.all([fb(), import(SDK + 'firebase-auth.js')])
+    .then(([f, authMod]) => ({ ...f, authMod, auth: authMod.getAuth(f.db.app) }))
+    .catch(e => { fbAuthP = null; throw e; });
+  return fbAuthP;
+}
+const wait = p => Promise.race([p, new Promise((_, bad) => setTimeout(() => bad(new Error('timeout')), 20000))]);
+async function run(fn) { const f = await fbAuth(); return wait(fn(f)); }
+function errText(e) {
+  const c = e && e.code;
+  if (c === 'permission-denied') return "That isn't allowed. Sign in with the Google account that owns this class.";
+  if (c === 'auth/popup-closed-by-user' || c === 'auth/cancelled-popup-request') return 'Sign-in was cancelled.';
+  if (c === 'auth/popup-blocked') return 'Your browser blocked the sign-in window. Allow pop-ups for this site and try again.';
+  if (c === 'auth/unauthorized-domain') return 'Add this website to Firebase → Authentication → Settings → Authorized domains.';
+  if (e && e.message === 'timeout') return 'The database took too long to answer. Check your internet connection.';
+  if (c === 'unavailable' || (e && /fetch|network|load/i.test(e.message || ''))) return "Couldn't reach the database. Check your internet connection and try again.";
+  return (e && e.message) || 'Something went wrong. Try again.';
+}
+function msg(text, ok) { const e = $('msg'); e.textContent = text || ''; e.className = 'msg' + (ok ? ' ok' : ''); }
+
+// ---------- dates (this computer decides what "today" is) ----------
+const pad = n => String(n).padStart(2, '0');
+const ymd = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+function lastDays(n) { const out = []; const d = new Date(); for (let i = 0; i < n; i++) { out.push(ymd(d)); d.setDate(d.getDate() - 1); } return out; }
+function toMs(v) {
+  if (v == null || v === '') return 0;
+  if (typeof v === 'number') return v;
+  if (typeof v.toMillis === 'function') return v.toMillis();
+  if (typeof v.seconds === 'number') return v.seconds * 1000;
+  const t = Date.parse(v); return isNaN(t) ? 0 : t;
+}
+function fmtDate(ms) {
+  if (!ms) return '';
+  const d = new Date(ms); const now = new Date();
+  const day = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric' });
+  return day + ', ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+}
+function fmtDay(s) { const m = /^(\d{4})-(\d\d)-(\d\d)$/.exec(s || ''); if (!m) return s || ''; return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }); }
+const num = v => { const n = Number(v); return isFinite(n) ? n : 0; };
+const pct = (a, b) => (b > 0 ? Math.round(100 * a / b) : null);
+
+// ---------- loading data ----------
+function normProgress(gid, d) {
+  const g = G[gid]; const attempts = num(d[g.attempts]); const correct = num(d.correct);
+  return {
+    game: gid, name: d.student || 'Student', date: d.date || '', dateMs: toMs(d.last_at) || toMs(d.updated_at) || Date.parse((d.date || '') + 'T12:00:00') || 0,
+    attempts, correct, acc: pct(correct, attempts), minutes: Math.round(num(d.minutes) * 10) / 10,
+  };
+}
+function normScore(gid, d) {
+  const o = { game: gid, name: d.name || 'Student', dateMs: toMs(d.created_at), score: num(d.score), acc: null, detail: '' };
+  if (gid === 'rhythm') { o.acc = pct(num(d.correct), num(d.total)); o.detail = d.level ? 'Level ' + d.level : ''; }
+  else if (gid === 'scale') { const a = num(d.accuracy); o.acc = a ? Math.round(a <= 1 ? a * 100 : a) : null; o.detail = d.questions ? d.questions + ' questions' : ''; }
+  else if (gid === 'earshot') { const a = num(d.acc); o.acc = a ? Math.round(a <= 1 ? a * 100 : a) : null; o.detail = d.town ? String(d.town) : ''; }
+  else { const a = num(d.acc); o.acc = a ? Math.round(a <= 1 ? a * 100 : a) : null; o.detail = d.level ? 'Level ' + d.level : ''; }
+  return o;
+}
+function days() { const n = +$('rng').value; return n ? lastDays(n) : null; }
+async function fetchProgress(gid) {
+  const g = G[gid]; if (!g.prog) return [];
+  const ds = days();
+  return run(async ({ fs, db }) => {
+    const col = fs.collection(db, g.prog); const out = [];
+    if (!ds) { (await fs.getDocs(fs.query(col, fs.where('class_code', '==', S.code)))).forEach(x => out.push(normProgress(gid, x.data()))); return out; }
+    for (let i = 0; i < ds.length; i += 30) {
+      const snap = await fs.getDocs(fs.query(col, fs.where('class_code', '==', S.code), fs.where('date', 'in', ds.slice(i, i + 30))));
+      snap.forEach(x => out.push(normProgress(gid, x.data())));
+    }
+    return out;
+  });
+}
+async function fetchScores(gid) {
+  const g = G[gid];
+  const ds = days(); const cutoff = ds ? new Date(ds[ds.length - 1] + 'T00:00:00').getTime() : 0;
+  return run(async ({ fs, db }) => {
+    const snap = await fs.getDocs(fs.query(fs.collection(db, g.scores), fs.where('class_code', '==', S.code)));
+    const out = []; snap.forEach(x => out.push(normScore(gid, x.data())));
+    return out.filter(r => !cutoff || r.dateMs >= cutoff);
+  });
+}
+async function fetchFeedback() {
+  const ds = days(); const cutoff = ds ? new Date(ds[ds.length - 1] + 'T00:00:00').getTime() : 0;
+  return run(async ({ fs, db }) => {
+    const snap = await fs.getDocs(fs.query(fs.collection(db, 'game_feedback'), fs.where('owner', '==', S.email)));
+    const out = [];
+    snap.forEach(x => { const d = x.data(); out.push({ id: x.id, game: FB_NAME[d.game] || d.game || '', name: d.name || '', code: d.class_code || '', text: d.text || '', dateMs: toMs(d.created_at) }); });
+    return out.filter(r => !cutoff || r.dateMs >= cutoff);
+  });
+}
+
+// ---------- sample data for ?preview=1 ----------
+function sample() {
+  const names = ['Aaliyah R.', 'Marcus T.', 'Sofia L.', 'Jamal W.', 'Emma K.', 'Diego P.', 'Priya S.', 'Noah B.'];
+  let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const prog = [], scores = [], fbs = [];
+  const ds = lastDays(7);
+  ['tidal', 'rooftop', 'rhythm', 'scale'].forEach(gid => {
+    names.forEach((n, i) => {
+      if (rnd() < .3) return;
+      const k = 1 + Math.floor(rnd() * 3);
+      for (let j = 0; j < k; j++) {
+        const at = 20 + Math.floor(rnd() * 90); const c = Math.round(at * (.5 + rnd() * .5)); const d = ds[Math.floor(rnd() * 7)];
+        prog.push({ game: gid, name: n, date: d, dateMs: Date.parse(d + 'T' + pad(8 + Math.floor(rnd() * 7)) + ':' + pad(Math.floor(rnd() * 60)) + ':00'), attempts: at, correct: c, acc: pct(c, at), minutes: Math.round((3 + rnd() * 14) * 10) / 10 });
+      }
+    });
+  });
+  ['tidal', 'rooftop', 'rhythm', 'scale', 'earshot'].forEach(gid => {
+    names.forEach(n => {
+      if (rnd() < .35) return;
+      const d = ds[Math.floor(rnd() * 7)];
+      scores.push({ game: gid, name: n, dateMs: Date.parse(d + 'T' + pad(8 + Math.floor(rnd() * 7)) + ':' + pad(Math.floor(rnd() * 60)) + ':00'), score: Math.round(200 + rnd() * 2800), acc: 55 + Math.floor(rnd() * 45), detail: gid === 'scale' ? Math.round(10 + rnd() * 20) + ' questions' : gid === 'earshot' ? 'Dry Gulch' : 'Level ' + (1 + Math.floor(rnd() * 5)) });
+    });
+  });
+  const T = ['Loved the new level!', 'The piano sound is too quiet on my Chromebook.', 'Can we play Rooftop Runner in class tomorrow?', 'Scale Quest is hard but fun.'];
+  T.forEach((t, i) => fbs.push({ id: 'f' + i, game: ['tidal', 'rooftop', 'rooftop', 'scale'][i], name: names[i], code: 'PREVW', text: t, dateMs: Date.now() - i * 86400000 * 1.3 }));
+  return { prog, scores, fbs };
+}
+let SAMPLE = null;
+
+// ---------- table definitions ----------
+const COLS = {
+  progress: [
+    { k: 'name', h: 'Student', t: 's' }, { k: 'game', h: 'Game', t: 'g' }, { k: 'dateMs', h: 'Date', t: 'n', f: r => esc(fmtDate(r.dateMs) || fmtDay(r.date)) },
+    { k: 'attempts', h: 'Answers', t: 'n', num: 1 }, { k: 'correct', h: 'Correct', t: 'n', num: 1 }, { k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) },
+    { k: 'minutes', h: 'Minutes', t: 'n', num: 1 },
+  ],
+  scores: [
+    { k: 'name', h: 'Student', t: 's' }, { k: 'game', h: 'Game', t: 'g' }, { k: 'score', h: 'Score', t: 'n', num: 1, f: r => esc(r.score.toLocaleString()) },
+    { k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) }, { k: 'detail', h: 'Details', t: 's' }, { k: 'dateMs', h: 'Date', t: 'n', f: r => esc(fmtDate(r.dateMs)) },
+  ],
+  feedback: [
+    { k: 'dateMs', h: 'Date', t: 'n', f: r => esc(fmtDate(r.dateMs)) }, { k: 'name', h: 'Student', t: 's', f: r => esc(r.name || 'Guest') }, { k: 'game', h: 'Game', t: 'g' },
+    { k: 'text', h: 'Feedback', t: 's', cls: 'fbtext' }, { k: 'x', h: '', t: 'x' },
+  ],
+};
+const DEFAULT_SORT = { progress: { k: 'dateMs', dir: -1 }, scores: { k: 'score', dir: -1 }, feedback: { k: 'dateMs', dir: -1 } };
+function accCell(a) { return a == null ? '<span style="color:var(--muted)">–</span>' : `<span class="${a < 60 ? 'low' : a >= 85 ? 'good' : ''}">${a}%</span>`; }
+function cellText(c, r) {
+  if (c.k === 'game') { const g = G[r.game]; return g ? `<span class="dot" style="background:${g.color}"></span>${esc(g.name)}` : esc(r.game); }
+  if (c.t === 'x') return `<button class="x" type="button" data-del="${esc(r.id)}" aria-label="Delete this note">Delete</button>`;
+  if (c.f) return c.f(r);
+  return esc(r[c.k] ?? '');
+}
+
+// ---------- render ----------
+function visible() {
+  let rows = S.rows.filter(r => S.game === 'all' || r.game === S.game);
+  const st = S.sort[S.view] || DEFAULT_SORT[S.view]; const col = COLS[S.view].find(c => c.k === st.k) || COLS[S.view][0];
+  const val = r => { const v = r[col.k]; if (col.t === 'g') return G[r.game] ? G[r.game].name : ''; if (col.t === 'n') return v == null ? -Infinity : v; return String(v ?? '').toLowerCase(); };
+  rows = rows.slice().sort((a, b) => {
+    const x = val(a), y = val(b); let c = typeof x === 'number' ? x - y : x.localeCompare(y, undefined, { numeric: true });
+    if (!c) c = String(a.name).localeCompare(String(b.name)) || (b.dateMs - a.dateMs);
+    return c * st.dir || c;
+  });
+  // keep the sort direction honest when the primary values tie (c already includes tiebreak)
+  return rows;
+}
+function render() {
+  const g = G[S.game]; document.documentElement.style.setProperty('--gc', g.color);
+  document.querySelectorAll('.gt').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.g === S.game)));
+  document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view)));
+  const cols = COLS[S.view]; const st = S.sort[S.view] || DEFAULT_SORT[S.view]; const rows = visible();
+  const head = cols.map(c => c.t === 'x' ? '<th></th>' : `<th class="${c.num ? 'num' : ''}" aria-sort="${st.k === c.k ? (st.dir > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" data-k="${c.k}">${esc(c.h)}<span class="ar" aria-hidden="true">${st.k === c.k ? (st.dir > 0 ? '▲' : '▼') : ''}</span></button></th>`).join('');
+  const body = rows.length ? rows.map(r => '<tr>' + cols.map(c => `<td class="${(c.num ? 'num ' : '') + (c.cls || '')}">${cellText(c, r)}</td>`).join('') + '</tr>').join('')
+    : `<tr><td class="empty" colspan="${cols.length}">${S.loading ? 'Loading…' : 'Nothing here yet for this class and time.'}</td></tr>`;
+  $('tbl').innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
+  const label = { progress: 'practice records', scores: 'scores', feedback: 'notes' }[S.view];
+  $('count').textContent = S.loading ? '' : rows.length + ' ' + label + (S.game === 'all' ? ' across all games' : ' in ' + g.name);
+  $('note').textContent = S.view === 'progress' && (S.game === 'earshot')
+    ? 'Earshot Saloon does not keep daily practice records yet. Open Scores to see its results.'
+    : S.view === 'progress' ? 'One row per student per game per day. Accuracy is correct answers out of all answers.' : '';
+}
+async function load() {
+  msg(''); S.rows = []; S.loading++; render();
+  const my = ++load.n;
+  try {
+    let rows = [];
+    if (PREVIEW) {
+      SAMPLE = SAMPLE || sample();
+      rows = S.view === 'progress' ? SAMPLE.prog : S.view === 'scores' ? SAMPLE.scores : SAMPLE.fbs;
+      await new Promise(r => setTimeout(r, 120));
+    } else if (S.view === 'feedback') {
+      rows = (await fetchFeedback()).filter(r => !S.code || r.code === S.code);
+    } else if (S.code) {
+      const ids = (S.game === 'all' ? GAMES.slice(1) : [G[S.game]]).map(x => x.id);
+      const parts = await Promise.all(ids.map(id => (S.view === 'progress' ? fetchProgress(id) : fetchScores(id)).catch(e => { msg(G[id].name + ': ' + errText(e)); return []; })));
+      rows = parts.flat();
+    }
+    if (my === load.n) S.rows = rows;
+  } catch (e) { msg(errText(e)); }
+  S.loading--; render();
+}
+load.n = 0;
+
+// ---------- CSV ----------
+function csv() {
+  const cols = COLS[S.view].filter(c => c.t !== 'x'); const rows = visible();
+  const cell = v => { v = String(v ?? ''); if (/^[=+\-@]/.test(v)) v = "'" + v; return '"' + v.replace(/"/g, '""') + '"'; };
+  const line = r => cols.map(c => { if (c.k === 'game') return cell(G[r.game] ? G[r.game].name : r.game); if (c.k === 'dateMs') return cell(r.dateMs ? new Date(r.dateMs).toLocaleString() : (r.date || '')); return cell(r[c.k]); }).join(',');
+  const text = [cols.map(c => cell(c.h)).join(','), ...rows.map(line)].join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/csv' }));
+  const cls = (S.classes.find(c => c.code === S.code) || {}).name || 'class';
+  a.download = `${S.view}-${S.game}-${cls}-${ymd(new Date())}.csv`.replace(/[^\w.\-]+/g, '_'); document.body.appendChild(a); a.click(); a.remove();
+}
+
+// ---------- wiring ----------
+function buildTabs() {
+  $('games').innerHTML = GAMES.map(g => `<li><button class="gt" type="button" data-g="${g.id}" style="--gc:${g.color}" aria-pressed="false"><i></i>${esc(g.name)}</button></li>`).join('');
+  $('games').onclick = e => { const b = e.target.closest('.gt'); if (!b) return; S.game = b.dataset.g; render(); if (S.view === 'progress' || S.view === 'scores') load(); };
+}
+function wire() {
+  buildTabs();
+  $('views').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.view = b.dataset.v; load(); };
+  $('cls').onchange = () => { S.code = $('cls').value; load(); };
+  $('rng').onchange = load;
+  $('tbl').onclick = async e => {
+    const h = e.target.closest('th button');
+    if (h) { const cur = S.sort[S.view] || DEFAULT_SORT[S.view]; const k = h.dataset.k; S.sort[S.view] = { k, dir: cur.k === k ? -cur.dir : (/^(name|game|detail|text)$/.test(k) ? 1 : -1) }; return render(); }
+    const del = e.target.closest('[data-del]');
+    if (del && confirm('Delete this note?')) {
+      if (PREVIEW) { S.rows = S.rows.filter(r => r.id !== del.dataset.del); return render(); }
+      try { await run(({ fs, db }) => fs.deleteDoc(fs.doc(db, 'game_feedback', del.dataset.del))); S.rows = S.rows.filter(r => r.id !== del.dataset.del); render(); } catch (er) { msg(errText(er)); }
+    }
+  };
+  $('csv').onclick = csv;
+  $('signout').onclick = signOut;
+}
+
+// ---------- sign in ----------
+function gate(html) { $('main').hidden = true; $('gate').hidden = false; $('gate').innerHTML = html; }
+function signInScreen(err) {
+  gate(`<h2 style="margin:0 0 10px">Teacher sign-in</h2><p>Sign in with Google to see all your games and classes in one place. Use the same Google account as your games' Teacher dashboards.</p>
+    <p class="msg" id="g-err" role="alert"></p><div class="row"><button class="btn" type="button" id="g-go">Sign in with Google</button></div>`);
+  if (err) $('g-err').textContent = err;
+  $('g-go').onclick = async () => {
+    $('g-go').disabled = true;
+    try { const { auth, authMod } = await fbAuth(); const r = await authMod.signInWithPopup(auth, new authMod.GoogleAuthProvider()); await signedIn(String(r.user.email).toLowerCase()); }
+    catch (e) { $('g-err').textContent = errText(e); $('g-go').disabled = false; }
+  };
+}
+async function isTeacherEmail(email) {
+  if (TEACHER_EMAILS.includes(email)) return true;
+  return run(async ({ fs, db }) => (await fs.getDoc(fs.doc(db, 'teachers', email))).exists());
+}
+async function signedIn(email) {
+  let ok = false;
+  try { ok = await isTeacherEmail(email); } catch (e) { return signInScreen(errText(e)); }
+  if (!ok) {
+    gate(`<h2 style="margin:0 0 10px">Not a teacher account yet</h2><p><b>${esc(email)}</b> isn't set up as a teacher. Open the Teacher dashboard in any of the games and request teacher access, then come back here once it's approved.</p>
+      <div class="row"><button class="btn ghost" type="button" id="g-out">Sign out</button></div>`);
+    $('g-out').onclick = signOut; return;
+  }
+  S.email = email; $('who').innerHTML = `Signed in as <b>${esc(email)}</b>`;
+  $('gate').hidden = true; $('main').hidden = false;
+  await loadClasses();
+}
+async function signOut() {
+  try { const { auth, authMod } = await fbAuth(); await authMod.signOut(auth); } catch {}
+  S.email = ''; S.classes = []; S.rows = []; signInScreen();
+}
+async function loadClasses() {
+  try {
+    S.classes = await run(async ({ fs, db }) => (await fs.getDocs(fs.query(fs.collection(db, 'classes'), fs.where('ownerEmail', '==', S.email)))).docs
+      .map(d => ({ code: d.id, ...d.data() })).sort((a, b) => String(a.name).localeCompare(String(b.name))));
+  } catch (e) { S.classes = []; msg(errText(e)); }
+  fillClasses();
+}
+function fillClasses() {
+  if (!S.classes.some(c => c.code === S.code)) S.code = S.classes.length ? S.classes[0].code : '';
+  $('cls').innerHTML = S.classes.length ? S.classes.map(c => `<option value="${esc(c.code)}">${esc(c.name)} · ${esc(c.code)}</option>`).join('') : '<option value="">No classes yet</option>';
+  $('cls').value = S.code; $('cls').disabled = !S.classes.length;
+  if (!S.classes.length) $('note').textContent = "You have no classes yet. Create one in any game's Teacher dashboard (Classes tab).";
+  load();
+}
+async function start() {
+  wire();
+  if (PREVIEW) {
+    $('gate').hidden = true; $('main').hidden = false; $('who').innerHTML = 'Signed in as <b>sample@preview</b>';
+    $('main').insertAdjacentHTML('afterbegin', '<div class="pv">Preview with sample students. Nothing here is real.</div>');
+    S.classes = [{ code: 'PREVW', name: 'Period 3 Music Theory' }, { code: 'PREV2', name: 'Period 5 Band' }]; return fillClasses();
+  }
+  try {
+    const { auth, authMod } = await fbAuth();
+    const user = await wait(new Promise(res => { const off = authMod.onAuthStateChanged(auth, u => { off(); res(u); }); }));
+    if (user && user.email) return signedIn(String(user.email).toLowerCase());
+  } catch {}
+  signInScreen();
+}
+start();
+})();
+</script>
+</body>
+</html>
