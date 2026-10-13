@@ -832,5 +832,183 @@ render(); refreshClass(); tipIds();
 })();
 </script>
 
+<!-- MTG_FEEDBACK start: identical in every game, only data-game changes. Master copy: Music Games/shared/mtg-feedback.snippet.html -->
+<script id="mtg-feedback" data-game="hub">
+(function(){
+  var me = document.currentScript, GAME = (me && me.getAttribute('data-game')) || 'game';
+  var MOUNT = me && me.getAttribute('data-mount');
+  if (window.__mtgFeedback) return; window.__mtgFeedback = true;
+  var CFG = { apiKey: 'AIzaSyDU9vbCWJ4yWuD8bAX984DmQF4dvo13BHs', authDomain: 'rhythm-trainer-fc313.firebaseapp.com', projectId: 'rhythm-trainer-fc313', appId: '1:956677028482:web:c3ec72a279e61b6f6c929b' };
+  var SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+  var MAX = 300, WAIT_MS = 60000, LAST_KEY = 'mtgfb_last_v1';
+
+  var css = document.createElement('style');
+  css.textContent =
+    '.mtgfb-foot{display:flex;justify-content:center;padding:20px 12px 30px}' +
+    '.mtgfb-btn{font:inherit;font-size:15px;letter-spacing:.03em;color:var(--dim,#a79de0);background:transparent;border:1px solid var(--line,#3d2f8f);border-radius:999px;padding:9px 18px;min-height:40px;cursor:pointer}' +
+    '.mtgfb-btn:hover{color:var(--ink,#f3eeff);border-color:var(--dim,#a79de0)}' +
+    '.mtgfb-ov{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;padding:16px;background:rgba(7,3,26,.72);overflow:auto}' +
+    '.mtgfb-ov[hidden]{display:none}' +
+    '.mtgfb-panel{box-sizing:border-box;width:100%;max-width:420px;background:var(--panel,#221760);color:var(--ink,#f3eeff);border:2px solid var(--line,#3d2f8f);border-radius:14px;padding:18px;font-family:inherit;font-size:16px;line-height:1.35;box-shadow:0 10px 40px rgba(0,0,0,.45)}' +
+    '.mtgfb-panel *{box-sizing:border-box;font-family:inherit}' +
+    '.mtgfb-h{margin:0 0 4px;font-size:20px;font-weight:700}' +
+    '.mtgfb-sub{margin:0 0 12px;color:var(--dim,#a79de0);font-size:15px}' +
+    '.mtgfb-ta{display:block;width:100%;min-height:104px;resize:vertical;padding:10px 12px;font-size:16px;line-height:1.35;color:var(--ink,#f3eeff);background:var(--bg,#120b2e);border:2px solid var(--line,#3d2f8f);border-radius:10px}' +
+    '.mtgfb-ta:focus{outline:3px solid var(--yel,#ffe45c);outline-offset:1px}' +
+    '.mtgfb-row{display:flex;justify-content:space-between;gap:10px;margin:6px 0 10px;color:var(--dim,#a79de0);font-size:14px}' +
+    '.mtgfb-row [data-role=count]{white-space:nowrap}' +
+    '.mtgfb-chk{display:flex;align-items:center;gap:8px;margin:2px 0 4px;font-size:15px}' +
+    '.mtgfb-chk input{width:20px;height:20px;margin:0}' +
+    '.mtgfb-note{margin:8px 0 0;color:var(--dim,#a79de0);font-size:14px}' +
+    '.mtgfb-err{margin:8px 0 0;color:var(--bad,#ff4d6a);font-size:15px;min-height:1.2em}' +
+    '.mtgfb-acts{display:flex;gap:10px;justify-content:flex-end;margin-top:12px;flex-wrap:wrap}' +
+    '.mtgfb-go,.mtgfb-no{font:inherit;font-size:16px;font-weight:700;border-radius:10px;padding:10px 18px;min-height:44px;cursor:pointer}' +
+    '.mtgfb-go{background:var(--cyan,#4cc9f0);color:#0b0a22;border:2px solid transparent}' +
+    '.mtgfb-go[disabled]{opacity:.6;cursor:default}' +
+    '.mtgfb-no{background:transparent;color:var(--ink,#f3eeff);border:2px solid var(--line,#3d2f8f)}' +
+    '.mtgfb-go:focus-visible,.mtgfb-no:focus-visible,.mtgfb-btn:focus-visible{outline:3px solid var(--yel,#ffe45c);outline-offset:2px}';
+  document.head.appendChild(css);
+
+  // who is playing: the shared sign in (rdt_profile_v1), or a guest
+  function who(){
+    try{
+      if (sessionStorage.getItem('music_guest') === '1') return null;
+      var p = JSON.parse(localStorage.getItem('rdt_profile_v1') || 'null');
+      return p && p.first && p.init ? p : null;
+    }catch(e){ return null; }
+  }
+  function niceName(p){ var f = String(p.first); return (f.charAt(0).toUpperCase() + f.slice(1) + ' ' + p.init + '.').slice(0, 24); }
+  function classList(p){
+    var l = Array.isArray(p.classes) && p.classes.length ? p.classes : (p.classCode ? [{code: p.classCode, owner: p.classOwner || ''}] : []);
+    return l.filter(function(c){ return c && c.code; }).slice(0, 3);
+  }
+
+  var foot = document.createElement('div'); foot.className = 'mtgfb-foot';
+  var btn = document.createElement('button'); btn.type = 'button'; btn.className = 'mtgfb-btn'; btn.textContent = 'Feedback';
+  btn.setAttribute('aria-haspopup', 'dialog'); foot.appendChild(btn);
+
+  var ov = document.createElement('div'); ov.className = 'mtgfb-ov'; ov.hidden = true;
+  ov.innerHTML =
+    '<div class="mtgfb-panel" role="dialog" aria-modal="true" aria-labelledby="mtgfb-h">' +
+      '<div data-view="form">' +
+        '<h2 class="mtgfb-h" id="mtgfb-h">Send feedback</h2>' +
+        '<p class="mtgfb-sub">Tell Mr. Milnes what you think of this game.</p>' +
+        '<label for="mtgfb-ta" class="mtgfb-sub" style="display:block;margin:0 0 6px">What would make it better?</label>' +
+        '<textarea id="mtgfb-ta" class="mtgfb-ta" maxlength="' + MAX + '" placeholder="A few words is plenty"></textarea>' +
+        '<div class="mtgfb-row"><span data-role="who"></span><span data-role="count">0 / ' + MAX + '</span></div>' +
+        '<label class="mtgfb-chk" data-role="anonwrap"><input type="checkbox" data-role="anon"> Send without my name</label>' +
+        '<p class="mtgfb-note">Please do not share personal info like your address or phone number.</p>' +
+        '<p class="mtgfb-err" data-role="err" role="alert"></p>' +
+        '<div class="mtgfb-acts"><button type="button" class="mtgfb-no" data-role="cancel">Cancel</button><button type="button" class="mtgfb-go" data-role="send">Send</button></div>' +
+      '</div>' +
+      '<div data-view="done" hidden>' +
+        '<h2 class="mtgfb-h">Thank you!</h2>' +
+        '<p class="mtgfb-sub">Mr. Milnes will read your feedback.</p>' +
+        '<div class="mtgfb-acts"><button type="button" class="mtgfb-go" data-role="close">Close</button></div>' +
+      '</div>' +
+    '</div>';
+
+  var $ = function(r){ return ov.querySelector('[data-role="' + r + '"]'); };
+  var views = { form: ov.querySelector('[data-view="form"]'), done: ov.querySelector('[data-view="done"]') };
+  var ta = ov.querySelector('#mtgfb-ta'), sending = false;
+
+  function refreshWho(){
+    var p = who();
+    $('who').textContent = p ? 'Sent as ' + niceName(p) : 'You are a guest, so this is sent without a name.';
+    $('anonwrap').hidden = !p;
+    if (!p) $('anon').checked = false;
+    $('anon').onchange = function(){ $('who').textContent = this.checked ? 'Sent without your name' : 'Sent as ' + niceName(p); };
+  }
+  function show(v){ views.form.hidden = v !== 'form'; views.done.hidden = v !== 'done'; }
+  // dark text on a light Send button, white text on a dark one (the light skin has a dark blue accent)
+  function tuneSend(){
+    try{
+      var m = getComputedStyle($('send')).backgroundColor.match(/[\d.]+/g) || [];
+      var l = (0.299 * m[0] + 0.587 * m[1] + 0.114 * m[2]) / 255;
+      $('send').style.color = l > 0.55 ? '#0b0a22' : '#ffffff';
+    }catch(e){}
+  }
+  function open(){
+    refreshWho(); $('err').textContent = ''; show('form');
+    ov.hidden = false; btn.setAttribute('aria-expanded', 'true'); tuneSend();
+    setTimeout(function(){ ta.focus(); }, 30);
+  }
+  function close(){ ov.hidden = true; btn.setAttribute('aria-expanded', 'false'); btn.focus(); }
+
+  ta.addEventListener('input', function(){ $('count').textContent = ta.value.length + ' / ' + MAX; });
+  btn.addEventListener('click', open);
+  $('cancel').addEventListener('click', close);
+  $('close').addEventListener('click', close);
+  ov.addEventListener('mousedown', function(e){ if (e.target === ov) close(); });
+
+  // Typing here must never reach the game's keyboard shortcuts. Trap Tab inside the box too.
+  ['keydown', 'keyup', 'keypress'].forEach(function(t){
+    ov.addEventListener(t, function(e){
+      e.stopPropagation();
+      if (t === 'keydown' && e.key === 'Escape') { e.preventDefault(); close(); }
+      if (t === 'keydown' && e.key === 'Tab') {
+        var f = Array.prototype.filter.call(ov.querySelectorAll('textarea,input,button'), function(x){ return !x.disabled && x.offsetParent !== null; });
+        if (!f.length) return;
+        var first = f[0], last = f[f.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    });
+  });
+
+  function send(data){
+    return Promise.race([
+      Promise.all([import(SDK + 'firebase-app.js'), import(SDK + 'firebase-firestore.js')]).then(function(m){
+        var a = m[0], f = m[1];
+        var app = a.getApps().filter(function(x){ return x.name === 'mtg-feedback'; })[0] || a.initializeApp(CFG, 'mtg-feedback');
+        var doc = {}; for (var k in data) doc[k] = data[k];
+        doc.created_at = f.serverTimestamp();
+        return f.addDoc(f.collection(f.getFirestore(app), 'game_feedback'), doc);
+      }),
+      new Promise(function(_, bad){ setTimeout(function(){ bad(new Error('timeout')); }, 12000); })
+    ]);
+  }
+
+  $('send').addEventListener('click', function(){
+    if (sending) return;
+    var text = ta.value.replace(/\s+/g, ' ').trim(), err = $('err');
+    if (text.length < 3) { err.textContent = 'Write a few words first.'; ta.focus(); return; }
+    try {
+      var last = +localStorage.getItem(LAST_KEY) || 0;
+      if (Date.now() - last < WAIT_MS) { err.textContent = 'Please wait a minute before sending another.'; return; }
+    } catch(e){}
+    var p = who(), anon = !p || $('anon').checked, cl = p ? classList(p) : [];
+    var data = {
+      game: GAME, text: text.slice(0, MAX),
+      name: anon ? '' : niceName(p),
+      class_code: cl.length ? String(cl[0].code) : '',
+      owner: cl.length ? String(cl[0].owner || '') : ''
+    };
+    if (cl.length > 1) data.class_codes = cl.map(function(c){ return String(c.code); });
+    sending = true; $('send').disabled = true; $('send').textContent = 'Sending'; err.textContent = '';
+    send(data).catch(function(e){
+      // a stale class code or owner is refused by the rules: send it again without the class
+      if (e && e.code === 'permission-denied' && data.class_code) {
+        var d2 = { game: data.game, text: data.text, name: data.name, class_code: '', owner: '' };
+        return send(d2);
+      }
+      throw e;
+    }).then(function(){
+      try { localStorage.setItem(LAST_KEY, String(Date.now())); } catch(e){}
+      ta.value = ''; $('count').textContent = '0 / ' + MAX; show('done');
+      setTimeout(function(){ var c = $('close'); if (c) c.focus(); }, 30);
+    }).catch(function(){
+      err.textContent = 'Could not send. Check your internet and try again.';
+    }).then(function(){ sending = false; $('send').disabled = false; $('send').textContent = 'Send'; });
+  });
+
+  function mount(){
+    var host = (MOUNT && document.querySelector(MOUNT)) || document.body;
+    host.appendChild(foot); document.body.appendChild(ov);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mount); else mount();
+})();
+</script>
+<!-- MTG_FEEDBACK end -->
 </body>
 </html>
