@@ -90,7 +90,14 @@ input[type=range]{accent-color:var(--accent);width:120px}
 .seq .num{font:10px var(--mono);color:var(--muted);text-align:center}
 .cell{aspect-ratio:1;border-radius:4px;border:1px solid var(--line);background:var(--panel-2);cursor:pointer;padding:0;min-width:0}
 .cell.alt{background:var(--panel)}
-.cell.on{background:var(--rhythm);border-color:var(--rhythm)}
+.cell.on,.cell.v3{background:var(--rhythm);border-color:var(--rhythm)}
+.cell.v1{background:color-mix(in srgb,var(--rhythm) 30%,var(--panel-2));border-color:color-mix(in srgb,var(--rhythm) 55%,var(--panel-2))}
+.cell.v2{background:color-mix(in srgb,var(--rhythm) 62%,var(--panel-2));border-color:color-mix(in srgb,var(--rhythm) 80%,var(--panel-2))}
+.cell.vel{background:var(--lamp);border-color:var(--lamp)}
+.cell.hit,.cell.extra,.cell.vel,.cell.miss{color:#fff;font:600 10px var(--mono)}
+.vel-legend{display:flex;gap:12px;align-items:center;font-size:.8rem;color:var(--muted);margin-bottom:8px;flex-wrap:wrap}
+.vel-legend i{display:inline-block;width:14px;height:14px;border-radius:3px;vertical-align:-2px;margin-right:4px}
+.seq .rl small{display:block;font:400 9px var(--mono);letter-spacing:0;text-transform:none;color:var(--accent)}
 .cell.now{box-shadow:0 0 0 2px var(--lamp)}
 .cell.hit{background:var(--ok);border-color:var(--ok)}
 .cell.extra{background:var(--bad);border-color:var(--bad)}
@@ -521,7 +528,7 @@ function startSeq() {
   seqTimer = setInterval(() => {
     while (seqNext < ctx.currentTime + 0.12) {
       const pat = side === 'A' ? R.target : R.user, st = seqStep;
-      R.rows.forEach(r => { const v = pat[r][st]; if (v) hit(r, seqNext, v === 2 ? 0.35 : 1); });
+      R.rows.forEach(r => { const v = pat[r][st]; if (v) hit(r, seqNext, VEL[v]); });
       const delay = Math.max(0, (seqNext - ctx.currentTime) * 1000);
       setTimeout(() => markStep(st), delay);
       seqNext += STEP; seqStep = (seqStep + 1) % 16;
@@ -531,9 +538,12 @@ function startSeq() {
 function stopSeq() { if (seqTimer) clearInterval(seqTimer); seqTimer = null; markStep(-1); }
 function markStep(st) { document.querySelectorAll('.cell.now').forEach(c => c.classList.remove('now')); if (st >= 0) document.querySelectorAll(`.cell[data-s="${st}"]`).forEach(c => c.classList.add('now')); }
 
-// Beat patterns: arrays of 16 steps, 1 = hit, 2 = ghost (quiet) hit, which the grid treats as a hit.
-const P16 = str => [...str].map(c => c === 'x' ? 1 : c === 'g' ? 2 : 0);
+// Beat patterns: arrays of 16 steps holding a velocity: 0 off, 1 soft, 2 medium, 3 hard.
+// Rows listed in R.vel are graded on velocity too; every other row only on hit or no hit.
+const VEL = [0, 0.3, 0.6, 1], VEL_NAME = ['', 'Soft', 'Medium', 'Hard'];
+const P16 = str => [...str].map(c => ({ x:3, h:3, m:2, s:1, g:1 })[c] || 0);
 function makeBeat(L) {
+  if (L >= 6) return makeVelocityBeat(L);
   const rows = { 1:['snare','kick'], 2:['hat','snare','kick'], 3:['hat','snare','kick'], 4:['tamb','hat','snare','kick'], 5:['tamb','ohat','hat','snare','kick'] }[L];
   const K = { 1:['x.......x.......','x...x...x...x...','x.......x.x.....','x.....x.x.......'],
               2:['x.......x.......','x.......x.x.....','x.....x.x.......','x..x....x.......'],
@@ -548,11 +558,23 @@ function makeBeat(L) {
   if (L >= 4) t.tamb = P16(pick(TB));
   if (L === 5) { // open hat on an offbeat replaces the closed hat there; ghost snares before the backbeat
     const oh = pick([[6,14],[14],[2,10]]); t.ohat = Array(16).fill(0); oh.forEach(i => { t.ohat[i] = 1; t.hat[i] = 0; });
-    pick([[3],[7,11],[15],[11]]).forEach(i => { if (!t.snare[i]) t.snare[i] = 2; });
+    pick([[3],[7,11],[15],[11]]).forEach(i => { if (!t.snare[i]) t.snare[i] = 1; });
   }
   const user = {}; rows.forEach(r => user[r] = Array(16).fill(0));
   const hits = rows.reduce((n, r) => n + t[r].filter(Boolean).length, 0);
-  return { ui:'grid', rows, target:t, user, build: passChain(), reveal:`${hits} hits across ${rows.length} parts at ${BPM} BPM.` };
+  return { ui:'grid', rows, vel:[], target:t, user, build: passChain(), reveal:`${hits} hits across ${rows.length} parts at ${BPM} BPM.` };
+}
+// Levels 6-7: dynamics. Level 6 grades hi-hat velocity; level 7 grades hi-hat and kick velocity.
+function makeVelocityBeat(L) {
+  const rows = ['hat','snare','kick'], vel = L === 6 ? ['hat'] : ['hat','kick'];
+  const HV = ['h.s.m.s.h.s.m.s.', 'hsmshsmshsmshsms', 's.h.s.h.s.h.s.h.', 'hssmhssmhssmhssm', 'h.m.h.m.h.m.hsms', 'm.h.m.h.m.h.m.hh'];
+  const KV = ['h......m..h.....', 'h..s..m...h.....', 'h.m.......h..s..', 'h......s..h.m...', 'h..m...s.h......'];
+  const t = { hat: P16(pick(HV)), snare: P16(pick(['....x.......x...', '....x.......x..x', '....x..x....x...'])) };
+  t.kick = L === 6 ? P16(pick(['x.......x.......', 'x.....x.x.......', 'x..x....x.x.....'])) : P16(pick(KV));
+  const user = {}; rows.forEach(r => user[r] = Array(16).fill(0));
+  const hits = rows.reduce((n, r) => n + t[r].filter(Boolean).length, 0);
+  return { ui:'grid', rows, vel, target:t, user, build: passChain(),
+    reveal:`${hits} hits at ${BPM} BPM. Velocity counted on the ${vel.map(r => DRUMS[r].name.toLowerCase()).join(' and ')}.` };
 }
 function renderGrid(area) {
   const wrap = document.createElement('div'); wrap.className = 'seq-wrap';
@@ -560,33 +582,40 @@ function renderGrid(area) {
   g.innerHTML = '<span></span>' + Array.from({ length:16 }, (_, i) => `<span class="num">${i % 4 === 0 ? i / 4 + 1 : ['', 'e', '+', 'a'][i % 4]}</span>`).join('');
   R.rows.forEach(r => {
     const lab = document.createElement('button'); lab.className = 'rl'; lab.style.cssText = 'background:none;border:0;text-align:left;cursor:pointer;padding:0';
-    lab.textContent = DRUMS[r].name; lab.title = 'Hear it'; lab.onclick = () => { ensureCtx(); hit(r, ctx.currentTime + 0.01); }; g.appendChild(lab);
+    lab.innerHTML = DRUMS[r].name + (R.vel.includes(r) ? '<small>velocity</small>' : ''); lab.title = 'Hear it'; lab.onclick = () => { ensureCtx(); hit(r, ctx.currentTime + 0.01); }; g.appendChild(lab);
     for (let i = 0; i < 16; i++) {
       const c = document.createElement('button'); c.className = 'cell' + (Math.floor(i / 4) % 2 ? ' alt' : ''); c.dataset.r = r; c.dataset.s = i;
       c.setAttribute('aria-label', `${DRUMS[r].name} step ${i + 1}`);
-      c.onclick = () => { if (answered) return; ensureCtx(); const on = R.user[r][i] = R.user[r][i] ? 0 : 1; c.classList.toggle('on', !!on); if (on) hit(r, ctx.currentTime + 0.01); };
+      c.onclick = () => { if (answered) return; ensureCtx();
+        const v = R.user[r][i] = R.vel.includes(r) ? (R.user[r][i] + 1) % 4 : (R.user[r][i] ? 0 : 3);   // velocity rows cycle soft, medium, hard, off
+        c.classList.remove('on', 'v1', 'v2', 'v3'); if (v) { c.classList.add(R.vel.includes(r) ? 'v' + v : 'on'); hit(r, ctx.currentTime + 0.01, VEL[v]); }
+        c.setAttribute('aria-label', `${DRUMS[r].name} step ${i + 1}${v ? ', ' + VEL_NAME[v] : ''}`); };
       g.appendChild(c);
     }
   });
   wrap.appendChild(g);
   const row = document.createElement('div'); row.className = 'seq-row';
   const clear = document.createElement('button'); clear.className = 'btn'; clear.textContent = 'Clear';
-  clear.onclick = () => { if (answered) return; R.rows.forEach(r => R.user[r].fill(0)); g.querySelectorAll('.cell.on').forEach(c => c.classList.remove('on')); };
+  clear.onclick = () => { if (answered) return; R.rows.forEach(r => R.user[r].fill(0)); g.querySelectorAll('.cell').forEach(c => c.classList.remove('on', 'v1', 'v2', 'v3')); };
   const lock = document.createElement('button'); lock.className = 'btn primary'; lock.textContent = 'Check my beat'; lock.id = 'lock';
   lock.onclick = () => submit('grid');
   row.innerHTML = '<span class="hint">Click a part name to hear that drum.</span>'; row.append(clear, lock);
+  if (R.vel.length) { const lg = document.createElement('div'); lg.className = 'vel-legend';
+    lg.innerHTML = '<span>Click a velocity cell again to change it:</span>' + [1,2,3].map(v => `<span><i class="cell v${v}" style="aspect-ratio:auto"></i>${VEL_NAME[v]}</span>`).join('') + '<span>4th click clears</span>';
+    area.append(lg); }
   area.append(wrap, row);
 }
 function checkGrid() {
-  let right = 0, wrongs = 0, misses = 0;
-  document.querySelectorAll('.cell').forEach(c => {
+  let right = 0, wrongs = 0, misses = 0, velWrong = 0;
+  document.querySelectorAll('.seq .cell').forEach(c => {
     const r = c.dataset.r, i = +c.dataset.s, want = !!R.target[r][i], have = !!R.user[r][i];
-    c.disabled = true; c.classList.remove('on');
-    if (want && have) { c.classList.add('hit'); right++; } else if (have) { c.classList.add('extra'); wrongs++; } else if (want) { c.classList.add('miss'); misses++; }
+    c.disabled = true; c.classList.remove('on', 'v1', 'v2', 'v3');
+    if (want && have && R.vel.includes(r) && R.target[r][i] !== R.user[r][i]) { c.classList.add('vel'); c.textContent = VEL_NAME[R.target[r][i]][0]; velWrong++; }
+    else if (want && have) { c.classList.add('hit'); right++; } else if (have) { c.classList.add('extra'); wrongs++; } else if (want) { c.classList.add('miss'); misses++; }
   });
   $('lock').disabled = true;
-  const ok = !wrongs && !misses, acc = right / Math.max(1, right + wrongs + misses);
-  const extra = ok ? ' Perfect copy.' : ` ${right} right, ${misses} missed (dashed), ${wrongs} extra (red). Flip A and B to hear the difference.`;
+  const ok = !wrongs && !misses && !velWrong, acc = (right + velWrong * 0.5) / Math.max(1, right + wrongs + misses + velWrong);
+  const extra = ok ? ' Perfect copy.' : ` ${right} right, ${misses} missed (dashed), ${wrongs} extra (red)${R.vel.length ? `, ${velWrong} wrong velocity (amber, letter shows the right one: S, M, H)` : ''}. Flip A and B to hear the difference.`;
   return { ok, acc, extra };
 }
 
@@ -682,7 +711,7 @@ const GAMES = [
   { id:'beat', name:'Beat Recreate', skill:'Rhythm', icon:'beat', rounds:6,
     tagline:'Hear a drum beat, then rebuild it on a 16-step grid.',
     blurb:'A plays the target beat on a loop. Click cells to build your copy, and B plays yours. Each column is a 16th note; the numbers are the beats.',
-    levels:['Kick and snare', 'Kick, snare and hi-hat', 'Syncopated kick, 16th-note hats', 'Add tambourine', 'Five parts with open hat and ghost notes'],
+    levels:['Kick and snare', 'Kick, snare and hi-hat', 'Syncopated kick, 16th-note hats', 'Add tambourine', 'Five parts with open hat and ghost notes', 'Hi-hat velocity: soft, medium, hard', 'Velocity on hi-hat and kick'],
     round(L) { return makeBeat(L); } },
 ];
 const SKILLS = ['Frequency','Level','Dynamics','Space','Rhythm'];
@@ -713,7 +742,7 @@ function progressReport() {
   const acc = P.total ? Math.round(P.right / P.total * 100) + '%' : 'no rounds yet';
   return [`Critical Listening Lab progress: ${displayName(P)}${P.code ? ` (class ${P.code})` : ''}, ${new Date().toLocaleDateString()}`,
     `Player level ${playerLevel(P.xp)}, ${P.xp} XP, ${P.sessions} sessions, ${dayStreak()}-day streak, accuracy ${acc}`,
-    ...GAMES.map(g => { const q = gp(g.id); return `${g.name}: level ${q.level}/5, best ${q.best}, ${q.plays} plays`; })].join('\n');
+    ...GAMES.map(g => { const q = gp(g.id); return `${g.name}: level ${q.level}/${g.levels.length}, best ${q.best}, ${q.plays} plays`; })].join('\n');
 }
 const gp = id => P.games[id] ||= { level:1, best:0, plays:0 };
 const playerLevel = xp => Math.floor(Math.sqrt(xp / 150)) + 1;
@@ -734,7 +763,7 @@ function todaysWorkout() {
 /* ================= Views ================= */
 function show(v) { ['vLogin','vHome','vPlay','vResults'].forEach(id => $(id).hidden = id !== v); window.scrollTo(0, 0); }
 const svgIcon = (name) => `<svg viewBox="0 0 64 32" aria-hidden="true"><path d="${ICONS[name]}" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
-const pips = l => `<span class="pips">${[1,2,3,4,5].map(i => `<i class="${i<=l?'on':''}"></i>`).join('')}</span>`;
+const pips = (l, n = 5) => `<span class="pips">${Array.from({ length:n }, (_, k) => k + 1).map(i => `<i class="${i<=l?'on':''}"></i>`).join('')}</span>`;
 
 function renderHome() {
   const wo = todaysWorkout(), done = P.workout[today()] || [];
@@ -750,11 +779,11 @@ function renderHome() {
   $('pStreak').textContent = dayStreak(); $('pSessions').textContent = P.sessions;
   $('pName').textContent = displayName(P) + "'s progress"; $('report').hidden = true;
   $('pAcc').textContent = P.total ? Math.round(P.right / P.total * 100) + '%' : '–';
-  $('skills').innerHTML = SKILLS.map(s => { const gs = GAMES.filter(g => g.skill === s), avg = gs.reduce((a, g) => a + gp(g.id).level, 0) / gs.length;
-    return `<div class="skill sk-${s}"><div class="row"><span class="label">${s}</span><b>${avg.toFixed(1)}/5</b></div><div class="bar"><i style="width:${avg/5*100}%;background:currentColor"></i></div></div>`; }).join('');
+  $('skills').innerHTML = SKILLS.map(s => { const gs = GAMES.filter(g => g.skill === s), avg = gs.reduce((a, g) => a + gp(g.id).level, 0) / gs.length, mx = Math.max(...gs.map(g => g.levels.length));
+    return `<div class="skill sk-${s}"><div class="row"><span class="label">${s}</span><b>${avg.toFixed(1)}/${mx}</b></div><div class="bar"><i style="width:${avg/mx*100}%;background:currentColor"></i></div></div>`; }).join('');
   $('games').innerHTML = GAMES.map(g => { const p = gp(g.id);
     return `<button class="card" data-g="${g.id}"><span class="sk-${g.skill}">${svgIcon(g.icon)}</span><h3>${g.name}</h3><p>${g.tagline}</p>
-      <div class="meta"><span class="tag sk-${g.skill}">${g.skill}</span><span class="sk-${g.skill}">${pips(p.level)}</span></div>
+      <div class="meta"><span class="tag sk-${g.skill}">${g.skill}</span><span class="sk-${g.skill}">${pips(p.level, g.levels.length)}</span></div>
       <p>Level ${p.level}: ${g.levels[p.level - 1]}</p>
       <div class="meta"><span>Best ${p.best}</span><span>${p.plays} plays</span></div></button>`; }).join('');
   $('games').querySelectorAll('.card').forEach(c => c.onclick = () => startSession(c.dataset.g, 10, null));
@@ -852,7 +881,7 @@ function submit(resp) {
   S.score += pts; if (ok) S.right++; S.results.push(ok);
   P.total++; if (ok) P.right++;
   let lvlMsg = '';
-  if (ok) { S.upRun++; S.downRun = 0; if (S.upRun >= 3 && S.level < 5) { S.level++; S.upRun = 0; lvlMsg = ` <span class="up">Level up! Now level ${S.level}.</span>`; } }
+  if (ok) { S.upRun++; S.downRun = 0; if (S.upRun >= 3 && S.level < S.g.levels.length) { S.level++; S.upRun = 0; lvlMsg = ` <span class="up">Level up! Now level ${S.level}.</span>`; } }
   else { S.downRun++; S.upRun = 0; if (S.downRun >= 2 && S.level > 1) { S.level--; S.downRun = 0; lvlMsg = ` Dropping to level ${S.level}.`; } }
   $('feedback').innerHTML = (ok ? `<span class="ok">Correct. +${pts}</span> ` : `<span class="bad">Not quite.${pts ? ' +' + pts : ''}</span> `) + R.reveal + extra + lvlMsg;
   $('hScore').textContent = S.score;
@@ -872,7 +901,7 @@ function finish() {
   $('rTitle').textContent = acc >= 80 ? 'Golden ears.' : acc >= 50 ? 'Solid session.' : 'Keep at it.';
   $('rScore').textContent = S.score; $('rAcc').textContent = acc + '%'; $('rLevel').textContent = S.level; $('rXp').textContent = '+' + xp;
   $('rNote').textContent = S.level > S.startLevel ? `You moved up from level ${S.startLevel} to ${S.level}.` : S.level < S.startLevel ? `Level dropped to ${S.level}. It goes back up after three in a row.` : `You stayed at level ${S.level}. Three correct in a row moves you up.`;
-  if (S.level < 5) $('rNote').textContent += ` Next up, level ${S.level + 1}: ${g.levels[S.level]}`;
+  if (S.level < g.levels.length) $('rNote').textContent += ` Next up, level ${S.level + 1}: ${g.levels[S.level]}`;
   const wo = S.workout, more = wo && wo.idx < 2;
   $('rNext').hidden = !more;
   if (more) $('rNext').textContent = 'Next: ' + G(wo.games[wo.idx + 1]).name;
