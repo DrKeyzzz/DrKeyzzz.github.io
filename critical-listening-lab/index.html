@@ -893,9 +893,9 @@ const GAMES = [
   { id:'filter', name:'Filter Expert', skill:'Frequency', icon:'filter',
     tagline:'Spot high-pass and low-pass filters, then name the cutoff.',
     blurb:'B has a high-pass (thin, no lows) or low-pass (dull, no highs) filter at 24 dB/octave.',
-    levels:['HPF or LPF?', 'HPF or LPF? (gentler cutoffs)', 'Name the cutoff: 3 choices', 'Name the cutoff: 4 choices', 'Name the cutoff: 4 close choices'],
+    levels:['HPF or LPF? (mid cutoffs)', 'HPF or LPF? (subtle cutoffs)', 'Name the cutoff: 3 choices', 'Name the cutoff: 4 choices', 'Name the cutoff: 4 close choices'],
     round(L) {
-      if (L <= 2) { const hp = Math.random() < .5, f = hp ? (L===1?logRand(900,2000):logRand(150,300)) : (L===1?logRand(700,1400):logRand(5000,9000));
+      if (L <= 2) { const hp = Math.random() < .5, f = hp ? (L===1?logRand(300,700):logRand(90,180)) : (L===1?logRand(2500,5000):logRand(7000,11000));
         return btns([['hpf','High-pass\nHPF'],['lpf','Low-pass\nLPF']], hp?'hpf':'lpf', filterChain(hp?'highpass':'lowpass', f), `${hp?'High-pass':'Low-pass'} at ${fmtHz(f)}.`, f); }
       const hp = Math.random() < .5, type = hp ? 'HPF' : 'LPF';
       const sets = hp ? { 3:[100,500,2000], 4:[80,250,800,2500], 5:[100,200,400,800] }[L] : { 3:[1000,4000,10000], 4:[1000,2500,6000,12000], 5:[1500,3000,6000,12000] }[L];
@@ -906,39 +906,39 @@ const GAMES = [
   { id:'peak', name:'Peak Finder', skill:'Frequency', icon:'peak',
     tagline:'A narrow boost is hiding somewhere. Click where it is.',
     blurb:'B has one bell boost. Find its frequency on the strip, then lock in. Closer guesses score more.',
-    levels:['Find the boost within 1 octave', 'Find the boost within ⅔ octave', 'Find a smaller boost within ½ octave', 'Find the boost within ⅓ octave', 'Find a small boost within ⅓ octave'],
-    round(L) { const g = [12,12,9,9,6][L-1], tol = [1,2/3,1/2,1/3,1/3][L-1], f = logRand(80, 10000);
+    levels:['Find a 9 dB boost within 1 octave', 'Find an 8 dB boost within ⅔ octave', 'Find a 6 dB boost within ½ octave', 'Find a 6 dB boost within ⅓ octave', 'Find a 4 dB boost within ⅓ octave'],
+    round(L) { const g = [9,8,6,6,4][L-1], tol = [1,2/3,1/2,1/3,1/3][L-1], f = logRand(80, 10000);
       return { ui:'freq', target:f, tol, gain:g, bw:2, tune: L <= 2, heat: L === 1, build: eqChain(f, g, 2), freq:f, reveal:`+${g} dB at ${fmtHz(f)}.` }; } },
   { id:'eq', name:'Boost or Cut', skill:'Frequency', icon:'eq',
     tagline:'Boost or cut, then find the band: 2, 3, then 4 splits.',
     blurb:'B has one bell EQ band boosted or cut. Boosts jump out; cuts leave a hole.',
-    levels:['Was B boosted or cut?', 'Is the boost in the lows or the highs?', 'Low, mid or high boost?', 'Which of the four bands is boosted?', 'Which of the four bands? (smaller boost)'],
+    levels:['Was B boosted or cut? (6 dB)', 'Is the boost in the lows or the highs?', 'Low, mid or high boost?', 'Which of the four bands is boosted?', 'Which of the four bands? (4 dB)'],
     round(L) {
       const SPLITS = { 2:[['Low',150],['High',6000]], 3:[['Low',120],['Mid',1000],['High',6000]], 4:[['Low',100],['Low-mid',500],['High-mid',2500],['High',8000]] };
       const say = (g, n, f) => `${g > 0 ? '+' : '−'}${Math.abs(g)} dB, ${n.toLowerCase()} (${fmtHz(f)}).`;
-      if (L === 1) { const up = Math.random() < .5, [n,f] = pick(SPLITS[3]), g = up ? 12 : -12;
+      if (L === 1) { const up = Math.random() < .5, [n,f] = pick(SPLITS[3]), g = up ? 6 : -6;
         return btns([['boost','Boost'],['cut','Cut']], up?'boost':'cut', eqChain(f, g, 1), say(g, n, f), f); }
-      const bands = SPLITS[Math.min(L, 4)], [n,f] = pick(bands), g = [0,0,12,9,9,6][L];
+      const bands = SPLITS[Math.min(L, 4)], [n,f] = pick(bands), g = [0,0,9,8,6,4][L];
       return btns(bands.map(([bn,bf]) => [String(bf), `${bn}\n${fmtHz(bf)}`]), String(f), eqChain(f, g, 1), say(g, n, f), f);
     } },
   { id:'gain', name:'Gain Master', skill:'Level', icon:'gain',
     tagline:'Hear small level changes. Louder fools everyone.',
     blurb:'B is the same audio at a different level. Louder almost always sounds "better", so engineers level-match before judging.',
-    levels:['Louder or quieter? (6 dB)', 'Louder or quieter? (3 dB)', 'By how much? 3 choices', 'By how much? 4 choices', 'By how much? 4 small choices'],
+    levels:['Louder or quieter? (3 dB)', 'Louder or quieter? (1.5 dB)', 'By how much? 3 choices', 'By how much? 4 choices', 'By how much? 4 small choices'],
     round(L) {
       const up = Math.random() < .5;
-      if (L <= 2) { const d = L===1?6:3;
+      if (L <= 2) { const d = L===1?3:1.5;
         return btns([['up','Louder'],['down','Quieter']], up?'up':'down', gainChain(up?d:-d), `B is ${d} dB ${up?'louder':'quieter'}.`); }
-      const sets = { 3:[1,3,6], 4:[1,2,3,6], 5:[0.5,1,2,3] }[L], d = pick(sets), w = up ? 'louder' : 'quieter';
+      const sets = { 3:[1,2,4], 4:[1,2,3,4], 5:[0.5,1,1.5,2] }[L], d = pick(sets), w = up ? 'louder' : 'quieter';
       return { ...btns(sets.map(v => [String(v), `${v} dB`]), String(d), gainChain(up?d:-d), `B is ${d} dB ${w}.`), q:`B is ${w}. By how much?` }; } },
   { id:'comp', name:'Compressor Ears', skill:'Dynamics', icon:'comp',
     tagline:'Is it squashed? How hard? Hear what compression does.',
     blurb:'B may be compressed, with makeup gain so the level stays close. Listen for flattened hits and a denser, pumping sound. Drums only makes it easiest.',
-    levels:['Compressed or not? (heavy)', 'Compressed or not? (medium)', 'None, light or heavy?', 'Which ratio? 4 choices', 'Which ratio? 4 close choices'],
+    levels:['Compressed or not? (medium)', 'Compressed or not? (light)', 'None, light or heavy?', 'Which ratio? 4 choices', 'Which ratio? 4 close choices'],
     round(L) {
       const pickRatio = (list, thr) => { const r = pick(list);
         return btns(list.map(v => [String(v), v ? `${v}:1` : 'None']), String(r), r ? compChain(thr, r) : passChain(), r ? `${r}:1 at ${thr} dB threshold.` : 'B was not compressed.'); };
-      if (L <= 2) { const [thr, r] = L === 1 ? [-40,20] : [-30,6], yes = Math.random() < .6;
+      if (L <= 2) { const [thr, r] = L === 1 ? [-30,6] : [-24,3], yes = Math.random() < .6;
         return btns([['yes','Compressed'],['no','Not compressed']], yes?'yes':'no', yes ? compChain(thr, r) : passChain(), yes ? `Compressed: ${r}:1 at ${thr} dB threshold.` : 'B was not compressed.'); }
       if (L === 3) { const k = pick(['none','light','heavy']);
         return btns([['none','None'],['light','Light\n3:1'],['heavy','Heavy\n12:1']], k, k==='none' ? passChain() : k==='light' ? compChain(-24,3) : compChain(-38,12),
@@ -947,25 +947,25 @@ const GAMES = [
   { id:'pan', name:'Balance Test', skill:'Space', icon:'pan',
     tagline:'Where in the stereo field did B move?',
     blurb:'B is panned somewhere between left and right. Headphones help a lot here.',
-    levels:['Left or right?', 'Left, center or right?', 'Hard left, left, right or hard right?', 'Place it on the strip within 25%', 'Place it on the strip within 12%'],
+    levels:['Left or right? (halfway)', 'Left, center or right? (slight)', 'Wide left, left, right or wide right?', 'Place it on the strip within 25%', 'Place it on the strip within 12%'],
     round(L) {
-      if (L === 1) { const r = Math.random() < .5; return btns([['L','Left'],['R','Right']], r?'R':'L', panChain(r?1:-1), `Panned hard ${r?'right':'left'}.`); }
-      if (L === 2) { const k = pick(['L','C','R']); return btns([['L','Left'],['C','Center'],['R','Right']], k, panChain({L:-.7,C:0,R:.7}[k]), { L:'Panned left.', C:'Center. Same as A.', R:'Panned right.' }[k]); }
-      if (L === 3) { const opts = [['-1','Hard left'],['-0.4','Left'],['0.4','Right'],['1','Hard right']], [v, n] = pick(opts);
+      if (L === 1) { const r = Math.random() < .5; return btns([['L','Left'],['R','Right']], r?'R':'L', panChain(r?.5:-.5), `Panned 50% ${r?'right':'left'}.`); }
+      if (L === 2) { const k = pick(['L','C','R']); return btns([['L','Left'],['C','Center'],['R','Right']], k, panChain({L:-.35,C:0,R:.35}[k]), { L:'Panned left.', C:'Center. Same as A.', R:'Panned right.' }[k]); }
+      if (L === 3) { const opts = [['-0.8','Wide left'],['-0.3','Left'],['0.3','Right'],['0.8','Wide right']], [v, n] = pick(opts);
         return btns(opts, v, panChain(+v), `${n}: ${panLabel(+v)}.`); }
       const p = Math.round(rand(-1, 1) * 20) / 20, tol = L === 4 ? .25 : .12;
       return { ui:'pan', target:p, tol, build: panChain(p), reveal:`Panned ${panLabel(p)}.` }; } },
   { id:'space', name:'Reverb Space', skill:'Space', icon:'space',
     tagline:'Dry or wet, small room or big hall.',
     blurb:'B may have reverb added. Listen to the tails after each hit and how far away it feels.',
-    levels:['Reverb or dry?', 'Short room or long hall?', 'Short, medium or long decay?', 'Which decay time? 4 choices', 'How much reverb? 4 choices'],
+    levels:['Reverb or dry? (light reverb)', 'Room or hall?', 'Short, medium or long decay?', 'Which decay time? 4 choices', 'How much reverb? 4 choices'],
     round(L) {
       if (L === 1) { const yes = Math.random() < .6;
-        return btns([['yes','Reverb'],['no','Dry']], yes?'yes':'no', yes ? reverbChain(2.2, .6) : passChain(), yes ? 'Reverb: 2.2 s decay, 60% send.' : 'B was dry.'); }
+        return btns([['yes','Reverb'],['no','Dry']], yes?'yes':'no', yes ? reverbChain(1.4, .25) : passChain(), yes ? 'Reverb: 1.4 s decay, 25% send.' : 'B was dry.'); }
       if (L === 5) { const mixes = [0, .1, .25, .5], m = pick(mixes);
         return btns(mixes.map(v => [String(v), v ? `${v*100}% send` : 'Dry']), String(m), m ? reverbChain(1.6, m) : passChain(), m ? `${m*100}% send, 1.6 s decay.` : 'B was dry.'); }
-      const ds = { 2:[0.4,2.5], 3:[0.4,1.2,3], 4:[0.3,0.8,1.6,3] }[L], d = pick(ds);
-      const lab = v => L === 2 ? (v < 1 ? 'Short room\n0.4 s' : 'Long hall\n2.5 s') : `${v} s`;
+      const ds = { 2:[0.6,1.8], 3:[0.4,1.2,3], 4:[0.3,0.8,1.6,3] }[L], d = pick(ds);
+      const lab = v => L === 2 ? (v < 1 ? 'Room\n0.6 s' : 'Hall\n1.8 s') : `${v} s`;
       return btns(ds.map(v => [String(v), lab(v)]), String(d), reverbChain(d, .45), `${d} s decay.`); } },
   { id:'beat', name:'Beat Recreate', skill:'Rhythm', icon:'beat', rounds:6,
     tagline:'Hear a drum beat, then rebuild it on a 16-step grid.',
@@ -1004,6 +1004,19 @@ function progressReport() {
     ...GAMES.map(g => { const q = gp(g.id); return `${g.name}: level ${q.level}/${g.levels.length}, best ${q.best}, ${q.plays} plays`; })].join('\n');
 }
 const gp = id => P.games[id] ||= { level:1, best:0, plays:0 };
+// Where a student starts in a game. New or rusty games start one level below the student's
+// overall level, so daily drills don't drop a strong student back to the easiest round.
+const frac = (lvl, n) => n > 1 ? (lvl - 1) / (n - 1) : 0;
+function startLevel(id) {
+  const g = G(id), n = g.levels.length, p = gp(id);
+  const played = GAMES.filter(x => (P.games[x.id] || {}).plays > 0);
+  if (!played.length) return p.level;
+  const reach = x => frac(Math.max(gp(x.id).level, gp(x.id).peak || 1), x.levels.length);
+  const overall = played.reduce((a, x) => a + reach(x), 0) / played.length;      // average progress, 0 to 1
+  const skill = Math.max(0, ...played.filter(x => x.skill === g.skill).map(reach)); // best in this skill
+  const floor = Math.max(1, Math.floor(overall * (n - 1)), Math.round(skill * (n - 1))); // one level below where they are
+  return Math.min(n, Math.max(p.level, floor));
+}
 const playerLevel = xp => Math.floor(Math.sqrt(xp / 150)) + 1;
 const levelXp = l => 150 * (l - 1) * (l - 1);
 function dayStreak() {
@@ -1028,7 +1041,7 @@ function renderHome() {
   const wo = todaysWorkout(), done = P.workout[today()] || [];
   $('woDate').textContent = new Date().toLocaleDateString(undefined, { weekday:'long', month:'short', day:'numeric' });
   $('woList').innerHTML = wo.map(id => { const g = G(id), d = done.includes(id);
-    return `<div class="wo-item ${d?'done':''}"><span class="sk-${g.skill}">${svgIcon(g.icon)}</span><b>${g.name}</b><span class="check">${d?'Done':'Level ' + gp(id).level}</span></div>`; }).join('');
+    return `<div class="wo-item ${d?'done':''}"><span class="sk-${g.skill}">${svgIcon(g.icon)}</span><b>${g.name}</b><span class="check">${d?'Done':'Level ' + startLevel(id)}</span></div>`; }).join('');
   const allDone = wo.every(id => done.includes(id));
   $('woTitle').textContent = allDone ? 'Workout complete. Nice work.' : 'Three games, five rounds each';
   $('woStart').textContent = allDone ? 'Run it again' : done.length ? 'Continue workout' : 'Start workout';
@@ -1040,10 +1053,10 @@ function renderHome() {
   $('pAcc').textContent = P.total ? Math.round(P.right / P.total * 100) + '%' : '–';
   $('skills').innerHTML = SKILLS.map(s => { const gs = GAMES.filter(g => g.skill === s), avg = gs.reduce((a, g) => a + gp(g.id).level, 0) / gs.length, mx = Math.max(...gs.map(g => g.levels.length));
     return `<div class="skill sk-${s}"><div class="row"><span class="label">${s}</span><b>${avg.toFixed(1)}/${mx}</b></div><div class="bar"><i style="width:${avg/mx*100}%;background:currentColor"></i></div></div>`; }).join('');
-  $('games').innerHTML = GAMES.map(g => { const p = gp(g.id);
+  $('games').innerHTML = GAMES.map(g => { const p = gp(g.id), lv = startLevel(g.id);
     return `<button class="card" data-g="${g.id}"><span class="sk-${g.skill}">${svgIcon(g.icon)}</span><h3>${g.name}</h3><p>${g.tagline}</p>
-      <div class="meta"><span class="tag sk-${g.skill}">${g.skill}</span><span class="sk-${g.skill}">${pips(p.level, g.levels.length)}</span></div>
-      <p>Level ${p.level}: ${g.levels[p.level - 1]}</p>
+      <div class="meta"><span class="tag sk-${g.skill}">${g.skill}</span><span class="sk-${g.skill}">${pips(lv, g.levels.length)}</span></div>
+      <p>Level ${lv}: ${g.levels[lv - 1]}</p>
       <div class="meta"><span>Best ${p.best}</span><span>${p.plays} plays</span></div></button>`; }).join('');
   $('games').insertAdjacentHTML('beforeend', `<button class="card" id="freeCard"><span class="sk-Rhythm">${svgIcon('beat')}</span><h3>Beat Maker</h3><p>Free play. Build your own beat from 808s, live kits, claps and percussion.</p>
       <div class="meta"><span class="tag sk-Rhythm">Free play</span><span>${P.freeBeat ? P.freeBeat.rows.length + ' rows saved' : 'No score, just make beats'}</span></div></button>`);
@@ -1057,7 +1070,8 @@ let S = null, R = null, answered = false, roundStart = 0;
 function startSession(gid, rounds, workout) {
   const g = G(gid);
   if (!workout && g.rounds) rounds = g.rounds;
-  S = { g, rounds, i:0, score:0, right:0, results:[], level:gp(gid).level, startLevel:gp(gid).level, upRun:0, downRun:0, workout };
+  const L0 = startLevel(gid);
+  S = { g, rounds, i:0, score:0, right:0, results:[], level:L0, startLevel:L0, upRun:0, downRun:0, workout };
   $('gName').textContent = g.name; $('gSkill').textContent = g.skill + (workout ? ` · Workout ${workout.idx + 1} of 3` : '');
   $('gSkill').className = 'label sk-' + g.skill;
   $('gBlurb').textContent = g.blurb; $('question').textContent = '';
@@ -1150,7 +1164,9 @@ function submit(resp) {
   S.score += pts; if (ok) S.right++; S.results.push(ok);
   P.total++; if (ok) P.right++;
   let lvlMsg = '';
-  if (ok) { S.upRun++; S.downRun = 0; if (S.upRun >= 3 && S.level < S.g.levels.length) { S.level++; S.upRun = 0; lvlMsg = ` <span class="up">Level up! Now level ${S.level}.</span>`; } }
+  // Two in a row moves you up during short workout sets and on levels you've already passed; otherwise three.
+  const need = (S.workout || S.level < (gp(S.g.id).peak || 1)) ? 2 : 3;
+  if (ok) { S.upRun++; S.downRun = 0; if (S.upRun >= need && S.level < S.g.levels.length) { S.level++; S.upRun = 0; lvlMsg = ` <span class="up">Level up! Now level ${S.level}.</span>`; } }
   else { S.downRun++; S.upRun = 0; if (S.downRun >= 2 && S.level > 1) { S.level--; S.downRun = 0; lvlMsg = ` Dropping to level ${S.level}.`; } }
   $('feedback').innerHTML = (ok ? `<span class="ok">Correct. +${pts}</span> ` : `<span class="bad">Not quite.${pts ? ' +' + pts : ''}</span> `) + R.reveal + extra + lvlMsg;
   $('hScore').textContent = S.score;
@@ -1161,7 +1177,7 @@ function nextRound() { S.i++; if (S.i >= S.rounds) finish(); else newRound(); }
 function finish() {
   stop();
   const g = S.g, p = gp(g.id), xp = Math.round(S.score / 10);
-  p.level = S.level; p.best = Math.max(p.best, S.score); p.plays++;
+  p.level = S.level; p.peak = Math.max(p.peak || 1, S.level); p.best = Math.max(p.best, S.score); p.plays++;
   P.xp += xp; P.sessions++; if (!P.days.includes(today())) P.days.push(today());
   if (S.workout) { const d = P.workout[today()] ||= []; if (!d.includes(g.id)) d.push(g.id); }
   save();
@@ -1169,7 +1185,7 @@ function finish() {
   $('rGame').textContent = g.name + (S.workout ? ` · Workout ${S.workout.idx + 1} of 3` : '');
   $('rTitle').textContent = acc >= 80 ? 'Golden ears.' : acc >= 50 ? 'Solid session.' : 'Keep at it.';
   $('rScore').textContent = S.score; $('rAcc').textContent = acc + '%'; $('rLevel').textContent = S.level; $('rXp').textContent = '+' + xp;
-  $('rNote').textContent = S.level > S.startLevel ? `You moved up from level ${S.startLevel} to ${S.level}.` : S.level < S.startLevel ? `Level dropped to ${S.level}. It goes back up after three in a row.` : `You stayed at level ${S.level}. Three correct in a row moves you up.`;
+  $('rNote').textContent = S.level > S.startLevel ? `You moved up from level ${S.startLevel} to ${S.level}.` : S.level < S.startLevel ? `Level dropped to ${S.level}. It goes back up after three in a row.` : `You stayed at level ${S.level}. ${S.workout ? 'Two' : 'Three'} correct in a row moves you up.`;
   if (S.level < g.levels.length) $('rNote').textContent += ` Next up, level ${S.level + 1}: ${g.levels[S.level]}`;
   const wo = S.workout, more = wo && wo.idx < 2;
   $('rNext').hidden = !more;
