@@ -404,7 +404,7 @@ async function getBuffer(kind) {
 }
 
 /* ================= Playback engine ================= */
-let ctx, master, analyser, dryG, wetG, insertIn, srcNode = null, playing = false, side = 'A', chain = null;
+let ctx, master, analyser, dryG, wetG, insertIn, sweepIn, sweepF, sweepG, tuning = false, srcNode = null, playing = false, side = 'A', chain = null;
 function ensureCtx() {
   if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
   ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -413,6 +413,9 @@ function ensureCtx() {
   const lim = ctx.createDynamicsCompressor(); lim.threshold.value = -1; lim.ratio.value = 20; lim.attack.value = 0.001; // safety limiter
   master.connect(lim).connect(analyser).connect(ctx.destination);
   dryG = ctx.createGain(); wetG = ctx.createGain(); insertIn = ctx.createGain();
+  // Tune mode: a sweepable bell that follows the cursor on the frequency strip
+  sweepIn = ctx.createGain(); sweepF = ctx.createBiquadFilter(); sweepF.type = 'peaking'; sweepG = ctx.createGain(); sweepG.gain.value = 0;
+  sweepIn.connect(sweepF).connect(sweepG).connect(master);
   dryG.connect(master); wetG.connect(master);
   setSide(side, true); wireChain();
 }
@@ -422,8 +425,12 @@ function wireChain() {
   chain = R.build(ctx);
   insertIn.connect(chain.input); chain.output.connect(wetG);
 }
+let starting = false;
 async function start() {
   ensureCtx();
+  starting = true; try { await startInner(); } finally { starting = false; }
+}
+async function startInner() {
   if (R && R.ui === 'grid') { stopSrc(); startSeq(); playing = true; $('playLabel').textContent = 'Stop'; return; }
   stopSeq();
   let got;
@@ -434,14 +441,23 @@ async function start() {
   stopSrc();
   srcNode = ctx.createBufferSource(); srcNode.buffer = buf; srcNode.loop = true;
   if (loopEnd) { srcNode.loopStart = loopStart; srcNode.loopEnd = loopEnd; }
-  srcNode.connect(dryG); srcNode.connect(insertIn); srcNode.start(0, loopStart);
+  srcNode.connect(dryG); srcNode.connect(insertIn); srcNode.connect(sweepIn); srcNode.start(0, loopStart);
   playing = true; $('playLabel').textContent = 'Stop';
 }
 function showStatus(m) { const st = $('srcStatus'); st.hidden = false; st.textContent = m; }
 function stopSrc() { if (srcNode) { try { srcNode.stop(); } catch (e) {} srcNode.disconnect(); srcNode = null; } }
 function stop() { stopSrc(); stopSeq(); playing = false; $('playLabel').textContent = 'Play'; }
+function tune(f) {   // f = frequency to audition, or null to return to A/B
+  if (f == null && !ctx) return;
+  ensureCtx();
+  const t = ctx.currentTime;
+  if (f == null) { if (!tuning) return; tuning = false; sweepG.gain.setTargetAtTime(0, t, 0.01); setSide(side); return; }
+  if (!playing && !starting) start();
+  sweepF.gain.value = R.gain; sweepF.Q.value = R.bw; sweepF.frequency.setTargetAtTime(f, t, tuning ? 0.015 : 0.001);
+  if (!tuning) { tuning = true; dryG.gain.setTargetAtTime(0, t, 0.01); wetG.gain.setTargetAtTime(0, t, 0.01); sweepG.gain.setTargetAtTime(1, t, 0.01); }
+}
 function setSide(s, instant) {
-  side = s;
+  side = s; if (tuning) { tuning = false; if (sweepG) sweepG.gain.setTargetAtTime(0, ctx.currentTime, 0.01); }
   $('btnA').setAttribute('aria-pressed', s === 'A'); $('btnB').setAttribute('aria-pressed', s === 'B');
   if (!ctx) return;
   const t = ctx.currentTime, tc = instant ? 0.001 : 0.008;
@@ -604,7 +620,7 @@ const GAMES = [
     blurb:'B has one bell boost. Find its frequency on the strip, then lock in. Closer guesses score more.',
     levels:['Find the boost within 1 octave', 'Find the boost within ⅔ octave', 'Find a smaller boost within ½ octave', 'Find the boost within ⅓ octave', 'Find a small boost within ⅓ octave'],
     round(L) { const g = [12,12,9,9,6][L-1], tol = [1,2/3,1/2,1/3,1/3][L-1], f = logRand(80, 10000);
-      return { ui:'freq', target:f, tol, build: eqChain(f, g, 2), freq:f, reveal:`+${g} dB at ${fmtHz(f)}.` }; } },
+      return { ui:'freq', target:f, tol, gain:g, bw:2, tune: L <= 2, build: eqChain(f, g, 2), freq:f, reveal:`+${g} dB at ${fmtHz(f)}.` }; } },
   { id:'eq', name:'Boost or Cut', skill:'Frequency', icon:'eq',
     tagline:'Boost or cut, then find the band: 2, 3, then 4 splits.',
     blurb:'B has one bell EQ band boosted or cut. Boosts jump out; cuts leave a hole.',
@@ -759,6 +775,7 @@ function startSession(gid, rounds, workout) {
   show('vPlay'); newRound();
 }
 function newRound() {
+  if (R && R._untune) R._untune();
   R = S.g.round(S.level); answered = false; roundStart = performance.now();
   $('hLevel').textContent = S.level; $('hRound').textContent = `${S.i + 1}/${S.rounds}`; $('hScore').textContent = S.score;
   $('prog').innerHTML = Array.from({ length:S.rounds }, (_, k) => `<i class="${k < S.results.length ? (S.results[k] ? 'ok' : 'bad') : k === S.i ? 'cur' : ''}"></i>`).join('');
@@ -786,11 +803,24 @@ function renderAnswer() {
   const place = x => { if (answered) return; x = Math.max(0, Math.min(1, x)); guess = fromX(x); mk.hidden = false; mk.style.left = toX(guess) * 100 + '%';
     ro.textContent = isF ? fmtHz(guess) : panLabel(guess); lock.disabled = false; };
   const fromEvt = e => { const r = strip.getBoundingClientRect(); place((e.clientX - r.left) / r.width); };
-  strip.onpointerdown = e => { strip.setPointerCapture(e.pointerId); fromEvt(e); };
-  strip.onpointermove = e => { if (e.buttons) fromEvt(e); };
+  // Tune mode (Peak Finder): hold Shift, or switch on the Tune button, and the boost follows the cursor.
+  // Levels 1-2 can tune any time; higher levels only after answering.
+  const canTune = () => isF && R.gain && (R.tune || answered);
+  let tuneOn = false;
+  const tuneX = e => { const r = strip.getBoundingClientRect(); const f = fromX(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width))); tune(f); ro.textContent = 'Tuning ' + fmtHz(f); };
+  const tuningEvt = e => canTune() && (e.shiftKey || tuneOn);
+  strip.onpointerdown = e => { strip.setPointerCapture(e.pointerId); if (tuningEvt(e)) tuneX(e); else fromEvt(e); };
+  strip.onpointermove = e => { if (tuningEvt(e)) tuneX(e); else { if (tuning) { tune(null); ro.textContent = guess == null ? 'Click to place your guess' : fmtHz(guess); } if (e.buttons) fromEvt(e); } };
+  strip.onpointerleave = () => { if (tuning) tune(null); };
+  R._untune = () => { tune(null); if (ro.textContent.startsWith('Tuning')) ro.textContent = guess == null ? 'Click to place your guess' : fmtHz(guess); };
   strip.onkeydown = e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); place((guess == null ? .5 : toX(guess)) + (e.key === 'ArrowRight' ? .01 : -.01)); } };
   const row = document.createElement('div'); row.className = 'strip-row';
-  row.innerHTML = `<span class="hint">${isF ? `Within ${tolText(R.tol)} counts as correct.` : `Within ${Math.round(R.tol*100)}% counts as correct.`}</span>`;
+  const tuneHint = isF && R.gain ? (R.tune ? ' Hold <kbd>Shift</kbd> and move over the strip to hear the boost at each frequency.' : ' After you answer, hold <kbd>Shift</kbd> to sweep the boost.') : '';
+  row.innerHTML = `<span class="hint">${isF ? `Within ${tolText(R.tol)} counts as correct.` : `Within ${Math.round(R.tol*100)}% counts as correct.`}${tuneHint}</span>`;
+  if (isF && R.gain) { const tb = document.createElement('button'); tb.className = 'btn'; tb.textContent = 'Tune'; tb.setAttribute('aria-pressed', 'false'); tb.id = 'tuneBtn';
+    tb.title = 'While on, moving over the strip plays the boost there (same as holding Shift)';
+    tb.hidden = !canTune(); tb.onclick = () => { tuneOn = !tuneOn; tb.setAttribute('aria-pressed', tuneOn); tb.classList.toggle('primary', tuneOn); if (!tuneOn) R._untune(); };
+    row.appendChild(tb); R._showTune = () => { tb.hidden = false; }; }
   const lock = document.createElement('button'); lock.className = 'btn primary'; lock.textContent = 'Lock in'; lock.disabled = true; lock.id = 'lock';
   lock.onclick = () => guess != null && submit(guess);
   row.appendChild(lock); area.append(strip, row);
@@ -812,7 +842,7 @@ function submit(resp) {
     const band = document.createElement('i'); band.className = 'band';
     const lo = isF ? R.target * Math.pow(2, -R.tol) : R.target - R.tol, hi = isF ? R.target * Math.pow(2, R.tol) : R.target + R.tol;
     band.style.left = Math.max(0, toX(lo)) * 100 + '%'; band.style.width = (Math.min(1, toX(hi)) - Math.max(0, toX(lo))) * 100 + '%'; strip.appendChild(band);
-    $('lock').disabled = true;
+    $('lock').disabled = true; if (R._showTune) R._showTune();
     extra = isF ? ` You picked ${fmtHz(resp)}, ${err.toFixed(2)} octaves off.` : ` You picked ${panLabel(resp)}.`;
   }
   const secs = (performance.now() - roundStart) / 1000;
@@ -901,6 +931,7 @@ $('file').onchange = async e => {
     if (playing) start();
   } catch (err) { st.textContent = "That file couldn't be decoded. Try a WAV or MP3."; }
 };
+document.addEventListener('keyup', e => { if (e.key === 'Shift' && R && R._untune) R._untune(); });
 document.addEventListener('keydown', e => {
   if ($('vPlay').hidden || e.target.matches('input,select,textarea')) return;
   const k = e.key.toLowerCase();
