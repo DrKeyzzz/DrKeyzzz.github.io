@@ -234,7 +234,8 @@
   .q.tq.done .qp { color: var(--accent); }
   html[data-skin="day"] .q.tq.done :is(.qn, .qp) { color: var(--text); }
   footer a { color: inherit; }
-  footer .teach { display: block; margin-top: 10px; font-size: 13px; opacity: .8; }
+  footer .teach { display: block; margin-top: 10px; font-size: 14px; opacity: .9; }
+  footer .teach a { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
   @keyframes goal { from { transform: scale(.7); opacity: .3; } }
   @media (prefers-reduced-motion: reduce) { .q.done .qn { animation: none; } }
   [hidden] { display: none !important; }
@@ -402,7 +403,7 @@
     </a>
   </main>
 
-  <footer>One sign-in works across all five games on this computer.<a class="teach" href="teacher/">Teachers: assign today's practice →</a></footer>
+  <footer>One sign-in works across all five games on this computer.<span class="teach">Teachers: <a href="teacher/all/">Teacher dashboard</a> · <a href="teacher/">Assign today's practice</a> →</span></footer>
 
 <script>
 (() => {
