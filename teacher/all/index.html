@@ -153,7 +153,7 @@
         <div class="opts" style="margin-top:14px">
           <label class="f" for="tsel">Test<select id="tsel"></select></label>
           <button class="btn sm" type="button" id="tnew">+ New test</button>
-          <button class="btn ghost sm" type="button" id="ttoggle">Close test</button>
+          <button class="btn ghost sm" type="button" id="ttoggle">Switch off</button>
           <button class="btn ghost sm" type="button" id="treset">Reset a student</button>
           <button class="btn ghost sm" type="button" id="tdel">Delete test</button>
         </div>
@@ -415,6 +415,9 @@ async function load() {
 load.n = 0;
 
 // ---------- Tests: tests/<id> made here, results in test_results/<id>_<sid> ----------
+const tstate = t => !t.open ? 'closed' : (t.opens_at && toMs(t.opens_at) > Date.now()) ? 'scheduled' : (t.closes_at && toMs(t.closes_at) < Date.now()) ? 'ended' : 'open';
+const STATE_TEXT = { open: 'Open to students', closed: 'Switched off', scheduled: 'Scheduled', ended: 'Ended' };
+const fmtWhen = v => new Date(toMs(v)).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 const curTest = () => S.tests.find(t => t.id === S.testId) || null;
 async function loadTests() {
   if (!S.code) { S.tests = []; S.testId = ''; return; }
@@ -428,12 +431,12 @@ async function fetchResults() {
     .map(d => { const r = d.data(); return { id: d.id, game: t.game, name: r.student || 'Student', best: num(r.best), unit: t.grade === 'score' ? '' : '%', acc: r.tries ? num(r.best_acc) : null, tries: num(r.tries), dateMs: toMs(r.updated_at) }; }));
 }
 function renderTestsBox() {
-  $('tsel').innerHTML = S.tests.length ? S.tests.map(t => `<option value="${esc(t.id)}">${esc(t.name)}${t.open ? '' : ' (closed)'}</option>`).join('') : '<option value="">No tests yet</option>';
+  $('tsel').innerHTML = S.tests.length ? S.tests.map(t => `<option value="${esc(t.id)}">${esc(t.name)}${tstate(t) === 'open' ? '' : ' (' + STATE_TEXT[tstate(t)].toLowerCase() + ')'}</option>`).join('') : '<option value="">No tests yet</option>';
   $('tsel').value = S.testId; $('tsel').disabled = !S.tests.length;
   const t = curTest();
   ['ttoggle', 'treset', 'tdel'].forEach(id => { $(id).disabled = !t; });
-  $('ttoggle').textContent = t && t.open ? 'Close test' : 'Open test';
-  $('tmeta').textContent = t ? `${G[t.game] ? G[t.game].name : t.game} · ${t.tries ? (t.tries === 1 ? 'One and done' : t.tries + ' tries, best counts') : 'Unlimited tries, best counts'} · Scored by ${t.grade === 'score' ? 'points' : 'accuracy'} · ${t.open ? 'Open to students' : 'Closed'}` : 'Make a test with + New test. It shows up on your students\' home page.';
+  $('ttoggle').textContent = t && t.open ? 'Switch off' : 'Switch on';
+  $('tmeta').textContent = t ? `${G[t.game] ? G[t.game].name : t.game} · ${t.tries ? (t.tries === 1 ? 'One and done' : t.tries + ' tries, best counts') : 'Unlimited tries, best counts'} · Scored by ${t.grade === 'score' ? 'points' : 'accuracy'} · ${STATE_TEXT[tstate(t)]}${t.opens_at ? ' · opens ' + fmtWhen(t.opens_at) : ''}${t.closes_at ? ' · closes ' + fmtWhen(t.closes_at) : ''}` : 'Make a test with + New test. It shows up on your students\' home page.';
 }
 function showNewTest() {
   const f = $('tframe'); const want = '../index.html?embed=1&test=1';

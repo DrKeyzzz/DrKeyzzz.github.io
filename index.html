@@ -644,16 +644,16 @@ const taskTip = (g, t) => !g ? 'Any game counts: pick one below' : t.settings ? 
   : t.skill && FOCUS[g.id] && FOCUS[g.id](t.skill) ? `Opens ${g.name} set up to practice ${t.skill}` : `Opens ${g.name}`;
 // ---------- Tests: tests/<id> (made on the teacher dashboard) for the student's classes; the student's own result is test_results/<id>_<sid> ----------
 // Only games that have a test hook open a test (the game reads ?test=<id>, locks its settings and saves the best score).
-const TEST_GAMES = ['scale'];
+const TEST_GAMES = ['scale','tidal','rooftop','rhythm','earshot'];
 const TESTS_KEY = p => 'mtg_tests_v1:' + sidOf(p);
 async function refreshTests(p) {
   const cs = classesOf(p); if (!cs.length) return;
   try {
     const { fs, db } = await fb();
     const lists = await wait(Promise.all(cs.map(c => fs.getDocs(fs.query(fs.collection(db, 'tests'), fs.where('class_code', '==', c.code))))));
-    const tests = lists.flatMap((l, i) => l.docs.map(d => ({ id: d.id, ...d.data(), className: cs[i].name || cs[i].code }))).filter(t => t.open && TEST_GAMES.includes(t.game))
+    const tests = lists.flatMap((l, i) => l.docs.map(d => ({ id: d.id, ...d.data(), className: cs[i].name || cs[i].code }))).filter(t => t.open && TEST_GAMES.includes(t.game) && !(t.closes_at && t.closes_at.seconds * 1000 < Date.now()))
       .sort((a, b) => ((b.created_at && b.created_at.seconds) || 0) - ((a.created_at && a.created_at.seconds) || 0)).slice(0, 5)
-      .map(t => ({ id: t.id, name: t.name, game: t.game, grade: t.grade, tries: t.tries, className: t.className }));
+      .map(t => ({ id: t.id, name: t.name, game: t.game, grade: t.grade, tries: t.tries, className: t.className, from: t.opens_at ? t.opens_at.seconds * 1000 : 0, to: t.closes_at ? t.closes_at.seconds * 1000 : 0 }));
     const rs = await wait(Promise.all(tests.map(t => fs.getDoc(fs.doc(db, 'test_results', t.id + '_' + sidOf(p))))));
     const results = {}; tests.forEach((t, i) => { if (rs[i].exists()) { const r = rs[i].data(); results[t.id] = { tries: r.tries, best: r.best }; } });
     try { localStorage.setItem(TESTS_KEY(p), JSON.stringify({ tests, results })); } catch {}
@@ -662,13 +662,13 @@ async function refreshTests(p) {
 }
 function testCards(p) {
   const d = load(TESTS_KEY(p)); if (!d || !Array.isArray(d.tests)) return [];
-  return d.tests.filter(t => GAME[t.game]).map(t => {
+  return d.tests.filter(t => GAME[t.game] && !(t.to && t.to < Date.now())).map(t => {
     const g = GAME[t.game], r = (d.results || {})[t.id], used = r ? r.tries : 0, left = t.tries ? Math.max(0, t.tries - used) : Infinity;
     const unit = t.grade === 'score' ? '' : '%', policy = t.tries ? (t.tries === 1 ? 'One and done' : `${t.tries} tries, best counts`) : 'Unlimited tries, best counts';
-    const status = used ? `Best ${r.best}${unit} · ${used} ${used === 1 ? 'try' : 'tries'} used` : 'Not taken yet';
+    const status = (t.to ? `Closes ${new Date(t.to).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })} · ` : '') + (used ? `Best ${r.best}${unit} · ${used} ${used === 1 ? 'try' : 'tries'} used` : 'Not taken yet');
     return `<article class="q tq" style="--accent:${g.acc}"><p class="qk"><i></i>Test · ${esc(g.name)}</p>
       <b class="qn">${esc(t.name)}</b><p class="qt">${esc(t.className || '')} · ${esc(policy)}</p><p class="qt">${esc(status)}</p>
-      ${left === 0 ? '<span class="qp">✓ All tries used</span>' : `<a class="go" href="${esc(g.url + '?test=' + encodeURIComponent(t.id))}" data-tip="Opens the test in ${esc(g.name)}. Settings are set by your teacher.">${used ? 'Take it again' : 'Start the test'}</a>`}</article>`;
+      ${t.from && t.from > Date.now() ? `<span class="qp">Opens ${esc(new Date(t.from).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' }))}</span>` : left === 0 ? '<span class="qp">✓ All tries used</span>' : `<a class="go" href="${esc(g.url + '?test=' + encodeURIComponent(t.id))}" data-tip="Opens the test in ${esc(g.name)}. Settings are set by your teacher.">${used ? 'Take it again' : 'Start the test'}</a>`}</article>`;
   });
 }
 function teacherCards(p, days) {

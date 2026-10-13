@@ -239,9 +239,11 @@
           <label class="f" for="t-name">Test name<input type="text" id="t-name" maxlength="60" placeholder="Unit 3 scales quiz"></label>
           <label class="f" for="t-grade">Score by<select id="t-grade"><option value="acc">Accuracy (% correct)</option><option value="score">Points</option></select></label>
           <label class="f" for="t-tries">Tries<select id="t-tries"><option value="0">Unlimited (best score counts)</option><option value="1">One and done</option><option value="2">2 tries (best counts)</option><option value="3">3 tries (best counts)</option><option value="5">5 tries (best counts)</option></select></label>
-          <label class="f chk" for="t-open"><input type="checkbox" id="t-open" checked> Open for students now</label>
+          <label class="f chk" for="t-open"><input type="checkbox" id="t-open" checked> Available to students</label>
+          <label class="f" for="t-from">Opens (optional)<input type="datetime-local" id="t-from"></label>
+          <label class="f" for="t-to">Closes (optional)<input type="datetime-local" id="t-to"></label>
         </div>
-        <p class="hint">Pick the game and its settings above. In Scale Quest, open Settings and choose your scales. Students start the test from a card on the home page.</p>
+        <p class="hint">Leave Opens and Closes empty for a test that is open whenever "Available" is checked. Fill them in to schedule it: students can only start it between those times (your computer's time zone). Pick the game and its settings above. In Scale Quest, open Settings and choose your scales. Students start the test from a card on the home page.</p>
       </fieldset>
       <div class="row actions">
         <button class="btn" type="submit" id="save">Save assignment</button>
@@ -496,7 +498,7 @@ function syncSets(row) {
 
 // ---------- state ----------
 const TESTMODE = document.documentElement.classList.contains('testmode');
-const TEST_GAMES = ['scale'];   // games that have a test hook (the home page's TEST_GAMES must match)
+const TEST_GAMES = ['scale','tidal','rooftop','rhythm','earshot'];   // games that have a test hook (the home page's TEST_GAMES must match)
 const S = { email: '', classes: [], code: '', when: 'today', tasks: [newTask()] };
 const cls = () => S.classes.find(c => c.code === S.code);
 function msg(text, ok) { const e = $('msg'); e.textContent = text || ''; e.className = 'msg' + (ok ? ' ok' : ''); }
@@ -693,10 +695,14 @@ async function saveTest(c) {
   const bad = SPECS[t.game] && setsErr(t.game, t.settings);
   if (bad) { msg(`Settings: ${bad[1]}`); const box = $('tasks').querySelector('[data-sets]'); if (box) { t.open = box.open = true; const f = $('tasks').querySelector(`[data-s="${bad[0]}"]`); if (f) f.focus(); } return; }
   const settings = SPECS[t.game] ? setsOut(t.game, t.settings) : {};
+  const from = $('t-from').value ? new Date($('t-from').value) : null, to = $('t-to').value ? new Date($('t-to').value) : null;
+  if (from && to && to <= from) { msg('Closes must be after Opens.'); $('t-to').focus(); return; }
+  if (to && to <= new Date()) { msg('That close time has already passed.'); $('t-to').focus(); return; }
   $('save').disabled = true; $('save').textContent = 'Saving…'; msg('');
   try {
-    await run(({ fs, db }) => fs.addDoc(fs.collection(db, 'tests'), { name, game: t.game, class_code: c.code, owner: S.email, settings, grade: $('t-grade').value, tries: +$('t-tries').value, open: $('t-open').checked, created_at: fs.serverTimestamp() }));
-    msg(`Test "${name}" saved for ${c.name}.${$('t-open').checked ? ' Students see it on the home page now.' : ' It is closed. Open it from the Tests tab.'}`, true);
+    await run(({ fs, db }) => fs.addDoc(fs.collection(db, 'tests'), { name, game: t.game, class_code: c.code, owner: S.email, settings, grade: $('t-grade').value, tries: +$('t-tries').value, open: $('t-open').checked, ...(from ? { opens_at: fs.Timestamp.fromDate(from) } : {}), ...(to ? { closes_at: fs.Timestamp.fromDate(to) } : {}), created_at: fs.serverTimestamp() }));
+    msg(`Test "${name}" saved for ${c.name}.${!$('t-open').checked ? ' It is switched off. Turn it on from the Tests tab.' : from && from > new Date() ? ' It opens ' + from.toLocaleString() + '.' : ' Students see it on the home page now.'}`, true);
+    $('t-from').value = $('t-to').value = '';
     $('t-name').value = '';
     try { parent.postMessage({ type: 'mtg-test-saved' }, location.origin); } catch {}
   } catch (err) { msg(errText(err, true)); }
