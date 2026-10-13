@@ -41,6 +41,10 @@
     font-family: var(--f-ui);
     padding: 0 16px 48px;
   }
+  .topbar { display: flex; justify-content: flex-end; padding-top: 16px; max-width: 980px; margin: 0 auto; }
+  .iconbtn { font: 600 12px var(--f-ui); letter-spacing: .1em; text-transform: uppercase; text-decoration: none; color: var(--muted); background: var(--card); border: 1px solid var(--card-border); border-radius: 999px; padding: 8px 14px 6px; cursor: pointer; }
+  .iconbtn:hover { color: var(--text); border-color: var(--muted); }
+  .iconbtn:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
   header {
     text-align: center;
     padding: 56px 0 36px;
@@ -234,8 +238,7 @@
   .q.tq.done .qp { color: var(--accent); }
   html[data-skin="day"] .q.tq.done :is(.qn, .qp) { color: var(--text); }
   footer a { color: inherit; }
-  footer .teach { display: block; margin-top: 10px; font-size: 14px; opacity: .9; }
-  footer .teach a { font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
+  footer .teach { display: block; margin-top: 10px; font-size: 13px; opacity: .8; }
   @keyframes goal { from { transform: scale(.7); opacity: .3; } }
   @media (prefers-reduced-motion: reduce) { .q.done .qn { animation: none; } }
   [hidden] { display: none !important; }
@@ -284,6 +287,7 @@
 </style>
 </head>
 <body>
+  <nav class="topbar" aria-label="Teachers"><a class="iconbtn" href="teacher/all/">Teacher Dashboard</a></nav>
   <header>
     <p class="eyebrow">Mr. Milnes's</p>
     <h1>Music Theory Games</h1>
@@ -403,7 +407,7 @@
     </a>
   </main>
 
-  <footer>One sign-in works across all five games on this computer.<span class="teach">Teachers: <a href="teacher/all/">Teacher dashboard</a> · <a href="teacher/">Assign today's practice</a> →</span></footer>
+  <footer>One sign-in works across all five games on this computer.<a class="teach" href="teacher/">Teachers: assign today's practice →</a></footer>
 
 <script>
 (() => {
