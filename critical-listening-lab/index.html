@@ -383,6 +383,13 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
 .board td.l{font-family:var(--body)} .board td.on{color:var(--accent);font-weight:600} .board td.dim{color:var(--muted)}
 .board tr.me td{background:color-mix(in srgb,var(--accent) 14%,transparent)}
 .board .rk{font:400 .9rem var(--display);color:var(--muted)} .board tr:nth-child(1) .rk{color:#ffd23f} .board tr:nth-child(2) .rk{color:#d8d8e0} .board tr:nth-child(3) .rk{color:#e09a5a}
+.theory-bar{display:flex;justify-content:flex-end;padding-top:10px;margin-bottom:-8px;position:relative;z-index:2}
+.theory-link{display:inline-flex;align-items:center;gap:10px;text-decoration:none;color:var(--fg);background:rgba(20,20,22,.85);border:2px solid var(--level);border-radius:999px;padding:5px 14px 5px 8px;box-shadow:3px 3px 0 #000;transform:rotate(1deg);transition:transform .15s}
+.theory-link:hover,.theory-link:focus-visible{transform:rotate(0) translateY(-1px)}
+.theory-link .ic{width:28px;height:28px;display:grid;place-items:center;border-radius:50%;background:var(--level);font-size:15px}
+.theory-link b{display:block;font:400 .74rem var(--display);letter-spacing:.04em;color:var(--level)}
+.theory-link small{display:block;font-size:.76rem;color:var(--muted);line-height:1.2}
+.testing .theory-bar{display:none}
 .fb-ov{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.7)}
 .fb-ov[hidden]{display:none}
 .fb-panel{width:100%;max-width:440px;background:var(--panel);border:2px solid var(--accent);border-radius:12px;padding:18px;display:grid;gap:10px;box-shadow:6px 6px 0 #000}
@@ -393,6 +400,7 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
 </head>
 <body>
 <div class="wrap">
+  <div class="theory-bar"><a class="theory-link" href="https://drkeyzzz.github.io/"><span class="ic" aria-hidden="true">🎼</span><span><b>Music Theory Games</b><small>Learn music theory: notes, rhythm, scales</small></span><span aria-hidden="true">→</span></a></div>
   <div class="top">
     <button class="brand" id="home" aria-label="Critical Listening Lab, home"><h1><span class="w1">Critical</span> <span class="w2">Listening</span> <span class="w3">Lab</span></h1>
       <span class="drips" aria-hidden="true"><i style="left:6%;--h:22px"></i><i style="left:19%;--h:34px;animation-delay:.2s"></i><i style="left:37%;--h:16px;animation-delay:.4s"></i><i style="left:58%;--h:28px;animation-delay:.1s"></i><i style="left:81%;--h:20px;animation-delay:.3s"></i></span>
