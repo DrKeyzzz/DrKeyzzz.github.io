@@ -152,7 +152,6 @@
           <button type="button" data-v="scores" aria-pressed="false">Scores</button>
           <button type="button" data-v="assign" aria-pressed="false">Assign</button>
           <button type="button" data-v="tests" aria-pressed="false">Tests</button>
-          <button type="button" data-v="upcoming" aria-pressed="false">Upcoming</button>
           <button type="button" data-v="feedback" aria-pressed="false">Feedback</button>
           <button type="button" data-v="admin" aria-pressed="false" hidden>Admin</button>
         </div>
@@ -160,6 +159,7 @@
         <button class="btn ghost sm" type="button" id="csv">Download CSV</button>
       </div>
       <p class="msg" id="msg" role="status"></p>
+      <div id="upbox" hidden></div>
       <div id="testsbox" hidden>
         <div class="opts" style="margin-top:14px">
           <label class="f" for="tsel">Test<select id="tsel"></select></label>
@@ -171,7 +171,6 @@
         </div>
         <p class="note" id="tmeta"></p>
       </div>
-      <div id="upbox" hidden></div>
       <div id="adminsum" hidden></div>
       <div id="newtestbox" hidden><button class="btn ghost sm" type="button" id="tback" style="margin-top:14px">← Back to Tests</button><iframe id="tframe" title="Create a test" style="width:100%;border:0;min-height:700px;margin-top:8px;background:transparent"></iframe></div>
       <div id="data">
@@ -388,15 +387,14 @@ function render() {
   const g = G[S.game]; document.documentElement.style.setProperty('--gc', g.color);
   document.querySelectorAll('.gt').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.g === S.game)));
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view)));
-  const asg = S.view === 'assign', nt = S.view === 'newtest', ts = S.view === 'tests', up = S.view === 'upcoming', ad = S.view === 'admin';
-  $('upbox').hidden = !up; $('adminsum').hidden = !ad;
-  $('data').hidden = asg || nt || up; $('assignbox').hidden = !asg; $('testsbox').hidden = !ts; $('newtestbox').hidden = !nt; $('csv').hidden = asg || nt || up;
-  $('cls').closest('label').hidden = asg || up || ad; $('rng').closest('label').hidden = asg || nt || ts || up;
+  const asg = S.view === 'assign', nt = S.view === 'newtest', ts = S.view === 'tests', ad = S.view === 'admin';
+  $('upbox').hidden = !ts; $('adminsum').hidden = !ad;
+  $('data').hidden = asg || nt; $('assignbox').hidden = !asg; $('testsbox').hidden = !ts; $('newtestbox').hidden = !nt; $('csv').hidden = asg || nt;
+  $('cls').closest('label').hidden = asg || ad; $('rng').closest('label').hidden = asg || nt || ts;
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (nt && b.dataset.v === 'tests'))));
   if (asg) { showAssign(); return; }
-  if (up) { renderUpcoming(); return; }
   if (nt) { showNewTest(); return; }
-  if (ts) renderTestsBox();
+  if (ts) { renderUpcoming(); renderTestsBox(); }
   const cols = COLS[S.view]; const st = S.sort[S.view] || DEFAULT_SORT[S.view]; const rows = visible();
   const head = cols.map(c => c.t === 'x' ? '<th></th>' : `<th class="${c.num ? 'num' : ''}" aria-sort="${st.k === c.k ? (st.dir > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" data-k="${c.k}">${esc(c.h)}<span class="ar" aria-hidden="true">${st.k === c.k ? (st.dir > 0 ? '▲' : '▼') : ''}</span></button></th>`).join('');
   const body = rows.length ? rows.map(r => '<tr>' + cols.map(c => `<td class="${(c.num ? 'num ' : '') + (c.cls || '')}">${cellText(c, r)}</td>`).join('') + '</tr>').join('')
@@ -413,7 +411,6 @@ function render() {
 }
 async function load() {
   if (S.view === 'assign' || S.view === 'newtest') { render(); return; }
-  if (S.view === 'upcoming') { msg(''); S.loading++; render(); try { await loadUpcoming(); } catch (e) { msg(errText(e)); } S.loading--; render(); return; }
   msg(''); S.rows = []; S.loading++; render();
   const my = ++load.n;
   try {
@@ -422,10 +419,10 @@ async function load() {
     else if (PREVIEW) {
       SAMPLE = SAMPLE || sample();
       rows = S.view === 'progress' ? SAMPLE.prog : S.view === 'scores' ? SAMPLE.scores : S.view === 'tests' ? SAMPLE.tests : SAMPLE.fbs;
-      if (S.view === 'tests') { S.tests = SAMPLE.testList; if (!S.testId) S.testId = S.tests[0].id; }
+      if (S.view === 'tests') { await loadUpcoming().catch(() => {}); S.tests = SAMPLE.testList; if (!S.testId) S.testId = S.tests[0].id; }
       await new Promise(r => setTimeout(r, 120));
     } else if (S.view === 'tests') {
-      await loadTests(); rows = await fetchResults();
+      await loadUpcoming().catch(() => {}); await loadTests(); rows = await fetchResults();
     } else if (S.view === 'feedback') {
       rows = (await fetchFeedback()).filter(r => !S.code || r.code === S.code);
     } else if (S.code) {
@@ -523,7 +520,7 @@ function renderUpcoming() {
   const { soon, live } = upItems();
   const li = i => `<li><button type="button" data-code="${esc(i.code)}" data-view="${i.view}" data-test="${esc(i.testId || '')}" style="--ic:${i.color}"><span class="w">${esc(i.when)}</span><span><span class="k">${i.kind}</span>${esc(i.name)} <span class="k" style="margin:0 0 0 6px">${esc(i.cls)}</span></span><span class="s">${esc(i.sub)}</span></button></li>`;
   const sec = (h, a, empty) => `<h3>${h}</h3>${a.length ? '<ul>' + a.map(li).join('') + '</ul>' : `<p class="none">${empty}</p>`}`;
-  $('upbox').innerHTML = '<div class="up">' + '<p class="none" style="margin:14px 0 0">Click a test to edit it. Click an assignment to change it on the Assign page.</p>' + (S.loading ? '<p class="none">Loading…</p>' : sec('Coming up', soon, 'Nothing is scheduled. Set an open time on a test, or pick future dates when you assign practice.') + sec('Open now, with an end date', live, 'Nothing running right now has an end date coming up.')) + '</div>';
+  $('upbox').innerHTML = '<div class="up">' + '<p class="none" style="margin:14px 0 0">Coming up for all your classes. Click a test to edit it. Click an assignment to change it on the Assign page.</p>' + (S.loading ? '<p class="none">Loading…</p>' : sec('Coming up', soon, 'Nothing is scheduled. Set an open time on a test, or pick future dates when you assign practice.') + sec('Open now, with an end date', live, 'Nothing running right now has an end date coming up.')) + '</div>';
 }
 // ---------- Tests: tests/<id> made here, results in test_results/<id>_<sid> ----------
 const tstate = t => !t.open ? 'closed' : (t.opens_at && toMs(t.opens_at) > Date.now()) ? 'scheduled' : (t.closes_at && toMs(t.closes_at) < Date.now()) ? 'ended' : 'open';
