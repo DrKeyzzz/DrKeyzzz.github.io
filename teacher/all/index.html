@@ -154,6 +154,7 @@
           <button type="button" data-v="tests" aria-pressed="false">Tests</button>
           <button type="button" data-v="upcoming" aria-pressed="false">Upcoming</button>
           <button type="button" data-v="feedback" aria-pressed="false">Feedback</button>
+          <button type="button" data-v="admin" aria-pressed="false" hidden>Admin</button>
         </div>
         <span class="grow"></span>
         <button class="btn ghost sm" type="button" id="csv">Download CSV</button>
@@ -170,6 +171,7 @@
         <p class="note" id="tmeta"></p>
       </div>
       <div id="upbox" hidden></div>
+      <div id="adminsum" hidden></div>
       <div id="newtestbox" hidden><button class="btn ghost sm" type="button" id="tback" style="margin-top:14px">← Back to Tests</button><iframe id="tframe" title="Create a test" style="width:100%;border:0;min-height:700px;margin-top:8px;background:transparent"></iframe></div>
       <div id="data">
         <p class="count" id="count"></p>
@@ -187,7 +189,7 @@
 const $ = id => document.getElementById(id);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const FIREBASE = { apiKey: 'AIzaSyDU9vbCWJ4yWuD8bAX984DmQF4dvo13BHs', authDomain: 'rhythm-trainer-fc313.firebaseapp.com', projectId: 'rhythm-trainer-fc313', appId: '1:956677028482:web:c3ec72a279e61b6f6c929b' };
-const TEACHER_EMAILS = ['milnesda@eht.k12.nj.us'];   // must match firestore.rules
+const TEACHER_EMAILS = ['milnesda@eht.k12.nj.us'], ADMIN_EMAILS = ['milnesda@eht.k12.nj.us'];   // must match firestore.rules
 const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
 const PREVIEW = new URLSearchParams(location.search).get('preview') === '1';
 
@@ -349,12 +351,17 @@ const COLS = {
     { k: 'name', h: 'Student', t: 's' }, { k: 'best', h: 'Best score', t: 'n', num: 1, f: r => esc(r.best + r.unit) }, { k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) },
     { k: 'tries', h: 'Tries', t: 'n', num: 1 }, { k: 'dateMs', h: 'Last try', t: 'n', f: r => esc(fmtDate(r.dateMs)) },
   ],
+  admin: [
+    { k: 'name', h: 'Teacher', t: 's', f: r => `${esc(r.name)}${r.email && r.email !== r.name ? `<br><span style="color:var(--muted);font-size:13px">${esc(r.email)}</span>` : ''}` }, { k: 'game', h: 'Game', t: 'g' }, { k: 'detail', h: 'What they practice', t: 's' },
+    { k: 'students', h: 'Students', t: 'n', num: 1 }, { k: 'days', h: 'Days used', t: 'n', num: 1 }, { k: 'minutes', h: 'Minutes', t: 'n', num: 1, f: r => r.minutes == null ? '<span style="color:var(--muted)" title="Earshot Saloon does not record minutes">–</span>' : esc(r.minutes) },
+    { k: 'attempts', h: 'Answers', t: 'n', num: 1 }, { k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) }, { k: 'dateMs', h: 'Last used', t: 'n', f: r => esc(fmtDate(r.dateMs)) },
+  ],
   feedback: [
     { k: 'dateMs', h: 'Date', t: 'n', f: r => esc(fmtDate(r.dateMs)) }, { k: 'name', h: 'Student', t: 's', f: r => esc(r.name || 'Guest') }, { k: 'game', h: 'Game', t: 'g' },
     { k: 'text', h: 'Feedback', t: 's', cls: 'fbtext' }, { k: 'x', h: '', t: 'x' },
   ],
 };
-const DEFAULT_SORT = { progress: { k: 'dateMs', dir: -1 }, scores: { k: 'score', dir: -1 }, tests: { k: 'best', dir: -1 }, feedback: { k: 'dateMs', dir: -1 } };
+const DEFAULT_SORT = { progress: { k: 'dateMs', dir: -1 }, scores: { k: 'score', dir: -1 }, tests: { k: 'best', dir: -1 }, admin: { k: 'minutes', dir: -1 }, feedback: { k: 'dateMs', dir: -1 } };
 function accCell(a) { return a == null ? '<span style="color:var(--muted)">–</span>' : `<span class="${a < 60 ? 'low' : a >= 85 ? 'good' : ''}">${a}%</span>`; }
 function cellText(c, r) {
   if (c.k === 'game') { const g = G[r.game]; return g ? `<span class="dot" style="background:${g.color}"></span>${esc(g.name)}` : esc(r.game); }
@@ -380,10 +387,10 @@ function render() {
   const g = G[S.game]; document.documentElement.style.setProperty('--gc', g.color);
   document.querySelectorAll('.gt').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.g === S.game)));
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view)));
-  const asg = S.view === 'assign', nt = S.view === 'newtest', ts = S.view === 'tests', up = S.view === 'upcoming';
-  $('upbox').hidden = !up;
+  const asg = S.view === 'assign', nt = S.view === 'newtest', ts = S.view === 'tests', up = S.view === 'upcoming', ad = S.view === 'admin';
+  $('upbox').hidden = !up; $('adminsum').hidden = !ad;
   $('data').hidden = asg || nt || up; $('assignbox').hidden = !asg; $('testsbox').hidden = !ts; $('newtestbox').hidden = !nt; $('csv').hidden = asg || nt || up;
-  $('cls').closest('label').hidden = asg || up; $('rng').closest('label').hidden = asg || nt || ts || up;
+  $('cls').closest('label').hidden = asg || up || ad; $('rng').closest('label').hidden = asg || nt || ts || up;
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (nt && b.dataset.v === 'tests'))));
   if (asg) { showAssign(); return; }
   if (up) { renderUpcoming(); return; }
@@ -394,12 +401,14 @@ function render() {
   const body = rows.length ? rows.map(r => '<tr>' + cols.map(c => `<td class="${(c.num ? 'num ' : '') + (c.cls || '')}">${cellText(c, r)}</td>`).join('') + '</tr>').join('')
     : `<tr><td class="empty" colspan="${cols.length}">${S.loading ? 'Loading…' : 'Nothing here yet for this class and time.'}</td></tr>`;
   $('tbl').innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
-  const label = { progress: 'practice records', scores: 'scores', feedback: 'notes', tests: 'students with a result' }[S.view];
+  if (ad) renderAdminSum();
+  const label = { progress: 'practice records', scores: 'scores', feedback: 'notes', tests: 'students with a result', admin: 'teacher and game rows' }[S.view];
   $('count').textContent = S.loading ? '' : rows.length + ' ' + label + (S.view === 'tests' ? '' : S.game === 'all' ? ' across all games' : ' in ' + g.name);
   $('note').textContent = S.view === 'progress' && (S.game === 'earshot')
     ? 'Earshot Saloon does not keep daily practice records yet. Open Scores to see its results.'
     : S.view === 'progress' ? 'One row per student per game per day. Accuracy is correct answers out of all answers.'
-    : S.view === 'tests' ? 'Best score is the highest of all tries. Students who have not started do not appear.' : '';
+    : S.view === 'tests' ? 'Best score is the highest of all tries. Students who have not started do not appear.'
+    : S.view === 'admin' ? 'Time is student practice time recorded in each teacher\'s classes (not teacher log-ins, and not tests). Earshot Saloon records scores only, so it shows no minutes. What they practice lists the most used levels, keys, scale types, modes and time signatures in the records.' : '';
 }
 async function load() {
   if (S.view === 'assign' || S.view === 'newtest') { render(); return; }
@@ -408,7 +417,8 @@ async function load() {
   const my = ++load.n;
   try {
     let rows = [];
-    if (PREVIEW) {
+    if (S.view === 'admin') rows = await loadAdmin();
+    else if (PREVIEW) {
       SAMPLE = SAMPLE || sample();
       rows = S.view === 'progress' ? SAMPLE.prog : S.view === 'scores' ? SAMPLE.scores : S.view === 'tests' ? SAMPLE.tests : SAMPLE.fbs;
       if (S.view === 'tests') { S.tests = SAMPLE.testList; if (!S.testId) S.testId = S.tests[0].id; }
@@ -428,6 +438,60 @@ async function load() {
 }
 load.n = 0;
 
+// ---------- Admin: how much each teacher's classes use each game ----------
+function addDetail(m, v) {
+  if (v == null) return;
+  if (typeof v === 'string') { m[v] = (m[v] || 0) + 1; return; }
+  if (Array.isArray(v)) { v.forEach(x => { if (typeof x === 'string') m[x] = (m[x] || 0) + 1; }); return; }
+  if (typeof v === 'object') for (const [k, x] of Object.entries(v)) { const w = Array.isArray(x) ? num(x[1] || x[0]) : typeof x === 'number' ? x : 1; m[k] = (m[k] || 0) + (w || 1); }
+}
+const topOf = (m, n = 5) => Object.entries(m).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k]) => k).join(', ');
+async function loadAdmin() {
+  if (PREVIEW) {
+    const now = Date.now(), H = 3600000;
+    S.adminTeachers = [{ email: 'a.lopez@sample', name: 'Ana Lopez', school: 'EHT High School' }, { email: 'r.kim@sample', name: 'Ron Kim', school: 'EHT High School' }, { email: 'j.shaw@sample', name: 'Jo Shaw', school: 'Middle School' }, { email: 'sample@preview', name: 'David Milnes', school: 'EHT High School' }];
+    const R = (email, name, game, students, days, minutes, attempts, acc, ago, detail) => ({ email, name, game, students, days, minutes, attempts, correct: Math.round(attempts * acc / 100), acc, dateMs: now - ago * H, detail });
+    return [R('sample@preview', 'David Milnes', 'scale', 24, 6, 214.5, 3120, 78, 3, 'major, minor, C, G, D'), R('sample@preview', 'David Milnes', 'tidal', 18, 4, 96.2, 1400, 71, 20, 'notes, intervals'), R('sample@preview', 'David Milnes', 'earshot', 22, 3, null, 140, 64, 30, 'medium, treble'),
+      R('a.lopez@sample', 'Ana Lopez', 'rhythm', 31, 5, 141.8, 2210, 82, 26, 'easy, medium, 4/4, 3/4'), R('a.lopez@sample', 'Ana Lopez', 'rooftop', 12, 2, 38.4, 640, 69, 50, 'rhythm, keys, easy'), R('r.kim@sample', 'Ron Kim', 'tidal', 9, 1, 12.0, 180, 66, 140, 'notes')];
+  }
+  const ds = days(), cutoff = ds ? Math.min(...ds.map(dayMs)) : 0;
+  return run(async ({ fs, db }) => {
+    S.adminTeachers = (await fs.getDocs(fs.collection(db, 'teachers'))).docs.map(d => ({ email: d.id, ...d.data() }));
+    const classOwner = {}; (await fs.getDocs(fs.collection(db, 'classes'))).forEach(d => { classOwner[d.id] = String(d.data().ownerEmail || '').toLowerCase(); });
+    const agg = {}, rowOf = (owner, game) => agg[owner + '|' + game] || (agg[owner + '|' + game] = { email: owner, game, sids: new Set(), dset: new Set(), minutes: 0, attempts: 0, correct: 0, dateMs: 0, det: {} });
+    for (const g of GAMES.slice(1)) {
+      if (g.prog) {
+        const col = fs.collection(db, g.prog), docs = [];
+        if (!ds) (await fs.getDocs(col)).forEach(x => docs.push(x.data()));
+        else for (let i = 0; i < ds.length; i += 30) (await fs.getDocs(fs.query(col, fs.where('date', 'in', ds.slice(i, i + 30))))).forEach(x => docs.push(x.data()));
+        docs.forEach(d => {
+          const owner = String(d.owner || classOwner[d.class_code] || 'unknown').toLowerCase(), r = rowOf(owner, g.id);
+          r.sids.add(d.class_code + '|' + d.sid); r.dset.add(d.date); r.minutes += num(d.minutes); r.attempts += num(d[g.attempts]); r.correct += num(d.correct);
+          r.dateMs = Math.max(r.dateMs, toMs(d.last_at) || toMs(d.updated_at) || Date.parse((d.date || '') + 'T12:00:00') || 0);
+          ['levels', 'ts', 'skills', 'types', 'by_key', 'by_game'].forEach(f => addDetail(r.det, d[f]));
+        });
+      } else {
+        (await fs.getDocs(fs.collection(db, g.scores))).forEach(x => {
+          const d = x.data(), ms = toMs(d.created_at); if (cutoff && ms < cutoff) return;
+          const owner = classOwner[d.class_code] || 'unknown', r = rowOf(owner, g.id);
+          r.sids.add(d.class_code + '|' + String(d.name).toLowerCase()); r.dset.add(ymd(new Date(ms))); r.attempts += num(d.hands); r.correct += Math.round(num(d.hands) * num(d.acc) / 100); r.dateMs = Math.max(r.dateMs, ms);
+          addDetail(r.det, d.diff); addDetail(r.det, d.clef);
+        });
+      }
+    }
+    return Object.values(agg).map(r => ({ email: r.email, game: r.game, students: r.sids.size, days: r.dset.size, minutes: r.game === 'earshot' ? null : Math.round(r.minutes * 10) / 10, attempts: r.attempts, correct: r.correct, acc: pct(r.correct, r.attempts), dateMs: r.dateMs, detail: topOf(r.det) }));
+  }).then(rows => { const nm = {}; S.adminTeachers.forEach(t => { nm[String(t.email).toLowerCase()] = t.name; }); return rows.map(r => ({ ...r, name: nm[r.email] || r.email })); });
+}
+function renderAdminSum() {
+  const rows = S.rows.filter(r => S.game === 'all' || r.game === S.game), by = {};
+  (S.adminTeachers || []).forEach(t => { by[String(t.email).toLowerCase()] = { name: t.name || t.email, email: t.email, school: t.school || '', students: 0, minutes: 0, attempts: 0, dateMs: 0, games: new Set() }; });
+  rows.forEach(r => { const t = by[r.email] || (by[r.email] = { name: r.name, email: r.email, school: '', students: 0, minutes: 0, attempts: 0, dateMs: 0, games: new Set() }); t.students += r.students; t.minutes += r.minutes || 0; t.attempts += r.attempts; t.dateMs = Math.max(t.dateMs, r.dateMs); t.games.add(r.game); });
+  const list = Object.values(by).sort((a, b) => b.minutes - a.minutes || b.attempts - a.attempts || a.name.localeCompare(b.name));
+  const dots = t => [...t.games].map(g => `<span class="dot" style="background:${G[g].color}" title="${esc(G[g].name)}"></span>`).join('') || '<span style="color:var(--muted)">none</span>';
+  $('adminsum').innerHTML = '<h3 style="font:700 15px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px">Every teacher, most active first</h3><div class="tw"><table><thead><tr><th>Teacher</th><th>School</th><th class="num">Students</th><th class="num">Minutes</th><th class="num">Answers</th><th style="padding-left:18px">Games used</th><th>Last used</th></tr></thead><tbody>'
+    + (list.length ? list.map(t => `<tr><td>${esc(t.name)}${t.email && t.email !== t.name ? `<br><span style="color:var(--muted);font-size:13px">${esc(t.email)}</span>` : ''}</td><td>${esc(t.school)}</td><td class="num">${t.students}</td><td class="num">${Math.round(t.minutes * 10) / 10}</td><td class="num">${t.attempts}</td><td style="padding-left:18px">${dots(t)}</td><td>${t.dateMs ? esc(fmtDate(t.dateMs)) : '<span style="color:var(--muted)">No activity</span>'}</td></tr>`).join('') : '<tr><td class="empty" colspan="7">No teachers yet.</td></tr>')
+    + '</tbody></table></div><h3 style="font:700 15px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:22px 0 0">By teacher and game</h3>';
+}
 // ---------- Upcoming: every class's scheduled and still-running assignments and tests ----------
 const dayMs = k => { const [y, m, d] = String(k).split('-').map(Number); return new Date(y, m - 1, d).getTime(); };
 const dayText = k => new Date(dayMs(k)).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
@@ -581,6 +645,7 @@ async function signedIn(email) {
     $('g-out').onclick = signOut; return;
   }
   S.email = email; $('who').innerHTML = `Signed in as <b>${esc(email)}</b>`;
+  $('views').querySelector('[data-v=admin]').hidden = !ADMIN_EMAILS.includes(email);
   $('gate').hidden = true; $('main').hidden = false;
   await loadClasses();
 }
@@ -605,7 +670,7 @@ function fillClasses() {
 async function start() {
   wire();
   if (PREVIEW) {
-    $('gate').hidden = true; $('main').hidden = false; $('who').innerHTML = 'Signed in as <b>sample@preview</b>';
+    $('gate').hidden = true; $('main').hidden = false; $('who').innerHTML = 'Signed in as <b>sample@preview</b>'; $('views').querySelector('[data-v=admin]').hidden = false;
     $('main').insertAdjacentHTML('afterbegin', '<div class="pv">Preview with sample students. Nothing here is real.</div>');
     { const dk = n => ymd(new Date(Date.now() + n * 86400000)); S.classes = [{ code: 'PREVW', name: 'Period 3 Music Theory', hub_assignment: { start: dk(3), end: dk(9), tasks: [{ game: 'scale', skills: ['Major scales'], goal: 15, unit: 'minutes' }] } }, { code: 'PREV2', name: 'Period 5 Band', hub_assignment: { start: dk(-2), end: dk(4), tasks: [{ game: 'tidal', goal: 60, unit: 'answers' }] } }]; }
      return fillClasses();
