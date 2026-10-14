@@ -181,8 +181,26 @@ kbd{font-family:var(--mono);font-size:.72rem;border:1px solid var(--line);border
 .seq.free .cell.bs{box-shadow:-3px 0 0 var(--rhythm)}
 .roll .nl{cursor:pointer}.roll .nl:hover{color:var(--fg)}
 .bm-row .ic.hear{font-size:.65rem}
-.bm-row .pan{width:52px;flex:none;accent-color:var(--level);height:18px;margin:0}
-.bass{display:grid;gap:12px;margin-top:14px}
+.panw{display:flex;align-items:center;gap:2px;flex:none;font:600 .58rem var(--mono);color:var(--muted)}
+.panw output{width:24px;text-align:center;color:var(--level);font-size:.62rem}
+.bm-row .pan{width:46px;flex:none;accent-color:var(--level);height:18px;margin:0;cursor:ew-resize}
+.seq.free .corner{font:400 .62rem var(--display);color:var(--muted);gap:6px;justify-content:flex-start;padding-left:34px}
+.bm-row.bassrow{border-top:2px solid var(--freq);margin-top:6px;padding-top:6px}
+.bm-row .bname{flex:1;min-width:0;text-align:left;font:400 .85rem var(--display);color:var(--freq);background:color-mix(in srgb,var(--freq) 12%,var(--panel-2));border:1px solid color-mix(in srgb,var(--freq) 45%,var(--line));border-radius:6px;padding:5px 8px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bm-row .bname .cv{display:inline-block;transition:transform .3s ease;margin-left:4px}
+.bass-open .bm-row .bname .cv{transform:rotate(180deg)}
+.seq.free .bcell{aspect-ratio:auto;align-self:stretch;margin-top:6px;border-radius:3px;font:600 .55rem var(--mono);color:#111;overflow:hidden;white-space:nowrap;display:flex;align-items:center;padding-left:2px}
+.seq.free .bcell.bon{background:var(--freq);border-color:var(--freq);border-radius:0;box-shadow:none}
+.seq.free .bcell.bon.st{border-radius:5px 0 0 5px}.seq.free .bcell.bon.en{border-top-right-radius:5px;border-bottom-right-radius:5px}
+.seq.free .bcell.bon.b1{background:color-mix(in srgb,var(--freq) 45%,var(--panel-2))}.seq.free .bcell.bon.b2{background:color-mix(in srgb,var(--freq) 72%,var(--panel-2))}
+.seq.free .bcell.muted{opacity:.35}
+.bass-x{display:grid;grid-template-rows:0fr;transition:grid-template-rows .4s ease}
+.bass-x>div{min-height:0;overflow:hidden}
+.bass-open .bass-x{grid-template-rows:1fr}
+.bass-x .bass{margin-top:12px;padding:14px;border:1px solid color-mix(in srgb,var(--freq) 45%,var(--line));border-radius:12px;background:color-mix(in srgb,var(--freq) 4%,var(--panel));opacity:0;transform:translateY(-8px);transition:opacity .3s ease,transform .35s ease}
+.bass-open .bass-x .bass{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.bass-x,.bass-x .bass,.bm-row .bname .cv{transition:none}}
+.bass{display:grid;gap:12px}
 .roll .pc.on.v1{background:color-mix(in srgb,var(--freq) 40%,var(--panel-2))} .roll .pc.on.v2{background:color-mix(in srgb,var(--freq) 70%,var(--panel-2))}
 .roll .vl{position:sticky;left:0;z-index:2;background:var(--panel);font:400 .6rem var(--display);color:var(--muted);display:flex;align-items:center;justify-content:flex-end;padding-right:6px}
 .roll .vc{height:30px;border:none;background:transparent;padding:0;display:flex;align-items:flex-end;justify-content:center;cursor:pointer;min-width:0;border-bottom:1px solid var(--line)}
@@ -604,16 +622,15 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
       </div>
       <div class="bm-save"><input id="bmName" maxlength="40" placeholder="Name your beat"><button class="btn primary" id="bmSave">Save beat</button>
         <select id="bmLoad" aria-label="My saved beats"></select><button class="btn" id="bmDelete">Delete</button><span class="status" id="bmSaved"></span></div>
-      <p class="hint">Click a cell for soft, again for medium, again for hard, and a fourth time to clear. M mutes a row. Pick 1, 2, 4 or 8 <b>Bars</b> for a longer beat; scroll sideways to see them all. <b>Clear</b> wipes every hit. Save a beat to keep it in My beats.</p>
+      <p class="hint">Click a cell for soft, again for medium, again for hard, and a fourth time to clear. M mutes a row, ▶ plays its sound, and the <b>L–R</b> slider pans it left or right (double-click to center). Click the <b>🎸 Bass</b> row to open its piano roll. Pick 1, 2, 4 or 8 <b>Bars</b> for a longer beat; scroll sideways to see them all. <b>Clear</b> wipes every hit. Save a beat to keep it in My beats.</p>
     </div>
     <div class="panel">
       <div class="vel-legend"><span><i class="cell v1" style="aspect-ratio:auto"></i>Soft</span><span><i class="cell v2" style="aspect-ratio:auto"></i>Medium</span><span><i class="cell v3" style="aspect-ratio:auto"></i>Hard</span></div>
       <div class="seq-wrap"><div class="seq free" id="bmGrid"></div></div>
       <div id="bmPicker" hidden style="margin-top:12px"></div>
-    </div>
-    <div class="panel bass" id="bassPanel">
-      <div class="bass-head"><div style="display:grid;gap:2px"><span class="label sk-Frequency">Bass line · piano roll</span><h3>Bass</h3></div>
-        <div class="bass-acts"><button class="btn" id="bsClear" type="button">Clear</button><button class="btn" id="bsMute" type="button" aria-pressed="false">Mute</button></div></div>
+    <div class="bass-x" id="bassX"><div><div class="bass" id="bassPanel">
+      <div class="bass-head"><div style="display:grid;gap:2px"><span class="label sk-Frequency">Bass line · piano roll</span><h3>🎸 Bass</h3></div>
+        <div class="bass-acts"><button class="btn" id="bsClear" type="button">Clear</button><button class="btn" id="bsClose" type="button">Close ▴</button></div></div>
       <div class="bass-steps">
         <div class="bstep"><span class="bnum">1</span><span class="label">Pick a key</span><div class="brow"><select id="bsKey" aria-label="Key"></select><div class="bars-seg" id="bsScale" role="group" aria-label="Scale"><button type="button" data-v="major">Major</button><button type="button" data-v="minor">Minor</button></div></div></div>
         <div class="bstep"><span class="bnum">2</span><span class="label">Make a bass line</span><div class="brow"><button class="btn primary" id="bsFill" type="button">Auto fill</button><button class="btn" id="bsRand" type="button">🎲 Random</button></div></div>
@@ -627,11 +644,9 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
             <div class="bars-seg" id="bsMode" role="group" aria-label="Auto fill uses"><button type="button" data-v="key">Stay in key</button><button type="button" data-v="chords">Follow chords</button></div>
             <div id="bsProgWrap" class="brow"><b id="bsProg" class="bs-prog"></b><button class="btn small" id="bsNewProg" type="button">🎲 New chords</button></div>
           </div></div></div></div>
-        <div class="xp" data-xp="sound"><button class="xp-h" type="button" aria-expanded="false"><span class="xp-t">🔊 Sound &amp; pan</span><span class="xp-s" id="xsSound"></span><span class="xp-c" aria-hidden="true">▾</span></button>
+        <div class="xp" data-xp="sound"><button class="xp-h" type="button" aria-expanded="false"><span class="xp-t">🔊 Sound</span><span class="xp-s" id="xsSound"></span><span class="xp-c" aria-hidden="true">▾</span></button>
           <div class="xp-b"><div><div class="xp-in">
             <div class="brow"><select id="bsSound" aria-label="Bass sound"><optgroup label="Electronic"><option value="sub">Sub bass</option><option value="b808">808 bass</option><option value="synth">Synth bass</option><option value="acid">Acid bass</option><option value="reese">Reese bass</option><option value="wobble">Wobble bass</option></optgroup><optgroup label="Band"><option value="finger">Electric bass (fingers)</option><option value="pluck">Plucked bass</option><option value="upright">Upright bass</option></optgroup></select><button class="btn small" id="bsHear" type="button" title="Hear this bass sound">▶ Hear it</button></div>
-            <label class="brow"><span class="label">Pan <output id="bsPanOut">C</output></span><input type="range" id="bsPan" min="-100" max="100" step="5" value="0" style="width:150px;accent-color:var(--level)"></label>
-            <p class="bmini">Pan moves the bass left or right in your headphones. Double-click the slider to center it.</p>
           </div></div></div></div>
         <div class="xp" data-xp="vel"><button class="xp-h" type="button" aria-expanded="false"><span class="xp-t">💥 Velocity</span><span class="xp-s" id="xsVel"></span><span class="xp-c" aria-hidden="true">▾</span></button>
           <div class="xp-b"><div><div class="xp-in">
@@ -646,6 +661,7 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
             <li>Made a mistake? Press <b>↶ Undo</b> at the top (or Ctrl+Z).</li>
           </ul></div></div></div></div>
       </div>
+    </div></div></div>
     </div>
   </section>
 
@@ -1093,7 +1109,7 @@ let FB = null, bmTimer = null, bmNext = 0, bmStep = 0;
 function openFree() {
   stop(); FB = P.freeBeat ||= defaultBeat(); fitBars(); bassInit();
   $('bmTempo').value = FB.bpm; $('bmTempoOut').textContent = FB.bpm; $('bmSwing').value = FB.swing; $('bmSwingOut').textContent = FB.swing;
-  $('bmPicker').hidden = true; renderFree(); renderBass(); renderMyBeats(); show('vFree'); autoHowto('maker', 1);
+  $('bmPicker').hidden = true; renderFree(); renderBass(); setBassOpen(bassOpen); renderMyBeats(); show('vFree'); autoHowto('maker', 1);
 }
 // Beats can be 1, 2, 4 or 8 bars of sixteenth notes; each row has 16 steps per bar
 const bmLen = () => 16 * (FB.bars || 1);
@@ -1112,21 +1128,17 @@ function setBars(n) {
 }
 function renderFree() {
   const g = $('bmGrid'), n = bmLen(), bars = FB.bars || 1;
-  g.style.gridTemplateColumns = `minmax(215px,255px) repeat(${n},minmax(${bars > 2 ? 20 : 18}px,1fr))`;
-  g.style.minWidth = bars > 1 ? `${235 + n * (bars > 2 ? 23 : 21)}px` : '';
+  g.style.gridTemplateColumns = `minmax(250px,290px) repeat(${n},minmax(${bars > 2 ? 20 : 18}px,1fr))`;
+  g.style.minWidth = bars > 1 ? `${270 + n * (bars > 2 ? 23 : 21)}px` : '';
   $('bmBars').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.b === bars));
   $('bmCopy').hidden = bars < 2;
-  g.innerHTML = '<span class="corner"></span>' + Array.from({ length:n }, (_, i) => { const j = i % 16; return `<span class="num${i && !j ? ' bar' : ''}">${!j && bars > 1 ? 'B' + (i / 16 + 1) : j % 4 === 0 ? j / 4 + 1 : ['', 'e', '+', 'a'][j % 4]}</span>`; }).join('');
+  g.innerHTML = '<span class="corner"><span style="flex:1">Sound</span><span style="width:76px;text-align:center">Pan</span><span style="width:56px"></span></span>' + Array.from({ length:n }, (_, i) => { const j = i % 16; return `<span class="num${i && !j ? ' bar' : ''}">${!j && bars > 1 ? 'B' + (i / 16 + 1) : j % 4 === 0 ? j / 4 + 1 : ['', 'e', '+', 'a'][j % 4]}</span>`; }).join('');
   FB.rows.forEach((row, ri) => {
     const lab = document.createElement('div'); lab.className = 'bm-row';
     const sel = document.createElement('select'); sel.setAttribute('aria-label', 'Sound for row ' + (ri + 1));
     sel.innerHTML = KIT.map(([cat, list]) => `<optgroup label="${cat}">${list.map(([id, n]) => `<option value="${id}"${id === row.sound ? ' selected' : ''}>${n}</option>`).join('')}</optgroup>`).join('');
     sel.onchange = () => { snap(); row.sound = sel.value; ensureCtx(); withPan(row.pan, () => voice(row.sound, ctx.currentTime + 0.01)); save(); };
-    const pn = document.createElement('input'); pn.type = 'range'; pn.min = -100; pn.max = 100; pn.step = 5; pn.value = Math.round((row.pan || 0) * 100); pn.className = 'pan';
-    const panTitle = () => { const v = +pn.value; pn.title = 'Pan: ' + (v === 0 ? 'center' : Math.abs(v) + '% ' + (v < 0 ? 'left' : 'right')) + ' (double-click to center)'; pn.setAttribute('aria-label', SOUND_NAME[row.sound] + ' ' + pn.title); };
-    panTitle(); pn.oninput = () => { row.pan = +pn.value / 100; panTitle(); save(); };
-    pn.onchange = () => { ensureCtx(); withPan(row.pan, () => voice(row.sound, ctx.currentTime + 0.01)); };
-    pn.ondblclick = () => { pn.value = 0; row.pan = 0; panTitle(); save(); };
+    const pn = panCtl(row, SOUND_NAME[row.sound], () => voice(row.sound, ctx.currentTime + 0.01));
     const hr = document.createElement('button'); hr.className = 'ic hear'; hr.textContent = '▶'; hr.title = 'Hear this sound'; hr.setAttribute('aria-label', 'Hear ' + SOUND_NAME[row.sound]);
     hr.onclick = () => { ensureCtx(); withPan(row.pan, () => voice(row.sound, ctx.currentTime + 0.01)); };
     const m = document.createElement('button'); m.className = 'ic'; m.textContent = 'M'; m.title = 'Mute'; m.setAttribute('aria-pressed', row.mute);
@@ -1143,6 +1155,47 @@ function renderFree() {
     });
   });
   if (FB.rows.length < 12) { const add = document.createElement('button'); add.className = 'bm-new'; add.textContent = '+ New row: pick a sound'; add.onclick = showPicker; g.appendChild(add); }
+  bassRow(g, n);
+}
+// pan slider with an L/R readout; works for any track that has a .pan (-1 left ... 1 right)
+function panCtl(track, name, preview) {
+  const w = document.createElement('span'); w.className = 'panw';
+  const pn = document.createElement('input'); pn.type = 'range'; pn.min = -100; pn.max = 100; pn.step = 5; pn.value = Math.round((track.pan || 0) * 100); pn.className = 'pan';
+  const out = document.createElement('output');
+  const show = () => { const v = +pn.value; out.textContent = v === 0 ? 'C' : Math.abs(v) + (v < 0 ? 'L' : 'R'); pn.title = 'Pan: ' + (v === 0 ? 'center' : Math.abs(v) + '% ' + (v < 0 ? 'left' : 'right')) + ' (double-click to center)'; pn.setAttribute('aria-label', name + ' ' + pn.title); };
+  show(); pn.onpointerdown = () => snap();
+  pn.oninput = () => { track.pan = +pn.value / 100; show(); save(); };
+  pn.onchange = () => { ensureCtx(); withPan(track.pan, preview); };
+  pn.ondblclick = () => { pn.value = 0; track.pan = 0; show(); save(); };
+  const l = document.createElement('i'), r = document.createElement('i'); l.textContent = 'L'; r.textContent = 'R'; l.style.fontStyle = r.style.fontStyle = 'normal';
+  w.append(l, pn, r, out); return w;
+}
+// the bass sits on the main timeline as one row; click it to open the piano roll underneath
+let bassOpen = false; try { bassOpen = localStorage.getItem('clt-bassopen') === '1'; } catch (e) {}
+function setBassOpen(o) { bassOpen = o; $('vFree').classList.toggle('bass-open', o); const bn = document.querySelector('#bmGrid .bname'); if (bn) bn.setAttribute('aria-expanded', o);
+  try { localStorage.setItem('clt-bassopen', o ? '1' : '0'); } catch (e) {} }
+function bassRow(g, n) {
+  bassInit(); const b = FB.bass;
+  const lab = document.createElement('div'); lab.className = 'bm-row bassrow';
+  const hr = document.createElement('button'); hr.className = 'ic hear'; hr.textContent = '▶'; hr.title = 'Hear the bass sound'; hr.setAttribute('aria-label', 'Hear the bass sound');
+  hr.onclick = () => { ensureCtx(); withPan(b.pan, () => bassVoice(bassMidi(0), ctx.currentTime + 0.01, 0.4, b.sound, 3)); };
+  const nm = document.createElement('button'); nm.className = 'bname'; nm.type = 'button'; nm.setAttribute('aria-expanded', bassOpen); nm.title = 'Open the bass piano roll';
+  nm.innerHTML = '🎸 Bass<span class="cv">▾</span>'; nm.onclick = () => setBassOpen(!bassOpen);
+  const pn = panCtl(b, 'Bass', () => bassVoice(bassMidi(0), ctx.currentTime + 0.01, 0.4, b.sound, 3));
+  const m = document.createElement('button'); m.className = 'ic'; m.id = 'bsMute'; m.textContent = 'M'; m.title = 'Mute the bass'; m.setAttribute('aria-pressed', b.mute);
+  m.onclick = () => { snap(); b.mute = !b.mute; save(); renderBass(); };
+  const sp = document.createElement('span'); sp.style.cssText = 'width:26px;flex:none';
+  lab.append(hr, nm, pn, m, sp); g.appendChild(lab);
+  for (let i = 0; i < n; i++) { const c = document.createElement('button'); c.className = 'cell bcell' + (Math.floor(i / 4) % 2 ? ' alt' : '') + (i && i % 16 === 0 ? ' bs' : ''); c.dataset.s = i; c.tabIndex = -1; c.setAttribute('aria-hidden', 'true'); c.onclick = () => setBassOpen(true); g.appendChild(c); }
+  bassLane();
+}
+// draw the bass notes into its timeline row
+function bassLane() {
+  const b = FB.bass, cells = document.querySelectorAll('#bmGrid .bcell'); if (!cells.length) return;
+  cells.forEach(c => { c.className = c.className.replace(/ (bon|st|en|b[123]|muted)\b/g, ''); c.textContent = ''; });
+  b.notes.forEach(x => { for (let i = x.s; i < x.s + x.d && i < cells.length; i++) { const c = cells[i]; c.classList.add('bon', 'b' + (x.v || 2)); if (b.mute) c.classList.add('muted'); if (i === x.s) { c.classList.add('st'); c.textContent = bassName(x.n).replace(/\d/, ''); } if (i === x.s + x.d - 1) c.classList.add('en'); } });
+  const bn = document.querySelector('#bmGrid .bname'); if (bn) bn.title = (b.notes.length ? `Bass in ${NOTE_NAMES[b.key]} ${b.scale}. ` : '') + 'Click to open the piano roll';
+  const m = $('bsMute'); if (m) m.setAttribute('aria-pressed', b.mute);
 }
 function showPicker() {
   ensureCtx(); const pk = $('bmPicker'); pk.hidden = false;
@@ -1322,11 +1375,10 @@ function renderBass() {
   $('bsMode').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x.dataset.v === b.mode));
   $('bsProgWrap').hidden = b.mode !== 'chords';
   const pr = progOf(); $('bsProg').textContent = pr.map(d => ROMAN[b.scale][d]).join('–') + '  (' + pr.map(chordName).join(' ') + ')';
-  $('bsSound').value = b.sound; $('bsMute').setAttribute('aria-pressed', b.mute); g.classList.toggle('muted', b.mute);
+  $('bsSound').value = b.sound; g.classList.toggle('muted', b.mute);
   $('bsVel').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', +x.dataset.v === b.brush));
-  $('bsPan').value = Math.round((b.pan || 0) * 100); $('bsPanOut').textContent = panTxt(b.pan);
   $('xsChords').textContent = b.mode === 'chords' ? pr.map(chordName).join(' ') : 'Staying in key';
-  $('xsSound').textContent = $('bsSound').selectedOptions[0].textContent + ' · pan ' + panTxt(b.pan);
+  $('xsSound').textContent = $('bsSound').selectedOptions[0].textContent;
   $('xsVel').textContent = 'New notes: ' + ['', 'Soft', 'Med', 'Hard'][b.brush || 3];
   g.style.gridTemplateColumns = `56px repeat(${n},minmax(${bars > 2 ? 20 : 18}px,1fr))`;
   g.style.minWidth = bars > 1 ? `${76 + n * (bars > 2 ? 22 : 20)}px` : '';
@@ -1343,7 +1395,7 @@ function renderBass() {
   h += '<span class="vl" title="Velocity: how hard each note plays">Vel</span>';
   const starts = {}; b.notes.forEach(x => { starts[x.s] = x; });
   for (let i = 0; i < n; i++) { const x = starts[i]; h += x ? `<button class="vc v${x.v || 2}" data-vs="${i}" title="${VEL_NAME[x.v || 2]}: click to change" aria-label="Velocity at step ${i + 1}: ${VEL_NAME[x.v || 2]}"><i></i></button>` : '<span></span>'; }
-  g.innerHTML = h;
+  g.innerHTML = h; bassLane();
 }
 const panTxt = p => !p ? 'C' : `${Math.round(Math.abs(p) * 100)}${p < 0 ? 'L' : 'R'}`;
 let bsDrag = null;
@@ -1369,7 +1421,6 @@ $('bsMode').onclick = e => { const x = e.target.closest('button[data-v]'); if (!
 $('bsNewProg').onclick = () => { snap(); const b = FB.bass, len = PROGS[b.scale].length; let k; do { k = Math.floor(Math.random() * len); } while (k === b.prog % len && len > 1); b.prog = k; genBass(); save(); renderBass(); };
 $('bsSound').onchange = e => { snap(); FB.bass.sound = e.target.value; ensureCtx(); withPan(FB.bass.pan, () => bassVoice(bassMidi(0), ctx.currentTime + 0.01, 0.5, FB.bass.sound, 3)); save(); renderBass(); };
 $('bsVel').onclick = e => { const x = e.target.closest('button[data-v]'); if (!x) return; FB.bass.brush = +x.dataset.v; save(); renderBass(); };
-$('bsPan').oninput = e => { FB.bass.pan = +e.target.value / 100; $('bsPanOut').textContent = panTxt(FB.bass.pan); $('xsSound').textContent = $('bsSound').selectedOptions[0].textContent + ' · pan ' + panTxt(FB.bass.pan); save(); };
 // expanding sections under the roll; which ones are open is remembered on this computer
 let xpOpen = {}; try { xpOpen = JSON.parse(localStorage.getItem('clt-xp') || '{}'); } catch (e) {}
 document.querySelectorAll('#bassPanel .xp').forEach(x => {
@@ -1377,11 +1428,10 @@ document.querySelectorAll('#bassPanel .xp').forEach(x => {
   set(!!xpOpen[x.dataset.xp]);
   h.onclick = () => { const o = !x.classList.contains('open'); set(o); xpOpen[x.dataset.xp] = o; try { localStorage.setItem('clt-xp', JSON.stringify(xpOpen)); } catch (e) {} };
 });
-$('bsPan').ondblclick = () => { FB.bass.pan = 0; renderBass(); save(); };
 $('bsHear').onclick = () => { ensureCtx(); const t = ctx.currentTime + 0.02, sp = 60 / FB.bpm / 2; [0, 4, 7].forEach((d, i) => withPan(FB.bass.pan, () => bassVoice(bassMidi(d), t + i * sp, sp * .9, FB.bass.sound, 3))); };
 $('bsFill').onclick = $('bsRand').onclick = () => { snap(); genBass(); save(); renderBass(); if (!bmTimer) bmStart(); };
 $('bsClear').onclick = () => { if (!FB.bass.notes.length) return; snap(); FB.bass.notes = []; save(); renderBass(); undoNote('Cleared the bass.'); };
-$('bsMute').onclick = () => { snap(); FB.bass.mute = !FB.bass.mute; save(); renderBass(); };
+$('bsClose').onclick = () => { setBassOpen(false); document.querySelector('#bmGrid .bname')?.scrollIntoView({ block:'nearest', behavior:'smooth' }); };
 
 /* ================= Games ================= */
 const BANDS = [['Low',100],['Low-mid',400],['Mid',1000],['High-mid',3000],['High',8000]];
