@@ -280,6 +280,38 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
 .who{font-family:var(--display);font-weight:400;font-size:.85rem}
 .results h2{font-family:var(--tag);font-size:clamp(2.4rem,6vw,3.6rem);font-weight:400;text-transform:none;color:var(--accent);text-shadow:4px 4px 0 var(--ink),7px 7px 0 var(--freq)}
 @media (prefers-reduced-motion:reduce){.drips i{animation:none}.card,.card:nth-child(odd),.card:nth-child(even){transition:none}}
+/* Peak Finder how-to demo */
+.howto{display:grid;gap:12px;border-color:var(--accent)!important;box-shadow:6px 6px 0 var(--accent)!important}
+.how-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:center}
+@media (max-width:760px){.how-grid{grid-template-columns:1fr}}
+.how-steps{margin:0;padding-left:0;list-style:none;display:grid;gap:8px;counter-reset:st}
+.how-steps li{counter-increment:st;position:relative;padding:10px 12px 10px 52px;border-radius:10px;border:2px solid transparent;color:var(--muted);transition:all .25s;font-size:15px}
+.how-steps li::before{content:counter(st);position:absolute;left:10px;top:50%;transform:translateY(-50%);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:400 16px var(--display);background:var(--line);color:var(--fg)}
+.how-steps li.on{color:var(--fg);border-color:var(--accent);background:rgba(255,225,77,.08)}
+.how-steps li.on::before{background:var(--accent);color:var(--ink)}
+.how-steps b{color:var(--fg)}
+.demo{background:var(--screen);border-radius:12px;padding:14px;display:grid;gap:12px;border:2px solid var(--line)}
+.d-top,.d-bot{display:flex;gap:8px;align-items:center}
+.d-btn{font:400 13px var(--display);padding:6px 12px;border-radius:8px;border:2px solid var(--line);color:var(--muted);transition:all .2s}
+.d-btn.lit{border-color:var(--accent);color:var(--ink);background:var(--accent)}
+.d-a.lit{background:var(--freq);border-color:var(--freq);color:var(--ink)} .d-b.lit{background:var(--level);border-color:var(--level);color:var(--ink)}
+.d-key{margin-left:auto;white-space:nowrap;font:400 14px var(--display);padding:8px 16px;border-radius:8px;background:#2a2a30;color:var(--fg);border:2px solid #444;box-shadow:0 5px 0 #000;transition:all .12s}
+.d-key b{font-size:18px;margin-right:4px}
+.d-key.down{transform:translateY(4px);box-shadow:0 1px 0 #000;background:var(--accent);color:var(--ink);border-color:var(--accent)}
+.d-strip{position:relative;height:58px;border-radius:8px;border:2px solid var(--line);background:#0b0b0d;overflow:hidden}
+.d-strip.tuning{border-color:var(--accent);box-shadow:0 0 14px rgba(255,225,77,.4)}
+.d-heat{position:absolute;inset:0}
+.d-read{position:absolute;top:5px;left:8px;font:500 12px var(--mono);color:var(--fg)}
+.d-tl{position:absolute;bottom:3px;font:10px var(--mono);color:var(--muted)}
+.d-mk{position:absolute;top:0;bottom:0;width:4px;margin-left:-2px;background:var(--freq);box-shadow:0 0 10px var(--freq);opacity:0;transition:opacity .2s}
+.d-cur{position:absolute;top:22px;width:18px;height:22px;margin-left:-3px;background:no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 22'%3E%3Cpath d='M1 1v17l5-4 3 7 3-1-3-7h6z' fill='white' stroke='black' stroke-width='1.5'/%3E%3C/svg%3E")}
+.d-cur.click{transform:scale(.8)}
+.d-yay{font:400 14px var(--display);color:var(--ok);opacity:0;transition:opacity .2s}
+/* live Shift feedback on the real strip */
+.strip.tuning{border-color:var(--accent)!important;box-shadow:0 0 16px rgba(255,225,77,.45)}
+.strip .shiftbadge{position:absolute;top:6px;right:8px;font:400 12px var(--display);padding:2px 8px;border-radius:6px;background:var(--accent);color:var(--ink);pointer-events:none;display:none}
+.strip.tuning .shiftbadge{display:block}
+.howbtn{margin-left:auto}
 </style>
 </head>
 <body>
@@ -375,6 +407,27 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
         </div>
       </div>
       <div class="progress" id="prog"></div>
+    </div>
+    <div class="panel howto" id="howto" hidden>
+      <div class="rowsb"><span class="label">How to play Peak Finder</span><button class="btn" id="howHide">Got it, hide this</button></div>
+      <div class="how-grid">
+        <div class="demo" aria-hidden="true">
+          <div class="d-top">
+            <span class="d-btn d-play">Play</span><span class="d-btn d-a">A</span><span class="d-btn d-b">B</span>
+            <span class="d-key"><b>⇧</b> Shift</span>
+          </div>
+          <div class="d-strip"><i class="d-heat"></i><span class="d-read">Click to place your guess</span><i class="d-mk"></i><i class="d-cur"></i>
+            <span class="d-tl" style="left:8%">50</span><span class="d-tl" style="left:30%">200</span><span class="d-tl" style="left:53%">1k</span><span class="d-tl" style="left:76%">5k</span></div>
+          <div class="d-bot"><span class="d-btn d-lock">Lock in</span><span class="d-yay">Correct! +150</span></div>
+        </div>
+        <ol class="how-steps">
+          <li data-s="0"><b>Press Play.</b> Click <b>A</b>, then <b>B</b>. B has one boost hiding in it. Listen for what sticks out.</li>
+          <li data-s="1"><b>Hold down Shift</b> and slide your mouse across the strip. Now you hear the boost move. Find the spot where it sounds like B.</li>
+          <li data-s="2"><b>Let go of Shift</b> and <b>click</b> that spot to drop your guess.</li>
+          <li data-s="3"><b>Hit Lock in.</b> The closer you are, the more points you get.</li>
+        </ol>
+      </div>
+      <p class="hint">No keyboard? Turn on the <b>Tune</b> button under the strip. It does the same thing as holding Shift.</p>
     </div>
     <div class="grid">
       <div class="panel transport">
@@ -1040,7 +1093,7 @@ function todaysWorkout() {
 }
 
 /* ================= Views ================= */
-function show(v) { if (v !== 'vFree' && typeof bmStop === 'function') bmStop(); ['vLogin','vHome','vPlay','vResults','vFree'].forEach(id => $(id).hidden = id !== v); window.scrollTo(0, 0); }
+function show(v) { if (v !== 'vPlay' && typeof showHowto === 'function') showHowto(false); if (v !== 'vFree' && typeof bmStop === 'function') bmStop(); ['vLogin','vHome','vPlay','vResults','vFree'].forEach(id => $(id).hidden = id !== v); window.scrollTo(0, 0); }
 const svgIcon = (name) => `<svg viewBox="0 0 64 32" aria-hidden="true"><path d="${ICONS[name]}" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const pips = (l, n = 5) => `<span class="pips">${Array.from({ length:n }, (_, k) => k + 1).map(i => `<i class="${i<=l?'on':''}"></i>`).join('')}</span>`;
 
@@ -1097,7 +1150,7 @@ function newRound() {
   if (playing && R.ui === 'grid') { stopSeq(); startSeq(); } else if (playing && !srcNode) start();
 }
 function renderAnswer() {
-  const area = $('answerArea'); area.innerHTML = '';
+  const area = $('answerArea'); area.innerHTML = ''; showHowto(false);
   if (R.ui === 'buttons') {
     const pad = document.createElement('div'); pad.className = 'pad';
     R.options.forEach(([id, label]) => { const b = document.createElement('button'); b.className = 'ans'; b.dataset.id = id; b.textContent = label; b.onclick = () => submit(id); pad.appendChild(b); });
@@ -1109,7 +1162,7 @@ function renderAnswer() {
   const fromX = isF ? x => 20 * Math.pow(1000, x) : x => Math.round((x * 2 - 1) * 20) / 20;
   const ticks = isF ? [[50,'50'],[100,'100'],[200,'200'],[500,'500'],[1000,'1k'],[2000,'2k'],[5000,'5k'],[10000,'10k']] : [[-1,'L'],[-.5,''],[0,'C'],[.5,''],[1,'R']];
   strip.innerHTML = ticks.map(([v, l]) => `<i class="tick" style="left:${toX(v)*100}%"></i><span class="tl" style="left:${Math.min(toX(v)*100, 96)}%">${l}</span>`).join('')
-    + '<i class="heat"></i><span class="readout">Click to place your guess</span><i class="mk guess" hidden></i>';
+    + '<i class="heat"></i><span class="readout">Click to place your guess</span><span class="shiftbadge">⇧ Listening</span><i class="mk guess" hidden></i>';
   const mk = strip.querySelector('.guess'), ro = strip.querySelector('.readout');
   let guess = null;
   const place = x => { if (answered) return; x = Math.max(0, Math.min(1, x)); guess = fromX(x); mk.hidden = false; mk.style.left = toX(guess) * 100 + '%';
@@ -1129,12 +1182,12 @@ function renderAnswer() {
     ro.textContent = label; };
   const tuningEvt = e => canTune() && (e.shiftKey || tuneOn);
   strip.onpointerdown = e => { strip.setPointerCapture(e.pointerId); if (tuningEvt(e)) tuneX(e); else fromEvt(e); };
-  strip.onpointermove = e => { if (tuningEvt(e)) tuneX(e); else { if (tuning) R._untune(); if (e.buttons) fromEvt(e); } };
-  strip.onpointerleave = () => { if (tuning) R._untune(); };
+  strip.onpointermove = e => { const t = tuningEvt(e); strip.classList.toggle('tuning', !!t); if (t) tuneX(e); else { if (tuning) R._untune(); if (e.buttons) fromEvt(e); else if (canTune() && guess == null && !answered) ro.textContent = 'Hold Shift to listen here'; } };
+  strip.onpointerleave = () => { strip.classList.remove('tuning'); if (tuning) R._untune(); if (guess == null && !answered) ro.textContent = 'Click to place your guess'; };
   R._untune = () => { heatEl.style.background = ''; tune(null); if (ro.textContent.startsWith('Tuning')) ro.textContent = guess == null ? 'Click to place your guess' : fmtHz(guess); };
   strip.onkeydown = e => { if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); place((guess == null ? .5 : toX(guess)) + (e.key === 'ArrowRight' ? .01 : -.01)); } };
   const row = document.createElement('div'); row.className = 'strip-row';
-  const tuneHint = isF && R.gain ? (R.tune ? ' Hold <kbd>Shift</kbd> and move over the strip to hear the boost at each frequency.' + (R.heat ? ' The strip glows hotter as you get close.' : '') : ' After you answer, hold <kbd>Shift</kbd> to sweep the boost.') : '';
+  const tuneHint = isF && R.gain ? (R.tune ? ' <b>Hold <kbd>Shift</kbd> and move over the strip</b> to hear the boost there. Let go and click to guess.' + (R.heat ? ' The strip glows hotter as you get close.' : '') : ' After you answer, hold <kbd>Shift</kbd> to sweep the boost.') : '';
   row.innerHTML = `<span class="hint">${isF ? `Within ${tolText(R.tol)} counts as correct.` : `Within ${Math.round(R.tol*100)}% counts as correct.`}${tuneHint}</span>`;
   if (isF && R.gain) { const tb = document.createElement('button'); tb.className = 'btn'; tb.textContent = 'Tune'; tb.setAttribute('aria-pressed', 'false'); tb.id = 'tuneBtn';
     tb.title = 'While on, moving over the strip plays the boost there (same as holding Shift)';
@@ -1143,8 +1196,38 @@ function renderAnswer() {
   const lock = document.createElement('button'); lock.className = 'btn primary'; lock.textContent = 'Lock in'; lock.disabled = true; lock.id = 'lock';
   lock.onclick = () => guess != null && submit(guess);
   row.appendChild(lock); area.append(strip, row);
+  if (isF && R.gain) { const hb = document.createElement('button'); hb.className = 'btn howbtn'; hb.textContent = 'Show me how'; hb.onclick = () => showHowto(true); row.insertBefore(hb, row.children[1]); }
+  showHowto(isF && R.gain && R.tune && !howHidden);
   R._strip = { strip, toX };
 }
+// Animated walkthrough of the Shift-to-tune steps. Loops while visible.
+let howHidden = false, howRaf = 0;
+function showHowto(on) {
+  const box = $('howto'); box.hidden = !on; cancelAnimationFrame(howRaf); if (!on) return;
+  const q = c => box.querySelector(c), steps = [...box.querySelectorAll('.how-steps li')];
+  const play = q('.d-play'), A = q('.d-a'), B = q('.d-b'), key = q('.d-key'), strip = q('.d-strip'), heat = q('.d-heat'), read = q('.d-read'), mk = q('.d-mk'), cur = q('.d-cur'), lock = q('.d-lock'), yay = q('.d-yay');
+  const target = .58, hz = x => fmtHz(20 * Math.pow(1000, x)), T = 13000, t0 = performance.now();
+  const frame = now => {
+    const t = (now - t0) % T, step = t < 3000 ? 0 : t < 8000 ? 1 : t < 10000 ? 2 : 3;
+    steps.forEach((li, i) => li.classList.toggle('on', i === step));
+    play.classList.toggle('lit', true); A.classList.toggle('lit', step === 0 && (t % 1000) < 500); B.classList.toggle('lit', step === 0 && (t % 1000) >= 500);
+    const shift = step === 1; key.classList.toggle('down', shift); strip.classList.toggle('tuning', shift);
+    let x = .1;
+    if (step === 1) { const u = (t - 3000) / 5000; x = u < .45 ? .1 + u / .45 * .8 : u < .75 ? .9 - (u - .45) / .3 * .5 : .4 + (u - .75) / .25 * (target - .4); }
+    else if (step >= 2) x = target;
+    cur.style.left = x * 100 + '%';
+    if (shift) { const h = Math.max(0, 1 - Math.abs(x - target) * 4);
+      heat.style.background = `radial-gradient(ellipse 18% 140% at ${x * 100}% 50%, hsla(${220 - 220 * h}, 85%, 55%, ${.25 + .6 * h}), transparent)`;
+      read.textContent = `Tuning ${hz(x)} · ${h > .85 ? 'Hot!' : h > .6 ? 'Warm' : h > .3 ? 'Cool' : 'Cold'}`; }
+    else { heat.style.background = ''; read.textContent = step >= 2 && t > 8800 ? hz(target) : 'Click to place your guess'; }
+    const clicking = step === 2 && t > 8600 && t < 8900; cur.classList.toggle('click', clicking);
+    mk.style.left = target * 100 + '%'; mk.style.opacity = step >= 2 && t > 8700 ? 1 : 0;
+    lock.classList.toggle('lit', step === 3); yay.style.opacity = step === 3 && t > 11000 ? 1 : 0;
+    howRaf = requestAnimationFrame(frame);
+  };
+  howRaf = requestAnimationFrame(frame);
+}
+$('howHide').onclick = () => { howHidden = true; showHowto(false); };
 function tolText(t) { return t >= 1 ? '1 octave' : t > .6 ? '⅔ octave' : t >= .5 ? '½ octave' : '⅓ octave'; }
 function submit(resp) {
   if (answered) return; answered = true;
