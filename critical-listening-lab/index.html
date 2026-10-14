@@ -369,7 +369,7 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
 .test-lobby .fact span{display:block;font:400 .66rem var(--display);color:var(--muted)} .test-lobby .fact b{font:500 1.25rem var(--mono)}
 .test-lobby .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 .test-lobby .err{color:var(--bad);font-weight:700}
-.testing .howto,.testing #howShow,.testing #fbBtn{display:none!important}
+.testing .howto,.testing #howShow,.testing #fbBtn,.testing #boardBtn{display:none!important}
 .board{display:grid;gap:12px}
 .board .seg{display:flex;gap:6px;flex-wrap:wrap}
 .board .seg button{font:400 .75rem var(--display);padding:8px 12px;border-radius:8px;border:2px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
@@ -397,7 +397,7 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
     <button class="brand" id="home" aria-label="Critical Listening Lab, home"><h1><span class="w1">Critical</span> <span class="w2">Listening</span> <span class="w3">Lab</span></h1>
       <span class="drips" aria-hidden="true"><i style="left:6%;--h:22px"></i><i style="left:19%;--h:34px;animation-delay:.2s"></i><i style="left:37%;--h:16px;animation-delay:.4s"></i><i style="left:58%;--h:28px;animation-delay:.1s"></i><i style="left:81%;--h:20px;animation-delay:.3s"></i></span>
       <small>Ear training for the recording class. Headphones on.</small></button>
-    <div class="who" id="who" hidden><span id="whoName"></span><button class="btn" id="switch">Switch student</button></div>
+    <div class="who" id="who" hidden><span id="whoName"></span><button class="btn" id="boardBtn" type="button">🏆 Leaderboard</button><button class="btn" id="switch">Switch student</button></div>
     <div class="source" aria-label="Audio source">
       <div class="group">
         <label class="label" for="src">Source</label>
@@ -472,7 +472,7 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
       <div class="label" style="margin-bottom:10px">Listening skills</div>
       <div class="skills" id="skills"></div>
     </div>
-    <div class="rowsb"><span class="label">All games</span><span style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="status">Ten rounds per game. Levels adjust as you play.</span><button class="btn small" id="boardBtn" type="button">🏆 Leaderboard</button></span></div>
+    <div class="rowsb"><span class="label">All games</span><span class="status">Ten rounds per game. Levels adjust as you play.</span></div>
     <div class="games" id="games"></div>
     <div class="rowsb"><p class="note">Progress is saved in this browser on this device.</p><div class="row" style="display:flex;gap:8px"><button class="btn small" id="fbBtn" type="button">Send feedback</button><button class="btn small" id="teachBtn">Teacher dashboard</button></div></div>
   </section>
@@ -2068,7 +2068,7 @@ function renderBoard() {
     : `<p class="note" style="padding:16px;margin:0">No scores ${B.when ? 'in this period ' : ''}yet${B.sort !== 'total' && B.sort !== 'games' ? ' for ' + G(B.sort).name : ''}. Finish a full game (not the workout) to post one.</p>`;
   $('bOut').querySelectorAll('th[data-k]').forEach(h => h.onclick = () => { B.sort = h.dataset.k; renderBoard(); });
 }
-$('boardBtn').onclick = $('rBoard').onclick = openBoard;
+$('boardBtn').onclick = $('rBoard').onclick = () => { stop(); openBoard(); };
 $('bBack').onclick = () => renderHome();
 $('bScope').onclick = e => { const b = e.target.closest('button[data-s]'); if (!b || b.disabled) return; B.scope = b.dataset.s; $('bScope').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); loadBoard(); };
 $('bWhen').onclick = e => { const b = e.target.closest('button[data-w]'); if (!b) return; B.when = +b.dataset.w; $('bWhen').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderBoard(); };
