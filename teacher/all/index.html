@@ -204,7 +204,7 @@ const GAMES = [
 const G = Object.fromEntries(GAMES.map(g => [g.id, g]));
 const FB_NAME = { 'tidal-tones': 'tidal', 'rooftop-runner': 'rooftop', 'rhythm-trainer': 'rhythm', 'scale-quest': 'scale', 'earshot-saloon': 'earshot', hub: null };
 
-const S = { email: '', classes: [], code: '', game: 'all', view: 'progress', rows: [], sort: {}, loading: 0, tests: [], testId: '' };
+const S = { email: '', classes: [], code: '', game: 'all', view: 'progress', rows: [], sort: {}, loading: 0, tests: [], testId: '', live: '' };
 
 // ---------- Firebase ----------
 let fbP = null, fbAuthP = null;
@@ -349,6 +349,7 @@ const COLS = {
   tests: [
     { k: 'name', h: 'Student', t: 's' }, { k: 'best', h: 'Best score', t: 'n', num: 1, f: r => esc(r.best + r.unit) }, { k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) },
     { k: 'tries', h: 'Tries', t: 'n', num: 1 }, { k: 'dateMs', h: 'Last try', t: 'n', f: r => esc(fmtDate(r.dateMs)) },
+    { k: 'st', h: 'Status', t: 's', f: r => (r.st || (r.best > 0 ? 'Finished' : 'Started')) === 'Playing now' ? '<b style="color:#2fbf71">● Playing now</b>' : (r.st || (r.best > 0 ? 'Finished' : 'Started')) === 'Finished' ? 'Finished' : '<span style="color:var(--muted)">Started, no score yet</span>' },
   ],
   admin: [
     { k: 'name', h: 'Teacher', t: 's', f: r => `${esc(r.name)}${r.email && r.email !== r.name ? `<br><span style="color:var(--muted);font-size:13px">${esc(r.email)}</span>` : ''}` }, { k: 'game', h: 'Game', t: 'g' }, { k: 'detail', h: 'What they practice', t: 's' },
@@ -401,7 +402,7 @@ function render() {
   $('tbl').innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
   if (ad) renderAdminSum();
   const label = { progress: 'practice records', scores: 'scores', feedback: 'notes', tests: 'students with a result', admin: 'teacher and game rows' }[S.view];
-  $('count').textContent = S.loading ? '' : rows.length + ' ' + label + (S.view === 'tests' ? '' : S.game === 'all' ? ' across all games' : ' in ' + g.name);
+  $('count').textContent = S.loading && !rows.length ? '' : S.view === 'tests' ? testSummary(rows) : rows.length + ' ' + label + (S.game === 'all' ? ' across all games' : ' in ' + g.name);
   $('note').textContent = S.view === 'progress' && (S.game === 'earshot')
     ? 'Earshot Saloon does not keep daily practice records yet. Open Scores to see its results.'
     : S.view === 'progress' ? 'One row per student per game per day. Accuracy is correct answers out of all answers.'
@@ -530,15 +531,27 @@ async function loadTests() {
   if (!S.code) { S.tests = []; S.testId = ''; return; }
   S.tests = await run(async ({ fs, db }) => (await fs.getDocs(fs.query(fs.collection(db, 'tests'), fs.where('class_code', '==', S.code)))).docs
     .map(d => ({ id: d.id, ...d.data() })).sort((a, b) => toMs(b.created_at) - toMs(a.created_at)));
-  if (!S.tests.some(t => t.id === S.testId)) S.testId = S.tests.length ? S.tests[0].id : '';
+  if (!S.tests.some(t => t.id === S.testId)) S.testId = (S.tests.find(t => tstate(t) === 'open') || S.tests[0] || {}).id || '';
 }
 async function fetchResults() {
   const t = curTest(); if (!t) return [];
   return run(async ({ fs, db }) => (await fs.getDocs(fs.query(fs.collection(db, 'test_results'), fs.where('test', '==', t.id), fs.where('owner', '==', S.email)))).docs
-    .map(d => { const r = d.data(); return { id: d.id, game: t.game, name: r.student || 'Student', best: num(r.best), unit: t.grade === 'score' ? '' : '%', acc: r.tries ? num(r.best_acc) : null, tries: num(r.tries), dateMs: toMs(r.updated_at) }; }));
+    .map(d => { const r = d.data(); return { id: d.id, game: t.game, name: r.student || 'Student', best: num(r.best), unit: t.grade === 'score' ? '' : '%', acc: r.tries ? num(r.best_acc) : null, tries: num(r.tries), dateMs: toMs(r.updated_at), st: num(r.best) > 0 ? 'Finished' : (Date.now() - toMs(r.updated_at) < 20 * 60000 ? 'Playing now' : 'Started') }; }));
+}
+function testSummary(rows) {
+  const t = curTest(); if (!t) return '';
+  const n = k => rows.filter(r => (r.st || (r.best > 0 ? 'Finished' : 'Started')) === k).length;
+  return `Results for “${t.name}”: ${n('Finished')} finished · ${n('Playing now')} playing now · ${n('Started')} started, no score yet` +
+    (S.live ? ` · Live, updated ${S.live}` : '');
+}
+let liveTimer = null;
+function liveTick() {
+  if (S.view !== 'tests' || PREVIEW || !curTest() || document.hidden) return;
+  fetchResults().then(rows => { S.rows = rows; S.live = new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', second: '2-digit' }); render(); }).catch(() => {});
 }
 function renderTestsBox() {
-  $('tsel').innerHTML = S.tests.length ? S.tests.map(t => `<option value="${esc(t.id)}">${esc(t.name)}${tstate(t) === 'open' ? '' : ' (' + STATE_TEXT[tstate(t)].toLowerCase() + ')'}</option>`).join('') : '<option value="">No tests yet</option>';
+  if (!liveTimer) liveTimer = setInterval(liveTick, 10000);
+  $('tsel').innerHTML = S.tests.length ? S.tests.map(t => `<option value="${esc(t.id)}">${tstate(t) === 'open' ? '● RUNNING' : tstate(t) === 'scheduled' ? 'UPCOMING' : tstate(t) === 'ended' ? 'ENDED' : 'OFF'} · ${esc(t.name)} ${t.created_at ? '· ' + esc(fmtWhen(t.created_at)) : ''}</option>`).join('') : '<option value="">No tests yet</option>';
   $('tsel').value = S.testId; $('tsel').disabled = !S.tests.length;
   const t = curTest();
   ['ttoggle', 'treset', 'tdel', 'tedit'].forEach(id => { $(id).disabled = !t; });
@@ -610,7 +623,7 @@ function wire() {
     }
   };
   $('csv').onclick = csv;
-  $('tsel').onchange = () => { S.testId = $('tsel').value; load(); };
+  $('tsel').onchange = () => { S.testId = $('tsel').value; S.live = ''; load(); };
   $('tnew').onclick = () => { S.editId = ''; S.view = 'newtest'; render(); };
   $('tedit').onclick = () => { const t = curTest(); if (!t) return; S.editId = t.id; S.view = 'newtest'; render(); };
   $('tback').onclick = () => { S.view = 'tests'; load(); };
