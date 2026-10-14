@@ -509,17 +509,6 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
   </section>
 
   <!-- RESULTS -->
-  <section id="vTeach" class="view" hidden>
-    <div class="panel" style="display:grid;gap:14px">
-      <div class="play-head"><div style="display:grid;gap:4px"><span class="label">Teacher</span><h2>Class dashboard</h2></div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap"><select id="tClass"></select><button class="btn" id="tCsv">Download CSV</button><button class="btn" id="tBack">Back</button></div></div>
-      <p class="hint" id="tStatus"></p>
-      <div class="tcards" id="tCards"></div>
-    </div>
-    <div class="panel"><div class="seq-wrap"><table class="ttable" id="tTable"></table></div>
-      <p class="hint">Minutes count while a student has a game or Beat Maker open and is active. Bars fill at 25 minutes. Game columns show each student's current level.</p></div>
-  </section>
-
   <section id="vResults" class="panel results" hidden>
     <span class="label" id="rGame"></span>
     <h2 id="rTitle">Session complete</h2>
@@ -1096,7 +1085,7 @@ let P = blank();
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} };
 function signIn(key, who) { store.users[key] ||= Object.assign(blank(), who); P = store.users[key]; store.current = key; save(); renderWho(); renderHome(); }
 const displayName = u => u.guest ? 'Guest' : `${u.first} ${u.init}.`;
-function renderWho() { setTimeout(renderGoal); $('who').hidden = false; $('switch').textContent = P.guest ? 'Sign in' : 'Switch student'; $('whoName').textContent = P.guest ? 'Guest mode' : `${displayName(P)} · ${CLASS_CODES[P.code] || P.code}`; }
+function renderWho() { setTimeout(renderGoal); $('who').hidden = false; $('switch').textContent = P.guest ? 'Sign in' : 'Switch student'; $('whoName').textContent = P.guest ? 'Guest mode' : `${displayName(P)} · ${P.className || CLASS_CODES[P.code] || P.code}`; }
 function showLogin() {
   $('goal').hidden = true;
   $('who').hidden = true; $('loginErr').textContent = ''; $('loginForm').reset();
@@ -1142,7 +1131,7 @@ function todaysWorkout() {
 }
 
 /* ================= Views ================= */
-function show(v) { if (typeof showHowto === 'function' && !(v === 'vFree' && howId === 'maker')) showHowto(null); if (v !== 'vFree' && typeof bmStop === 'function') bmStop(); ['vLogin','vHome','vPlay','vResults','vFree','vTeach'].forEach(id => $(id).hidden = id !== v); window.scrollTo(0, 0); }
+function show(v) { if (typeof showHowto === 'function' && !(v === 'vFree' && howId === 'maker')) showHowto(null); if (v !== 'vFree' && typeof bmStop === 'function') bmStop(); ['vLogin','vHome','vPlay','vResults','vFree'].forEach(id => $(id).hidden = id !== v); window.scrollTo(0, 0); }
 const svgIcon = (name) => `<svg viewBox="0 0 64 32" aria-hidden="true"><path d="${ICONS[name]}" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const pips = (l, n = 5) => `<span class="pips">${Array.from({ length:n }, (_, k) => k + 1).map(i => `<i class="${i<=l?'on':''}"></i>`).join('')}</span>`;
 
@@ -1473,6 +1462,7 @@ function submit(resp) {
   const bonus = ok ? Math.round(50 * Math.max(0, Math.min(1, 1 - (secs - t0) / span))) : 0;
   const pts = Math.round(100 * (1 + 0.25 * (S.level - 1)) * acc) + bonus;
   S.score += pts; if (ok) S.right++; S.results.push(ok);
+  dayStat(st => { st.rounds++; if (ok) st.correct++; });
   P.total++; if (ok) P.right++;
   let lvlMsg = '';
   // Two in a row moves you up during short workout sets and on levels you've already passed; otherwise three.
@@ -1490,6 +1480,7 @@ function finish() {
   const g = S.g, p = gp(g.id), xp = Math.round(S.score / 10);
   p.level = S.level; p.peak = Math.max(p.peak || 1, S.level); p.best = Math.max(p.best, S.score); p.plays++;
   P.xp += xp; P.sessions++; if (!P.days.includes(today())) P.days.push(today());
+  dayStat(st => { st.sessions++; }); setTimeout(() => syncUp(true), 50);
   if (S.workout) { const d = P.workout[today()] ||= []; if (!d.includes(g.id)) d.push(g.id); }
   save();
   const acc = Math.round(S.right / S.rounds * 100);
@@ -1737,9 +1728,17 @@ $('loginForm').onsubmit = e => {
   const err = m => { $('loginErr').textContent = m; };
   if (!/^[A-Za-z\u00C0-\u00FF' -]{1,20}$/.test(first)) return err('Type your first name.');
   if (!/^[A-Z]$/.test(init)) return err('Type the first letter of your last name.');
-  if (!CLASS_CODES[code]) return err("That class code doesn't match. Check it with your teacher.");
-  const nice = first.charAt(0).toUpperCase() + first.slice(1);
-  signIn(`${code}:${nice.toLowerCase()} ${init}`, { first:nice, init, code });
+  if (!/^[A-Z0-9]{4,7}$/.test(code)) return err("That class code doesn't match. Check it with your teacher.");
+  const nice = first.charAt(0).toUpperCase() + first.slice(1), btn = e.submitter || $('loginForm').querySelector('[type=submit]');
+  err(''); btn.disabled = true; btn.textContent = 'Checking class code…';
+  lookupClass(code).then(cls => {
+    btn.disabled = false; btn.textContent = 'Start listening';
+    if (cls === null && !CLASS_CODES[code]) return err("That class code doesn't match. Check it with your teacher.");
+    const info = cls && cls !== 'offline' ? { className: cls.name, owner: cls.owner } : {};
+    signIn(`${code}:${nice.toLowerCase()} ${init}`, { first:nice, init, code, ...info });
+    Object.assign(P, info); save(); syncUp(true);
+    if (cls === 'offline') showStatus("Couldn't reach the class list, so your teacher won't see today's minutes until you're back online.");
+  });
 };
 $('switch').onclick = () => { stop(); if (P.guest) delete store.users.guest; store.current = null; save(); showLogin(); };
 $('guest').onclick = () => { delete store.users.guest; signIn('guest', { first:'Guest', init:'', code:'', guest:true }); };
@@ -1764,7 +1763,9 @@ function tickMinutes() {
   if (!inGame || !(playing || bmTimer || Date.now() - lastActive < 90000)) return;
   P.time ||= {}; const before = secsToday(); P.time[today()] = before + 5;
   if (before < GOAL_MIN * 60 && before + 5 >= GOAL_MIN * 60) celebrateGoal();
-  if ((before + 5) % 30 === 0) { save(); syncUp(); }
+  if ((before + 5) % 30 === 0) save();
+  syncUp();
+  if (S && !$('vPlay').hidden) dayStat(st => { st.games[S.g.id] = (st.games[S.g.id] || 0) + 5; });
   renderGoal();
 }
 setInterval(tickMinutes, 5000);
@@ -1782,58 +1783,44 @@ function celebrateGoal() {
   setTimeout(() => { t.hidden = true; }, 6000);
 }
 
-/* ================= Teacher dashboard ================= */
-// The class Google Sheet (see teacher-dashboard/SETUP.md). SYNC_URL is the "Student data"
-// deployment students send to; DASHBOARD_URL is the "Teacher dashboard" deployment, which
-// Google only opens for the teacher's own account.
-const SYNC_URL = '';
-const DASHBOARD_URL = '';
-function summary(key, u) {
-  const levels = Object.fromEntries(GAMES.map(g => [g.id, (u.games[g.id] || {}).level || 1]));
-  return { key, name: u.guest ? 'Guest' : displayName(u), code: u.code || '', date: today(), seconds: (u.time || {})[today()] || 0,
-    time: u.time || {}, sessions: u.sessions || 0, accuracy: u.total ? Math.round(u.right / u.total * 100) : null, xp: u.xp || 0, levels };
+
+/* ================= Class data in Firebase ================= */
+// Same Firebase project, class codes and teacher sign-in as the music theory games.
+// Signed-in students save one summary per day to `listening_progress`; only their teacher
+// (or the admin) can read it, on the teacher dashboard.
+const FIREBASE = { apiKey: 'AIzaSyDU9vbCWJ4yWuD8bAX984DmQF4dvo13BHs', authDomain: 'rhythm-trainer-fc313.firebaseapp.com', projectId: 'rhythm-trainer-fc313', appId: '1:956677028482:web:c3ec72a279e61b6f6c929b' };
+const FB_SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+const TEACHER_URL = 'https://drkeyzzz.github.io/critical-listening-lab/teacher/';
+let fbP = null;
+const fb = () => fbP ||= Promise.all([import(FB_SDK + 'firebase-app.js'), import(FB_SDK + 'firebase-firestore.js')])
+  .then(([appMod, fs]) => ({ fs, db: fs.getFirestore(appMod.initializeApp(FIREBASE)) }))
+  .catch(e => { fbP = null; throw e; });
+const withTimeout = (p, ms = 8000) => Promise.race([p, new Promise((_, no) => setTimeout(() => no(new Error('timeout')), ms))]);
+// Look up a class code. Returns {name, owner}, null if it doesn't exist, or 'offline'.
+async function lookupClass(code) {
+  try { const { fs, db } = await withTimeout(fb()); const snap = await withTimeout(fs.getDoc(fs.doc(db, 'classes', code)));
+    return snap.exists() ? { name: snap.data().name, owner: String(snap.data().ownerEmail || '') } : null; }
+  catch (e) { return 'offline'; }
 }
+const sidOf = u => (u.first + u.init).toLowerCase().replace(/[^a-z]/g, '').slice(0, 16);
 let lastSync = 0;
-function syncUp() {
-  if (!SYNC_URL || !signedIn() || P.guest || Date.now() - lastSync < 55000) return; lastSync = Date.now();
-  try { fetch(SYNC_URL, { method:'POST', mode:'no-cors', headers:{ 'Content-Type':'text/plain' }, body: JSON.stringify(summary(store.current, P)) }); } catch (e) {}
+async function syncUp(force) {
+  if (!signedIn() || P.guest || !P.owner || !P.code) return;
+  if (!force && Date.now() - lastSync < 55000) return; lastSync = Date.now();
+  const day = today(), sid = sidOf(P); if (sid.length < 2) return;
+  const st = (P.stats || {})[day] || {};
+  const data = { class_code: P.code, owner: P.owner, date: day, sid, student: displayName(P).slice(0, 24),
+    minutes: Math.min(1440, Math.floor(secsToday() / 60)), goal: GOAL_MIN, rounds: st.rounds || 0, correct: st.correct || 0, sessions: st.sessions || 0,
+    xp: P.xp || 0, levels: Object.fromEntries(GAMES.map(g => [g.id, (P.games[g.id] || {}).level || 1])),
+    games: st.games || {}, first_at: st.first || Date.now(), last_at: Date.now() };
+  try { const { fs, db } = await withTimeout(fb());
+    await withTimeout(fs.setDoc(fs.doc(db, 'listening_progress', `${P.code}_${day}_${sid}`), { ...data, updated_at: fs.serverTimestamp() })); }
+  catch (e) { /* offline or blocked: try again next minute */ }
 }
-document.addEventListener('visibilitychange', () => { if (document.hidden && signedIn()) { save(); lastSync = 0; syncUp(); } });
-const last7 = () => Array.from({ length:7 }, (_, k) => { const d = new Date(); d.setDate(d.getDate() - 6 + k); return d.toISOString().slice(0, 10); });
-function openTeacher() {
-  if (DASHBOARD_URL) { window.open(DASHBOARD_URL, '_blank', 'noopener'); return; }
-  // Until the Sheet is connected: students who used this computer
-  show('vTeach'); $('goal').hidden = true;
-  renderTeacher(Object.entries(store.users).filter(([, u]) => !u.guest).map(([k, u]) => summary(k, u)), 'this computer');
-}
-function renderTeacher(rows, src) {
-  const days = last7(), t = today(), code = $('tClass').value;
-  const codes = [...new Set(rows.map(r => r.code).filter(Boolean))].sort();
-  $('tClass').innerHTML = '<option value="">All classes</option>' + codes.map(c => `<option ${c === code ? 'selected' : ''} value="${c}">${CLASS_CODES[c] || c} (${c})</option>`).join('');
-  const list = rows.filter(r => !code || r.code === code).sort((a, b) => (b.time[t] || 0) - (a.time[t] || 0));
-  const min = (r, d) => Math.floor(((r.time || {})[d] || 0) / 60);
-  const activeToday = list.filter(r => min(r, t) > 0).length, metGoal = list.filter(r => min(r, t) >= GOAL_MIN).length;
-  const avg = list.length ? Math.round(list.reduce((s, r) => s + days.reduce((a, d) => a + min(r, d), 0) / 7, 0) / list.length) : 0;
-  $('tCards').innerHTML = [['Students', list.length], ['Active today', activeToday], [`Hit ${GOAL_MIN} min today`, metGoal], ['Avg min/day (7 days)', avg]]
-    .map(([l, v]) => `<div class="tcard"><span class="label">${l}</span><b>${v}</b></div>`).join('');
-  const dayHead = days.map(d => `<th>${new Date(d + 'T12:00').toLocaleDateString(undefined, { weekday:'short' })}</th>`).join('');
-  $('tTable').innerHTML = `<thead><tr><th>Student</th><th>Class</th><th>Today</th>${dayHead}<th>Days at goal</th><th>Accuracy</th><th>Sessions</th>${GAMES.map(g => `<th title="${g.name}">${g.name.split(' ')[0]}</th>`).join('')}</tr></thead><tbody>` +
-    (list.length ? list.map(r => { const goalDays = Object.values(r.time || {}).filter(s => s >= GOAL_MIN * 60).length;
-      return `<tr><td><b>${r.name}</b></td><td>${r.code}</td><td class="${min(r, t) >= GOAL_MIN ? 'ok' : ''}">${min(r, t)} min</td>` +
-        days.map(d => { const m = min(r, d); return `<td><i class="tbar ${m >= GOAL_MIN ? 'ok' : ''}" style="--h:${Math.min(1, m / GOAL_MIN) * 100}%" title="${m} min"></i><small>${m || ''}</small></td>`; }).join('') +
-        `<td>${goalDays}</td><td>${r.accuracy == null ? '–' : r.accuracy + '%'}</td><td>${r.sessions}</td>` + GAMES.map(g => `<td>${(r.levels || {})[g.id] || 1}</td>`).join('') + '</tr>'; }).join('')
-      : `<tr><td colspan="${13 + GAMES.length}">No student data yet.</td></tr>`) + '</tbody>';
-  $('tStatus').textContent = `Showing students who used ${src}. Once the class Google Sheet is connected, this button opens the full class dashboard behind your Google sign-in.`;
-  $('tCsv').onclick = () => {
-    const head = ['Student', 'Class', ...days.map(d => d + ' min'), 'Accuracy', 'Sessions', ...GAMES.map(g => g.name + ' level')];
-    const csv = [head, ...list.map(r => [r.name, r.code, ...days.map(d => min(r, d)), r.accuracy ?? '', r.sessions, ...GAMES.map(g => (r.levels || {})[g.id] || 1)])]
-      .map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv' })); a.download = `listening-lab-${t}.csv`; a.click();
-  };
-  $('tClass').onchange = () => renderTeacher(rows, src);
-}
-$('teachBtn').onclick = openTeacher; $('teachBtn2').onclick = openTeacher;
-$('tBack').onclick = () => { signedIn() ? (renderHome(), renderGoal(), show('vHome')) : showLogin(); };
+// per-day counters the dashboard shows
+function dayStat(fn) { P.stats ||= {}; const s = P.stats[today()] ||= { rounds:0, correct:0, sessions:0, games:{}, first: Date.now() }; fn(s); }
+document.addEventListener('visibilitychange', () => { if (document.hidden && signedIn()) { save(); syncUp(true); } });
+$('teachBtn').onclick = $('teachBtn2').onclick = () => window.open(TEACHER_URL, '_blank', 'noopener');
 
 /* ================= Beat Maker: saved beats ================= */
 function renderMyBeats() {
@@ -1853,7 +1840,10 @@ $('bmLoad').onchange = () => { const b = (P.beats || [])[+$('bmLoad').value]; if
 $('bmDelete').onclick = () => { const i = $('bmLoad').value; if (i === '') { alert('Pick a beat from My beats first.'); return; }
   const b = P.beats[+i]; if (!confirm(`Delete "${b.name}"?`)) return; P.beats.splice(+i, 1); save(); renderMyBeats(); };
 
-if (store.current && store.users[store.current]) { P = store.users[store.current]; renderWho(); renderHome(); } else showLogin();
+if (store.current && store.users[store.current]) { P = store.users[store.current]; renderWho(); renderHome();
+  // profiles from before Firebase: find the class's teacher so minutes reach the dashboard
+  if (!P.guest && P.code && !P.owner) lookupClass(P.code).then(c => { if (c && c !== 'offline') { P.owner = c.owner; P.className = c.name; save(); renderWho(); syncUp(true); } });
+} else showLogin();
 draw();
 })();
 

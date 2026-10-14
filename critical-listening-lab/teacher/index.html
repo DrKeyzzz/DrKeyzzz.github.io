@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Listening Lab Dashboard</title>
+<meta name="description" content="Teacher dashboard for Critical Listening Lab: daily minutes, accuracy and levels for each class.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sedgwick+Ave+Display&family=Bungee&family=Archivo:wght@400;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+[hidden]{display:none!important}
+:root{--bg:#141416;--panel:#1c1c21;--line:#34343c;--fg:#f4f1ea;--muted:#a9a6b0;--accent:#ffe14d;--pink:#ff3ea5;--cyan:#2ee6ff;--ok:#7dff6a;--bad:#ff4d6d;--ink:#0b0b0d;
+  --tag:'Sedgwick Ave Display',cursive;--display:Bungee,sans-serif;--body:Archivo,system-ui,sans-serif;--mono:'JetBrains Mono',monospace}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(40rem 28rem at 6% -6%,rgba(255,62,165,.18),transparent 70%),radial-gradient(36rem 28rem at 104% 10%,rgba(46,230,255,.13),transparent 70%),var(--bg);color:var(--fg);font:15px/1.5 var(--body);min-height:100vh}
+.wrap{max-width:1200px;margin:0 auto;padding:20px 16px 56px;display:grid;gap:16px}
+h1{font:400 clamp(2rem,6vw,3.4rem)/1 var(--tag);margin:0;transform:rotate(-1.5deg)}
+h1 .a{color:var(--pink)} h1 .b{color:var(--cyan)} h1 span{-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:4px 4px 0 var(--ink)}
+h2{font:400 1.2rem var(--display);margin:0}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.card{background:var(--panel);border:2px solid var(--line);border-radius:14px;padding:16px;box-shadow:5px 5px 0 #000}
+.btn{font:400 .8rem var(--display);letter-spacing:.03em;padding:9px 14px;border-radius:9px;border:2px solid var(--ink);background:var(--fg);color:var(--ink);cursor:pointer;box-shadow:3px 3px 0 #000}
+.btn.primary{background:var(--accent)} .btn.ghost{background:transparent;color:var(--fg);border-color:var(--line);box-shadow:none} .btn.sm{padding:6px 10px;font-size:.72rem}
+.btn:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+select,input,textarea{font:inherit;background:#0b0b0d;color:var(--fg);border:2px solid var(--line);border-radius:8px;padding:8px 10px}
+label.f{display:grid;gap:4px;font:400 .68rem var(--display);color:var(--muted)}
+.seg{display:flex;gap:6px;flex-wrap:wrap}
+.seg button{font:400 .75rem var(--display);padding:8px 12px;border-radius:8px;border:2px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--pink);border-color:var(--pink);color:var(--ink)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.stat{background:#141418;border:2px solid var(--line);border-radius:12px;padding:10px 14px}
+.stat span{font:400 .66rem var(--display);color:var(--muted)} .stat b{display:block;font:400 1.7rem var(--display);color:var(--accent)}
+.tw{overflow:auto;border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:.88rem;min-width:960px}
+th{font:400 .66rem var(--display);color:var(--muted);text-align:left;padding:8px;border-bottom:2px solid var(--line);white-space:nowrap;cursor:pointer}
+td{padding:7px 8px;border-bottom:1px solid #2a2a30;white-space:nowrap;vertical-align:bottom} td.num,th.num{text-align:right}
+td.ok{color:var(--ok);font-weight:700} td.low{color:var(--bad)}
+.bar{display:inline-block;width:10px;height:26px;background:#2a2a30;border-radius:3px;position:relative;overflow:hidden;vertical-align:bottom;margin-right:3px}
+.bar::after{content:"";position:absolute;left:0;right:0;bottom:0;height:var(--h);background:var(--cyan)} .bar.ok::after{background:var(--ok)}
+small,.muted{color:var(--muted)} .note{color:var(--muted);font-size:.88rem;margin:0}
+.pv{background:var(--accent);color:var(--ink);font:400 .8rem var(--display);padding:8px 12px;border-radius:8px}
+.err{color:var(--bad)}
+.lvl{display:inline-block;min-width:22px;text-align:center;font:500 .8rem var(--mono);padding:1px 4px;border-radius:4px;background:#26262c}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1><span class="a">Listening Lab</span> <span class="b">Dashboard</span></h1>
+    <div class="row" id="whoRow" hidden><span id="who" class="muted"></span><button class="btn ghost sm" id="signout">Sign out</button></div>
+  </div>
+
+  <section class="card" id="gate" aria-live="polite"><p>Loading…</p></section>
+
+  <div id="main" hidden style="display:grid;gap:16px">
+    <section class="card" style="display:grid;gap:14px">
+      <div class="row" style="justify-content:space-between">
+        <div class="row">
+          <label class="f" for="cls">Class<select id="cls"></select></label>
+          <label class="f" for="rng">Time<select id="rng"><option value="1">Today</option><option value="7" selected>Last 7 days</option><option value="30">Last 30 days</option></select></label>
+          <label class="f" for="goalSel">Daily goal<select id="goalSel" disabled><option>25 min</option></select></label>
+        </div>
+        <div class="seg" id="views" role="group" aria-label="What to show">
+          <button data-v="students" aria-pressed="true">Students</button>
+          <button data-v="classes" aria-pressed="false">Classes</button>
+          <button data-v="admin" aria-pressed="false" hidden>Admin</button>
+        </div>
+      </div>
+      <p class="note" id="msg"></p>
+      <div class="cards" id="stats"></div>
+    </section>
+    <section class="card" id="panel"><div class="tw" id="out"></div></section>
+    <p class="note">Minutes count while a student has a game or Beat Maker open and is active, and arrive about once a minute. Students sign in to the Listening Lab with your class code. Classes are shared with the music theory games, so the same codes work in both.</p>
+  </div>
+</div>
+
+<script type="module">
+const FIREBASE = { apiKey: 'AIzaSyDU9vbCWJ4yWuD8bAX984DmQF4dvo13BHs', authDomain: 'rhythm-trainer-fc313.firebaseapp.com', projectId: 'rhythm-trainer-fc313', appId: '1:956677028482:web:c3ec72a279e61b6f6c929b' };
+const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
+const TEACHER_EMAILS = ['milnesda@eht.k12.nj.us', 'dcmilnes@gmail.com'], ADMIN_EMAILS = ['milnesda@eht.k12.nj.us', 'dcmilnes@gmail.com'];   // must match firestore.rules
+const GOAL = 25;
+const GAMES = [['filter','Filter'],['peak','Peak'],['eq','Boost/Cut'],['gain','Gain'],['comp','Comp'],['pan','Balance'],['space','Reverb'],['beat','Beat']];
+const PREVIEW = new URLSearchParams(location.search).has('preview');
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const ymd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const daysBack = n => Array.from({ length:n }, (_, k) => ymd(new Date(Date.now() - (n - 1 - k) * 864e5)));
+const S = { email:'', classes:[], code:'', view:'students', rows:[], sort:{ k:'today', dir:-1 } };
+
+let fbP, authP;
+const fb = () => fbP ||= Promise.all([import(SDK + 'firebase-app.js'), import(SDK + 'firebase-firestore.js')]).then(([a, fs]) => { const app = a.initializeApp(FIREBASE); return { app, fs, db: fs.getFirestore(app) }; });
+const fbAuth = () => authP ||= Promise.all([fb(), import(SDK + 'firebase-auth.js')]).then(([f, authMod]) => ({ ...f, authMod, auth: authMod.getAuth(f.app) }));
+const errText = e => /permission/i.test(String(e && (e.code || e.message))) ? "Firebase said no. If you just set this up, check that the updated rules are published in Firebase." : 'Something went wrong: ' + esc(e && e.message || e);
+const gate = html => { $('gate').innerHTML = html; $('gate').hidden = false; $('main').hidden = true; };
+const msg = t => { $('msg').innerHTML = t || ''; };
+
+function signInScreen(err) {
+  $('whoRow').hidden = true;
+  gate(`<h2 style="margin-bottom:8px">Teacher sign in</h2><p class="muted">Sign in with the Google account you use for the music theory games' teacher dashboard.</p>
+    ${err ? `<p class="err">${err}</p>` : ''}<div class="row"><button class="btn primary" id="g-in">Sign in with Google</button></div>`);
+  $('g-in').onclick = async () => {
+    try { const { auth, authMod } = await fbAuth(); const r = await authMod.signInWithPopup(auth, new authMod.GoogleAuthProvider()); await signedIn(String(r.user.email).toLowerCase()); }
+    catch (e) { if (e && e.code !== 'auth/popup-closed-by-user') signInScreen(errText(e)); }
+  };
+}
+async function isTeacher(email) {
+  if (TEACHER_EMAILS.includes(email)) return true;
+  const { fs, db } = await fb(); return (await fs.getDoc(fs.doc(db, 'teachers', email))).exists();
+}
+async function signedIn(email) {
+  let ok = false;
+  try { ok = await isTeacher(email); } catch (e) { return signInScreen(errText(e)); }
+  $('who').innerHTML = `Signed in as <b>${esc(email)}</b>`; $('whoRow').hidden = false;
+  if (!ok) return requestScreen(email);
+  S.email = email; $('views').querySelector('[data-v=admin]').hidden = !ADMIN_EMAILS.includes(email);
+  $('gate').hidden = true; $('main').hidden = false;
+  await loadClasses();
+}
+async function requestScreen(email) {
+  let pending = false;
+  try { const { fs, db } = await fb(); pending = (await fs.getDoc(fs.doc(db, 'teacher_requests', email))).exists(); } catch (e) {}
+  if (pending) return gate(`<h2>Request sent</h2><p class="muted">Your teacher access request for <b>${esc(email)}</b> is waiting for approval. Check back once you hear it's approved.</p>`);
+  gate(`<h2 style="margin-bottom:8px">Request teacher access</h2><p class="muted"><b>${esc(email)}</b> isn't set up as a teacher yet. Send a request and the admin will approve it.</p>
+    <div style="display:grid;gap:10px;max-width:460px"><label class="f">Your name<input id="r-name" maxlength="60"></label><label class="f">School<input id="r-school" maxlength="80"></label>
+    <label class="f">Note (optional)<textarea id="r-note" maxlength="300" rows="2"></textarea></label><div class="row"><button class="btn primary" id="r-go">Send request</button></div><p class="err" id="r-err"></p></div>`);
+  $('r-go').onclick = async () => {
+    const name = $('r-name').value.trim(), school = $('r-school').value.trim(), note = $('r-note').value.trim();
+    if (name.length < 2) return $('r-err').textContent = 'Type your name.';
+    try { const { fs, db } = await fb(); await fs.setDoc(fs.doc(db, 'teacher_requests', email), { email, name, school, note, created_at: fs.serverTimestamp() }); requestScreen(email); }
+    catch (e) { $('r-err').innerHTML = errText(e); }
+  };
+}
+async function loadClasses() {
+  try { const { fs, db } = await fb();
+    S.classes = (await fs.getDocs(fs.query(fs.collection(db, 'classes'), fs.where('ownerEmail', '==', S.email)))).docs.map(d => ({ code: d.id, ...d.data() })).sort((a, b) => String(a.name).localeCompare(String(b.name))); }
+  catch (e) { S.classes = []; msg(errText(e)); }
+  fillClasses();
+}
+function fillClasses() {
+  if (!S.classes.some(c => c.code === S.code)) S.code = S.classes.length ? S.classes[0].code : '';
+  $('cls').innerHTML = S.classes.length ? S.classes.map(c => `<option value="${esc(c.code)}">${esc(c.name)} · ${esc(c.code)}</option>`).join('') : '<option value="">No classes yet</option>';
+  $('cls').value = S.code; $('cls').disabled = !S.classes.length;
+  load();
+}
+async function load() {
+  msg('');
+  if (S.view === 'classes') return renderClasses();
+  if (S.view === 'admin') return loadAdmin();
+  if (!S.code) { $('stats').innerHTML = ''; $('out').innerHTML = '<p class="muted">Make a class on the Classes tab, then give students the code.</p>'; return; }
+  $('out').innerHTML = '<p class="muted">Loading…</p>';
+  try {
+    if (PREVIEW) S.rows = sampleRows(S.code);
+    else { const { fs, db } = await fb();
+      S.rows = (await fs.getDocs(fs.query(fs.collection(db, 'listening_progress'), fs.where('owner', '==', S.email), fs.where('class_code', '==', S.code)))).docs.map(d => d.data()); }
+    renderStudents();
+  } catch (e) { $('out').innerHTML = `<p class="err">${errText(e)}</p>`; }
+}
+function renderStudents() {
+  const n = +$('rng').value, days = daysBack(n), week = daysBack(7), t = days[days.length - 1], inRange = new Set(days);
+  const by = {};
+  S.rows.forEach(r => { const s = by[r.sid] ||= { sid:r.sid, name:r.student, min:{}, rounds:0, correct:0, sessions:0, latest:r };
+    s.min[r.date] = r.minutes || 0; if (r.date >= s.latest.date) { s.latest = r; s.name = r.student; }
+    if (inRange.has(r.date)) { s.rounds += r.rounds || 0; s.correct += r.correct || 0; s.sessions += r.sessions || 0; } });
+  const list = Object.values(by).map(s => ({ ...s, today: s.min[t] || 0, total: days.reduce((a, d) => a + (s.min[d] || 0), 0),
+    goalDays: days.filter(d => (s.min[d] || 0) >= GOAL).length, acc: s.rounds ? Math.round(s.correct / s.rounds * 100) : null }));
+  const k = S.sort.k, dir = S.sort.dir;
+  list.sort((a, b) => ((a[k] ?? -1) > (b[k] ?? -1) ? 1 : (a[k] ?? -1) < (b[k] ?? -1) ? -1 : 0) * dir || a.name.localeCompare(b.name));
+  const avg = list.length ? Math.round(list.reduce((a, s) => a + s.total, 0) / list.length / n) : 0;
+  $('stats').innerHTML = [['Students', list.length], ['Active today', list.filter(s => s.today > 0).length], [`Hit ${GOAL} min today`, list.filter(s => s.today >= GOAL).length], [`Avg min/day (${n === 1 ? 'today' : n + ' days'})`, avg]]
+    .map(([l, v]) => `<div class="stat"><span>${l}</span><b>${v}</b></div>`).join('');
+  const th = (key, label, num) => `<th data-k="${key}" class="${num ? 'num' : ''}">${label}${S.sort.k === key ? (S.sort.dir < 0 ? ' ▼' : ' ▲') : ''}</th>`;
+  $('out').innerHTML = `<table><thead><tr>${th('name', 'Student')}${th('today', 'Today', 1)}<th>Last 7 days</th>${th('total', 'Minutes', 1)}${th('goalDays', 'Days at goal', 1)}${th('acc', 'Accuracy', 1)}${th('sessions', 'Sessions', 1)}${GAMES.map(g => `<th class="num">${g[1]}</th>`).join('')}</tr></thead><tbody>` +
+    (list.length ? list.map(s => `<tr><td><b>${esc(s.name)}</b></td><td class="num ${s.today >= GOAL ? 'ok' : ''}">${s.today} min</td>
+      <td>${week.map(d => { const m = s.min[d] || 0; return `<i class="bar ${m >= GOAL ? 'ok' : ''}" style="--h:${Math.min(1, m / GOAL) * 100}%" title="${d}: ${m} min"></i>`; }).join('')}</td>
+      <td class="num">${s.total}</td><td class="num">${s.goalDays}</td><td class="num ${s.acc != null && s.acc < 60 ? 'low' : ''}">${s.acc == null ? '–' : s.acc + '%'}</td><td class="num">${s.sessions}</td>
+      ${GAMES.map(g => `<td class="num"><span class="lvl">${(s.latest.levels || {})[g[0]] || 1}</span></td>`).join('')}</tr>`).join('')
+      : `<tr><td colspan="${7 + GAMES.length}" class="muted">No Listening Lab activity in this class yet. Students show up after they sign in with code <b>${esc(S.code)}</b> and play for about a minute.</td></tr>`) + '</tbody></table>';
+  $('out').querySelectorAll('th[data-k]').forEach(h => h.onclick = () => { const key = h.dataset.k; S.sort = { k:key, dir: S.sort.k === key ? -S.sort.dir : (key === 'name' ? 1 : -1) }; renderStudents(); });
+}
+function renderClasses() {
+  $('stats').innerHTML = '';
+  $('out').innerHTML = `<div style="display:grid;gap:14px;max-width:640px">
+    <p class="note">These classes are shared with the music theory games. Give students the code; they type it when they sign in to the Listening Lab.</p>
+    <table style="min-width:0"><thead><tr><th>Class</th><th>Code</th></tr></thead><tbody>${S.classes.map(c => `<tr><td>${esc(c.name)}</td><td><b style="font-family:var(--mono)">${esc(c.code)}</b></td></tr>`).join('') || '<tr><td colspan="2" class="muted">No classes yet.</td></tr>'}</tbody></table>
+    <div class="row"><label class="f" style="flex:1">New class name<input id="c-name" maxlength="40" placeholder="Period 4 Recording"></label><button class="btn primary" id="c-go" style="align-self:end">Create class</button></div><p class="err" id="c-err"></p></div>`;
+  $('c-go').onclick = async () => {
+    const name = $('c-name').value.trim(); if (!name) return $('c-err').textContent = 'Type a class name.';
+    if (PREVIEW) return $('c-err').textContent = 'Preview only.';
+    try { const { fs, db } = await fb(); let code, tries = 0;
+      do { code = Array.from({ length:5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join(''); tries++; }
+      while ((await fs.getDoc(fs.doc(db, 'classes', code))).exists() && tries < 8);
+      await fs.setDoc(fs.doc(db, 'classes', code), { name, ownerEmail: S.email, created_at: fs.serverTimestamp() });
+      S.code = code; await loadClasses(); S.view = 'classes'; renderClasses(); }
+    catch (e) { $('c-err').innerHTML = errText(e); }
+  };
+}
+async function loadAdmin() {
+  $('out').innerHTML = '<p class="muted">Loading…</p>';
+  try {
+    let rows, teachers, requests;
+    if (PREVIEW) { rows = [...sampleRows('PREVW'), ...sampleRows('PREV2').map(r => ({ ...r, owner:'r.kim@sample' }))]; teachers = [{ email:'r.kim@sample', name:'Ron Kim', school:'EHT High School' }]; requests = [{ email:'j.shaw@sample', name:'Jo Shaw', school:'Middle School', note:'Teaching a recording elective next semester' }]; }
+    else { const { fs, db } = await fb(), from = daysBack(30)[0];
+      rows = (await fs.getDocs(fs.query(fs.collection(db, 'listening_progress'), fs.where('date', '>=', from)))).docs.map(d => d.data());
+      teachers = (await fs.getDocs(fs.collection(db, 'teachers'))).docs.map(d => ({ email: d.id, ...d.data() }));
+      requests = (await fs.getDocs(fs.collection(db, 'teacher_requests'))).docs.map(d => ({ email: d.id, ...d.data() })); }
+    const names = {}; teachers.forEach(t => { names[t.email.toLowerCase()] = t; });
+    const by = {};
+    rows.forEach(r => { const o = String(r.owner).toLowerCase(), t = by[o] ||= { email:o, students:new Set(), classes:new Set(), minutes:0, last:'' };
+      t.students.add(r.class_code + '_' + r.sid); t.classes.add(r.class_code); t.minutes += r.minutes || 0; if (r.date > t.last) t.last = r.date; });
+    const list = Object.values(by).sort((a, b) => b.minutes - a.minutes);
+    $('stats').innerHTML = [['Teachers using it', list.length], ['Students (30 days)', list.reduce((a, t) => a + t.students.size, 0)], ['Minutes (30 days)', list.reduce((a, t) => a + t.minutes, 0)], ['Pending requests', requests.length]]
+      .map(([l, v]) => `<div class="stat"><span>${l}</span><b>${v}</b></div>`).join('');
+    $('out').innerHTML = `<h2 style="font-size:.9rem;margin-bottom:8px">Teacher requests</h2>` +
+      (requests.length ? `<table style="min-width:0;margin-bottom:22px"><thead><tr><th>Name</th><th>Email</th><th>School</th><th>Note</th><th></th></tr></thead><tbody>${requests.map(r => `<tr><td>${esc(r.name)}</td><td>${esc(r.email)}</td><td>${esc(r.school)}</td><td style="white-space:normal;max-width:280px">${esc(r.note)}</td>
+        <td><button class="btn primary sm" data-ok="${esc(r.email)}">Approve</button> <button class="btn ghost sm" data-no="${esc(r.email)}">Deny</button></td></tr>`).join('')}</tbody></table>` : '<p class="muted" style="margin-bottom:22px">No pending requests.</p>') +
+      `<h2 style="font-size:.9rem;margin-bottom:8px">Listening Lab use by teacher, last 30 days</h2><table style="min-width:0"><thead><tr><th>Teacher</th><th>School</th><th class="num">Classes</th><th class="num">Students</th><th class="num">Minutes</th><th>Last used</th></tr></thead><tbody>` +
+      (list.length ? list.map(t => `<tr><td>${esc((names[t.email] || {}).name || (ADMIN_EMAILS.includes(t.email) ? 'You' : t.email))}</td><td>${esc((names[t.email] || {}).school || '')}</td><td class="num">${t.classes.size}</td><td class="num">${t.students.size}</td><td class="num">${t.minutes}</td><td>${t.last}</td></tr>`).join('') : '<tr><td colspan="6" class="muted">No activity yet.</td></tr>') +
+      `</tbody></table><p class="note" style="margin-top:12px">Approving a teacher here also approves them for the music theory games, since they share sign-in.</p><p class="err" id="a-err"></p>`;
+    $('out').querySelectorAll('[data-ok],[data-no]').forEach(b => b.onclick = async () => {
+      const email = b.dataset.ok || b.dataset.no, r = requests.find(x => x.email === email); if (PREVIEW) return;
+      try { const { fs, db } = await fb();
+        if (b.dataset.ok) await fs.setDoc(fs.doc(db, 'teachers', email), { name: String(r.name || email).slice(0, 60), school: String(r.school || '').slice(0, 80), approved_at: fs.serverTimestamp(), approved_by: S.email });
+        await fs.deleteDoc(fs.doc(db, 'teacher_requests', email)); loadAdmin(); }
+      catch (e) { $('a-err').innerHTML = errText(e); }
+    });
+  } catch (e) { $('out').innerHTML = `<p class="err">${errText(e)}</p>`; }
+}
+function sampleRows(code) {
+  const names = ['Maya R.', 'Jalen T.', 'Sam K.', 'Ari P.', 'Dee W.', 'Nico F.'], out = [];
+  names.forEach((nm, i) => daysBack(10).forEach((d, k) => { const m = Math.max(0, Math.round(8 + 22 * Math.sin(i * 1.7 + k) + i * 2 - (k % 6 === 0 ? 30 : 0)));
+    if (m) out.push({ class_code: code, owner: 'sample@preview', date: d, sid: nm.toLowerCase().replace(/[^a-z]/g, ''), student: nm, minutes: m, rounds: m * 2, correct: Math.round(m * 2 * (.55 + i * .07)), sessions: Math.ceil(m / 8),
+      levels: { filter: 2 + (i % 4), peak: 1 + (i % 3), eq: 2, gain: 3, comp: 1 + (i % 2), pan: 2, space: 1, beat: 1 + (i % 5) } }); }));
+  return out;
+}
+function wire() {
+  $('cls').onchange = () => { S.code = $('cls').value; load(); };
+  $('rng').onchange = () => S.view === 'students' && renderStudents();
+  $('views').onclick = e => { const b = e.target.closest('button[data-v]'); if (!b) return; S.view = b.dataset.v; $('views').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); load(); };
+  $('signout').onclick = async () => { try { const { auth, authMod } = await fbAuth(); await authMod.signOut(auth); } catch (e) {} S.email = ''; signInScreen(); };
+}
+async function start() {
+  wire();
+  if (PREVIEW) { $('gate').hidden = true; $('main').hidden = false; $('who').innerHTML = 'Signed in as <b>sample@preview</b>'; $('whoRow').hidden = false;
+    $('views').querySelector('[data-v=admin]').hidden = false; $('main').insertAdjacentHTML('afterbegin', '<div class="pv">Preview with sample students. Nothing here is real.</div>');
+    S.classes = [{ code:'PREVW', name:'Period 4 Recording' }, { code:'PREV2', name:'Period 6 Recording' }]; return fillClasses(); }
+  try { const { auth, authMod } = await fbAuth();
+    authMod.onAuthStateChanged(auth, u => { if (u && u.email) signedIn(String(u.email).toLowerCase()); else signInScreen(); }); }
+  catch (e) { signInScreen(errText(e)); }
+}
+start();
+</script>
+</body>
+</html>

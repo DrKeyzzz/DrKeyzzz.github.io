@@ -1,0 +1,513 @@
+rules_version = '2';
+
+// Firestore security rules for Mr. Milnes's music games:
+//   Rhythm Dictation Trainer  https://drkeyzzz.github.io/rhythm-trainer/
+//   Scale Quest               https://drkeyzzz.github.io/scale-quest/
+//   Tidal Tones               https://drkeyzzz.github.io/tidal-tones/
+//   Rooftop Runner            https://drkeyzzz.github.io/rooftop-runner/
+//   Earshot Saloon            https://drkeyzzz.github.io/earshot-saloon/
+//   Critical Listening Lab    https://drkeyzzz.github.io/critical-listening-lab/
+//   Home page                 https://drkeyzzz.github.io/  (teacher/ sets each class's hub_assignment)
+// All the games share this project, its classes and teacher sign-in.
+// The SAME file lives in every game's GitHub repo; keep them identical.
+// Paste this into Firebase → Firestore Database → Rules, then click Publish.
+// The admin emails below can manage the World leaderboard (every score).
+// Any teacher who signs in with Google can create classes and manage only their own.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    // TEACHERS: only teachers can create or manage classes and use the teacher dashboards.
+    // Students share the school's email domain, so this is what keeps them out.
+    // A teacher is either built in below (so the admin can never be locked out) or approved by the
+    // admin in a dashboard's ADMIN tab, which adds them to the `teachers` collection.
+    function teacherEmails() {
+      return ['milnesda@eht.k12.nj.us', 'dcmilnes@gmail.com'];
+    }
+    function isTeacher() {
+      return signedIn() && (request.auth.token.email in teacherEmails()
+        || exists(/databases/$(database)/documents/teachers/$(request.auth.token.email)));
+    }
+    // DEVELOPER SCORES: only the admin, signed in with Google, can post as "Milnes D." or mark a score
+    // dev: true. Developer scores show on every class's board with a DEV badge.
+    function devOk(d) {
+      return isAdmin() || (!('dev' in d) && !d.name.lower().matches('milnes *d[.]? *'));
+    }
+    // PLAYER ICONS: a score may carry the player's icon, but only one from the games' icon set.
+    function iconOk(d) {
+      return !('icon' in d) || d.icon in ['🎹', '🎸', '🎺', '🪊', '🎷', '🥁', '🎻', '🪕', '🎤', '🎧', '🎼', '𝄢', '🎵', '🪘', '🪗', '⭐', '🔥', '🚀'];
+    }
+    // STUDENTS IN 2–3 CLASSES: a score may also list all their classes (main class first), so it shows on
+    // each class's board. Every listed class must exist.
+    function classCodesOk(d) {
+      return !('class_codes' in d) || (d.class_codes is list
+        && d.class_codes.size() >= 2 && d.class_codes.size() <= 3
+        && d.class_codes[0] == d.get('class_code', '')
+        && d.class_codes[1] is string && exists(/databases/$(database)/documents/classes/$(d.class_codes[1]))
+        && (d.class_codes.size() < 3 || (d.class_codes[2] is string && exists(/databases/$(database)/documents/classes/$(d.class_codes[2])))));
+    }
+    // a teacher may delete a score from any of the classes it's tagged with
+    function ownsAnyClass(r) {
+      return ownsClass(r.get('class_code', ''))
+        || ('class_codes' in r && r.class_codes is list && r.class_codes.size() >= 2
+            && (ownsClass(r.class_codes[1]) || (r.class_codes.size() > 2 && ownsClass(r.class_codes[2]))));
+    }
+    function isAdmin() {
+      return signedIn() && request.auth.token.email in ['milnesda@eht.k12.nj.us', 'dcmilnes@gmail.com'];
+    }
+    function ownsClass(code) {
+      return isTeacher() && code != ''
+        && exists(/databases/$(database)/documents/classes/$(code))
+        && get(/databases/$(database)/documents/classes/$(code)).data.ownerEmail == request.auth.token.email;
+    }
+
+    // Approved teachers (document ID = their Google email). Only the admin adds or removes them.
+    match /teachers/{email} {
+      allow read: if isAdmin() || (signedIn() && request.auth.token.email == email);
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['name', 'school', 'approved_at', 'approved_by'])
+        && request.resource.data.name is string && request.resource.data.name.size() <= 60
+        && request.resource.data.school is string && request.resource.data.school.size() <= 80;
+      allow delete: if isAdmin();
+    }
+
+    // Requests for teacher access. Anyone signed in can ask once for themselves; the admin approves or denies.
+    match /teacher_requests/{email} {
+      allow read: if isAdmin() || (signedIn() && request.auth.token.email == email);
+      allow create: if signedIn() && request.auth.token.email == email
+        && request.resource.data.keys().hasOnly(['email', 'name', 'school', 'note', 'created_at'])
+        && request.resource.data.email == email
+        && request.resource.data.name is string && request.resource.data.name.size() >= 2 && request.resource.data.name.size() <= 60
+        && request.resource.data.school is string && request.resource.data.school.size() <= 80
+        && request.resource.data.note is string && request.resource.data.note.size() <= 300
+        && request.resource.data.created_at == request.time;
+      allow delete: if isAdmin() || (signedIn() && request.auth.token.email == email);
+    }
+
+    // Classes: anyone can look up a code; teachers manage their own.
+    match /classes/{code} {
+      allow read: if true;
+
+      allow create: if isTeacher()
+        && code.matches('^[A-Z0-9]{4,7}$')   // random 5-character codes, or a teacher's own 4–7 character code
+        && request.resource.data.keys().hasOnly(['name', 'ownerEmail', 'created_at', 'assignment', 'scale_assignment', 'tidal_assignment', 'rooftop_assignment', 'hub_assignment'])
+        && request.resource.data.ownerEmail == request.auth.token.email
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 40
+        && request.resource.data.created_at == request.time;
+
+      allow update: if isTeacher()
+        && resource.data.ownerEmail == request.auth.token.email
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'assignment', 'scale_assignment', 'tidal_assignment', 'rooftop_assignment', 'hub_assignment'])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 40;
+
+      allow delete: if isAdmin() || (isTeacher() && resource.data.ownerEmail == request.auth.token.email);
+    }
+
+    // Practice progress: one summary per student per day. Students write their own;
+    // only the class's teacher (or the admin) can read it.
+    match /progress/{docId} {
+      allow read: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+
+      allow create, update: if request.resource.data.keys().hasOnly(['class_code', 'owner', 'date', 'sid', 'student', 'rhythms', 'slots', 'correct', 'adj', 'plays', 'extra', 'pool', 'minutes', 'first_at', 'last_at', 'score', 'goal', 'skills', 'ts', 'levels', 'missed', 'challenges', 'updated_at'])
+        && request.resource.data.class_code is string
+        && exists(/databases/$(database)/documents/classes/$(request.resource.data.class_code))
+        && get(/databases/$(database)/documents/classes/$(request.resource.data.class_code)).data.ownerEmail == request.resource.data.owner
+        && docId == request.resource.data.class_code + '_' + request.resource.data.date + '_' + request.resource.data.sid
+        && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.sid.matches('^[a-z]{2,16}$')
+        && request.resource.data.student is string && request.resource.data.student.size() <= 24
+        && (isAdmin() || !request.resource.data.student.lower().matches('milnes *d[.]? *'))   // only the developer can be Milnes D.
+        && request.resource.data.rhythms is int && request.resource.data.rhythms >= 0 && request.resource.data.rhythms <= 5000
+        && request.resource.data.minutes is int && request.resource.data.minutes >= 0 && request.resource.data.minutes <= 1440
+        && request.resource.data.score is int && request.resource.data.score >= 0 && request.resource.data.score <= 100
+        && request.resource.data.updated_at == request.time;
+
+      allow delete: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+    }
+
+    // Scores: anyone can see them and add one in the right shape; nobody can edit them.
+    match /rhythm_scores/{scoreId} {
+      allow read: if true;
+
+      allow create: if request.resource.data.keys().hasOnly(['name', 'level', 'class_code', 'score', 'correct', 'total', 'extra_listens', 'time_sec', 'created_at', 'dev', 'icon', 'class_codes'])
+        && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 2 && request.resource.data.name.size() <= 24
+        && request.resource.data.level in ['beginner', 'beginner16', 'easy', 'hard', 'extreme']
+        && request.resource.data.get('class_code', '') is string
+        && (request.resource.data.get('class_code', '') == ''
+            || exists(/databases/$(database)/documents/classes/$(request.resource.data.class_code)))
+        && request.resource.data.score is number
+        && request.resource.data.score >= 0 && request.resource.data.score <= 100
+        && request.resource.data.correct is int && request.resource.data.total is int
+        && request.resource.data.correct >= 0 && request.resource.data.correct <= request.resource.data.total
+        && request.resource.data.total >= 1 && request.resource.data.total <= 200
+        && request.resource.data.extra_listens is int
+        && request.resource.data.extra_listens >= 0 && request.resource.data.extra_listens <= 100
+        && request.resource.data.time_sec is int
+        && request.resource.data.time_sec >= 1 && request.resource.data.time_sec <= 36000
+        && request.resource.data.created_at == request.time;
+
+      allow update: if false;
+
+      // The admin can delete any score; a teacher can delete scores in their own classes.
+      allow delete: if isAdmin() || ownsAnyClass(resource.data);
+    }
+  
+
+    // ================= Scale Quest =================
+    // CHAOS scores: anyone can see them and add a finished 20-question run; nobody can edit them.
+    match /scale_scores/{scoreId} {
+      allow read: if true;
+      allow create: if scaleScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if false;
+      allow delete: if isAdmin() || ownsAnyClass(resource.data);
+    }
+
+    // Scale Quest SCALE DEGREES CHAOS runs: same shape as scale_scores, on their own board.
+    match /degree_scores/{scoreId} {
+      allow read: if true;
+      allow create: if scaleScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if false;
+      allow delete: if isAdmin() || ownsAnyClass(resource.data);
+    }
+
+    // Practice progress: one summary per student per day. Only the class's teacher (or the admin) can read it.
+    match /scale_progress/{docId} {
+      allow read: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+
+      allow create, update: if request.resource.data.keys().hasOnly(['class_code', 'owner', 'date', 'sid', 'student', 'questions', 'correct', 'minutes', 'first_at', 'last_at', 'goal', 'by_key', 'types', 'missed', 'chaos', 'best_chaos', 'nova', 'updated_at'])
+        && request.resource.data.class_code is string
+        && exists(/databases/$(database)/documents/classes/$(request.resource.data.class_code))
+        && get(/databases/$(database)/documents/classes/$(request.resource.data.class_code)).data.ownerEmail == request.resource.data.owner
+        && docId == request.resource.data.class_code + '_' + request.resource.data.date + '_' + request.resource.data.sid
+        && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.sid.matches('^[a-z]{2,16}$')
+        && request.resource.data.student is string && request.resource.data.student.size() <= 24
+        && (isAdmin() || !request.resource.data.student.lower().matches('milnes *d[.]? *'))   // only the developer can be Milnes D.
+        && request.resource.data.questions is int && request.resource.data.questions >= 0 && request.resource.data.questions <= 10000
+        && request.resource.data.correct is int && request.resource.data.correct >= 0 && request.resource.data.correct <= request.resource.data.questions
+        && request.resource.data.minutes is int && request.resource.data.minutes >= 0 && request.resource.data.minutes <= 1440
+        && request.resource.data.updated_at == request.time;
+
+      allow delete: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+    }
+
+    // A finished 20-question CHAOS run: score = points × key bonus (1.0 + 0.1 per extra key).
+    function scaleScore(d) {
+      return d.keys().hasOnly(['name', 'class_code', 'score', 'points', 'streak', 'accuracy', 'questions', 'key_count', 'key_list', 'created_at', 'dev', 'icon', 'class_codes'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 24
+        && d.get('class_code', '') is string
+        && (d.get('class_code', '') == '' || exists(/databases/$(database)/documents/classes/$(d.class_code)))
+        && d.questions == 20
+        && d.key_count is int && d.key_count >= 1 && d.key_count <= 15
+        && d.points is int && d.points >= 0 && d.points <= 4650
+        && d.score is int
+        && d.score >= d.points * (9 + d.key_count) / 10 - 1
+        && d.score <= d.points * (9 + d.key_count) / 10 + 1
+        && d.streak is int && d.streak >= 0 && d.streak <= 20
+        && d.accuracy is int && d.accuracy >= 0 && d.accuracy <= 100
+        && d.key_list is string && d.key_list.size() <= 60
+        && d.created_at == request.time;
+    }
+  
+
+    // SUPERNOVA runs (all 150 scales, 20 questions, 2 hearts). Anyone can see them; a run is added once, never edited.
+    match /nova_scores/{scoreId} {
+      allow read: if true;
+      allow create: if novaScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if false;
+      allow delete: if isAdmin() || ownsAnyClass(resource.data);
+    }
+
+    // reached = questions answered; finished = all 20 with a heart left. score = points x 2.4 (the 15-scale bonus).
+    function novaScore(d) {
+      return d.keys().hasOnly(['name', 'class_code', 'score', 'points', 'streak', 'accuracy', 'reached', 'finished', 'created_at', 'dev', 'icon', 'class_codes'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 24
+        && d.get('class_code', '') is string
+        && (d.get('class_code', '') == '' || exists(/databases/$(database)/documents/classes/$(d.class_code)))
+        && d.reached is int && d.reached >= 1 && d.reached <= 20
+        && d.finished is bool && (d.finished == false || d.reached == 20)
+        && d.points is int && d.points >= 0 && d.points <= 4650
+        && d.score is int
+        && d.score >= d.points * 24 / 10 - 1
+        && d.score <= d.points * 24 / 10 + 1
+        && d.streak is int && d.streak >= 0 && d.streak <= d.reached
+        && d.accuracy is int && d.accuracy >= 0 && d.accuracy <= 100
+        && d.created_at == request.time;
+    }
+
+    // ================= Tidal Tones =================
+    // Leaderboard runs: anyone can see them and add one in the right shape; nobody can edit them.
+    match /tidal_scores/{scoreId} {
+      allow read: if true;
+      allow create: if tidalScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if false;
+      allow delete: if isAdmin() || ownsAnyClass(resource.data);
+    }
+
+    // Practice progress: one summary per student per day. Only the class's teacher (or the admin) can read it.
+    match /tidal_progress/{docId} {
+      allow read: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+
+      allow create, update: if request.resource.data.keys().hasOnly(['class_code', 'owner', 'date', 'sid', 'student', 'answers', 'correct', 'minutes', 'first_at', 'last_at', 'games', 'best_score', 'best_level', 'by_game', 'missed', 'runs', 'goal', 'updated_at'])
+        && request.resource.data.class_code is string
+        && exists(/databases/$(database)/documents/classes/$(request.resource.data.class_code))
+        && get(/databases/$(database)/documents/classes/$(request.resource.data.class_code)).data.ownerEmail == request.resource.data.owner
+        && docId == request.resource.data.class_code + '_' + request.resource.data.date + '_' + request.resource.data.sid
+        && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.sid.matches('^[a-z]{2,16}$')
+        && request.resource.data.student is string && request.resource.data.student.size() <= 24
+        && (isAdmin() || !request.resource.data.student.lower().matches('milnes *d[.]? *'))   // only the developer can be Milnes D.
+        && request.resource.data.answers is int && request.resource.data.answers >= 0 && request.resource.data.answers <= 20000
+        && request.resource.data.correct is int && request.resource.data.correct >= 0 && request.resource.data.correct <= request.resource.data.answers
+        && request.resource.data.minutes is int && request.resource.data.minutes >= 0 && request.resource.data.minutes <= 1440
+        && request.resource.data.updated_at == request.time;
+
+      allow delete: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+    }
+
+    // Critical Listening Lab (https://drkeyzzz.github.io/critical-listening-lab/): one summary per student
+    // per day. Students write their own; only the class's teacher (or the admin) can read it.
+    match /listening_progress/{docId} {
+      allow read: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+
+      allow create, update: if request.resource.data.keys().hasOnly(['class_code', 'owner', 'date', 'sid', 'student', 'minutes', 'goal', 'rounds', 'correct', 'sessions', 'xp', 'levels', 'games', 'first_at', 'last_at', 'updated_at'])
+        && request.resource.data.class_code is string
+        && exists(/databases/$(database)/documents/classes/$(request.resource.data.class_code))
+        && get(/databases/$(database)/documents/classes/$(request.resource.data.class_code)).data.ownerEmail == request.resource.data.owner
+        && docId == request.resource.data.class_code + '_' + request.resource.data.date + '_' + request.resource.data.sid
+        && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.sid.matches('^[a-z]{2,16}$')
+        && request.resource.data.student is string && request.resource.data.student.size() <= 24
+        && (isAdmin() || !request.resource.data.student.lower().matches('milnes *d[.]? *'))   // only the developer can be Milnes D.
+        && request.resource.data.minutes is int && request.resource.data.minutes >= 0 && request.resource.data.minutes <= 1440
+        && request.resource.data.rounds is int && request.resource.data.rounds >= 0 && request.resource.data.rounds <= 20000
+        && request.resource.data.correct is int && request.resource.data.correct >= 0 && request.resource.data.correct <= request.resource.data.rounds
+        && request.resource.data.levels is map && request.resource.data.levels.size() <= 20
+        && request.resource.data.games is map && request.resource.data.games.size() <= 20
+        && request.resource.data.updated_at == request.time;
+
+      allow delete: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+    }
+
+    function tidalScore(d) {
+      return d.keys().hasOnly(['name', 'class_code', 'score', 'hits', 'acc', 'level', 'mode', 'diff', 'clef', 'answer', 'names', 'created_at', 'dev', 'icon', 'class_codes'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 24
+        && d.get('class_code', '') is string
+        && (d.get('class_code', '') == '' || exists(/databases/$(database)/documents/classes/$(d.class_code)))
+        && d.score is int && d.score >= 0 && d.score <= 2000000
+        && d.hits is int && d.hits >= 0 && d.hits <= 10000
+        && d.acc is int && d.acc >= 0 && d.acc <= 100
+        && d.level is int && d.level >= 0 && d.level <= 1000
+        && d.mode in ['arcade', 'sprint']
+        && d.diff in ['easy', 'medium', 'hard', 'expert', 'custom']
+        && d.clef in ['treble', 'bass', 'alto', 'grand']
+        && d.answer in ['names', 'any', 'exact', 'intervals']
+        && d.names in ['letters', 'solfege']
+        && d.created_at == request.time;
+    }
+
+    // ================= Rooftop Sight-Reading Runner =================
+    // Leaderboard runs: anyone can see them and add one in the right shape; nobody can edit them.
+    match /sight_scores/{scoreId} {
+      allow read: if true;
+      allow create: if sightScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if false;
+      allow delete: if isAdmin() || ownsAnyClass(resource.data);
+    }
+
+    // Practice progress: one summary per student per day. Only the class's teacher (or the admin) can read it.
+    match /rooftop_progress/{docId} {
+      allow read: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+
+      allow create, update: if request.resource.data.keys().hasOnly(['class_code', 'owner', 'date', 'sid', 'student', 'answers', 'correct', 'minutes', 'first_at', 'last_at', 'games', 'best_score', 'best_level', 'by_game', 'missed', 'runs', 'goal', 'updated_at'])
+        && request.resource.data.class_code is string
+        && exists(/databases/$(database)/documents/classes/$(request.resource.data.class_code))
+        && get(/databases/$(database)/documents/classes/$(request.resource.data.class_code)).data.ownerEmail == request.resource.data.owner
+        && docId == request.resource.data.class_code + '_' + request.resource.data.date + '_' + request.resource.data.sid
+        && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.sid.matches('^[a-z]{2,16}$')
+        && request.resource.data.student is string && request.resource.data.student.size() <= 24
+        && (isAdmin() || !request.resource.data.student.lower().matches('milnes *d[.]? *'))   // only the developer can be Milnes D.
+        && request.resource.data.answers is int && request.resource.data.answers >= 0 && request.resource.data.answers <= 50000
+        && request.resource.data.correct is int && request.resource.data.correct >= 0 && request.resource.data.correct <= request.resource.data.answers
+        && request.resource.data.minutes is int && request.resource.data.minutes >= 0 && request.resource.data.minutes <= 1440
+        && request.resource.data.updated_at == request.time;
+
+      allow delete: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+    }
+
+    function sightScore(d) {
+      return d.keys().hasOnly(['name', 'class_code', 'score', 'hits', 'acc', 'level', 'bpm', 'diff', 'style', 'clef', 'instrument', 'created_at', 'dev', 'icon', 'class_codes'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 24
+        && d.get('class_code', '') is string
+        && (d.get('class_code', '') == '' || exists(/databases/$(database)/documents/classes/$(d.class_code)))
+        && d.score is int && d.score >= 0 && d.score <= 5000000
+        && d.hits is int && d.hits >= 0 && d.hits <= 100000
+        && d.acc is int && d.acc >= 0 && d.acc <= 100
+        && d.level is int && d.level >= 1 && d.level <= 1000
+        && d.bpm is int && d.bpm >= 40 && d.bpm <= 400
+        && d.diff in ['easy', 'medium', 'hard', 'expert']
+        && d.style in ['midi', 'keys', 'rhythm', 'live']
+        && d.clef in ['treble', 'bass', 'alto', 'treble8', 'none']
+        && d.get('instrument', '') is string && d.get('instrument', '').size() <= 24
+        && d.created_at == request.time;
+    }
+
+    // ================= Earshot Saloon =================
+    // Leaderboard runs: anyone can see them and add one in the right shape; nobody can edit them.
+    match /earshot_scores/{scoreId} {
+      allow read: if true;
+      allow create: if earshotScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if false;
+      allow delete: if isAdmin() || ownsAnyClass(resource.data);
+    }
+
+    // A finished trail run: score = the chips cashed out (or half the best bankroll after going bust).
+    function earshotScore(d) {
+      return d.keys().hasOnly(['name', 'class_code', 'score', 'hands', 'acc', 'town', 'outlaws', 'busted', 'diff', 'clef', 'created_at', 'dev', 'icon', 'class_codes'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 24
+        && d.get('class_code', '') is string
+        && (d.get('class_code', '') == '' || exists(/databases/$(database)/documents/classes/$(d.class_code)))
+        && d.score is int && d.score >= 0 && d.score <= 100000000
+        && d.hands is int && d.hands >= 1 && d.hands <= 10000
+        && d.acc is int && d.acc >= 0 && d.acc <= 100
+        && d.town is int && d.town >= 1 && d.town <= 1000
+        && d.outlaws is int && d.outlaws >= 0 && d.outlaws <= 1000
+        && d.busted is bool
+        && d.diff in ['newbie', 'easy', 'medium', 'hard', 'expert']
+        && d.clef in ['treble', 'bass', 'mixed']
+        && d.created_at == request.time;
+    }
+
+    // Wanted posters: each signed-in student's lassoed outlaws, saved online so the poster wall
+    // follows them to any computer. Document ID = class code (or 'none') + '_' + first name and initial.
+    match /earshot_posters/{docId} {
+      allow read: if true;
+      allow create, update: if earshotPosters(docId, request.resource.data)
+        && (isAdmin() || !request.resource.data.name.lower().matches('milnes *d[.]? *'));   // only the developer can be Milnes D.
+      allow delete: if isAdmin() || ownsClass(resource.data.get('class_code', ''));
+    }
+
+    function earshotPosters(id, d) {
+      return d.keys().hasOnly(['name', 'class_code', 'sid', 'caught', 'seen', 'updated_at'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 24
+        && d.class_code is string
+        && (d.class_code == '' || exists(/databases/$(database)/documents/classes/$(d.class_code)))
+        && d.sid is string && d.sid.matches('^[a-z]{2,16}$')
+        && (id == d.class_code + '_' + d.sid || (d.class_code == '' && id == 'none_' + d.sid))
+        && d.caught is map && d.caught.keys().hasOnly(['m2', 'M2', 'm3', 'M3', 'P4', 'TT', 'P5', 'm6', 'M6', 'm7', 'M7', 'P8']) && outlawCounts(d.caught)
+        && d.seen is map && d.seen.keys().hasOnly(['m2', 'M2', 'm3', 'M3', 'P4', 'TT', 'P5', 'm6', 'M6', 'm7', 'M7', 'P8'])
+        && d.updated_at == request.time;
+    }
+    // how many times each Interval Outlaw has been lassoed (whole numbers, 0 or more)
+    function outlawCounts(m) {
+      return m.get('m2', 0) is int && m.get('m2', 0) >= 0 && m.get('m2', 0) <= 100000
+        && m.get('M2', 0) is int && m.get('M2', 0) >= 0 && m.get('M2', 0) <= 100000
+        && m.get('m3', 0) is int && m.get('m3', 0) >= 0 && m.get('m3', 0) <= 100000
+        && m.get('M3', 0) is int && m.get('M3', 0) >= 0 && m.get('M3', 0) <= 100000
+        && m.get('P4', 0) is int && m.get('P4', 0) >= 0 && m.get('P4', 0) <= 100000
+        && m.get('TT', 0) is int && m.get('TT', 0) >= 0 && m.get('TT', 0) <= 100000
+        && m.get('P5', 0) is int && m.get('P5', 0) >= 0 && m.get('P5', 0) <= 100000
+        && m.get('m6', 0) is int && m.get('m6', 0) >= 0 && m.get('m6', 0) <= 100000
+        && m.get('M6', 0) is int && m.get('M6', 0) >= 0 && m.get('M6', 0) <= 100000
+        && m.get('m7', 0) is int && m.get('m7', 0) >= 0 && m.get('m7', 0) <= 100000
+        && m.get('M7', 0) is int && m.get('M7', 0) >= 0 && m.get('M7', 0) <= 100000
+        && m.get('P8', 0) is int && m.get('P8', 0) >= 0 && m.get('P8', 0) <= 100000;
+    }
+
+    // ================= Feedback =================
+    // Any student or guest can send one short note from the Feedback button in a game. Nobody can edit it.
+    // Only the admin, or the teacher who owns the sender's class, can read or delete it.
+    match /game_feedback/{noteId} {
+      allow read: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+      allow create: if feedbackOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if false;
+      allow delete: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+    }
+
+    function feedbackOk(d) {
+      return d.keys().hasOnly(['game', 'text', 'name', 'class_code', 'class_codes', 'owner', 'created_at'])
+        && d.game in ['scale-quest', 'tidal-tones', 'earshot-saloon', 'rhythm-trainer', 'rooftop-runner', 'hub']
+        && d.text is string && d.text.size() >= 3 && d.text.size() <= 300
+        && d.name is string && d.name.size() <= 24
+        && (isAdmin() || !d.name.lower().matches('milnes *d[.]? *'))   // only the developer can be Milnes D.
+        && d.class_code is string && d.owner is string && d.owner.size() <= 100
+        && (d.class_code == ''
+          ? d.owner == ''
+          : (exists(/databases/$(database)/documents/classes/$(d.class_code))
+             && get(/databases/$(database)/documents/classes/$(d.class_code)).data.ownerEmail == d.owner))
+        && d.created_at == request.time;
+    }
+
+
+    // ================= Tests =================
+    // A teacher publishes a test for a class (a game, its settings, how it is graded, how many tries).
+    // Anyone can read a test (students need it to start). Only the teacher who owns the class can create, change or delete it.
+    match /tests/{testId} {
+      allow read: if true;
+      allow create: if ownsClass(request.resource.data.class_code) && testOk(request.resource.data)
+        && request.resource.data.owner == request.auth.token.email;
+      allow update: if ownsClass(resource.data.class_code) && testOk(request.resource.data)
+        && request.resource.data.class_code == resource.data.class_code && request.resource.data.owner == resource.data.owner;
+      allow delete: if isAdmin() || ownsClass(resource.data.class_code);
+    }
+
+    function testOk(d) {
+      return d.keys().hasOnly(['name', 'game', 'class_code', 'owner', 'settings', 'grade', 'tries', 'open', 'opens_at', 'closes_at', 'created_at'])
+        && (!('opens_at' in d) || d.opens_at is timestamp) && (!('closes_at' in d) || d.closes_at is timestamp)
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 60
+        && d.game in ['scale', 'tidal', 'rooftop', 'rhythm', 'earshot']
+        && d.grade in ['acc', 'score']
+        && d.tries is int && d.tries >= 0 && d.tries <= 20
+        && d.open is bool && d.settings is map && d.owner is string && d.class_code is string
+        && d.created_at is timestamp;
+    }
+
+    // One result per student per test (document ID = testId_sid). A student's game starts a try (tries + 1) and later
+    // posts the best result of the tries. Anyone can read a single result (a student reads their own); only the teacher who
+    // owns the test can list them all or delete one (which gives that student their tries back).
+    match /test_results/{resultId} {
+      allow get: if true;
+      allow list: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+      allow create: if resultOk(request.resource.data) && resultId == request.resource.data.test + '_' + request.resource.data.sid
+        && request.resource.data.tries == 1 && request.resource.data.best == 0
+        && request.resource.data.best_acc == 0 && request.resource.data.best_score == 0;
+      allow update: if resultOk(request.resource.data) && resultId == request.resource.data.test + '_' + request.resource.data.sid
+        && request.resource.data.test == resource.data.test && request.resource.data.sid == resource.data.sid
+        && ((request.resource.data.tries == resource.data.tries + 1 && request.resource.data.best == resource.data.best
+              && request.resource.data.best_acc == resource.data.best_acc && request.resource.data.best_score == resource.data.best_score)
+            || (request.resource.data.tries == resource.data.tries && request.resource.data.best >= resource.data.best));
+      allow delete: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+    }
+
+    function testDoc(id) {
+      return get(/databases/$(database)/documents/tests/$(id)).data;
+    }
+    function resultOk(d) {
+      return d.keys().hasOnly(['test', 'class_code', 'owner', 'game', 'sid', 'student', 'tries', 'best', 'best_acc', 'best_score', 'updated_at'])
+        && d.test is string && d.test.size() >= 1 && d.test.size() <= 40
+        && exists(/databases/$(database)/documents/tests/$(d.test))
+        && testDoc(d.test).open == true
+        && (!('opens_at' in testDoc(d.test)) || testDoc(d.test).opens_at <= request.time)
+        && (!('closes_at' in testDoc(d.test)) || testDoc(d.test).closes_at >= request.time)
+        && testDoc(d.test).class_code == d.class_code && testDoc(d.test).owner == d.owner && testDoc(d.test).game == d.game
+        && (testDoc(d.test).tries == 0 || d.tries <= testDoc(d.test).tries)
+        && d.sid is string && d.sid.matches('^[a-z]{2,16}$')
+        && d.student is string && d.student.size() <= 24
+        && (isAdmin() || !d.student.lower().matches('milnes *d[.]? *'))   // only the developer can be Milnes D.
+        && d.tries is int && d.tries >= 1 && d.tries <= 100
+        && d.best is int && d.best >= 0 && d.best <= 1000000
+        && d.best_acc is int && d.best_acc >= 0 && d.best_acc <= 100
+        && d.best_score is int && d.best_score >= 0 && d.best_score <= 1000000
+        && d.updated_at == request.time;
+    }
+
+  }
+}
