@@ -424,6 +424,7 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
       <label>First name<input id="fFirst" autocomplete="given-name" maxlength="20"></label>
       <label>Last initial<input id="fInit" maxlength="1" autocomplete="off"></label>
       <label class="full">Class code<input id="fCode" maxlength="12" autocomplete="off" autocapitalize="characters"></label>
+      <label class="full" for="fSolo" style="display:flex;gap:8px;align-items:center;font-family:var(--body);font-size:.95rem;text-transform:none;letter-spacing:0;color:var(--fg)"><input type="checkbox" id="fSolo" style="width:20px;height:20px;margin:0"> I'm not in a class</label>
       <button class="btn primary big" type="submit">Start listening</button>
     </form>
     <p class="err" id="loginErr" aria-live="polite"></p>
@@ -1134,14 +1135,14 @@ let P = blank();
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} };
 function signIn(key, who) { store.users[key] ||= Object.assign(blank(), who); P = store.users[key]; store.current = key; save(); renderWho(); renderHome(); }
 const displayName = u => u.guest ? 'Guest' : `${u.first} ${u.init}.`;
-function renderWho() { setTimeout(renderGoal); $('who').hidden = false; $('switch').textContent = P.guest ? 'Sign in' : 'Switch student'; $('whoName').textContent = P.guest ? 'Guest mode' : `${displayName(P)} · ${P.className || CLASS_CODES[P.code] || P.code}`; }
+function renderWho() { setTimeout(renderGoal); $('who').hidden = false; $('switch').textContent = P.guest ? 'Sign in' : 'Switch student'; $('whoName').textContent = P.guest ? 'Guest mode' : `${displayName(P)} · ${P.code ? P.className || CLASS_CODES[P.code] || P.code : 'Not in a class'}`; }
 function showLogin() {
   $('goal').hidden = true;
-  $('who').hidden = true; $('loginErr').textContent = ''; $('loginForm').reset();
+  $('who').hidden = true; $('loginErr').textContent = ''; $('loginForm').reset(); $('fCode').disabled = false;
   const keys = Object.keys(store.users).filter(k => !store.users[k].guest);
   $('knownWrap').hidden = !keys.length; $('known').innerHTML = '';
   keys.forEach(k => { const u = store.users[k], b = document.createElement('button'); b.className = 'chip'; b.type = 'button';
-    b.textContent = `${displayName(u)} (${u.code})`; b.onclick = () => signIn(k, u); $('known').appendChild(b); });
+    b.textContent = `${displayName(u)} (${u.code || 'no class'})`; b.onclick = () => signIn(k, u); $('known').appendChild(b); });
   show('vLogin'); $('fFirst').focus();
 }
 function progressReport() {
@@ -1781,6 +1782,11 @@ $('loginForm').onsubmit = e => {
   const err = m => { $('loginErr').textContent = m; };
   if (!/^[A-Za-z\u00C0-\u00FF' -]{1,20}$/.test(first)) return err('Type your first name.');
   if (!/^[A-Z]$/.test(init)) return err('Type the first letter of your last name.');
+  if ($('fSolo').checked) {   // not in a class: progress stays on this computer, nothing goes to a teacher
+    const nice = first.charAt(0).toUpperCase() + first.slice(1);
+    return signIn(`SOLO:${nice.toLowerCase()} ${init}`, { first:nice, init, code:'', solo:true });
+  }
+  if (!code) return err('Enter the class code from your teacher, or check "I\'m not in a class."');
   if (!/^[A-Z0-9]{4,7}$/.test(code)) return err("That class code doesn't match. Check it with your teacher.");
   const nice = first.charAt(0).toUpperCase() + first.slice(1), btn = e.submitter || $('loginForm').querySelector('[type=submit]');
   err(''); btn.disabled = true; btn.textContent = 'Checking class code…';
@@ -1794,6 +1800,7 @@ $('loginForm').onsubmit = e => {
   });
 };
 $('switch').onclick = () => { stop(); if (P.guest) delete store.users.guest; store.current = null; save(); showLogin(); };
+$('fSolo').onchange = e => { $('loginErr').textContent = ''; $('fCode').disabled = e.target.checked; if (e.target.checked) $('fCode').value = ''; };
 $('guest').onclick = () => { delete store.users.guest; signIn('guest', { first:'Guest', init:'', code:'', guest:true }); };
 $('copyReport').onclick = () => {
   const text = progressReport(), ta = $('report');
