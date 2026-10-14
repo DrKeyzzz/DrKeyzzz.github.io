@@ -93,7 +93,7 @@ service cloud.firestore {
 
       allow create: if isTeacher()
         && code.matches('^[A-Z0-9]{4,7}$')   // random 5-character codes, or a teacher's own 4–7 character code
-        && request.resource.data.keys().hasOnly(['name', 'ownerEmail', 'created_at', 'assignment', 'scale_assignment', 'tidal_assignment', 'rooftop_assignment', 'hub_assignment'])
+        && request.resource.data.keys().hasOnly(['name', 'ownerEmail', 'created_at', 'assignment', 'scale_assignment', 'tidal_assignment', 'rooftop_assignment', 'hub_assignment', 'listen_assignment'])
         && request.resource.data.ownerEmail == request.auth.token.email
         && request.resource.data.name is string
         && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 40
@@ -101,7 +101,7 @@ service cloud.firestore {
 
       allow update: if isTeacher()
         && resource.data.ownerEmail == request.auth.token.email
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'assignment', 'scale_assignment', 'tidal_assignment', 'rooftop_assignment', 'hub_assignment'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'assignment', 'scale_assignment', 'tidal_assignment', 'rooftop_assignment', 'hub_assignment', 'listen_assignment'])
         && request.resource.data.name is string
         && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 40;
 
@@ -277,7 +277,7 @@ service cloud.firestore {
     match /listening_progress/{docId} {
       allow read: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
 
-      allow create, update: if request.resource.data.keys().hasOnly(['class_code', 'owner', 'date', 'sid', 'student', 'minutes', 'goal', 'rounds', 'correct', 'sessions', 'xp', 'levels', 'games', 'first_at', 'last_at', 'updated_at'])
+      allow create, update: if request.resource.data.keys().hasOnly(['class_code', 'owner', 'date', 'sid', 'student', 'minutes', 'goal', 'rounds', 'correct', 'sessions', 'xp', 'levels', 'games', 'rounds_by', 'first_at', 'last_at', 'updated_at'])
         && request.resource.data.class_code is string
         && exists(/databases/$(database)/documents/classes/$(request.resource.data.class_code))
         && get(/databases/$(database)/documents/classes/$(request.resource.data.class_code)).data.ownerEmail == request.resource.data.owner
@@ -434,7 +434,7 @@ service cloud.firestore {
 
     function feedbackOk(d) {
       return d.keys().hasOnly(['game', 'text', 'name', 'class_code', 'class_codes', 'owner', 'created_at'])
-        && d.game in ['scale-quest', 'tidal-tones', 'earshot-saloon', 'rhythm-trainer', 'rooftop-runner', 'hub']
+        && d.game in ['scale-quest', 'tidal-tones', 'earshot-saloon', 'rhythm-trainer', 'rooftop-runner', 'hub', 'critical-listening-lab']
         && d.text is string && d.text.size() >= 3 && d.text.size() <= 300
         && d.name is string && d.name.size() <= 24
         && (isAdmin() || !d.name.lower().matches('milnes *d[.]? *'))   // only the developer can be Milnes D.
@@ -463,7 +463,7 @@ service cloud.firestore {
       return d.keys().hasOnly(['name', 'game', 'class_code', 'owner', 'settings', 'grade', 'tries', 'open', 'opens_at', 'closes_at', 'created_at'])
         && (!('opens_at' in d) || d.opens_at is timestamp) && (!('closes_at' in d) || d.closes_at is timestamp)
         && d.name is string && d.name.size() >= 1 && d.name.size() <= 60
-        && d.game in ['scale', 'tidal', 'rooftop', 'rhythm', 'earshot']
+        && d.game in ['scale', 'tidal', 'rooftop', 'rhythm', 'earshot', 'listen']
         && d.grade in ['acc', 'score']
         && d.tries is int && d.tries >= 0 && d.tries <= 20
         && d.open is bool && d.settings is map && d.owner is string && d.class_code is string

@@ -351,6 +351,31 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
 .strip .shiftbadge{position:absolute;top:6px;right:8px;font:400 12px var(--display);padding:2px 8px;border-radius:6px;background:var(--accent);color:var(--ink);pointer-events:none;display:none}
 .strip.tuning .shiftbadge{display:block}
 .howbtn{margin-left:auto}
+/* ================= From your teacher, tests, feedback ================= */
+.from-teacher{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:14px}
+.tcard{position:relative;background:var(--panel);border:2px solid var(--accent);border-radius:12px;padding:14px 16px;display:grid;gap:8px;box-shadow:5px 5px 0 #000}
+.tcard.test{border-color:var(--bad)} .tcard.done{border-color:var(--ok)}
+.tcard .kick{font:400 .7rem var(--display);letter-spacing:.06em;color:var(--accent)} .tcard.test .kick{color:var(--bad)} .tcard.done .kick{color:var(--ok)}
+.tcard h3{font-size:1.05rem} .tcard p{margin:0;color:var(--muted);font-size:.9rem}
+.tcard .bar i{background:var(--accent)} .tcard.done .bar i{background:var(--ok)}
+.tcard .btn{justify-self:start}
+.test-lobby{max-width:760px;margin:0 auto;text-align:center;display:grid;gap:14px;justify-items:center;border:3px solid var(--bad);box-shadow:8px 8px 0 #000}
+.test-lobby .onair{display:inline-flex;align-items:center;gap:8px;background:var(--bad);color:#fff;font:400 .8rem var(--display);letter-spacing:.12em;padding:6px 12px;border-radius:6px}
+.test-lobby .onair i{width:10px;height:10px;border-radius:50%;background:#fff;animation:blink 1.2s infinite}
+@keyframes blink{50%{opacity:.2}}
+.test-lobby h2.big{font:400 clamp(2.4rem,8vw,4.6rem)/1 var(--tag);text-transform:none;color:var(--fg);transform:rotate(-2deg);-webkit-text-stroke:2px var(--ink);paint-order:stroke fill;text-shadow:4px 4px 0 var(--ink)}
+.test-lobby .facts{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.test-lobby .fact{min-width:130px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px 14px}
+.test-lobby .fact span{display:block;font:400 .66rem var(--display);color:var(--muted)} .test-lobby .fact b{font:500 1.25rem var(--mono)}
+.test-lobby .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.test-lobby .err{color:var(--bad);font-weight:700}
+.testing .howto,.testing #howShow,.testing #fbBtn{display:none!important}
+.fb-ov{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.7)}
+.fb-ov[hidden]{display:none}
+.fb-panel{width:100%;max-width:440px;background:var(--panel);border:2px solid var(--accent);border-radius:12px;padding:18px;display:grid;gap:10px;box-shadow:6px 6px 0 #000}
+.fb-panel textarea{font:inherit;width:100%;min-height:110px;resize:vertical;color:var(--fg);background:var(--screen);border:1px solid var(--line);border-radius:8px;padding:10px}
+.fb-panel .rowsb{font-size:.85rem;color:var(--muted)}
+.fb-panel .acts{display:flex;gap:10px;justify-content:flex-end}
 </style>
 </head>
 <body>
@@ -409,6 +434,7 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
 
   <!-- HOME -->
   <section id="vHome" class="view">
+    <div class="from-teacher" id="fromTeacher" hidden></div>
     <div class="home-top">
       <div class="panel workout">
         <div class="rowsb"><span class="label">Today's workout</span><span class="status" id="woDate"></span></div>
@@ -434,7 +460,7 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
     </div>
     <div class="rowsb"><span class="label">All games</span><span class="status">Ten rounds per game. Levels adjust as you play.</span></div>
     <div class="games" id="games"></div>
-    <div class="rowsb"><p class="note">Progress is saved in this browser on this device.</p><button class="btn small" id="teachBtn">Teacher dashboard</button></div>
+    <div class="rowsb"><p class="note">Progress is saved in this browser on this device.</p><div class="row" style="display:flex;gap:8px"><button class="btn small" id="fbBtn" type="button">Send feedback</button><button class="btn small" id="teachBtn">Teacher dashboard</button></div></div>
   </section>
 
   <!-- PLAY -->
@@ -519,12 +545,33 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
       <div class="stat"><span class="label">XP earned</span><b id="rXp">0</b></div>
     </div>
     <p class="note" id="rNote"></p>
+    <p class="note" id="rTest" hidden></p>
     <div class="actions">
       <button class="btn primary big" id="rNext">Next game</button>
       <button class="btn" id="rAgain">Play again</button>
       <button class="btn" id="rHome">Back to gym</button>
     </div>
   </section>
+
+  <!-- TEST LOBBY -->
+  <section id="vTest" class="panel test-lobby" hidden aria-live="polite"></section>
+
+  <!-- FEEDBACK -->
+  <div class="fb-ov" id="fbOv" hidden>
+    <div class="fb-panel" role="dialog" aria-modal="true" aria-labelledby="fbH">
+      <div id="fbForm" style="display:grid;gap:10px">
+        <h2 id="fbH">Send feedback</h2>
+        <p class="note" style="margin:0">Tell Mr. Milnes what you think of the Listening Lab. What would make it better?</p>
+        <textarea id="fbText" maxlength="300" placeholder="A few words is plenty"></textarea>
+        <div class="rowsb"><span id="fbWho"></span><span id="fbCount">0 / 300</span></div>
+        <label style="display:flex;gap:8px;align-items:center;font-size:.9rem"><input type="checkbox" id="fbAnon"> Send without my name</label>
+        <p class="note" style="margin:0">Please don't share personal info like your address or phone number.</p>
+        <p class="err" id="fbErr" role="alert" style="margin:0"></p>
+        <div class="acts"><button class="btn" id="fbCancel" type="button">Cancel</button><button class="btn primary" id="fbSend" type="button">Send</button></div>
+      </div>
+      <div id="fbDone" hidden style="display:grid;gap:10px"><h2>Thank you!</h2><p class="note" style="margin:0">Mr. Milnes will read your feedback.</p><div class="acts"><button class="btn primary" id="fbClose" type="button">Close</button></div></div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -536,7 +583,9 @@ const pick = a => a[Math.floor(Math.random() * a.length)];
 const rand = (lo, hi) => lo + Math.random() * (hi - lo);
 const logRand = (lo, hi) => Math.exp(rand(Math.log(lo), Math.log(hi)));
 const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
-const today = () => new Date().toISOString().slice(0, 10);
+const ymdOf = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const today = () => ymdOf(new Date());   // the student's local date, so evening practice counts for today
+const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
 
 /* ================= Built-in audio ================= */
 async function renderLoop(parts) {
@@ -1120,7 +1169,7 @@ const levelXp = l => 150 * (l - 1) * (l - 1);
 function dayStreak() {
   const set = new Set(P.days); let n = 0, d = new Date();
   if (!set.has(today())) d.setDate(d.getDate() - 1);
-  while (set.has(d.toISOString().slice(0,10))) { n++; d.setDate(d.getDate() - 1); }
+  while (set.has(ymdOf(d))) { n++; d.setDate(d.getDate() - 1); }
   return n;
 }
 function todaysWorkout() {
@@ -1131,7 +1180,7 @@ function todaysWorkout() {
 }
 
 /* ================= Views ================= */
-function show(v) { if (typeof showHowto === 'function' && !(v === 'vFree' && howId === 'maker')) showHowto(null); if (v !== 'vFree' && typeof bmStop === 'function') bmStop(); ['vLogin','vHome','vPlay','vResults','vFree'].forEach(id => $(id).hidden = id !== v); window.scrollTo(0, 0); }
+function show(v) { if (typeof showHowto === 'function' && !(v === 'vFree' && howId === 'maker')) showHowto(null); if (v !== 'vFree' && typeof bmStop === 'function') bmStop(); document.body.classList.toggle('testing', !!(v === 'vTest' || (v === 'vPlay' && S && S.test))); ['vLogin','vHome','vPlay','vResults','vFree','vTest'].forEach(id => $(id).hidden = id !== v); window.scrollTo(0, 0); }
 const svgIcon = (name) => `<svg viewBox="0 0 64 32" aria-hidden="true"><path d="${ICONS[name]}" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const pips = (l, n = 5) => `<span class="pips">${Array.from({ length:n }, (_, k) => k + 1).map(i => `<i class="${i<=l?'on':''}"></i>`).join('')}</span>`;
 
@@ -1160,17 +1209,18 @@ function renderHome() {
       <div class="meta"><span class="tag sk-Rhythm">Free play</span><span>${P.freeBeat ? P.freeBeat.rows.length + ' rows saved' : 'No score, just make beats'}</span></div></button>`);
   $('games').querySelectorAll('.card[data-g]').forEach(c => c.onclick = () => startSession(c.dataset.g, 10, null));
   $('freeCard').onclick = openFree;
+  renderTeacherBox(); refreshClass();
   show('vHome');
 }
 
 /* ================= Session ================= */
 let S = null, R = null, answered = false, roundStart = 0;
-function startSession(gid, rounds, workout) {
+function startSession(gid, rounds, workout, test) {
   const g = G(gid);
-  if (!workout && g.rounds) rounds = g.rounds;
-  const L0 = startLevel(gid);
-  S = { g, rounds, i:0, score:0, right:0, results:[], level:L0, startLevel:L0, upRun:0, downRun:0, workout };
-  $('gName').textContent = g.name; $('gSkill').textContent = g.skill + (workout ? ` · Workout ${workout.idx + 1} of 3` : '');
+  if (!workout && !test && g.rounds) rounds = g.rounds;
+  const L0 = test ? Math.max(1, Math.min(g.levels.length, test.settings.level || 1)) : startLevel(gid);
+  S = { g, rounds, i:0, score:0, right:0, results:[], level:L0, startLevel:L0, upRun:0, downRun:0, workout, test };
+  $('gName').textContent = g.name; $('gSkill').textContent = test ? `Test: ${test.name}` : g.skill + (workout ? ` · Workout ${workout.idx + 1} of 3` : '');
   $('gSkill').className = 'label sk-' + g.skill;
   $('gBlurb').textContent = g.blurb; $('question').textContent = '';
   const grid = g.id === 'beat'; $('btnA').querySelector('span').textContent = grid ? 'Target beat' : 'Original'; $('btnB').querySelector('span').textContent = grid ? 'Your beat' : 'Processed';
@@ -1185,7 +1235,7 @@ function newRound() {
   $('feedback').textContent = R.ui === 'grid' ? 'Press Play to hear the target beat. Click the grid to build yours, press B to hear it, then Check.' : S.i === 0 ? 'Press Play, flip between A and B, then answer.' : 'New round. Flip A and B, then answer.';
   $('question').textContent = `Level ${S.level}: ${R.q || S.g.levels[S.level - 1]}`;
   $('next').hidden = true; renderAnswer(); updateCover(); wireChain(); setSide('A');
-  if (S.i === 0 || howId) autoHowto(S.g.id, S.level);
+  if (S.test) showHowto(null); else if (S.i === 0 || howId) autoHowto(S.g.id, S.level);
   if (playing && R.ui === 'grid') { stopSeq(); startSeq(); } else if (playing && !srcNode) start();
 }
 function renderAnswer() {
@@ -1462,12 +1512,13 @@ function submit(resp) {
   const bonus = ok ? Math.round(50 * Math.max(0, Math.min(1, 1 - (secs - t0) / span))) : 0;
   const pts = Math.round(100 * (1 + 0.25 * (S.level - 1)) * acc) + bonus;
   S.score += pts; if (ok) S.right++; S.results.push(ok);
-  dayStat(st => { st.rounds++; if (ok) st.correct++; });
+  dayStat(st => { st.rounds++; if (ok) st.correct++; st.r ||= {}; st.r[S.g.id] = (st.r[S.g.id] || 0) + 1; });
   P.total++; if (ok) P.right++;
   let lvlMsg = '';
   // Two in a row moves you up during short workout sets and on levels you've already passed; otherwise three.
   const need = (S.workout || S.level < (gp(S.g.id).peak || 1)) ? 2 : 3;
-  if (ok) { S.upRun++; S.downRun = 0; if (S.upRun >= need && S.level < S.g.levels.length) { S.level++; S.upRun = 0; lvlMsg = ` <span class="up">Level up! Now level ${S.level}.</span>`; } }
+  if (S.test) {}   // a test stays at the teacher's level
+  else if (ok) { S.upRun++; S.downRun = 0; if (S.upRun >= need && S.level < S.g.levels.length) { S.level++; S.upRun = 0; lvlMsg = ` <span class="up">Level up! Now level ${S.level}.</span>`; } }
   else { S.downRun++; S.upRun = 0; if (S.downRun >= 2 && S.level > 1) { S.level--; S.downRun = 0; lvlMsg = ` Dropping to level ${S.level}.`; } }
   $('feedback').innerHTML = (ok ? `<span class="ok">Correct. +${pts}</span> ` : `<span class="bad">Not quite.${pts ? ' +' + pts : ''}</span> `) + R.reveal + extra + lvlMsg;
   $('hScore').textContent = S.score;
@@ -1478,7 +1529,7 @@ function nextRound() { S.i++; if (S.i >= S.rounds) finish(); else newRound(); }
 function finish() {
   stop();
   const g = S.g, p = gp(g.id), xp = Math.round(S.score / 10);
-  p.level = S.level; p.peak = Math.max(p.peak || 1, S.level); p.best = Math.max(p.best, S.score); p.plays++;
+  if (!S.test) { p.level = S.level; p.peak = Math.max(p.peak || 1, S.level); p.best = Math.max(p.best, S.score); } p.plays++;
   P.xp += xp; P.sessions++; if (!P.days.includes(today())) P.days.push(today());
   dayStat(st => { st.sessions++; }); setTimeout(() => syncUp(true), 50);
   if (S.workout) { const d = P.workout[today()] ||= []; if (!d.includes(g.id)) d.push(g.id); }
@@ -1492,6 +1543,8 @@ function finish() {
   const wo = S.workout, more = wo && wo.idx < 2;
   $('rNext').hidden = !more;
   if (more) $('rNext').textContent = 'Next: ' + G(wo.games[wo.idx + 1]).name;
+  $('rTest').hidden = true; $('rAgain').hidden = false; $('rAgain').textContent = 'Play again';
+  if (S.test) finishTest(acc);
   show('vResults');
 }
 function startWorkout() {
@@ -1696,8 +1749,8 @@ $('play').onclick = () => playing ? stop() : start();
 $('btnA').onclick = () => { setSide('A'); if (!playing) start(); };
 $('btnB').onclick = () => { setSide('B'); if (!playing) start(); };
 $('next').onclick = nextRound;
-$('rHome').onclick = renderHome;
-$('rAgain').onclick = () => startSession(S.g.id, S.rounds, S.workout);
+$('rHome').onclick = () => { renderHome(); refreshClass(true); };
+$('rAgain').onclick = () => S.test ? openTest(S.test.id) : startSession(S.g.id, S.rounds, S.workout);
 $('rNext').onclick = () => { const w = S.workout; startSession(w.games[w.idx + 1], 5, { games:w.games, idx:w.idx + 1 }); };
 $('vol').oninput = e => { if (master) master.gain.setTargetAtTime(+e.target.value, ctx.currentTime, 0.02); };
 $('src').onchange = () => { if (playing) start(); };
@@ -1736,7 +1789,7 @@ $('loginForm').onsubmit = e => {
     if (cls === null && !CLASS_CODES[code]) return err("That class code doesn't match. Check it with your teacher.");
     const info = cls && cls !== 'offline' ? { className: cls.name, owner: cls.owner } : {};
     signIn(`${code}:${nice.toLowerCase()} ${init}`, { first:nice, init, code, ...info });
-    Object.assign(P, info); save(); syncUp(true);
+    Object.assign(P, info); save(); syncUp(true); refreshClass(true);
     if (cls === 'offline') showStatus("Couldn't reach the class list, so your teacher won't see today's minutes until you're back online.");
   });
 };
@@ -1799,7 +1852,7 @@ const withTimeout = (p, ms = 8000) => Promise.race([p, new Promise((_, no) => se
 // Look up a class code. Returns {name, owner}, null if it doesn't exist, or 'offline'.
 async function lookupClass(code) {
   try { const { fs, db } = await withTimeout(fb()); const snap = await withTimeout(fs.getDoc(fs.doc(db, 'classes', code)));
-    return snap.exists() ? { name: snap.data().name, owner: String(snap.data().ownerEmail || '') } : null; }
+    return snap.exists() ? { name: snap.data().name, owner: String(snap.data().ownerEmail || ''), assign: snap.data().listen_assignment || null } : null; }
   catch (e) { return 'offline'; }
 }
 const sidOf = u => (u.first + u.init).toLowerCase().replace(/[^a-z]/g, '').slice(0, 16);
@@ -1812,7 +1865,7 @@ async function syncUp(force) {
   const data = { class_code: P.code, owner: P.owner, date: day, sid, student: displayName(P).slice(0, 24),
     minutes: Math.min(1440, Math.floor(secsToday() / 60)), goal: GOAL_MIN, rounds: st.rounds || 0, correct: st.correct || 0, sessions: st.sessions || 0,
     xp: P.xp || 0, levels: Object.fromEntries(GAMES.map(g => [g.id, (P.games[g.id] || {}).level || 1])),
-    games: st.games || {}, first_at: st.first || Date.now(), last_at: Date.now() };
+    games: st.games || {}, rounds_by: st.r || {}, first_at: st.first || Date.now(), last_at: Date.now() };
   try { const { fs, db } = await withTimeout(fb());
     await withTimeout(fs.setDoc(fs.doc(db, 'listening_progress', `${P.code}_${day}_${sid}`), { ...data, updated_at: fs.serverTimestamp() })); }
   catch (e) { /* offline or blocked: try again next minute */ }
@@ -1821,6 +1874,144 @@ async function syncUp(force) {
 function dayStat(fn) { P.stats ||= {}; const s = P.stats[today()] ||= { rounds:0, correct:0, sessions:0, games:{}, first: Date.now() }; fn(s); }
 document.addEventListener('visibilitychange', () => { if (document.hidden && signedIn()) { save(); syncUp(true); } });
 $('teachBtn').onclick = $('teachBtn2').onclick = () => window.open(TEACHER_URL, '_blank', 'noopener');
+
+/* ================= From your teacher: assignment and tests ================= */
+// The class doc's listen_assignment (set on the teacher dashboard's Assign tab):
+//   { start, end: 'YYYY-MM-DD', games: [game ids] ([] = any game), goal, unit: 'rounds' | 'minutes', note }
+// Tests are tests/<id> with game 'listen' and settings { game, level, rounds }; each student's best is test_results/<id>_<sid>.
+const dateOk = v => /^\d{4}-\d{2}-\d{2}$/.test(v || '');
+function cleanAssign(a) {
+  if (!a || !dateOk(a.start) || !dateOk(a.end) || !(+a.goal > 0)) return null;
+  return { start:a.start, end:a.end, games:(Array.isArray(a.games) ? a.games : []).filter(id => G(id)), goal:Math.round(+a.goal), unit:a.unit === 'minutes' ? 'minutes' : 'rounds', note:String(a.note || '').slice(0, 200) };
+}
+function assignDone(a) {
+  let n = 0;
+  for (const [d, st] of Object.entries(P.stats || {})) {
+    if (d < a.start || d > a.end) continue;
+    if (a.unit === 'minutes') n += a.games.length ? a.games.reduce((m, id) => m + ((st.games || {})[id] || 0), 0) : ((P.time || {})[d] || 0);
+    else n += a.games.length ? a.games.reduce((m, id) => m + ((st.r || {})[id] || 0), 0) : (st.rounds || 0);
+  }
+  return a.unit === 'minutes' ? Math.floor(n / 60) : n;
+}
+const niceDate = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric' }); };
+const dueText = end => end === today() ? 'due today' : 'due ' + niceDate(end);
+const msOf = v => v && typeof v.toMillis === 'function' ? v.toMillis() : v && v.seconds ? v.seconds * 1000 : +v || 0;
+const whenText = ms => new Date(ms).toLocaleString(undefined, { weekday:'short', month:'short', day:'numeric', hour:'numeric', minute:'2-digit' });
+const testState = t => { const now = Date.now(); if (!t.open) return 'closed'; if (t.from && t.from > now) return 'soon'; if (t.to && t.to < now) return 'ended'; return 'open'; };
+const triesLeft = t => t.tries ? Math.max(0, t.tries - ((t.result || {}).tries || 0)) : Infinity;
+const unitOf = t => t.grade === 'score' ? '' : '%';
+function renderTeacherBox() {
+  const box = $('fromTeacher'); if (!box) return;
+  const cards = [];
+  const a = signedIn() && !P.guest ? cleanAssign(P.assign) : null;
+  if (a && a.start <= today() && a.end >= today()) {
+    const v = assignDone(a), done = v >= a.goal, what = a.games.length ? a.games.map(id => G(id).name).join(', ') : 'Any game';
+    cards.push(`<div class="tcard ${done ? 'done' : ''}"><span class="kick">From your teacher · ${esc(dueText(a.end))}</span><h3>${esc(what)}</h3>
+      ${a.note ? `<p>${esc(a.note)}</p>` : ''}<div class="bar"><i style="width:${Math.min(100, Math.round(v / a.goal * 100))}%"></i></div>
+      <p>${done ? '✓ Done: ' : ''}${v} of ${a.goal} ${a.unit === 'minutes' ? 'minutes' : 'rounds'}</p>
+      <button class="btn primary" data-assign>${done ? 'Practice more' : 'Start'}</button></div>`);
+  }
+  for (const t of (signedIn() && !P.guest ? P.tests || [] : [])) {
+    const st = testState(t); if (st === 'ended' || st === 'closed') continue;
+    const g = G(t.settings.game), left = triesLeft(t), r = t.result;
+    cards.push(`<div class="tcard test"><span class="kick">Test · ${esc(g.name)}</span><h3>${esc(t.name)}</h3>
+      <p>Level ${t.settings.level}, ${t.settings.rounds} rounds · ${t.tries ? (t.tries === 1 ? 'One try' : t.tries + ' tries, best counts') : 'Unlimited tries, best counts'}</p>
+      <p>${t.to ? 'Closes ' + esc(whenText(t.to)) + ' · ' : ''}${r && r.tries ? `Best ${r.best}${unitOf(t)} · ${r.tries} ${r.tries === 1 ? 'try' : 'tries'} used` : 'Not taken yet'}</p>
+      ${st === 'soon' ? `<p><b>Opens ${esc(whenText(t.from))}</b></p>` : left === 0 ? '<p><b>✓ All tries used</b></p>' : `<button class="btn primary" data-test="${esc(t.id)}">${r && r.tries ? 'Take it again' : 'Take the test'}</button>`}</div>`);
+  }
+  box.hidden = !cards.length; box.innerHTML = cards.join('');
+  box.querySelectorAll('[data-test]').forEach(b => b.onclick = () => openTest(b.dataset.test));
+  const ab = box.querySelector('[data-assign]'); if (ab) ab.onclick = () => {
+    if (!a.games.length) return startWorkout();
+    const done = id => Object.entries(P.stats || {}).filter(([d]) => d >= a.start && d <= a.end).reduce((m, [, st]) => m + (a.unit === 'minutes' ? (st.games || {})[id] || 0 : (st.r || {})[id] || 0), 0);
+    const gid = a.games.slice().sort((x, y) => done(x) - done(y))[0];   // the assigned game they've done the least
+    startSession(gid, 10, null);
+  };
+}
+let lastClassCheck = 0;
+async function refreshClass(force) {
+  if (!signedIn() || P.guest || !P.code || !P.owner) return;
+  if (!force && Date.now() - lastClassCheck < 120000) return; lastClassCheck = Date.now();
+  try {
+    const { fs, db } = await withTimeout(fb()), me = P;
+    const [cls, list] = await withTimeout(Promise.all([fs.getDoc(fs.doc(db, 'classes', P.code)), fs.getDocs(fs.query(fs.collection(db, 'tests'), fs.where('class_code', '==', P.code)))]));
+    if (me !== P) return;
+    if (cls.exists()) { P.assign = cls.data().listen_assignment || null; P.className = cls.data().name || P.className; }
+    const tests = list.docs.map(d => ({ id:d.id, ...d.data() })).filter(t => t.game === 'listen' && t.settings && G(t.settings.game))
+      .map(t => ({ id:t.id, name:t.name, class_code:t.class_code, owner:t.owner, grade:t.grade, tries:t.tries, open:!!t.open, from:msOf(t.opens_at), to:msOf(t.closes_at), created:msOf(t.created_at),
+        settings:{ game:t.settings.game, level:Math.max(1, Math.round(+t.settings.level || 1)), rounds:Math.max(3, Math.min(30, Math.round(+t.settings.rounds || 10))) } }))
+      .filter(t => testState(t) !== 'ended' && t.open).sort((x, y) => y.created - x.created).slice(0, 6);
+    const rs = await withTimeout(Promise.all(tests.map(t => fs.getDoc(fs.doc(db, 'test_results', t.id + '_' + sidOf(P))))));
+    tests.forEach((t, i) => { if (rs[i].exists()) { const r = rs[i].data(); t.result = { tries:r.tries || 0, best:r.best || 0, best_acc:r.best_acc || 0, best_score:r.best_score || 0 }; } });
+    P.tests = tests; save();
+    if (!$('vHome').hidden) renderTeacherBox();
+  } catch (e) { /* offline: keep what we had */ }
+}
+function testLobby(t, note) {
+  const g = G(t.settings.game), r = t.result, used = r ? r.tries : 0, left = triesLeft(t), st = testState(t);
+  const blocked = st !== 'open' ? (st === 'soon' ? `This test opens ${whenText(t.from)}.` : st === 'ended' ? 'This test has ended.' : 'This test is closed right now.') : left === 0 ? 'You have used all your tries for this test.' : '';
+  $('vTest').innerHTML = `<span class="onair"><i></i>Test</span><h2 class="big">This is a test</h2><h3>${esc(t.name)}</h3>
+    <p class="note" style="max-width:52ch">${esc(g.name)} at level ${t.settings.level}: ${esc(g.levels[t.settings.level - 1] || '')}. ${t.settings.rounds} rounds. Headphones on. Take your time on each round. The level stays the same the whole test.</p>
+    <div class="facts"><div class="fact"><span>Student</span><b>${esc(displayName(P))}</b></div><div class="fact"><span>Tries</span><b>${t.tries ? used + ' / ' + t.tries : used + ' used'}</b></div>
+      <div class="fact"><span>Your best</span><b>${used ? r.best + unitOf(t) : '–'}</b></div><div class="fact"><span>Graded on</span><b>${t.grade === 'score' ? 'Score' : 'Accuracy'}</b></div></div>
+    ${note ? `<p class="err" role="alert">${esc(note)}</p>` : ''}${blocked ? `<p class="err">${esc(blocked)}</p>` : '<p class="note">A try counts as soon as you begin. Leaving partway still uses it.</p>'}
+    <div class="row">${blocked ? '' : `<button class="btn primary big" id="tGo">${used ? 'Begin another try' : 'Begin the test'}</button>`}<button class="btn" id="tBack">Back to gym</button></div>`;
+  show('vTest');
+  $('tBack').onclick = () => renderHome();
+  if ($('tGo')) $('tGo').onclick = () => beginTest(t);
+}
+async function openTest(id) {
+  const t = (P.tests || []).find(x => x.id === id); if (!t) return renderHome();
+  testLobby(t);
+}
+const resultRef = (fs, db, t) => fs.doc(db, 'test_results', t.id + '_' + sidOf(P));
+async function beginTest(t) {
+  const b = $('tGo'); if (b) { b.disabled = true; b.textContent = 'Starting…'; }
+  const r = t.result || { tries:0, best:0, best_acc:0, best_score:0 };
+  const next = { test:t.id, class_code:t.class_code, owner:t.owner, game:'listen', sid:sidOf(P), student:displayName(P).slice(0, 24), tries:r.tries + 1, best:r.best, best_acc:r.best_acc, best_score:r.best_score };
+  try { const { fs, db } = await withTimeout(fb()); await withTimeout(fs.setDoc(resultRef(fs, db, t), { ...next, updated_at: fs.serverTimestamp() })); }
+  catch (e) { return testLobby(t, "Couldn't start the test. " + (e && e.code === 'permission-denied' ? 'Ask your teacher to check the test is open.' : 'Check your internet and try again.')); }
+  t.result = { tries:next.tries, best:next.best, best_acc:next.best_acc, best_score:next.best_score }; save();
+  startSession(t.settings.game, t.settings.rounds, null, t);
+}
+async function finishTest(acc) {
+  const t = S.test, r = t.result, value = t.grade === 'score' ? S.score : acc, improved = value > r.best;
+  $('rTitle').textContent = 'Test complete'; $('rGame').textContent = `Test: ${t.name}`;
+  $('rNote').textContent = `This try: ${value}${unitOf(t)}. ${triesLeft(t) > 0 ? (t.tries ? `${triesLeft(t)} ${triesLeft(t) === 1 ? 'try' : 'tries'} left.` : 'You can take it again.') : 'That was your last try.'}`;
+  $('rAgain').textContent = 'Back to the test'; $('rAgain').hidden = triesLeft(t) === 0;
+  $('rTest').hidden = false; $('rTest').textContent = improved ? 'Saving your score for your teacher…' : `Your best stays ${r.best}${unitOf(t)}. It's saved for your teacher.`;
+  if (!improved) return;
+  const next = { test:t.id, class_code:t.class_code, owner:t.owner, game:'listen', sid:sidOf(P), student:displayName(P).slice(0, 24), tries:r.tries, best:value, best_acc:acc, best_score:Math.min(1000000, S.score) };
+  try { const { fs, db } = await withTimeout(fb()); await withTimeout(fs.setDoc(resultRef(fs, db, t), { ...next, updated_at: fs.serverTimestamp() }));
+    Object.assign(r, { best:value, best_acc:acc, best_score:next.best_score }); save(); $('rTest').textContent = `New best: ${value}${unitOf(t)}. Saved for your teacher.`; }
+  catch (e) { $('rTest').innerHTML = '<b style="color:var(--bad)">Your score could not be saved. Tell your teacher before you leave this page.</b>'; }
+}
+
+/* ================= Feedback (game_feedback, read on the teacher dashboard) ================= */
+const FB_WAIT = 60000;
+function openFeedback() {
+  $('fbForm').hidden = false; $('fbDone').hidden = true; $('fbErr').textContent = ''; $('fbText').value = ''; $('fbCount').textContent = '0 / 300'; $('fbAnon').checked = false;
+  const named = signedIn() && !P.guest; $('fbWho').textContent = named ? 'From ' + displayName(P) : 'From a guest'; $('fbAnon').parentElement.hidden = !named;
+  $('fbOv').hidden = false; setTimeout(() => $('fbText').focus(), 30);
+}
+$('fbBtn').onclick = openFeedback;
+$('fbText').oninput = () => { $('fbCount').textContent = $('fbText').value.length + ' / 300'; };
+$('fbCancel').onclick = $('fbClose').onclick = () => { $('fbOv').hidden = true; };
+$('fbOv').onclick = e => { if (e.target === $('fbOv')) $('fbOv').hidden = true; };
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('fbOv').hidden) $('fbOv').hidden = true; });
+$('fbSend').onclick = async () => {
+  const text = $('fbText').value.trim(); if (text.length < 3) return $('fbErr').textContent = 'Write a few words first.';
+  let last = 0; try { last = +localStorage.getItem('clt-fb-last') || 0; } catch (e) {}
+  if (Date.now() - last < FB_WAIT) return $('fbErr').textContent = 'You just sent one. Wait a minute before sending another.';
+  const named = signedIn() && !P.guest, inClass = named && P.code && P.owner;
+  const doc = { game:'critical-listening-lab', text:text.slice(0, 300), name: named && !$('fbAnon').checked ? displayName(P).slice(0, 24) : '', class_code: inClass ? P.code : '', owner: inClass ? P.owner : '' };
+  $('fbSend').disabled = true; $('fbSend').textContent = 'Sending…';
+  try { const { fs, db } = await withTimeout(fb()); await withTimeout(fs.addDoc(fs.collection(db, 'game_feedback'), { ...doc, created_at: fs.serverTimestamp() }));
+    try { localStorage.setItem('clt-fb-last', String(Date.now())); } catch (e) {}
+    $('fbForm').hidden = true; $('fbDone').hidden = false; }
+  catch (e) { $('fbErr').textContent = "Couldn't send it. Check your internet and try again."; }
+  $('fbSend').disabled = false; $('fbSend').textContent = 'Send';
+};
 
 /* ================= Beat Maker: saved beats ================= */
 function renderMyBeats() {
@@ -1842,7 +2033,7 @@ $('bmDelete').onclick = () => { const i = $('bmLoad').value; if (i === '') { ale
 
 if (store.current && store.users[store.current]) { P = store.users[store.current]; renderWho(); renderHome();
   // profiles from before Firebase: find the class's teacher so minutes reach the dashboard
-  if (!P.guest && P.code && !P.owner) lookupClass(P.code).then(c => { if (c && c !== 'offline') { P.owner = c.owner; P.className = c.name; save(); renderWho(); syncUp(true); } });
+  if (!P.guest && P.code && !P.owner) lookupClass(P.code).then(c => { if (c && c !== 'offline') { P.owner = c.owner; P.className = c.name; save(); renderWho(); syncUp(true); refreshClass(true); } });
 } else showLogin();
 draw();
 })();
