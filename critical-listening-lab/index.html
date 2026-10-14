@@ -1873,7 +1873,7 @@ async function syncUp(force) {
 // per-day counters the dashboard shows
 function dayStat(fn) { P.stats ||= {}; const s = P.stats[today()] ||= { rounds:0, correct:0, sessions:0, games:{}, first: Date.now() }; fn(s); }
 document.addEventListener('visibilitychange', () => { if (document.hidden && signedIn()) { save(); syncUp(true); } });
-$('teachBtn').onclick = $('teachBtn2').onclick = () => window.open(TEACHER_URL, '_blank', 'noopener');
+$('teachBtn').onclick = $('teachBtn2').onclick = () => { save(); location.href = TEACHER_URL; };
 
 /* ================= From your teacher: assignment and tests ================= */
 // The class doc's listen_assignment (set on the teacher dashboard's Assign tab):
