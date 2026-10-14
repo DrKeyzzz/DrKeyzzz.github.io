@@ -188,6 +188,28 @@ kbd{font-family:var(--mono);font-size:.72rem;border:1px solid var(--line);border
 .roll .vc{height:30px;border:none;background:transparent;padding:0;display:flex;align-items:flex-end;justify-content:center;cursor:pointer;min-width:0;border-bottom:1px solid var(--line)}
 .roll .vc i{display:block;width:70%;border-radius:2px 2px 0 0;background:var(--freq)}
 .roll .vc.v1 i{height:33%;opacity:.55} .roll .vc.v2 i{height:66%;opacity:.8} .roll .vc.v3 i{height:100%}
+.bass-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.bass-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.bstep{position:relative;display:grid;gap:6px;align-content:start;padding:10px 12px 10px 42px;border:1px solid var(--line);border-radius:10px;background:var(--panel-2)}
+.bnum{position:absolute;left:10px;top:9px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--freq);color:#111;font:400 .8rem var(--display)}
+.brow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bass-steps .btn,.bass-head .btn{padding:7px 14px;font-size:.85rem}
+.bmini{margin:0;font-size:.85rem;color:var(--muted);line-height:1.4}
+.tips{padding-left:18px;display:grid;gap:4px}
+.xps{display:grid;gap:8px}
+.xp{border:1px solid var(--line);border-radius:10px;background:var(--panel-2);overflow:hidden}
+.xp-h{all:unset;box-sizing:border-box;width:100%;display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer}
+.xp-h:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.xp-t{font:400 .95rem var(--display);letter-spacing:.02em}
+.xp-s{flex:1;text-align:right;font-size:.8rem;color:var(--freq);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.xp-c{transition:transform .3s ease;color:var(--muted)}
+.xp.open .xp-c{transform:rotate(180deg)}
+.xp-b{display:grid;grid-template-rows:0fr;transition:grid-template-rows .32s ease}
+.xp.open .xp-b{grid-template-rows:1fr}
+.xp-b>div{min-height:0;overflow:hidden}
+.xp-in{display:grid;gap:10px;padding:2px 14px 14px;opacity:0;transform:translateY(-6px);transition:opacity .25s ease,transform .3s ease}
+.xp.open .xp-in{opacity:1;transform:none}
+@media (prefers-reduced-motion:reduce){.xp-b,.xp-in,.xp-c{transition:none}}
 .bass-acts{display:flex;gap:8px;flex-wrap:wrap}
 .bass-acts .btn[aria-pressed=true]{background:var(--fg);color:var(--bg)}
 .bass-ctl{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
@@ -590,20 +612,40 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
       <div id="bmPicker" hidden style="margin-top:12px"></div>
     </div>
     <div class="panel bass" id="bassPanel">
-      <div class="rowsb"><div style="display:grid;gap:2px"><span class="label sk-Frequency">Bass line · piano roll</span><h3>Bass</h3></div>
-        <div class="bass-acts"><button class="btn primary" id="bsFill" type="button">Auto fill</button><button class="btn" id="bsRand" type="button">🎲 Random</button><button class="btn" id="bsClear" type="button">Clear bass</button><button class="btn" id="bsMute" type="button" aria-pressed="false">Mute</button></div></div>
-      <div class="bass-ctl">
-        <label class="group"><span class="label">Key</span><select id="bsKey"></select></label>
-        <div class="group"><span class="label">Scale</span><div class="bars-seg" id="bsScale"><button type="button" data-v="major">Major</button><button type="button" data-v="minor">Minor</button></div></div>
-        <div class="group"><span class="label">Auto fill uses</span><div class="bars-seg" id="bsMode"><button type="button" data-v="key">Stay in key</button><button type="button" data-v="chords">Chord progression</button></div></div>
-        <div class="group" id="bsProgWrap"><span class="label">Progression</span><div style="display:flex;gap:6px;align-items:center"><b id="bsProg" class="bs-prog"></b><button class="btn small" id="bsNewProg" type="button">🎲 New chords</button></div></div>
-        <label class="group"><span class="label">Sound</span><select id="bsSound"><optgroup label="Electronic"><option value="sub">Sub bass</option><option value="b808">808 bass</option><option value="synth">Synth bass</option><option value="acid">Acid bass</option><option value="reese">Reese bass</option><option value="wobble">Wobble bass</option></optgroup><optgroup label="Band"><option value="finger">Electric bass (fingers)</option><option value="pluck">Plucked bass</option><option value="upright">Upright bass</option></optgroup></select></label>
-        <button class="btn" id="bsHear" type="button" title="Hear this bass sound">▶ Hear it</button>
-        <div class="group"><span class="label">New notes</span><div class="bars-seg" id="bsVel"><button type="button" data-v="1">Soft</button><button type="button" data-v="2">Med</button><button type="button" data-v="3">Hard</button></div></div>
-        <label class="group"><span class="label">Pan <output id="bsPanOut">C</output></span><input type="range" id="bsPan" min="-100" max="100" step="5" value="0" style="width:110px;accent-color:var(--level)"></label>
+      <div class="bass-head"><div style="display:grid;gap:2px"><span class="label sk-Frequency">Bass line · piano roll</span><h3>Bass</h3></div>
+        <div class="bass-acts"><button class="btn" id="bsClear" type="button">Clear</button><button class="btn" id="bsMute" type="button" aria-pressed="false">Mute</button></div></div>
+      <div class="bass-steps">
+        <div class="bstep"><span class="bnum">1</span><span class="label">Pick a key</span><div class="brow"><select id="bsKey" aria-label="Key"></select><div class="bars-seg" id="bsScale" role="group" aria-label="Scale"><button type="button" data-v="major">Major</button><button type="button" data-v="minor">Minor</button></div></div></div>
+        <div class="bstep"><span class="bnum">2</span><span class="label">Make a bass line</span><div class="brow"><button class="btn primary" id="bsFill" type="button">Auto fill</button><button class="btn" id="bsRand" type="button">🎲 Random</button></div></div>
+        <div class="bstep"><span class="bnum">3</span><span class="label">Or draw your own</span><p class="bmini">Click a square to add a note, drag right to hold it, click it again to erase.</p></div>
       </div>
-      <p class="hint" style="margin:0">Click a square to place a note, drag right to make it longer, click a note to remove it. The bars under the roll are each note's velocity (how hard it's played): click one to change it. Click a note name on the left to hear it. Only notes in your key are shown, so nothing clashes. Made a mistake? Hit <b>↶ Undo</b> (or Ctrl+Z). <b>Auto fill</b> writes a bass line for you. <b>🎲 Random</b> makes a new version.</p>
       <div class="seq-wrap"><div class="roll" id="bsRoll"></div></div>
+      <div class="xps">
+        <div class="xp" data-xp="chords"><button class="xp-h" type="button" aria-expanded="false"><span class="xp-t">🎹 Chords</span><span class="xp-s" id="xsChords"></span><span class="xp-c" aria-hidden="true">▾</span></button>
+          <div class="xp-b"><div><div class="xp-in">
+            <p class="bmini">Auto fill can stay home in one key, or follow a chord progression so the line moves.</p>
+            <div class="bars-seg" id="bsMode" role="group" aria-label="Auto fill uses"><button type="button" data-v="key">Stay in key</button><button type="button" data-v="chords">Follow chords</button></div>
+            <div id="bsProgWrap" class="brow"><b id="bsProg" class="bs-prog"></b><button class="btn small" id="bsNewProg" type="button">🎲 New chords</button></div>
+          </div></div></div></div>
+        <div class="xp" data-xp="sound"><button class="xp-h" type="button" aria-expanded="false"><span class="xp-t">🔊 Sound &amp; pan</span><span class="xp-s" id="xsSound"></span><span class="xp-c" aria-hidden="true">▾</span></button>
+          <div class="xp-b"><div><div class="xp-in">
+            <div class="brow"><select id="bsSound" aria-label="Bass sound"><optgroup label="Electronic"><option value="sub">Sub bass</option><option value="b808">808 bass</option><option value="synth">Synth bass</option><option value="acid">Acid bass</option><option value="reese">Reese bass</option><option value="wobble">Wobble bass</option></optgroup><optgroup label="Band"><option value="finger">Electric bass (fingers)</option><option value="pluck">Plucked bass</option><option value="upright">Upright bass</option></optgroup></select><button class="btn small" id="bsHear" type="button" title="Hear this bass sound">▶ Hear it</button></div>
+            <label class="brow"><span class="label">Pan <output id="bsPanOut">C</output></span><input type="range" id="bsPan" min="-100" max="100" step="5" value="0" style="width:150px;accent-color:var(--level)"></label>
+            <p class="bmini">Pan moves the bass left or right in your headphones. Double-click the slider to center it.</p>
+          </div></div></div></div>
+        <div class="xp" data-xp="vel"><button class="xp-h" type="button" aria-expanded="false"><span class="xp-t">💥 Velocity</span><span class="xp-s" id="xsVel"></span><span class="xp-c" aria-hidden="true">▾</span></button>
+          <div class="xp-b"><div><div class="xp-in">
+            <p class="bmini">Velocity is how hard a note is played. The bars under the roll show it: tall is hard, short is soft. Click a bar to change it.</p>
+            <div class="brow"><span class="label">New notes start</span><div class="bars-seg" id="bsVel" role="group" aria-label="New note velocity"><button type="button" data-v="1">Soft</button><button type="button" data-v="2">Med</button><button type="button" data-v="3">Hard</button></div></div>
+          </div></div></div></div>
+        <div class="xp" data-xp="tips"><button class="xp-h" type="button" aria-expanded="false"><span class="xp-t">💡 Tips</span><span class="xp-s"></span><span class="xp-c" aria-hidden="true">▾</span></button>
+          <div class="xp-b"><div><div class="xp-in"><ul class="bmini tips">
+            <li>Only notes in your key are on the roll, so nothing clashes.</li>
+            <li>Click a note name on the left to hear that pitch.</li>
+            <li>Auto fill tries to land on your kick drum, so the bass and kick hit together.</li>
+            <li>Made a mistake? Press <b>↶ Undo</b> at the top (or Ctrl+Z).</li>
+          </ul></div></div></div></div>
+      </div>
     </div>
   </section>
 
@@ -1283,6 +1325,9 @@ function renderBass() {
   $('bsSound').value = b.sound; $('bsMute').setAttribute('aria-pressed', b.mute); g.classList.toggle('muted', b.mute);
   $('bsVel').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', +x.dataset.v === b.brush));
   $('bsPan').value = Math.round((b.pan || 0) * 100); $('bsPanOut').textContent = panTxt(b.pan);
+  $('xsChords').textContent = b.mode === 'chords' ? pr.map(chordName).join(' ') : 'Staying in key';
+  $('xsSound').textContent = $('bsSound').selectedOptions[0].textContent + ' · pan ' + panTxt(b.pan);
+  $('xsVel').textContent = 'New notes: ' + ['', 'Soft', 'Med', 'Hard'][b.brush || 3];
   g.style.gridTemplateColumns = `56px repeat(${n},minmax(${bars > 2 ? 20 : 18}px,1fr))`;
   g.style.minWidth = bars > 1 ? `${76 + n * (bars > 2 ? 22 : 20)}px` : '';
   const at = Array.from({ length: BASS_ROWS }, () => Array(n).fill(null));
@@ -1295,7 +1340,7 @@ function renderBass() {
       h += `<button class="pc${Math.floor(i / 4) % 2 ? ' alt' : ''}${r % 7 === 0 ? ' rootrow' : ''}${i && i % 16 === 0 ? ' bs' : ''}${c ? ' on v' + c.v + (c.st ? ' st' : '') + (c.en ? ' en' : '') : ''}" data-r="${r}" data-s="${i}" aria-label="${bassName(r)} step ${i + 1}${c ? ', note' : ''}"></button>`; }
   }
   // velocity lane: one bar per note, click to cycle soft / medium / hard
-  h += '<span class="vl">Velocity</span>';
+  h += '<span class="vl" title="Velocity: how hard each note plays">Vel</span>';
   const starts = {}; b.notes.forEach(x => { starts[x.s] = x; });
   for (let i = 0; i < n; i++) { const x = starts[i]; h += x ? `<button class="vc v${x.v || 2}" data-vs="${i}" title="${VEL_NAME[x.v || 2]}: click to change" aria-label="Velocity at step ${i + 1}: ${VEL_NAME[x.v || 2]}"><i></i></button>` : '<span></span>'; }
   g.innerHTML = h;
@@ -1322,9 +1367,16 @@ $('bsKey').onchange = e => { snap(); FB.bass.key = +e.target.value; save(); rend
 $('bsScale').onclick = e => { const x = e.target.closest('button[data-v]'); if (!x) return; snap(); FB.bass.scale = x.dataset.v; save(); renderBass(); };
 $('bsMode').onclick = e => { const x = e.target.closest('button[data-v]'); if (!x) return; snap(); FB.bass.mode = x.dataset.v; genBass(); save(); renderBass(); };
 $('bsNewProg').onclick = () => { snap(); const b = FB.bass, len = PROGS[b.scale].length; let k; do { k = Math.floor(Math.random() * len); } while (k === b.prog % len && len > 1); b.prog = k; genBass(); save(); renderBass(); };
-$('bsSound').onchange = e => { snap(); FB.bass.sound = e.target.value; ensureCtx(); withPan(FB.bass.pan, () => bassVoice(bassMidi(0), ctx.currentTime + 0.01, 0.5, FB.bass.sound, 3)); save(); };
+$('bsSound').onchange = e => { snap(); FB.bass.sound = e.target.value; ensureCtx(); withPan(FB.bass.pan, () => bassVoice(bassMidi(0), ctx.currentTime + 0.01, 0.5, FB.bass.sound, 3)); save(); renderBass(); };
 $('bsVel').onclick = e => { const x = e.target.closest('button[data-v]'); if (!x) return; FB.bass.brush = +x.dataset.v; save(); renderBass(); };
-$('bsPan').oninput = e => { FB.bass.pan = +e.target.value / 100; $('bsPanOut').textContent = panTxt(FB.bass.pan); save(); };
+$('bsPan').oninput = e => { FB.bass.pan = +e.target.value / 100; $('bsPanOut').textContent = panTxt(FB.bass.pan); $('xsSound').textContent = $('bsSound').selectedOptions[0].textContent + ' · pan ' + panTxt(FB.bass.pan); save(); };
+// expanding sections under the roll; which ones are open is remembered on this computer
+let xpOpen = {}; try { xpOpen = JSON.parse(localStorage.getItem('clt-xp') || '{}'); } catch (e) {}
+document.querySelectorAll('#bassPanel .xp').forEach(x => {
+  const h = x.querySelector('.xp-h'), set = o => { x.classList.toggle('open', o); h.setAttribute('aria-expanded', o); };
+  set(!!xpOpen[x.dataset.xp]);
+  h.onclick = () => { const o = !x.classList.contains('open'); set(o); xpOpen[x.dataset.xp] = o; try { localStorage.setItem('clt-xp', JSON.stringify(xpOpen)); } catch (e) {} };
+});
 $('bsPan').ondblclick = () => { FB.bass.pan = 0; renderBass(); save(); };
 $('bsHear').onclick = () => { ensureCtx(); const t = ctx.currentTime + 0.02, sp = 60 / FB.bpm / 2; [0, 4, 7].forEach((d, i) => withPan(FB.bass.pan, () => bassVoice(bassMidi(d), t + i * sp, sp * .9, FB.bass.sound, 3))); };
 $('bsFill').onclick = $('bsRand').onclick = () => { snap(); genBass(); save(); renderBass(); if (!bmTimer) bmStart(); };
