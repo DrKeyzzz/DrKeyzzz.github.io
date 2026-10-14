@@ -288,6 +288,29 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
 .cell.hit{background:var(--ok)!important;border-color:var(--ok)!important} .cell.extra{background:var(--bad)!important;border-color:var(--bad)!important}
 .cell.vel{background:var(--accent)!important;border-color:var(--accent)!important}
 .cell.now{box-shadow:0 0 0 2px var(--accent),0 0 12px var(--accent)!important}
+/* level badge, daily goal, toast, teacher dashboard, beat saving */
+.lvl-badge{font:400 .78rem var(--display);letter-spacing:.04em;padding:3px 9px;border-radius:6px;border:2px solid currentColor}
+.lvl-badge small{font-size:.65rem;opacity:.7}
+.goal{display:grid;gap:8px;padding:12px 16px;border-radius:14px;background:rgba(11,11,13,.82);border:2px solid var(--line);box-shadow:5px 5px 0 #000}
+.goal-head{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap}
+.goal-head b{font:400 1.05rem var(--display);color:var(--fg)} .goal-head span{color:var(--muted);font-size:.85rem}
+.goal-bar{position:relative;height:18px;border-radius:9px;background:#24242a;overflow:hidden}
+.goal-bar i{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--freq),var(--accent));border-radius:9px;transition:width .6s}
+.goal-mark{position:absolute;right:6px;top:0;font:400 11px/18px var(--display);color:var(--ink);mix-blend-mode:normal;opacity:.7}
+.goal.done{border-color:var(--ok);box-shadow:5px 5px 0 var(--ok)} .goal.done .goal-bar i{background:linear-gradient(90deg,var(--ok),var(--accent))} .goal.done b{color:var(--ok)}
+.toast{position:fixed;left:50%;top:18px;transform:translateX(-50%);z-index:50;background:var(--ok);color:var(--ink);font:400 1rem var(--display);padding:14px 22px;border-radius:12px;box-shadow:5px 5px 0 #000}
+.toast b{font-weight:400;font-size:1.2rem;margin-right:6px}
+.toast.pop{animation:pop .5s cubic-bezier(.3,1.6,.5,1)} @keyframes pop{from{transform:translateX(-50%) scale(.4) rotate(-6deg)}to{transform:translateX(-50%) scale(1) rotate(0)}}
+.tcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.tcard{background:#1b1b20;border:2px solid var(--line);border-radius:10px;padding:10px 12px;display:grid;gap:4px} .tcard b{font:400 1.6rem var(--display);color:var(--accent)}
+.ttable{border-collapse:collapse;width:100%;font-size:.85rem;min-width:900px}
+.ttable th{font:400 .7rem var(--display);color:var(--muted);text-align:left;padding:6px;border-bottom:2px solid var(--line);white-space:nowrap}
+.ttable td{padding:6px;border-bottom:1px solid #2a2a30;vertical-align:bottom;white-space:nowrap} .ttable td.ok{color:var(--ok);font-weight:700}
+.tbar{display:inline-block;width:10px;height:24px;background:#24242a;border-radius:3px;position:relative;overflow:hidden;vertical-align:bottom;margin-right:4px}
+.tbar::after{content:"";position:absolute;inset:auto 0 0 0;height:var(--h);background:var(--level)} .tbar.ok::after{background:var(--ok)}
+.ttable small{color:var(--muted)}
+.bm-save{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.bm-save input{flex:1 1 180px;min-width:0;padding:9px 12px;border-radius:8px;border:2px solid var(--line);background:#0b0b0d;color:var(--fg);font:inherit}
 /* Peak Finder how-to demo */
 .howto{display:grid;gap:12px;border-color:var(--accent)!important;box-shadow:6px 6px 0 var(--accent)!important}
 .how-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:center}
@@ -361,6 +384,11 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
     </div>
   </div>
   <div class="status" id="srcStatus" hidden></div>
+  <div class="goal" id="goal" hidden>
+    <div class="goal-head"><b id="goalText">Today: 0 of 25 min</b><span id="goalSub"></span></div>
+    <div class="goal-bar"><i id="goalFill"></i><span class="goal-mark">25</span></div>
+  </div>
+  <div class="toast" id="toast" hidden role="status"></div>
 
   <!-- LOGIN -->
   <section id="vLogin" class="panel login" hidden>
@@ -375,6 +403,7 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
     </form>
     <p class="err" id="loginErr" aria-live="polite"></p>
     <div class="rowsb"><span class="note">Just trying it out? Guest progress stays on this computer and is cleared when you leave guest mode.</span><button class="btn" id="guest" type="button">Continue as guest</button></div>
+    <div style="text-align:right;margin-top:10px"><button class="btn small" id="teachBtn2" type="button">Teacher dashboard</button></div>
     <div id="knownWrap" hidden><div class="label" style="margin-bottom:6px">Already signed in on this computer</div><div class="known" id="known"></div></div>
   </section>
 
@@ -405,7 +434,7 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
     </div>
     <div class="rowsb"><span class="label">All games</span><span class="status">Ten rounds per game. Levels adjust as you play.</span></div>
     <div class="games" id="games"></div>
-    <p class="note">Progress is saved in this browser on this device.</p>
+    <div class="rowsb"><p class="note">Progress is saved in this browser on this device.</p><button class="btn small" id="teachBtn">Teacher dashboard</button></div>
   </section>
 
   <!-- PLAY -->
@@ -464,11 +493,13 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
         <button class="btn primary big" id="bmPlay">Play</button>
         <div class="group"><label class="label" for="bmTempo">Tempo <output id="bmTempoOut">96</output> BPM</label><input type="range" id="bmTempo" min="60" max="170" value="96"></div>
         <div class="group"><label class="label" for="bmSwing">Swing <output id="bmSwingOut">0</output>%</label><input type="range" id="bmSwing" min="0" max="60" value="0"></div>
-        <button class="btn" id="bmClear">Clear steps</button>
+        <button class="btn" id="bmClear">Clear</button>
         <button class="btn" id="bmReset">New beat</button>
         <button class="btn" id="bmHow">How it works</button>
       </div>
-      <p class="hint">Click a cell for soft, again for medium, again for hard, and a fourth time to clear. M mutes a row. Your beat saves on this computer.</p>
+      <div class="bm-save"><input id="bmName" maxlength="40" placeholder="Name your beat"><button class="btn primary" id="bmSave">Save beat</button>
+        <select id="bmLoad" aria-label="My saved beats"></select><button class="btn" id="bmDelete">Delete</button><span class="status" id="bmSaved"></span></div>
+      <p class="hint">Click a cell for soft, again for medium, again for hard, and a fourth time to clear. M mutes a row. <b>Clear</b> wipes every hit. Save a beat to keep it in My beats.</p>
     </div>
     <div class="panel">
       <div class="vel-legend"><span><i class="cell v1" style="aspect-ratio:auto"></i>Soft</span><span><i class="cell v2" style="aspect-ratio:auto"></i>Medium</span><span><i class="cell v3" style="aspect-ratio:auto"></i>Hard</span></div>
@@ -478,6 +509,17 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
   </section>
 
   <!-- RESULTS -->
+  <section id="vTeach" class="view" hidden>
+    <div class="panel" style="display:grid;gap:14px">
+      <div class="play-head"><div style="display:grid;gap:4px"><span class="label">Teacher</span><h2>Class dashboard</h2></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><select id="tClass"></select><button class="btn" id="tCsv">Download CSV</button><button class="btn" id="tBack">Back</button></div></div>
+      <p class="hint" id="tStatus"></p>
+      <div class="tcards" id="tCards"></div>
+    </div>
+    <div class="panel"><div class="seq-wrap"><table class="ttable" id="tTable"></table></div>
+      <p class="hint">Minutes count while a student has a game or Beat Maker open and is active. Bars fill at 25 minutes. Game columns show each student's current level.</p></div>
+  </section>
+
   <section id="vResults" class="panel results" hidden>
     <span class="label" id="rGame"></span>
     <h2 id="rTitle">Session complete</h2>
@@ -880,7 +922,7 @@ let FB = null, bmTimer = null, bmNext = 0, bmStep = 0;
 function openFree() {
   stop(); FB = P.freeBeat ||= defaultBeat();
   $('bmTempo').value = FB.bpm; $('bmTempoOut').textContent = FB.bpm; $('bmSwing').value = FB.swing; $('bmSwingOut').textContent = FB.swing;
-  $('bmPicker').hidden = true; renderFree(); show('vFree'); autoHowto('maker', 1);
+  $('bmPicker').hidden = true; renderFree(); renderMyBeats(); show('vFree'); autoHowto('maker', 1);
 }
 function renderFree() {
   const g = $('bmGrid');
@@ -934,8 +976,8 @@ $('bmPlay').onclick = () => bmTimer ? bmStop() : bmStart();
 $('bmBack').onclick = () => { bmStop(); renderHome(); };
 $('bmTempo').oninput = e => { FB.bpm = +e.target.value; $('bmTempoOut').textContent = FB.bpm; save(); };
 $('bmSwing').oninput = e => { FB.swing = +e.target.value; $('bmSwingOut').textContent = FB.swing; save(); };
-$('bmClear').onclick = () => { FB.rows.forEach(r => r.steps.fill(0)); save(); renderFree(); };
-$('bmReset').onclick = () => { bmStop(); P.freeBeat = defaultBeat(); openFree(); };
+$('bmClear').onclick = () => { if (!confirm('Clear every hit in this beat?')) return; FB.rows.forEach(r => r.steps.fill(0)); save(); renderFree(); };
+$('bmReset').onclick = () => { bmStop(); P.freeBeat = defaultBeat(); $('bmName').value = ''; openFree(); };
 
 /* ================= Games ================= */
 const BANDS = [['Low',100],['Low-mid',400],['Mid',1000],['High-mid',3000],['High',8000]];
@@ -1054,8 +1096,9 @@ let P = blank();
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } catch (e) {} };
 function signIn(key, who) { store.users[key] ||= Object.assign(blank(), who); P = store.users[key]; store.current = key; save(); renderWho(); renderHome(); }
 const displayName = u => u.guest ? 'Guest' : `${u.first} ${u.init}.`;
-function renderWho() { $('who').hidden = false; $('switch').textContent = P.guest ? 'Sign in' : 'Switch student'; $('whoName').textContent = P.guest ? 'Guest mode' : `${displayName(P)} · ${CLASS_CODES[P.code] || P.code}`; }
+function renderWho() { setTimeout(renderGoal); $('who').hidden = false; $('switch').textContent = P.guest ? 'Sign in' : 'Switch student'; $('whoName').textContent = P.guest ? 'Guest mode' : `${displayName(P)} · ${CLASS_CODES[P.code] || P.code}`; }
 function showLogin() {
+  $('goal').hidden = true;
   $('who').hidden = true; $('loginErr').textContent = ''; $('loginForm').reset();
   const keys = Object.keys(store.users).filter(k => !store.users[k].guest);
   $('knownWrap').hidden = !keys.length; $('known').innerHTML = '';
@@ -1099,7 +1142,7 @@ function todaysWorkout() {
 }
 
 /* ================= Views ================= */
-function show(v) { if (typeof showHowto === 'function' && !(v === 'vFree' && howId === 'maker')) showHowto(null); if (v !== 'vFree' && typeof bmStop === 'function') bmStop(); ['vLogin','vHome','vPlay','vResults','vFree'].forEach(id => $(id).hidden = id !== v); window.scrollTo(0, 0); }
+function show(v) { if (typeof showHowto === 'function' && !(v === 'vFree' && howId === 'maker')) showHowto(null); if (v !== 'vFree' && typeof bmStop === 'function') bmStop(); ['vLogin','vHome','vPlay','vResults','vFree','vTeach'].forEach(id => $(id).hidden = id !== v); window.scrollTo(0, 0); }
 const svgIcon = (name) => `<svg viewBox="0 0 64 32" aria-hidden="true"><path d="${ICONS[name]}" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const pips = (l, n = 5) => `<span class="pips">${Array.from({ length:n }, (_, k) => k + 1).map(i => `<i class="${i<=l?'on':''}"></i>`).join('')}</span>`;
 
@@ -1121,7 +1164,7 @@ function renderHome() {
     return `<div class="skill sk-${s}"><div class="row"><span class="label">${s}</span><b>${avg.toFixed(1)}/${mx}</b></div><div class="bar"><i style="width:${avg/mx*100}%;background:currentColor"></i></div></div>`; }).join('');
   $('games').innerHTML = GAMES.map(g => { const p = gp(g.id), lv = startLevel(g.id);
     return `<button class="card" data-g="${g.id}"><span class="sk-${g.skill}">${svgIcon(g.icon)}</span><h3>${g.name}</h3><p>${g.tagline}</p>
-      <div class="meta"><span class="tag sk-${g.skill}">${g.skill}</span><span class="sk-${g.skill}">${pips(lv, g.levels.length)}</span></div>
+      <div class="meta"><span class="tag sk-${g.skill}">${g.skill}</span><span class="lvl-badge sk-${g.skill}">Level ${lv}<small> of ${g.levels.length}</small></span></div>
       <p>Level ${lv}: ${g.levels[lv - 1]}</p>
       <div class="meta"><span>Best ${p.best}</span><span>${p.plays} plays</span></div></button>`; }).join('');
   $('games').insertAdjacentHTML('beforeend', `<button class="card" id="freeCard"><span class="sk-Rhythm">${svgIcon('beat')}</span><h3>Beat Maker</h3><p>Free play. Build your own beat from 808s, live kits, claps and percussion.</p>
@@ -1706,6 +1749,119 @@ $('copyReport').onclick = () => {
   try { navigator.clipboard.writeText(text).then(() => { $('copyReport').textContent = 'Copied'; setTimeout(() => $('copyReport').textContent = 'Copy progress report', 2000); }, fallback); }
   catch (e) { fallback(); }
 };
+
+/* ================= Daily minutes and the 25-minute goal ================= */
+// Counts time while a game or Beat Maker is open and the student is active (audio playing,
+// or a click or key in the last 90 seconds). Stored per day in P.time as seconds.
+const GOAL_MIN = 25;
+let lastActive = 0;
+['pointerdown', 'keydown'].forEach(ev => document.addEventListener(ev, () => { lastActive = Date.now(); }, true));
+const signedIn = () => !!store.current && store.users[store.current] === P;
+const secsToday = () => (P && P.time && P.time[today()]) || 0;
+function tickMinutes() {
+  if (!signedIn() || document.hidden) return;
+  const inGame = !$('vPlay').hidden || !$('vFree').hidden || !$('vResults').hidden;
+  if (!inGame || !(playing || bmTimer || Date.now() - lastActive < 90000)) return;
+  P.time ||= {}; const before = secsToday(); P.time[today()] = before + 5;
+  if (before < GOAL_MIN * 60 && before + 5 >= GOAL_MIN * 60) celebrateGoal();
+  if ((before + 5) % 30 === 0) { save(); syncUp(); }
+  renderGoal();
+}
+setInterval(tickMinutes, 5000);
+function renderGoal() {
+  const el = $('goal'); if (!signedIn()) { el.hidden = true; return; }
+  el.hidden = false;
+  const m = secsToday() / 60, f = Math.min(1, m / GOAL_MIN), done = m >= GOAL_MIN;
+  el.classList.toggle('done', done);
+  $('goalFill').style.width = f * 100 + '%';
+  $('goalText').textContent = done ? `Goal crushed: ${Math.floor(m)} min today` : `Today: ${Math.floor(m)} of ${GOAL_MIN} min`;
+  $('goalSub').textContent = done ? 'You hit your 25 minutes. Anything extra is bonus.' : `${Math.ceil(GOAL_MIN - m)} min to go. Time counts while you play.`;
+}
+function celebrateGoal() {
+  const t = $('toast'); t.innerHTML = `<b>25 minutes done!</b> You hit today's goal.`; t.hidden = false; t.classList.remove('pop'); void t.offsetWidth; t.classList.add('pop');
+  setTimeout(() => { t.hidden = true; }, 6000);
+}
+
+/* ================= Teacher dashboard ================= */
+// Change the PIN here. It only keeps students from wandering in; it isn't real security.
+const TEACHER_PIN = 'mixdown';
+// Paste the Google Apps Script web app URL here to collect every student's data in one Sheet.
+const SYNC_URL = '';
+function summary(key, u) {
+  const levels = Object.fromEntries(GAMES.map(g => [g.id, (u.games[g.id] || {}).level || 1]));
+  return { key, name: u.guest ? 'Guest' : displayName(u), code: u.code || '', date: today(), seconds: (u.time || {})[today()] || 0,
+    time: u.time || {}, sessions: u.sessions || 0, accuracy: u.total ? Math.round(u.right / u.total * 100) : null, xp: u.xp || 0, levels };
+}
+let lastSync = 0;
+function syncUp() {
+  if (!SYNC_URL || !signedIn() || P.guest || Date.now() - lastSync < 55000) return; lastSync = Date.now();
+  try { fetch(SYNC_URL, { method:'POST', mode:'no-cors', headers:{ 'Content-Type':'text/plain' }, body: JSON.stringify(summary(store.current, P)) }); } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden && signedIn()) { save(); lastSync = 0; syncUp(); } });
+const last7 = () => Array.from({ length:7 }, (_, k) => { const d = new Date(); d.setDate(d.getDate() - 6 + k); return d.toISOString().slice(0, 10); });
+async function openTeacher() {
+  if (sessionStorage.getItem('clt-teach') !== '1') {
+    const pin = prompt('Teacher PIN'); if (pin == null) return;
+    if (pin.trim().toLowerCase() !== TEACHER_PIN) { alert('That PIN is not right.'); return; }
+    try { sessionStorage.setItem('clt-teach', '1'); } catch (e) {}
+  }
+  show('vTeach'); $('goal').hidden = true; $('tStatus').textContent = 'Loading…';
+  let rows = Object.entries(store.users).filter(([, u]) => !u.guest).map(([k, u]) => summary(k, u)), src = 'this computer';
+  if (SYNC_URL) {
+    try { const r = await fetch(SYNC_URL + '?action=list'); const data = await r.json();
+      const byKey = {}; data.forEach(s => { const cur = byKey[s.key]; if (!cur || s.date >= cur.date) byKey[s.key] = s; });
+      rows = Object.values(byKey); src = 'the class Google Sheet'; }
+    catch (e) { src = 'this computer (the Sheet did not load)'; }
+  }
+  renderTeacher(rows, src);
+}
+function renderTeacher(rows, src) {
+  const days = last7(), t = today(), code = $('tClass').value;
+  const codes = [...new Set(rows.map(r => r.code).filter(Boolean))].sort();
+  $('tClass').innerHTML = '<option value="">All classes</option>' + codes.map(c => `<option ${c === code ? 'selected' : ''} value="${c}">${CLASS_CODES[c] || c} (${c})</option>`).join('');
+  const list = rows.filter(r => !code || r.code === code).sort((a, b) => (b.time[t] || 0) - (a.time[t] || 0));
+  const min = (r, d) => Math.floor(((r.time || {})[d] || 0) / 60);
+  const activeToday = list.filter(r => min(r, t) > 0).length, metGoal = list.filter(r => min(r, t) >= GOAL_MIN).length;
+  const avg = list.length ? Math.round(list.reduce((s, r) => s + days.reduce((a, d) => a + min(r, d), 0) / 7, 0) / list.length) : 0;
+  $('tCards').innerHTML = [['Students', list.length], ['Active today', activeToday], [`Hit ${GOAL_MIN} min today`, metGoal], ['Avg min/day (7 days)', avg]]
+    .map(([l, v]) => `<div class="tcard"><span class="label">${l}</span><b>${v}</b></div>`).join('');
+  const dayHead = days.map(d => `<th>${new Date(d + 'T12:00').toLocaleDateString(undefined, { weekday:'short' })}</th>`).join('');
+  $('tTable').innerHTML = `<thead><tr><th>Student</th><th>Class</th><th>Today</th>${dayHead}<th>Days at goal</th><th>Accuracy</th><th>Sessions</th>${GAMES.map(g => `<th title="${g.name}">${g.name.split(' ')[0]}</th>`).join('')}</tr></thead><tbody>` +
+    (list.length ? list.map(r => { const goalDays = Object.values(r.time || {}).filter(s => s >= GOAL_MIN * 60).length;
+      return `<tr><td><b>${r.name}</b></td><td>${r.code}</td><td class="${min(r, t) >= GOAL_MIN ? 'ok' : ''}">${min(r, t)} min</td>` +
+        days.map(d => { const m = min(r, d); return `<td><i class="tbar ${m >= GOAL_MIN ? 'ok' : ''}" style="--h:${Math.min(1, m / GOAL_MIN) * 100}%" title="${m} min"></i><small>${m || ''}</small></td>`; }).join('') +
+        `<td>${goalDays}</td><td>${r.accuracy == null ? '–' : r.accuracy + '%'}</td><td>${r.sessions}</td>` + GAMES.map(g => `<td>${(r.levels || {})[g.id] || 1}</td>`).join('') + '</tr>'; }).join('')
+      : `<tr><td colspan="${13 + GAMES.length}">No student data yet.</td></tr>`) + '</tbody>';
+  $('tStatus').textContent = `Showing data from ${src}.` + (SYNC_URL ? '' : ' Only students who used this computer appear here until the class Google Sheet is connected.');
+  $('tCsv').onclick = () => {
+    const head = ['Student', 'Class', ...days.map(d => d + ' min'), 'Accuracy', 'Sessions', ...GAMES.map(g => g.name + ' level')];
+    const csv = [head, ...list.map(r => [r.name, r.code, ...days.map(d => min(r, d)), r.accuracy ?? '', r.sessions, ...GAMES.map(g => (r.levels || {})[g.id] || 1)])]
+      .map(row => row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv' })); a.download = `listening-lab-${t}.csv`; a.click();
+  };
+  $('tClass').onchange = () => renderTeacher(rows, src);
+}
+$('teachBtn').onclick = openTeacher; $('teachBtn2').onclick = openTeacher;
+$('tBack').onclick = () => { signedIn() ? (renderHome(), renderGoal(), show('vHome')) : showLogin(); };
+
+/* ================= Beat Maker: saved beats ================= */
+function renderMyBeats() {
+  const list = P.beats ||= [];
+  $('bmLoad').innerHTML = `<option value="">My beats (${list.length})</option>` + list.map((b, i) => `<option value="${i}">${b.name}</option>`).join('');
+  $('bmDelete').disabled = !list.length;
+}
+$('bmSave').onclick = () => {
+  const name = $('bmName').value.trim() || prompt('Name your beat') ; if (!name) return;
+  const list = P.beats ||= [], copy = JSON.parse(JSON.stringify(FB)), i = list.findIndex(b => b.name.toLowerCase() === name.toLowerCase());
+  if (i >= 0) list[i] = { name, beat: copy, saved: Date.now() }; else list.push({ name, beat: copy, saved: Date.now() });
+  $('bmName').value = name; save(); renderMyBeats(); $('bmLoad').value = String(list.findIndex(b => b.name === name));
+  $('bmSaved').textContent = `Saved "${name}"`; setTimeout(() => { $('bmSaved').textContent = ''; }, 2500);
+};
+$('bmLoad').onchange = () => { const b = (P.beats || [])[+$('bmLoad').value]; if ($('bmLoad').value === '' || !b) return;
+  bmStop(); P.freeBeat = JSON.parse(JSON.stringify(b.beat)); $('bmName').value = b.name; save(); openFree(); $('bmLoad').value = String(P.beats.indexOf(b)); };
+$('bmDelete').onclick = () => { const i = $('bmLoad').value; if (i === '') { alert('Pick a beat from My beats first.'); return; }
+  const b = P.beats[+i]; if (!confirm(`Delete "${b.name}"?`)) return; P.beats.splice(+i, 1); save(); renderMyBeats(); };
+
 if (store.current && store.users[store.current]) { P = store.users[store.current]; renderWho(); renderHome(); } else showLogin();
 draw();
 })();
