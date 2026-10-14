@@ -173,7 +173,13 @@ kbd{font-family:var(--mono);font-size:.72rem;border:1px solid var(--line);border
 .bm-row select{flex:1;min-width:0;font-size:.82rem;padding:4px}
 .bm-row .ic{border:1px solid var(--line);background:var(--panel-2);border-radius:5px;width:26px;height:26px;padding:0;cursor:pointer;font:600 .75rem var(--mono);flex:none}
 .bm-row .ic[aria-pressed=true]{background:var(--fg);color:var(--bg)}
-.bm-new{grid-column:1/-1;border:1px dashed var(--line);background:transparent;border-radius:6px;padding:9px;cursor:pointer;color:var(--muted);font-weight:600;text-align:left}
+.bars-seg{display:flex;gap:4px}
+.bars-seg button{font:400 .8rem var(--display);min-width:36px;padding:6px 8px;border-radius:7px;border:2px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
+.bars-seg button[aria-pressed=true]{background:var(--rhythm);border-color:var(--rhythm);color:var(--ink,#111)}
+.seq.free .bm-row,.seq.free .corner{position:sticky;left:0;z-index:2;background:var(--panel);padding-right:4px;align-self:stretch;display:flex;align-items:center}
+.seq.free .num.bar{color:var(--rhythm);font-weight:700;overflow:visible;white-space:nowrap}
+.seq.free .cell.bs{box-shadow:-3px 0 0 var(--rhythm)}
+.bm-new{position:sticky;left:0;max-width:560px;grid-column:1/-1;border:1px dashed var(--line);background:transparent;border-radius:6px;padding:9px;cursor:pointer;color:var(--muted);font-weight:600;text-align:left}
 .bm-new:hover{border-color:var(--accent);color:var(--fg)}
 .picker{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:14px;border:1px solid var(--line);border-radius:8px;padding:14px;background:var(--panel-2)}
 .picker h4{margin:0 0 6px;font-family:var(--display);text-transform:uppercase;letter-spacing:.06em;font-size:.95rem}
@@ -541,13 +547,15 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
         <button class="btn primary big" id="bmPlay">Play</button>
         <div class="group"><label class="label" for="bmTempo">Tempo <output id="bmTempoOut">96</output> BPM</label><input type="range" id="bmTempo" min="60" max="170" value="96"></div>
         <div class="group"><label class="label" for="bmSwing">Swing <output id="bmSwingOut">0</output>%</label><input type="range" id="bmSwing" min="0" max="60" value="0"></div>
+        <div class="group"><span class="label">Bars</span><div class="bars-seg" id="bmBars" role="group" aria-label="How many bars"><button type="button" data-b="1">1</button><button type="button" data-b="2">2</button><button type="button" data-b="4">4</button><button type="button" data-b="8">8</button></div></div>
+        <button class="btn" id="bmCopy" type="button" hidden>Copy bar 1 to all</button>
         <button class="btn" id="bmClear">Clear</button>
         <button class="btn" id="bmReset">New beat</button>
         <button class="btn" id="bmHow">How it works</button>
       </div>
       <div class="bm-save"><input id="bmName" maxlength="40" placeholder="Name your beat"><button class="btn primary" id="bmSave">Save beat</button>
         <select id="bmLoad" aria-label="My saved beats"></select><button class="btn" id="bmDelete">Delete</button><span class="status" id="bmSaved"></span></div>
-      <p class="hint">Click a cell for soft, again for medium, again for hard, and a fourth time to clear. M mutes a row. <b>Clear</b> wipes every hit. Save a beat to keep it in My beats.</p>
+      <p class="hint">Click a cell for soft, again for medium, again for hard, and a fourth time to clear. M mutes a row. Pick 1, 2, 4 or 8 <b>Bars</b> for a longer beat; scroll sideways to see them all. <b>Clear</b> wipes every hit. Save a beat to keep it in My beats.</p>
     </div>
     <div class="panel">
       <div class="vel-legend"><span><i class="cell v1" style="aspect-ratio:auto"></i>Soft</span><span><i class="cell v2" style="aspect-ratio:auto"></i>Medium</span><span><i class="cell v3" style="aspect-ratio:auto"></i>Hard</span></div>
@@ -994,13 +1002,31 @@ const defaultBeat = () => ({ bpm:96, swing:0, rows:[
   { sound:'klive', steps:P16('x.......x.x.....'), mute:false } ] });
 let FB = null, bmTimer = null, bmNext = 0, bmStep = 0;
 function openFree() {
-  stop(); FB = P.freeBeat ||= defaultBeat();
+  stop(); FB = P.freeBeat ||= defaultBeat(); fitBars();
   $('bmTempo').value = FB.bpm; $('bmTempoOut').textContent = FB.bpm; $('bmSwing').value = FB.swing; $('bmSwingOut').textContent = FB.swing;
   $('bmPicker').hidden = true; renderFree(); renderMyBeats(); show('vFree'); autoHowto('maker', 1);
 }
+// Beats can be 1, 2, 4 or 8 bars of sixteenth notes; each row has 16 steps per bar
+const bmLen = () => 16 * (FB.bars || 1);
+function fitBars() {
+  FB.bars = [1, 2, 4, 8].includes(FB.bars) ? FB.bars : Math.max(1, Math.min(8, Math.round(((FB.rows[0] || {}).steps || []).length / 16) || 1));
+  FB.rows.forEach(r => { const n = bmLen(); if (r.steps.length < n) { const one = r.steps.slice(); while (r.steps.length < n) r.steps.push(...one.slice(0, n - r.steps.length)); } else if (r.steps.length > n) r.steps.length = n; });
+}
+function setBars(n) {
+  if (n === FB.bars) return;
+  if (n < FB.bars && FB.rows.some(r => r.steps.slice(16 * n).some(Boolean)) && !confirm(`Go down to ${n} bar${n > 1 ? 's' : ''}? Hits after bar ${n} will be removed.`)) return;
+  const was = FB.bars; FB.bars = n;
+  FB.rows.forEach(r => { if (n > was) { const one = r.steps.slice(0, 16 * was); while (r.steps.length < 16 * n) r.steps.push(...one); } r.steps.length = 16 * n; });
+  if (bmStep >= bmLen()) bmStep = 0;
+  save(); renderFree();
+}
 function renderFree() {
-  const g = $('bmGrid');
-  g.innerHTML = '<span></span>' + Array.from({ length:16 }, (_, i) => `<span class="num">${i % 4 === 0 ? i / 4 + 1 : ['', 'e', '+', 'a'][i % 4]}</span>`).join('');
+  const g = $('bmGrid'), n = bmLen(), bars = FB.bars || 1;
+  g.style.gridTemplateColumns = `minmax(150px,190px) repeat(${n},minmax(${bars > 2 ? 20 : 18}px,1fr))`;
+  g.style.minWidth = bars > 1 ? `${170 + n * (bars > 2 ? 23 : 21)}px` : '';
+  $('bmBars').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.b === bars));
+  $('bmCopy').hidden = bars < 2;
+  g.innerHTML = '<span class="corner"></span>' + Array.from({ length:n }, (_, i) => { const j = i % 16; return `<span class="num${i && !j ? ' bar' : ''}">${!j && bars > 1 ? 'B' + (i / 16 + 1) : j % 4 === 0 ? j / 4 + 1 : ['', 'e', '+', 'a'][j % 4]}</span>`; }).join('');
   FB.rows.forEach((row, ri) => {
     const lab = document.createElement('div'); lab.className = 'bm-row';
     const sel = document.createElement('select'); sel.setAttribute('aria-label', 'Sound for row ' + (ri + 1));
@@ -1012,10 +1038,10 @@ function renderFree() {
     x.onclick = () => { FB.rows.splice(ri, 1); save(); renderFree(); };
     lab.append(sel, m, x); g.appendChild(lab);
     row.steps.forEach((v, i) => {
-      const c = document.createElement('button'); c.className = 'cell' + (Math.floor(i / 4) % 2 ? ' alt' : '') + (v ? ' v' + v : '') + (row.mute ? ' muted' : '');
-      c.dataset.s = i; c.setAttribute('aria-label', `${SOUND_NAME[row.sound]} step ${i + 1}${v ? ', ' + VEL_NAME[v] : ''}`);
+      const c = document.createElement('button'); c.className = 'cell' + (Math.floor(i / 4) % 2 ? ' alt' : '') + (i && i % 16 === 0 ? ' bs' : '') + (v ? ' v' + v : '') + (row.mute ? ' muted' : '');
+      c.dataset.s = i; c.setAttribute('aria-label', `${SOUND_NAME[row.sound]} bar ${Math.floor(i / 16) + 1} step ${i % 16 + 1}${v ? ', ' + VEL_NAME[v] : ''}`);
       c.onclick = () => { ensureCtx(); const nv = row.steps[i] = (row.steps[i] + 1) % 4; c.classList.remove('v1', 'v2', 'v3'); if (nv) { c.classList.add('v' + nv); voice(row.sound, ctx.currentTime + 0.01, VEL[nv]); }
-        c.setAttribute('aria-label', `${SOUND_NAME[row.sound]} step ${i + 1}${nv ? ', ' + VEL_NAME[nv] : ''}`); save(); };
+        c.setAttribute('aria-label', `${SOUND_NAME[row.sound]} bar ${Math.floor(i / 16) + 1} step ${i % 16 + 1}${nv ? ', ' + VEL_NAME[nv] : ''}`); save(); };
       g.appendChild(c);
     });
   });
@@ -1028,7 +1054,7 @@ function showPicker() {
   pk.querySelector('#pkClose').onclick = () => { pk.hidden = true; };
   pk.querySelectorAll('[data-snd]').forEach(b => {
     b.onmouseenter = () => { if (ctx) voice(b.dataset.snd, ctx.currentTime + 0.01, 0.8); };
-    b.onclick = () => { ensureCtx(); voice(b.dataset.snd, ctx.currentTime + 0.01); FB.rows.push({ sound:b.dataset.snd, steps:Array(16).fill(0), mute:false }); pk.hidden = true; save(); renderFree(); };
+    b.onclick = () => { ensureCtx(); voice(b.dataset.snd, ctx.currentTime + 0.01); FB.rows.push({ sound:b.dataset.snd, steps:Array(bmLen()).fill(0), mute:false }); pk.hidden = true; save(); renderFree(); };
   });
   pk.scrollIntoView({ block:'nearest', behavior:'smooth' });
 }
@@ -1039,17 +1065,26 @@ function bmStart() {
     while (bmNext < ctx.currentTime + 0.12) {
       const st = bmStep, at = bmNext + (st % 2 ? FB.swing / 100 * step * 0.66 : 0);   // swing delays the off-beat 16ths
       FB.rows.forEach(r => { const v = r.steps[st]; if (v && !r.mute) voice(r.sound, at, VEL[v]); });
-      setTimeout(() => { document.querySelectorAll('#bmGrid .cell.now').forEach(c => c.classList.remove('now')); document.querySelectorAll(`#bmGrid .cell[data-s="${st}"]`).forEach(c => c.classList.add('now')); }, Math.max(0, (at - ctx.currentTime) * 1000));
-      bmNext += step; bmStep = (bmStep + 1) % 16;
+      setTimeout(() => { document.querySelectorAll('#bmGrid .cell.now').forEach(c => c.classList.remove('now')); const cs = document.querySelectorAll(`#bmGrid .cell[data-s="${st}"]`); cs.forEach(c => c.classList.add('now'));
+        if (st % 16 === 0 && FB.bars > 1 && cs[0]) followBar(cs[0]); }, Math.max(0, (at - ctx.currentTime) * 1000));
+      bmNext += step; bmStep = (bmStep + 1) % bmLen();
     }
   }, 25);
   $('bmPlay').textContent = 'Stop';
+}
+// while a long beat plays, scroll so the bar that's playing stays in view
+function followBar(cell) {
+  const wrap = $('bmGrid').parentElement, lab = $('bmGrid').querySelector('.corner'), left = cell.offsetLeft - (lab ? lab.offsetWidth : 0) - 8;
+  if (cell.offsetLeft < wrap.scrollLeft + (lab ? lab.offsetWidth : 0) || cell.offsetLeft + cell.offsetWidth * 16 > wrap.scrollLeft + wrap.clientWidth) wrap.scrollTo({ left: Math.max(0, left), behavior:'smooth' });
 }
 function bmStop() { if (bmTimer) clearInterval(bmTimer); bmTimer = null; $('bmPlay').textContent = 'Play'; document.querySelectorAll('#bmGrid .cell.now').forEach(c => c.classList.remove('now')); }
 $('bmPlay').onclick = () => bmTimer ? bmStop() : bmStart();
 $('bmBack').onclick = () => { bmStop(); renderHome(); };
 $('bmTempo').oninput = e => { FB.bpm = +e.target.value; $('bmTempoOut').textContent = FB.bpm; save(); };
 $('bmSwing').oninput = e => { FB.swing = +e.target.value; $('bmSwingOut').textContent = FB.swing; save(); };
+$('bmBars').onclick = e => { const b = e.target.closest('button[data-b]'); if (b) setBars(+b.dataset.b); };
+$('bmCopy').onclick = () => { if (FB.rows.some(r => r.steps.slice(16).some(Boolean)) && !confirm('Copy bar 1 over every other bar? What you put in the later bars will be replaced.')) return;
+  FB.rows.forEach(r => { for (let i = 16; i < r.steps.length; i++) r.steps[i] = r.steps[i % 16]; }); save(); renderFree(); };
 $('bmClear').onclick = () => { if (!confirm('Clear every hit in this beat?')) return; FB.rows.forEach(r => r.steps.fill(0)); save(); renderFree(); };
 $('bmReset').onclick = () => { bmStop(); P.freeBeat = defaultBeat(); $('bmName').value = ''; openFree(); };
 
