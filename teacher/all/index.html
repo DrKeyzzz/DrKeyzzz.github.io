@@ -90,15 +90,14 @@
   .low { color: var(--err); font-weight: 700; }
   .good { color: var(--ok); font-weight: 700; }
   .empty { padding: 26px 14px; text-align: center; color: var(--muted); }
-  .up h3 { font: 700 15px var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 22px 0 8px; }
-  .up ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-  .up li button { width: 100%; text-align: left; display: grid; grid-template-columns: 150px 1fr; gap: 6px 16px; align-items: baseline; background: var(--bg); color: var(--ink, inherit); border: 1px solid var(--card-border); border-left: 6px solid var(--ic, var(--gc)); border-radius: 12px; padding: 12px 16px; font: 500 16px var(--f-ui); cursor: pointer; }
+  .up { margin: 16px 0 6px; }
+  .up h3 { font: 700 12px var(--f-ui); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+  .up ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  .up li button { width: 100%; text-align: left; display: flex; flex-wrap: wrap; gap: 2px 14px; align-items: baseline; background: var(--bg); color: var(--ink, inherit); border: 1px solid var(--line, rgba(255,255,255,.12)); border-left: 4px solid var(--ic, var(--gc)); border-radius: 10px; padding: 8px 12px; font: inherit; font-size: 15px; cursor: pointer; }
   .up li button:hover, .up li button:focus-visible { border-color: var(--ic, var(--gc)); }
-  .up .w { font-weight: 700; }
-  .up .k { display: inline-block; font: 700 12px var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-right: 8px; }
-  .up .s { grid-column: 2; color: var(--muted); font-size: 14px; }
-  .up .none { color: var(--muted); padding: 10px 2px; }
-  @media (max-width: 640px) { .up li button { grid-template-columns: 1fr; } .up .s { grid-column: 1; } }
+  .up .w { font-weight: 700; min-width: 190px; }
+  .up .k { font: 700 11px var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-left: 8px; }
+  .up .s { color: var(--muted); font-size: 13px; margin-left: auto; }
   .note { font-size: 15px; color: var(--muted); margin: 12px 0 0; }
   .fbtext { white-space: normal; min-width: 260px; max-width: 520px; }
   .x { font: 700 14px var(--f-ui); border: 1px solid var(--card-border); background: transparent; color: var(--muted); border-radius: 999px; padding: 4px 11px 2px; cursor: pointer; }
@@ -517,10 +516,10 @@ function upItems() {
   return { soon: soon.sort(by), live: live.sort(by) };
 }
 function renderUpcoming() {
-  const { soon, live } = upItems();
-  const li = i => `<li><button type="button" data-code="${esc(i.code)}" data-view="${i.view}" data-test="${esc(i.testId || '')}" style="--ic:${i.color}"><span class="w">${esc(i.when)}</span><span><span class="k">${i.kind}</span>${esc(i.name)} <span class="k" style="margin:0 0 0 6px">${esc(i.cls)}</span></span><span class="s">${esc(i.sub)}</span></button></li>`;
-  const sec = (h, a, empty) => `<h3>${h}</h3>${a.length ? '<ul>' + a.map(li).join('') + '</ul>' : `<p class="none">${empty}</p>`}`;
-  $('upbox').innerHTML = '<div class="up">' + '<p class="none" style="margin:14px 0 0">Coming up for all your classes. Click a test to edit it. Click an assignment to change it on the Assign page.</p>' + (S.loading ? '<p class="none">Loading…</p>' : sec('Coming up', soon, 'Nothing is scheduled. Set an open time on a test, or pick future dates when you assign practice.') + sec('Open now, with an end date', live, 'Nothing running right now has an end date coming up.')) + '</div>';
+  const { soon, live } = upItems(), all = soon.concat(live).sort((x, y) => x.ms - y.ms);
+  const li = i => `<li><button type="button" data-code="${esc(i.code)}" data-view="${i.view}" data-test="${esc(i.testId || '')}" style="--ic:${i.color}"><span class="w">${esc(i.when)}</span><span>${esc(i.name)}<span class="k">${i.kind} · ${esc(i.cls)}</span></span><span class="s">${esc(i.sub)}</span></button></li>`;
+  $('upbox').hidden = !all.length && !S.loading;
+  $('upbox').innerHTML = all.length ? '<div class="up"><h3>Scheduled (click to change)</h3><ul>' + all.map(li).join('') + '</ul></div>' : '';
 }
 // ---------- Tests: tests/<id> made here, results in test_results/<id>_<sid> ----------
 const tstate = t => !t.open ? 'closed' : (t.opens_at && toMs(t.opens_at) > Date.now()) ? 'scheduled' : (t.closes_at && toMs(t.closes_at) < Date.now()) ? 'ended' : 'open';
