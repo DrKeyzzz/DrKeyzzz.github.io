@@ -280,6 +280,14 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
 .who{font-family:var(--display);font-weight:400;font-size:.85rem}
 .results h2{font-family:var(--tag);font-size:clamp(2.4rem,6vw,3.6rem);font-weight:400;text-transform:none;color:var(--accent);text-shadow:4px 4px 0 var(--ink),7px 7px 0 var(--freq)}
 @media (prefers-reduced-motion:reduce){.drips i{animation:none}.card,.card:nth-child(odd),.card:nth-child(even){transition:none}}
+/* Velocity cells: fill height shows how hard, on every beat column */
+.cell.v1{background:linear-gradient(to top,#ffe14d 0 36%,#24242a 36%)!important;border:2px solid #ffe14d!important}
+.cell.v2{background:linear-gradient(to top,#ff9a3d 0 68%,#24242a 68%)!important;border:2px solid #ff9a3d!important}
+.cell.v3{background:#ff4d6d!important;border:2px solid #ff4d6d!important;box-shadow:0 0 10px rgba(255,77,109,.6)}
+.cell.on{background:var(--rhythm)!important;border-color:var(--rhythm)!important}
+.cell.hit{background:var(--ok)!important;border-color:var(--ok)!important} .cell.extra{background:var(--bad)!important;border-color:var(--bad)!important}
+.cell.vel{background:var(--accent)!important;border-color:var(--accent)!important}
+.cell.now{box-shadow:0 0 0 2px var(--accent),0 0 12px var(--accent)!important}
 /* Peak Finder how-to demo */
 .howto{display:grid;gap:12px;border-color:var(--accent)!important;box-shadow:6px 6px 0 var(--accent)!important}
 .how-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:center}
@@ -440,8 +448,8 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
       </div>
     </div>
     <div class="panel">
-      <div class="rowsb" style="margin-bottom:8px"><span class="label">Analyzer (output)</span><span class="status">Opens after you answer</span></div>
-      <div class="analyzer"><canvas id="spec"></canvas><div class="cover" id="cover">Locked until you answer. Trust your ears.</div></div>
+      <div class="rowsb" style="margin-bottom:8px"><span class="label" id="anLabel">Analyzer</span><span class="status">Opens after you answer</span></div>
+      <div class="analyzer" id="anBox"><canvas id="spec"></canvas><div class="cover" id="cover">Locked until you answer. Trust your ears.</div></div>
     </div>
   </section>
 
@@ -594,7 +602,7 @@ async function getBuffer(kind) {
 }
 
 /* ================= Playback engine ================= */
-let ctx, master, analyser, anL, anR, dryG, wetG, insertIn, sweepIn, sweepF, sweepG, tuning = false, srcNode = null, playing = false, side = 'A', chain = null;
+let ctx, master, analyser, anL, anR, anA, anB, dryG, wetG, insertIn, sweepIn, sweepF, sweepG, tuning = false, srcNode = null, playing = false, side = 'A', chain = null;
 function ensureCtx() {
   if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
   ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -611,13 +619,14 @@ function ensureCtx() {
   sweepIn = ctx.createGain(); sweepF = ctx.createBiquadFilter(); sweepF.type = 'peaking'; sweepG = ctx.createGain(); sweepG.gain.value = 0;
   sweepIn.connect(sweepF).connect(sweepG).connect(master);
   dryG.connect(master); wetG.connect(master);
+  anA = ctx.createAnalyser(); anB = ctx.createAnalyser(); [anA, anB].forEach(a => { a.fftSize = 8192; a.smoothingTimeConstant = 0.8; }); insertIn.connect(anA);
   setSide(side, true); wireChain();
 }
 function wireChain() {
   if (!ctx || !R) return;
   if (chain) { try { insertIn.disconnect(); chain.output.disconnect(); } catch (e) {} }
   chain = R.build(ctx);
-  insertIn.connect(chain.input); chain.output.connect(wetG);
+  insertIn.connect(chain.input); insertIn.connect(anA); chain.output.connect(wetG); chain.output.connect(anB);
 }
 let starting = false;
 async function start() {
@@ -1018,12 +1027,12 @@ const GAMES = [
     levels:['Reverb or dry? (light reverb)', 'Room or hall?', 'Short, medium or long decay?', 'Which decay time? 4 choices', 'How much reverb? 4 choices'],
     round(L) {
       if (L === 1) { const yes = Math.random() < .6;
-        return btns([['yes','Reverb'],['no','Dry']], yes?'yes':'no', yes ? reverbChain(1.4, .25) : passChain(), yes ? 'Reverb: 1.4 s decay, 25% send.' : 'B was dry.'); }
+        return { ...btns([['yes','Reverb'],['no','Dry']], yes?'yes':'no', yes ? reverbChain(1.4, .25) : passChain(), yes ? 'Reverb: 1.4 s decay, 25% send.' : 'B was dry.'), tail: yes ? { decay:1.4, mix:.25 } : null }; }
       if (L === 5) { const mixes = [0, .1, .25, .5], m = pick(mixes);
-        return btns(mixes.map(v => [String(v), v ? `${v*100}% send` : 'Dry']), String(m), m ? reverbChain(1.6, m) : passChain(), m ? `${m*100}% send, 1.6 s decay.` : 'B was dry.'); }
+        return { ...btns(mixes.map(v => [String(v), v ? `${v*100}% send` : 'Dry']), String(m), m ? reverbChain(1.6, m) : passChain(), m ? `${m*100}% send, 1.6 s decay.` : 'B was dry.'), tail: m ? { decay:1.6, mix:m } : null }; }
       const ds = { 2:[0.6,1.8], 3:[0.4,1.2,3], 4:[0.3,0.8,1.6,3] }[L], d = pick(ds);
       const lab = v => L === 2 ? (v < 1 ? 'Room\n0.6 s' : 'Hall\n1.8 s') : `${v} s`;
-      return btns(ds.map(v => [String(v), lab(v)]), String(d), reverbChain(d, .45), `${d} s decay.`); } },
+      return { ...btns(ds.map(v => [String(v), lab(v)]), String(d), reverbChain(d, .45), `${d} s decay.`), tail:{ decay:d, mix:.45 } }; } },
   { id:'beat', name:'Beat Recreate', skill:'Rhythm', icon:'beat', rounds:6,
     tagline:'Hear a drum beat, then rebuild it on a 16-step grid.',
     blurb:'A plays the target beat on a loop. Click cells to build your copy, and B plays yours. Each column is a 16th note; the numbers are the beats.',
@@ -1148,7 +1157,7 @@ function newRound() {
   if (playing && R.ui === 'grid') { stopSeq(); startSeq(); } else if (playing && !srcNode) start();
 }
 function renderAnswer() {
-  const area = $('answerArea'); area.innerHTML = ''; $('spec').parentElement.classList.toggle('tall', R.stereo != null);
+  const area = $('answerArea'); area.innerHTML = ''; resetHist(); { const v = viewOf(); $('anBox').parentElement.hidden = v === 'none'; $('anLabel').textContent = VIEW_NAMES[v] || 'Analyzer'; } $('spec').parentElement.classList.toggle('tall', R.stereo != null || ['gain','comp','space'].includes(S.g.id));
   if (R.ui === 'buttons') {
     const pad = document.createElement('div'); pad.className = 'pad';
     R.options.forEach(([id, label]) => { const b = document.createElement('button'); b.className = 'ans'; b.dataset.id = id; b.textContent = label; b.onclick = () => submit(id); pad.appendChild(b); });
@@ -1461,6 +1470,95 @@ function updateCover() { $('cover').hidden = answered; }
 /* ================= Analyzer ================= */
 const cv = $('spec'), g2 = cv.getContext('2d'); let fbuf;
 const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+// Per-game analyzer views. A and B are measured side by side (both paths always run),
+// so students can compare them no matter which one they're hearing.
+const VIEW_NAMES = { spec:'Spectrum: A vs B', level:'Loudness: A vs B', dyn:'Dynamics: A vs B', space:'Reverb tail: A vs B', stereo:'Stereo field and pan' };
+const viewOf = () => !R ? 'spec' : R.ui === 'grid' ? 'none' : R.stereo != null ? 'stereo' : ({ gain:'level', comp:'dyn', space:'space' })[S && S.g.id] || 'spec';
+const HIST = 300; let hist = { a:[], b:[] }, tbufA, tbufB, fA, fB;
+const resetHist = () => { hist = { a:[], b:[] }; };
+function measure(an, buf) {
+  an.getFloatTimeDomainData(buf); let sq = 0, pk = 0;
+  for (let i = 0; i < buf.length; i++) { const v = buf[i]; sq += v * v; if (Math.abs(v) > pk) pk = Math.abs(v); }
+  const db = v => Math.max(-90, 20 * Math.log10(v + 1e-9));
+  return { rms: db(Math.sqrt(sq / buf.length)), peak: db(pk) };
+}
+function sampleAB() {
+  if (!anA || !playing || side === undefined) return;
+  tbufA ||= new Float32Array(2048); tbufB ||= new Float32Array(2048);
+  hist.a.push(measure(anA, tbufA)); const mb = measure(anB, tbufB); mb.gr = chain && chain.input && typeof chain.input.reduction === 'number' ? chain.input.reduction : 0; hist.b.push(mb);
+  if (hist.a.length > HIST) { hist.a.shift(); hist.b.shift(); }
+}
+const A_COL = () => cssVar('--freq'), B_COL = () => cssVar('--level');
+function legend(W, d, bName) {
+  g2.font = `400 ${11 * d}px Bungee, sans-serif`; g2.textAlign = 'left';
+  g2.fillStyle = A_COL(); g2.fillText('A original', 8 * d, 15 * d);
+  g2.fillStyle = bName || B_COL(); g2.fillText('B processed', 100 * d, 15 * d);
+}
+// a scrolling history plot of one measurement for A and B
+function histPlot(x0, x1, top, bot, key, lo, hi, fillB, bCol) {
+  const n = hist.a.length; if (n < 2) return;
+  const X = i => x0 + (i + HIST - n) / (HIST - 1) * (x1 - x0), Y = v => bot - (Math.max(lo, Math.min(hi, v)) - lo) / (hi - lo) * (bot - top);
+  const line = (arr, col, fill) => { g2.beginPath(); arr.forEach((m, i) => i ? g2.lineTo(X(i), Y(m[key])) : g2.moveTo(X(i), Y(m[key])));
+    if (fill) { g2.lineTo(X(n - 1), bot); g2.lineTo(X(0), bot); g2.closePath(); g2.globalAlpha = .3; g2.fillStyle = col; g2.fill(); g2.globalAlpha = 1; }
+    else { g2.strokeStyle = col; g2.lineWidth = 2 * devicePixelRatio; g2.stroke(); } };
+  if (fillB) { line(hist.b, bCol, true); line(hist.a, A_COL(), false); }
+  else { line(hist.a, A_COL(), false); line(hist.b, bCol, false); }
+}
+const avg = (arr, f) => arr.length ? arr.reduce((s, m) => s + f(m), 0) / arr.length : 0;
+function bigText(txt, x, y, col, size) { const d = devicePixelRatio; g2.font = `400 ${size * d}px Bungee, sans-serif`; g2.fillStyle = col; g2.textAlign = 'center'; g2.fillText(txt, x, y); }
+function smallText(txt, x, y, col, align = 'center') { const d = devicePixelRatio; g2.font = `${11 * d}px JetBrains Mono, monospace`; g2.fillStyle = col; g2.textAlign = align; g2.fillText(txt, x, y); }
+
+function drawLevel(W, H, fg) {
+  const d = devicePixelRatio, PW = W * .62; sampleAB(); legend(W, d);
+  [-40, -30, -20, -10].forEach(v => { const y = 24 * d + (1 - (v + 50) / 50) * (H - 34 * d); g2.fillStyle = fg; g2.globalAlpha = .15; g2.fillRect(0, y, PW, 1); g2.globalAlpha = .5; smallText(v + ' dB', PW - 4 * d, y - 3 * d, fg, 'right'); g2.globalAlpha = 1; });
+  histPlot(0, PW, 24 * d, H - 10 * d, 'rms', -50, 0, false, B_COL());
+  const last = hist.a.slice(-20), lastB = hist.b.slice(-20), a = avg(last, m => m.rms), b = avg(lastB, m => m.rms);
+  const meter = (x, v, col, name) => { const top = 24 * d, bot = H - 26 * d, h = (Math.max(-50, v) + 50) / 50 * (bot - top);
+    g2.fillStyle = 'rgba(255,255,255,.08)'; g2.fillRect(x, top, 34 * d, bot - top); g2.fillStyle = col; g2.fillRect(x, bot - h, 34 * d, h);
+    bigText(name, x + 17 * d, H - 8 * d, col, 13); };
+  meter(PW + 24 * d, a, A_COL(), 'A'); meter(PW + 70 * d, b, B_COL(), 'B');
+  const diff = avg(hist.b, m => m.rms) - avg(hist.a, m => m.rms), cx = PW + 104 * d + (W - PW - 104 * d) / 2;
+  smallText('B compared to A', cx, H * .32, fg);
+  bigText(`${diff >= 0 ? '+' : '−'}${Math.abs(diff).toFixed(1)} dB`, cx, H * .55, diff >= 0 ? cssVar('--ok') : cssVar('--bad'), 22);
+  smallText(Math.abs(diff) < .4 ? 'about the same' : diff > 0 ? 'B is louder' : 'B is quieter', cx, H * .72, fg);
+}
+function drawDyn(W, H, fg) {
+  const d = devicePixelRatio, PW = W * .62, mid = (24 * d + H - 8 * d) / 2; sampleAB(); legend(W, d);
+  // mirrored peak envelope: tall spikes are punchy hits, a flat top means squashed
+  const n = hist.a.length;
+  const env = (arr, col, fill) => { if (n < 2) return; const X = i => (i + HIST - n) / (HIST - 1) * PW, A = v => (Math.max(-40, v) + 40) / 40 * (mid - 24 * d);
+    g2.beginPath(); arr.forEach((m, i) => i ? g2.lineTo(X(i), mid - A(m.peak)) : g2.moveTo(X(i), mid - A(m.peak)));
+    for (let i = n - 1; i >= 0; i--) g2.lineTo(X(i), mid + A(arr[i].peak)); g2.closePath();
+    if (fill) { g2.globalAlpha = .45; g2.fillStyle = col; g2.fill(); g2.globalAlpha = 1; } else { g2.strokeStyle = col; g2.lineWidth = 1.5 * d; g2.stroke(); } };
+  env(hist.b, B_COL(), true); env(hist.a, A_COL(), false);
+  const crest = arr => avg(arr, m => m.peak - m.rms), cA = crest(hist.a), cB = crest(hist.b);
+  const x0 = PW + 20 * d, bw = W - x0 - 12 * d;
+  smallText('Punch (peaks above average)', x0, 34 * d, fg, 'left');
+  const bar = (y, v, col, name) => { const w = Math.max(0, Math.min(1, v / 20)) * bw; g2.fillStyle = 'rgba(255,255,255,.08)'; g2.fillRect(x0, y, bw, 16 * d); g2.fillStyle = col; g2.fillRect(x0, y, w, 16 * d);
+    smallText(`${name} ${v.toFixed(1)} dB`, x0 + 6 * d, y + 12 * d, '#000', 'left'); };
+  bar(42 * d, cA, A_COL(), 'A'); bar(64 * d, cB, B_COL(), 'B');
+  const gr = chain && chain.input && typeof chain.input.reduction === 'number' ? chain.input.reduction : 0;
+  smallText('Squash right now (gain reduction)', x0, 104 * d, fg, 'left');
+  const gw = Math.min(1, -gr / 20) * bw; g2.fillStyle = 'rgba(255,255,255,.08)'; g2.fillRect(x0, 112 * d, bw, 16 * d); g2.fillStyle = cssVar('--bad'); g2.fillRect(x0 + bw - gw, 112 * d, gw, 16 * d);
+  smallText(gr < -.3 ? `${gr.toFixed(1)} dB` : 'none', x0 + 6 * d, 124 * d, fg, 'left');
+  const avgGr = avg(hist.b, m => m.gr || 0);
+  smallText(avgGr < -1.5 ? `B was squashed about ${Math.round(-avgGr)} dB on average` : 'B was not squashed', x0, H - 12 * d, fg, 'left');
+}
+function drawSpace(W, H, fg) {
+  const d = devicePixelRatio, PW = W * .6, purple = cssVar('--space'); sampleAB(); legend(W, d, purple);
+  smallText('Loud hits at the top. Reverb fills the quiet gaps between them.', 8 * d, H - 6 * d, fg, 'left');
+  histPlot(0, PW, 24 * d, H - 18 * d, 'rms', -60, 0, true, purple);
+  // idealized decay of one hit: dry stops at once, reverb rings out
+  const x0 = PW + 24 * d, x1 = W - 12 * d, top = 30 * d, bot = H - 30 * d, secs = 3.5, X = s => x0 + s / secs * (x1 - x0);
+  const t = R.tail || { decay:0, mix:0 };
+  smallText('One drum hit', x0, 20 * d, fg, 'left');
+  g2.fillStyle = fg; g2.globalAlpha = .3; g2.fillRect(x0, bot, x1 - x0, 1); [0, 1, 2, 3].forEach(s => { g2.fillRect(X(s), bot, 1, 4 * d); smallText(s + 's', X(s), bot + 14 * d, fg); }); g2.globalAlpha = 1;
+  g2.fillStyle = A_COL(); g2.fillRect(x0, top, 4 * d, bot - top);
+  if (t.decay) { g2.beginPath(); g2.moveTo(x0, bot - (bot - top) * (.35 + t.mix)); for (let s = 0; s <= t.decay; s += .02) g2.lineTo(X(s), bot - (bot - top) * (.35 + t.mix) * (1 - s / t.decay)); g2.lineTo(X(t.decay), bot); g2.lineTo(x0, bot); g2.closePath();
+    g2.globalAlpha = .55; g2.fillStyle = purple; g2.fill(); g2.globalAlpha = 1;
+    bigText(`B: ${t.decay} s tail`, (x0 + x1) / 2 + 20 * d, top + 12 * d, purple, 13); }
+  else bigText('B: dry, no tail', (x0 + x1) / 2 + 20 * d, top + 12 * d, purple, 13);
+}
 // Balance Test view: each frequency band is a glowing dot placed where it sits between
 // left and right (low notes at the bottom), plus a pan knob showing how B was set.
 const SBANDS = Array.from({ length:30 }, (_, i) => 40 * Math.pow(400, i / 29)), bandPos = new Float32Array(30), bandLvl = new Float32Array(30);
@@ -1513,7 +1611,11 @@ function draw() {
   if ($('vPlay').hidden || !answered) return;  // never draw the spectrum before the answer
   const W = cv.width = cv.clientWidth * devicePixelRatio, H = cv.height = cv.clientHeight * devicePixelRatio;
   const fg = cssVar('--screen-fg'), lamp = cssVar('--lamp'), x = f => Math.log(f / 20) / Math.log(1000) * W;
-  if (R && R.stereo != null) return drawStereo(W, H, fg);
+  const view = viewOf();
+  if (view === 'stereo') return drawStereo(W, H, fg);
+  if (view === 'level') return drawLevel(W, H, fg);
+  if (view === 'dyn') return drawDyn(W, H, fg);
+  if (view === 'space') return drawSpace(W, H, fg);
   g2.font = `${11 * devicePixelRatio}px IBM Plex Mono, monospace`; g2.fillStyle = fg; g2.globalAlpha = .45;
   [50,100,200,500,1000,2000,5000,10000].forEach(f => { g2.fillRect(x(f), 0, 1, H); g2.fillText(fmtHz(f).replace(' ',''), x(f) + 3, H - 4); });
   g2.globalAlpha = 1;
@@ -1537,14 +1639,17 @@ function draw() {
     if (sh.kind === 'boost') zone(x(sh.f / Math.pow(2, o)), x(sh.f * Math.pow(2, o)), grn, 'BOOST', [.06, .35, .06]);
     if (sh.kind === 'lpf' || sh.kind === 'hpf') { g2.fillStyle = `rgb(${red})`; g2.fillRect(fx - devicePixelRatio, 0, 2 * devicePixelRatio, H); }
   }
-  if (!analyser) return;
-  fbuf ||= new Float32Array(analyser.frequencyBinCount); analyser.getFloatFrequencyData(fbuf);
-  const binHz = ctx.sampleRate / analyser.fftSize;
-  g2.beginPath();
-  for (let px = 0; px < W; px += 2) { const f = 20 * Math.pow(1000, px / W), i = Math.min(fbuf.length - 1, Math.round(f / binHz));
-    const y = H - (Math.max(-110, fbuf[i]) + 110) / 90 * H; px ? g2.lineTo(px, y) : g2.moveTo(px, y); }
-  g2.lineTo(W, H); g2.lineTo(0, H); g2.closePath();
-  g2.fillStyle = lamp; g2.globalAlpha = .28; g2.fill(); g2.globalAlpha = 1; g2.strokeStyle = lamp; g2.lineWidth = 1.5 * devicePixelRatio; g2.stroke();
+  if (!anA) return;
+  // B filled, A as an outline on top, so what changed stands out
+  fA ||= new Float32Array(anA.frequencyBinCount); fB ||= new Float32Array(anB.frequencyBinCount);
+  anA.getFloatFrequencyData(fA); anB.getFloatFrequencyData(fB);
+  const binHz = ctx.sampleRate / anA.fftSize;
+  const path = buf => { g2.beginPath(); for (let px = 0; px < W; px += 2) { const f = 20 * Math.pow(1000, px / W), i = Math.min(buf.length - 1, Math.round(f / binHz));
+    const y = H - (Math.max(-110, buf[i]) + 110) / 90 * H; px ? g2.lineTo(px, y) : g2.moveTo(px, y); } };
+  path(fB); g2.lineTo(W, H); g2.lineTo(0, H); g2.closePath();
+  g2.fillStyle = B_COL(); g2.globalAlpha = .3; g2.fill(); g2.globalAlpha = 1; g2.strokeStyle = B_COL(); g2.lineWidth = 1.5 * devicePixelRatio; g2.stroke();
+  path(fA); g2.strokeStyle = A_COL(); g2.globalAlpha = .9; g2.lineWidth = 1.5 * devicePixelRatio; g2.stroke(); g2.globalAlpha = 1;
+  legend(W, devicePixelRatio);
   if (R && R.freq && answered) { g2.setLineDash([4*devicePixelRatio, 4*devicePixelRatio]); g2.strokeStyle = fg;
     g2.beginPath(); g2.moveTo(x(R.freq), 0); g2.lineTo(x(R.freq), H); g2.stroke(); g2.setLineDash([]); }
 }
