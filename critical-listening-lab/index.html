@@ -1783,10 +1783,11 @@ function celebrateGoal() {
 }
 
 /* ================= Teacher dashboard ================= */
-// Change the PIN here. It only keeps students from wandering in; it isn't real security.
-const TEACHER_PIN = 'mixdown';
-// Paste the Google Apps Script web app URL here to collect every student's data in one Sheet.
+// The class Google Sheet (see teacher-dashboard/SETUP.md). SYNC_URL is the "Student data"
+// deployment students send to; DASHBOARD_URL is the "Teacher dashboard" deployment, which
+// Google only opens for the teacher's own account.
 const SYNC_URL = '';
+const DASHBOARD_URL = '';
 function summary(key, u) {
   const levels = Object.fromEntries(GAMES.map(g => [g.id, (u.games[g.id] || {}).level || 1]));
   return { key, name: u.guest ? 'Guest' : displayName(u), code: u.code || '', date: today(), seconds: (u.time || {})[today()] || 0,
@@ -1799,21 +1800,11 @@ function syncUp() {
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden && signedIn()) { save(); lastSync = 0; syncUp(); } });
 const last7 = () => Array.from({ length:7 }, (_, k) => { const d = new Date(); d.setDate(d.getDate() - 6 + k); return d.toISOString().slice(0, 10); });
-async function openTeacher() {
-  if (sessionStorage.getItem('clt-teach') !== '1') {
-    const pin = prompt('Teacher PIN'); if (pin == null) return;
-    if (pin.trim().toLowerCase() !== TEACHER_PIN) { alert('That PIN is not right.'); return; }
-    try { sessionStorage.setItem('clt-teach', '1'); } catch (e) {}
-  }
-  show('vTeach'); $('goal').hidden = true; $('tStatus').textContent = 'Loading…';
-  let rows = Object.entries(store.users).filter(([, u]) => !u.guest).map(([k, u]) => summary(k, u)), src = 'this computer';
-  if (SYNC_URL) {
-    try { const r = await fetch(SYNC_URL + '?action=list'); const data = await r.json();
-      const byKey = {}; data.forEach(s => { const cur = byKey[s.key]; if (!cur || s.date >= cur.date) byKey[s.key] = s; });
-      rows = Object.values(byKey); src = 'the class Google Sheet'; }
-    catch (e) { src = 'this computer (the Sheet did not load)'; }
-  }
-  renderTeacher(rows, src);
+function openTeacher() {
+  if (DASHBOARD_URL) { window.open(DASHBOARD_URL, '_blank', 'noopener'); return; }
+  // Until the Sheet is connected: students who used this computer
+  show('vTeach'); $('goal').hidden = true;
+  renderTeacher(Object.entries(store.users).filter(([, u]) => !u.guest).map(([k, u]) => summary(k, u)), 'this computer');
 }
 function renderTeacher(rows, src) {
   const days = last7(), t = today(), code = $('tClass').value;
@@ -1832,7 +1823,7 @@ function renderTeacher(rows, src) {
         days.map(d => { const m = min(r, d); return `<td><i class="tbar ${m >= GOAL_MIN ? 'ok' : ''}" style="--h:${Math.min(1, m / GOAL_MIN) * 100}%" title="${m} min"></i><small>${m || ''}</small></td>`; }).join('') +
         `<td>${goalDays}</td><td>${r.accuracy == null ? '–' : r.accuracy + '%'}</td><td>${r.sessions}</td>` + GAMES.map(g => `<td>${(r.levels || {})[g.id] || 1}</td>`).join('') + '</tr>'; }).join('')
       : `<tr><td colspan="${13 + GAMES.length}">No student data yet.</td></tr>`) + '</tbody>';
-  $('tStatus').textContent = `Showing data from ${src}.` + (SYNC_URL ? '' : ' Only students who used this computer appear here until the class Google Sheet is connected.');
+  $('tStatus').textContent = `Showing students who used ${src}. Once the class Google Sheet is connected, this button opens the full class dashboard behind your Google sign-in.`;
   $('tCsv').onclick = () => {
     const head = ['Student', 'Class', ...days.map(d => d + ' min'), 'Accuracy', 'Sessions', ...GAMES.map(g => g.name + ' level')];
     const csv = [head, ...list.map(r => [r.name, r.code, ...days.map(d => min(r, d)), r.accuracy ?? '', r.sessions, ...GAMES.map(g => (r.levels || {})[g.id] || 1)])]
