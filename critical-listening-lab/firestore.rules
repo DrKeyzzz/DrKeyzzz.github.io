@@ -296,6 +296,27 @@ service cloud.firestore {
       allow delete: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
     }
 
+    // Critical Listening Lab leaderboard: one row per finished 10-round session (Beat Recreate: 6).
+    // Anyone can see them and add one in the right shape; nobody can edit them.
+    match /listening_scores/{scoreId} {
+      allow read: if true;
+      allow create: if listenScore(request.resource.data) && devOk(request.resource.data);
+      allow update: if false;
+      allow delete: if isAdmin() || ownsClass(resource.data.get('class_code', ''));
+    }
+    function listenScore(d) {
+      return d.keys().hasOnly(['name', 'class_code', 'game', 'score', 'acc', 'level', 'rounds', 'created_at', 'dev'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 24
+        && d.get('class_code', '') is string
+        && (d.get('class_code', '') == '' || exists(/databases/$(database)/documents/classes/$(d.class_code)))
+        && d.game in ['filter', 'peak', 'eq', 'gain', 'comp', 'pan', 'space', 'beat']
+        && d.score is int && d.score >= 0 && d.score <= 100000
+        && d.acc is int && d.acc >= 0 && d.acc <= 100
+        && d.level is int && d.level >= 1 && d.level <= 20
+        && d.rounds is int && d.rounds >= 1 && d.rounds <= 30
+        && d.created_at == request.time;
+    }
+
     function tidalScore(d) {
       return d.keys().hasOnly(['name', 'class_code', 'score', 'hits', 'acc', 'level', 'mode', 'diff', 'clef', 'answer', 'names', 'created_at', 'dev', 'icon', 'class_codes'])
         && d.name is string && d.name.size() >= 2 && d.name.size() <= 24

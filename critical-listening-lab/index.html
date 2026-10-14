@@ -370,6 +370,19 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
 .test-lobby .row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
 .test-lobby .err{color:var(--bad);font-weight:700}
 .testing .howto,.testing #howShow,.testing #fbBtn{display:none!important}
+.board{display:grid;gap:12px}
+.board .seg{display:flex;gap:6px;flex-wrap:wrap}
+.board .seg button{font:400 .75rem var(--display);padding:8px 12px;border-radius:8px;border:2px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
+.board .seg button[aria-pressed=true]{background:var(--freq);border-color:var(--freq);color:var(--ink)}
+.board .seg button:disabled{opacity:.4;cursor:default}
+.board-wrap{overflow:auto;border-radius:10px;border:1px solid var(--line)}
+.board table{border-collapse:collapse;width:100%;min-width:760px;font-size:.92rem}
+.board th{font:400 .66rem var(--display);color:var(--muted);text-align:right;padding:9px 8px;border-bottom:2px solid var(--line);white-space:nowrap;cursor:pointer;user-select:none;background:var(--panel)}
+.board th.l,.board td.l{text-align:left} .board th.on{color:var(--accent)} .board th.on::after{content:" ▼"}
+.board td{padding:8px;border-bottom:1px solid var(--line);text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.board td.l{font-family:var(--body)} .board td.on{color:var(--accent);font-weight:600} .board td.dim{color:var(--muted)}
+.board tr.me td{background:color-mix(in srgb,var(--accent) 14%,transparent)}
+.board .rk{font:400 .9rem var(--display);color:var(--muted)} .board tr:nth-child(1) .rk{color:#ffd23f} .board tr:nth-child(2) .rk{color:#d8d8e0} .board tr:nth-child(3) .rk{color:#e09a5a}
 .fb-ov{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:16px;background:rgba(0,0,0,.7)}
 .fb-ov[hidden]{display:none}
 .fb-panel{width:100%;max-width:440px;background:var(--panel);border:2px solid var(--accent);border-radius:12px;padding:18px;display:grid;gap:10px;box-shadow:6px 6px 0 #000}
@@ -459,7 +472,7 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
       <div class="label" style="margin-bottom:10px">Listening skills</div>
       <div class="skills" id="skills"></div>
     </div>
-    <div class="rowsb"><span class="label">All games</span><span class="status">Ten rounds per game. Levels adjust as you play.</span></div>
+    <div class="rowsb"><span class="label">All games</span><span style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><span class="status">Ten rounds per game. Levels adjust as you play.</span><button class="btn small" id="boardBtn" type="button">🏆 Leaderboard</button></span></div>
     <div class="games" id="games"></div>
     <div class="rowsb"><p class="note">Progress is saved in this browser on this device.</p><div class="row" style="display:flex;gap:8px"><button class="btn small" id="fbBtn" type="button">Send feedback</button><button class="btn small" id="teachBtn">Teacher dashboard</button></div></div>
   </section>
@@ -550,7 +563,21 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
     <div class="actions">
       <button class="btn primary big" id="rNext">Next game</button>
       <button class="btn" id="rAgain">Play again</button>
+      <button class="btn" id="rBoard">🏆 Leaderboard</button>
       <button class="btn" id="rHome">Back to gym</button>
+    </div>
+  </section>
+
+  <!-- LEADERBOARD -->
+  <section id="vBoard" class="view" hidden>
+    <div class="panel board">
+      <div class="rowsb"><h2>🏆 Leaderboard</h2><button class="btn" id="bBack" type="button">Back to gym</button></div>
+      <div class="rowsb">
+        <div class="seg" id="bScope" role="group" aria-label="Which board"><button type="button" data-s="class" aria-pressed="true">My class</button><button type="button" data-s="world" aria-pressed="false">World</button></div>
+        <div class="seg" id="bWhen" role="group" aria-label="When"><button type="button" data-w="7" aria-pressed="false">This week</button><button type="button" data-w="30" aria-pressed="false">This month</button><button type="button" data-w="0" aria-pressed="true">All time</button></div>
+      </div>
+      <p class="note" id="bNote" style="margin:0"></p>
+      <div class="board-wrap" id="bOut"></div>
     </div>
   </section>
 
@@ -1181,7 +1208,7 @@ function todaysWorkout() {
 }
 
 /* ================= Views ================= */
-function show(v) { if (typeof showHowto === 'function' && !(v === 'vFree' && howId === 'maker')) showHowto(null); if (v !== 'vFree' && typeof bmStop === 'function') bmStop(); document.body.classList.toggle('testing', !!(v === 'vTest' || (v === 'vPlay' && S && S.test))); ['vLogin','vHome','vPlay','vResults','vFree','vTest'].forEach(id => $(id).hidden = id !== v); window.scrollTo(0, 0); }
+function show(v) { if (typeof showHowto === 'function' && !(v === 'vFree' && howId === 'maker')) showHowto(null); if (v !== 'vFree' && typeof bmStop === 'function') bmStop(); document.body.classList.toggle('testing', !!(v === 'vTest' || (v === 'vPlay' && S && S.test))); ['vLogin','vHome','vPlay','vResults','vFree','vTest','vBoard'].forEach(id => $(id).hidden = id !== v); window.scrollTo(0, 0); }
 const svgIcon = (name) => `<svg viewBox="0 0 64 32" aria-hidden="true"><path d="${ICONS[name]}" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const pips = (l, n = 5) => `<span class="pips">${Array.from({ length:n }, (_, k) => k + 1).map(i => `<i class="${i<=l?'on':''}"></i>`).join('')}</span>`;
 
@@ -1546,6 +1573,7 @@ function finish() {
   if (more) $('rNext').textContent = 'Next: ' + G(wo.games[wo.idx + 1]).name;
   $('rTest').hidden = true; $('rAgain').hidden = false; $('rAgain').textContent = 'Play again';
   if (S.test) finishTest(acc);
+  postScore(acc);
   show('vResults');
 }
 function startWorkout() {
@@ -1993,6 +2021,57 @@ async function finishTest(acc) {
     Object.assign(r, { best:value, best_acc:acc, best_score:next.best_score }); save(); $('rTest').textContent = `New best: ${value}${unitOf(t)}. Saved for your teacher.`; }
   catch (e) { $('rTest').innerHTML = '<b style="color:var(--bad)">Your score could not be saved. Tell your teacher before you leave this page.</b>'; }
 }
+
+/* ================= Leaderboard: listening_scores ================= */
+// One row per finished full session (10 rounds, Beat Recreate 6), not workouts or tests. Students in a class post to
+// their class board and the World board; "not in a class" students post to World only; guests don't post.
+// The board shows each player's best score in every game, plus a total of those bests. Click a column to sort by it.
+const SHORT = { filter:'Filter', peak:'Peak', eq:'Boost/Cut', gain:'Gain', comp:'Comp', pan:'Balance', space:'Reverb', beat:'Beat' };
+async function postScore(acc) {
+  if (S.test || S.workout || P.guest || !signedIn() || S.rounds !== (S.g.rounds || 10)) return;
+  const doc = { name: displayName(P).slice(0, 24), class_code: P.code && P.owner ? P.code : '', game: S.g.id, score: Math.min(100000, S.score), acc, level: S.level, rounds: S.rounds };
+  try { const { fs, db } = await withTimeout(fb()); await withTimeout(fs.addDoc(fs.collection(db, 'listening_scores'), { ...doc, created_at: fs.serverTimestamp() }));
+    const n = $('rNote'); if (n && !$('vResults').hidden) n.textContent += ` Score posted to the ${doc.class_code ? 'class and World leaderboards' : 'World leaderboard'}.`; }
+  catch (e) { /* offline: the score just isn't posted */ }
+}
+const B = { scope:'class', when:0, sort:'total', rows:null, key:'' };
+function openBoard() {
+  const inClass = !!(signedIn() && !P.guest && P.code && P.owner);
+  const cb = $('bScope').querySelector('[data-s=class]'); cb.disabled = !inClass; if (!inClass) B.scope = 'world';
+  $('bScope').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', b.dataset.s === B.scope));
+  $('bWhen').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', +b.dataset.w === B.when));
+  show('vBoard'); loadBoard();
+}
+async function loadBoard() {
+  const key = B.scope + ':' + (B.scope === 'class' ? P.code : '');
+  $('bNote').textContent = 'Loading…'; if (B.key !== key) $('bOut').innerHTML = '';
+  try { const { fs, db } = await withTimeout(fb()), col = fs.collection(db, 'listening_scores');
+    const q = B.scope === 'class' ? fs.query(col, fs.where('class_code', '==', P.code)) : fs.query(col, fs.orderBy('score', 'desc'), fs.limit(1500));
+    B.rows = (await withTimeout(fs.getDocs(q))).docs.map(d => d.data()); B.key = key; renderBoard(); }
+  catch (e) { $('bNote').textContent = "Couldn't load the leaderboard. Check your internet and try again."; }
+}
+function renderBoard() {
+  const since = B.when ? Date.now() - B.when * 864e5 : 0, me = displayName(P) + '|' + (P.code && P.owner ? P.code : '');
+  const by = {};
+  for (const r of B.rows || []) {
+    if (!G(r.game) || (since && msOf(r.created_at) && msOf(r.created_at) < since)) continue;
+    const k = r.name + '|' + (r.class_code || ''), p = by[k] ||= { name:r.name, code:r.class_code || '', best:{}, plays:0 };
+    p.plays++; if (!p.best[r.game] || r.score > p.best[r.game].score) p.best[r.game] = { score:r.score, acc:r.acc, level:r.level };
+  }
+  const list = Object.entries(by).map(([k, p]) => ({ ...p, key:k, total: Object.values(p.best).reduce((a, b) => a + b.score, 0), games: Object.keys(p.best).length }));
+  const val = p => B.sort === 'total' ? p.total : B.sort === 'games' ? p.games : (p.best[B.sort] || {}).score ?? -1;
+  const shown = list.filter(p => B.sort === 'total' || B.sort === 'games' || p.best[B.sort]).sort((a, b) => val(b) - val(a) || b.total - a.total).slice(0, 100);
+  const world = B.scope === 'world', th = (k, label, l) => `<th data-k="${k}" class="${l ? 'l ' : ''}${B.sort === k ? 'on' : ''}">${label}</th>`;
+  $('bNote').textContent = shown.length ? `${world ? 'World' : P.className || 'Your class'} · ${B.when ? 'last ' + (B.when === 7 ? 'week' : 'month') : 'all time'} · best score in each game. Click a column to sort by that game.` : '';
+  $('bOut').innerHTML = shown.length ? `<table><thead><tr><th class="l">#</th><th class="l">Player</th>${th('total', 'Total')}${th('games', 'Games')}${GAMES.map(g => th(g.id, SHORT[g.id])).join('')}</tr></thead><tbody>${shown.map((p, i) => `<tr class="${p.key === me ? 'me' : ''}"><td class="l rk">${i + 1}</td><td class="l"><b>${esc(p.name)}</b>${world && p.code ? ` <small class="dim">${esc(p.code)}</small>` : ''}</td>
+      <td class="${B.sort === 'total' ? 'on' : ''}">${p.total.toLocaleString()}</td><td class="${B.sort === 'games' ? 'on' : ''}">${p.games}</td>${GAMES.map(g => { const b = p.best[g.id]; return `<td class="${B.sort === g.id ? 'on' : ''} ${b ? '' : 'dim'}" title="${b ? `Level ${b.level}, ${b.acc}% correct` : ''}">${b ? b.score.toLocaleString() : '–'}</td>`; }).join('')}</tr>`).join('')}</tbody></table>`
+    : `<p class="note" style="padding:16px;margin:0">No scores ${B.when ? 'in this period ' : ''}yet${B.sort !== 'total' && B.sort !== 'games' ? ' for ' + G(B.sort).name : ''}. Finish a full game (not the workout) to post one.</p>`;
+  $('bOut').querySelectorAll('th[data-k]').forEach(h => h.onclick = () => { B.sort = h.dataset.k; renderBoard(); });
+}
+$('boardBtn').onclick = $('rBoard').onclick = openBoard;
+$('bBack').onclick = () => renderHome();
+$('bScope').onclick = e => { const b = e.target.closest('button[data-s]'); if (!b || b.disabled) return; B.scope = b.dataset.s; $('bScope').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); loadBoard(); };
+$('bWhen').onclick = e => { const b = e.target.closest('button[data-w]'); if (!b) return; B.when = +b.dataset.w; $('bWhen').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderBoard(); };
 
 /* ================= Feedback (game_feedback, read on the teacher dashboard) ================= */
 const FB_WAIT = 60000;

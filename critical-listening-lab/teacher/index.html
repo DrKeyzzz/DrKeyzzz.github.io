@@ -76,6 +76,7 @@ td.wrap{white-space:normal;max-width:420px}
           <button data-v="students" aria-pressed="true">Students</button>
           <button data-v="assign" aria-pressed="false">Assign</button>
           <button data-v="tests" aria-pressed="false">Tests</button>
+          <button data-v="scores" aria-pressed="false">Leaderboard</button>
           <button data-v="feedback" aria-pressed="false">Feedback</button>
           <button data-v="classes" aria-pressed="false">Classes</button>
           <button data-v="admin" aria-pressed="false" hidden>Admin</button>
@@ -178,8 +179,9 @@ async function load() {
   if (S.view === 'classes') return renderClasses();
   if (S.view === 'admin') return loadAdmin();
   if (S.view === 'feedback') return loadFeedback();
-  if (!S.code && (S.view === 'assign' || S.view === 'tests')) { $('stats').innerHTML = ''; $('out').innerHTML = '<p class="muted">Make a class on the Classes tab first.</p>'; return; }
+  if (!S.code && (S.view === 'assign' || S.view === 'tests' || S.view === 'scores')) { $('stats').innerHTML = ''; $('out').innerHTML = '<p class="muted">Make a class on the Classes tab first.</p>'; return; }
   if (S.view === 'tests') return loadTests();
+  if (S.view === 'scores') return loadScores();
   if (!S.code) { $('stats').innerHTML = ''; $('out').innerHTML = '<p class="muted">Make a class on the Classes tab, then give students the code.</p>'; return; }
   $('out').innerHTML = '<p class="muted">Loading…</p>';
   try {
@@ -324,6 +326,23 @@ function renderTests(t, results) {
   $('out').querySelectorAll('[data-reset]').forEach(b => b.onclick = async () => { const r = results.find(y => y.id === b.dataset.reset);
     if (!confirm(`Reset ${r.student}'s result? Their score is deleted and they get their tries back.`)) return;
     try { if (!PREVIEW) { const { fs, db } = await fb(); await fs.deleteDoc(fs.doc(db, 'test_results', r.id)); } renderTests(t, results.filter(y => y !== r)); msg(`${esc(r.student)} can take "${esc(t.name)}" again.`); } catch (e) { msg(errText(e)); } });
+}
+
+// ---------- Leaderboard: listening_scores for this class; a teacher can remove a run (a joke name, a bad score) ----------
+async function loadScores() {
+  $('out').innerHTML = '<p class="muted">Loading…</p>'; $('stats').innerHTML = '';
+  try {
+    let rows;
+    if (PREVIEW) rows = sampleRows(S.code).slice(0, 30).map((r, i) => ({ id:'s' + i, name:r.student, game:GAMES[i % 8][0], score:400 + (i * 137) % 1500, acc:50 + (i * 7) % 50, level:1 + i % 4, created_at:new Date(Date.now() - i * 36e5) }));
+    else { const { fs, db } = await fb();
+      rows = (await fs.getDocs(fs.query(fs.collection(db, 'listening_scores'), fs.where('class_code', '==', S.code)))).docs.map(d => ({ id:d.id, ...d.data() })); }
+    rows.sort((a, b) => toMs(b.created_at) - toMs(a.created_at));
+    $('stats').innerHTML = [['Runs posted', rows.length], ['Players', new Set(rows.map(r => r.name)).size], ['Top score', rows.length ? Math.max(...rows.map(r => r.score)).toLocaleString() : '–']].map(([l, v]) => `<div class="stat"><span>${l}</span><b>${v}</b></div>`).join('');
+    $('out').innerHTML = `<p class="note" style="margin-bottom:10px">Every finished full game a student in this class plays (not workouts or tests). Students see the best score per game on their Leaderboard. Delete a run to take it off the board.</p>
+      <table style="min-width:0"><thead><tr><th>When</th><th>Player</th><th>Game</th><th class="num">Score</th><th class="num">Accuracy</th><th class="num">Level</th><th></th></tr></thead><tbody>${rows.length ? rows.slice(0, 300).map(r => `<tr><td>${esc(fmtWhen(r.created_at))}</td><td><b>${esc(r.name)}</b></td><td>${esc((INFO[r.game] || [r.game])[0])}</td><td class="num">${(r.score || 0).toLocaleString()}</td><td class="num">${r.acc}%</td><td class="num">${r.level}</td><td><button class="btn ghost sm" data-sdel="${esc(r.id)}">Delete</button></td></tr>`).join('') : '<tr><td colspan="7" class="muted">No scores posted in this class yet.</td></tr>'}</tbody></table>`;
+    $('out').querySelectorAll('[data-sdel]').forEach(b => b.onclick = async () => { if (!confirm('Delete this score from the leaderboard?')) return;
+      try { if (!PREVIEW) { const { fs, db } = await fb(); await fs.deleteDoc(fs.doc(db, 'listening_scores', b.dataset.sdel)); } b.closest('tr').remove(); } catch (e) { msg(errText(e)); } });
+  } catch (e) { $('out').innerHTML = `<p class="err">${errText(e)}</p>`; }
 }
 
 // ---------- Feedback: game_feedback from the Listening Lab's Send feedback button ----------
