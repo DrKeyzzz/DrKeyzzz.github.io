@@ -140,7 +140,7 @@ kbd{font-family:var(--mono);font-size:.72rem;border:1px solid var(--line);border
 .feedback{min-height:3em;margin:12px 0 0;font-weight:500}
 .feedback .ok{color:var(--ok)} .feedback .bad{color:var(--bad)} .feedback .up{color:var(--accent)}
 .analyzer{background:var(--screen);border-radius:8px;position:relative;overflow:hidden}
-.analyzer canvas{display:block;width:100%;height:120px}
+.analyzer canvas{display:block;width:100%;height:120px} .analyzer.tall canvas{height:230px}
 .analyzer .cover{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--screen-fg);font-family:var(--display);letter-spacing:.1em;text-transform:uppercase;font-size:.9rem;background:var(--screen);text-align:center;padding:12px}
 .toggle{display:flex;align-items:center;gap:6px;font-size:.82rem;color:var(--muted)}
 .rowsb{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
@@ -307,6 +307,14 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
 .d-cur{position:absolute;top:22px;width:18px;height:22px;margin-left:-3px;background:no-repeat center/contain url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 22'%3E%3Cpath d='M1 1v17l5-4 3 7 3-1-3-7h6z' fill='white' stroke='black' stroke-width='1.5'/%3E%3C/svg%3E")}
 .d-cur.click{transform:scale(.8)}
 .d-yay{font:400 14px var(--display);color:var(--ok);opacity:0;transition:opacity .2s}
+.gdemo{position:relative}
+.d-viz{width:100%;height:100px;border-radius:8px;border:2px solid var(--line);background:#0b0b0d;display:block}
+.d-ans{display:flex;gap:8px;flex-wrap:wrap}
+.d-btn.right{background:var(--ok);border-color:var(--ok);color:var(--ink)}
+.d-now{margin-left:auto;font:500 12px var(--mono);color:var(--muted)}
+.gdemo .d-yay{position:absolute;right:14px;bottom:14px}
+.gdemo>.d-cur{top:0;left:0;transition:left .45s ease,top .45s ease;z-index:2;filter:drop-shadow(0 2px 2px #000)}
+.btn.small{padding:6px 12px;font-size:.75rem}
 /* live Shift feedback on the real strip */
 .strip.tuning{border-color:var(--accent)!important;box-shadow:0 0 16px rgba(255,225,77,.45)}
 .strip .shiftbadge{position:absolute;top:6px;right:8px;font:400 12px var(--display);padding:2px 8px;border-radius:6px;background:var(--accent);color:var(--ink);pointer-events:none;display:none}
@@ -409,25 +417,9 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
       <div class="progress" id="prog"></div>
     </div>
     <div class="panel howto" id="howto" hidden>
-      <div class="rowsb"><span class="label">How to play Peak Finder</span><button class="btn" id="howHide">Got it, hide this</button></div>
-      <div class="how-grid">
-        <div class="demo" aria-hidden="true">
-          <div class="d-top">
-            <span class="d-btn d-play">Play</span><span class="d-btn d-a">A</span><span class="d-btn d-b">B</span>
-            <span class="d-key"><b>⇧</b> Shift</span>
-          </div>
-          <div class="d-strip"><i class="d-heat"></i><span class="d-read">Click to place your guess</span><i class="d-mk"></i><i class="d-cur"></i>
-            <span class="d-tl" style="left:8%">50</span><span class="d-tl" style="left:30%">200</span><span class="d-tl" style="left:53%">1k</span><span class="d-tl" style="left:76%">5k</span></div>
-          <div class="d-bot"><span class="d-btn d-lock">Lock in</span><span class="d-yay">Correct! +150</span></div>
-        </div>
-        <ol class="how-steps">
-          <li data-s="0"><b>Press Play.</b> Click <b>A</b>, then <b>B</b>. B has one boost hiding in it. Listen for what sticks out.</li>
-          <li data-s="1"><b>Hold down Shift</b> and slide your mouse across the strip. Now you hear the boost move. Find the spot where it sounds like B.</li>
-          <li data-s="2"><b>Let go of Shift</b> and <b>click</b> that spot to drop your guess.</li>
-          <li data-s="3"><b>Hit Lock in.</b> The closer you are, the more points you get.</li>
-        </ol>
-      </div>
-      <p class="hint">No keyboard? Turn on the <b>Tune</b> button under the strip. It does the same thing as holding Shift.</p>
+      <div class="rowsb"><span class="label" id="howTitle">How to play</span><button class="btn" id="howHide">Got it, hide this</button></div>
+      <div class="how-grid"><div id="howDemo"></div><ol class="how-steps" id="howSteps"></ol></div>
+      <p class="hint" id="howNote" hidden></p>
     </div>
     <div class="grid">
       <div class="panel transport">
@@ -441,7 +433,7 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
         <button class="btn" id="quit">Quit to gym</button>
       </div>
       <div class="panel">
-        <div class="label" style="margin-bottom:8px" id="question"></div>
+        <div class="rowsb" style="margin-bottom:8px;gap:10px"><div class="label" id="question"></div><button class="btn small" id="howShow">Show me how</button></div>
         <div id="answerArea"></div>
         <p class="feedback" id="feedback" aria-live="polite"></p>
         <div class="rowsb"><span></span><button class="btn primary" id="next" hidden>Next round</button></div>
@@ -466,6 +458,7 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
         <div class="group"><label class="label" for="bmSwing">Swing <output id="bmSwingOut">0</output>%</label><input type="range" id="bmSwing" min="0" max="60" value="0"></div>
         <button class="btn" id="bmClear">Clear steps</button>
         <button class="btn" id="bmReset">New beat</button>
+        <button class="btn" id="bmHow">How it works</button>
       </div>
       <p class="hint">Click a cell for soft, again for medium, again for hard, and a fourth time to clear. M mutes a row. Your beat saves on this computer.</p>
     </div>
@@ -601,7 +594,7 @@ async function getBuffer(kind) {
 }
 
 /* ================= Playback engine ================= */
-let ctx, master, analyser, dryG, wetG, insertIn, sweepIn, sweepF, sweepG, tuning = false, srcNode = null, playing = false, side = 'A', chain = null;
+let ctx, master, analyser, anL, anR, dryG, wetG, insertIn, sweepIn, sweepF, sweepG, tuning = false, srcNode = null, playing = false, side = 'A', chain = null;
 function ensureCtx() {
   if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
   ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -609,6 +602,10 @@ function ensureCtx() {
   analyser = ctx.createAnalyser(); analyser.fftSize = 8192; analyser.smoothingTimeConstant = 0.8;
   const lim = ctx.createDynamicsCompressor(); lim.threshold.value = -1; lim.ratio.value = 20; lim.attack.value = 0.001; // safety limiter
   master.connect(lim).connect(analyser).connect(ctx.destination);
+  // Left and right analysers for the Balance Test stereo view
+  const split = ctx.createChannelSplitter(2); lim.connect(split);
+  anL = ctx.createAnalyser(); anR = ctx.createAnalyser(); [anL, anR].forEach(a => { a.fftSize = 4096; a.smoothingTimeConstant = 0.75; });
+  split.connect(anL, 0); split.connect(anR, 1);
   dryG = ctx.createGain(); wetG = ctx.createGain(); insertIn = ctx.createGain();
   // Tune mode: a sweepable bell that follows the cursor on the frequency strip
   sweepIn = ctx.createGain(); sweepF = ctx.createBiquadFilter(); sweepF.type = 'peaking'; sweepG = ctx.createGain(); sweepG.gain.value = 0;
@@ -874,7 +871,7 @@ let FB = null, bmTimer = null, bmNext = 0, bmStep = 0;
 function openFree() {
   stop(); FB = P.freeBeat ||= defaultBeat();
   $('bmTempo').value = FB.bpm; $('bmTempoOut').textContent = FB.bpm; $('bmSwing').value = FB.swing; $('bmSwingOut').textContent = FB.swing;
-  $('bmPicker').hidden = true; renderFree(); show('vFree');
+  $('bmPicker').hidden = true; renderFree(); show('vFree'); autoHowto('maker', 1);
 }
 function renderFree() {
   const g = $('bmGrid');
@@ -1009,12 +1006,12 @@ const GAMES = [
     blurb:'B is panned somewhere between left and right. Headphones help a lot here.',
     levels:['Left or right? (halfway)', 'Left, center or right? (slight)', 'Wide left, left, right or wide right?', 'Place it on the strip within 25%', 'Place it on the strip within 12%'],
     round(L) {
-      if (L === 1) { const r = Math.random() < .5; return btns([['L','Left'],['R','Right']], r?'R':'L', panChain(r?.5:-.5), `Panned 50% ${r?'right':'left'}.`); }
-      if (L === 2) { const k = pick(['L','C','R']); return btns([['L','Left'],['C','Center'],['R','Right']], k, panChain({L:-.35,C:0,R:.35}[k]), { L:'Panned left.', C:'Center. Same as A.', R:'Panned right.' }[k]); }
+      if (L === 1) { const r = Math.random() < .5; return { ...btns([['L','Left'],['R','Right']], r?'R':'L', panChain(r?.5:-.5), `Panned 50% ${r?'right':'left'}.`), stereo:r?.5:-.5 }; }
+      if (L === 2) { const k = pick(['L','C','R']); return { ...btns([['L','Left'],['C','Center'],['R','Right']], k, panChain({L:-.35,C:0,R:.35}[k]), { L:'Panned left.', C:'Center. Same as A.', R:'Panned right.' }[k]), stereo:{L:-.35,C:0,R:.35}[k] }; }
       if (L === 3) { const opts = [['-0.8','Wide left'],['-0.3','Left'],['0.3','Right'],['0.8','Wide right']], [v, n] = pick(opts);
-        return btns(opts, v, panChain(+v), `${n}: ${panLabel(+v)}.`); }
+        return { ...btns(opts, v, panChain(+v), `${n}: ${panLabel(+v)}.`), stereo:+v }; }
       const p = Math.round(rand(-1, 1) * 20) / 20, tol = L === 4 ? .25 : .12;
-      return { ui:'pan', target:p, tol, build: panChain(p), reveal:`Panned ${panLabel(p)}.` }; } },
+      return { ui:'pan', target:p, tol, build: panChain(p), stereo:p, reveal:`Panned ${panLabel(p)}.` }; } },
   { id:'space', name:'Reverb Space', skill:'Space', icon:'space',
     tagline:'Dry or wet, small room or big hall.',
     blurb:'B may have reverb added. Listen to the tails after each hit and how far away it feels.',
@@ -1093,7 +1090,7 @@ function todaysWorkout() {
 }
 
 /* ================= Views ================= */
-function show(v) { if (v !== 'vPlay' && typeof showHowto === 'function') showHowto(false); if (v !== 'vFree' && typeof bmStop === 'function') bmStop(); ['vLogin','vHome','vPlay','vResults','vFree'].forEach(id => $(id).hidden = id !== v); window.scrollTo(0, 0); }
+function show(v) { if (typeof showHowto === 'function' && !(v === 'vFree' && howId === 'maker')) showHowto(null); if (v !== 'vFree' && typeof bmStop === 'function') bmStop(); ['vLogin','vHome','vPlay','vResults','vFree'].forEach(id => $(id).hidden = id !== v); window.scrollTo(0, 0); }
 const svgIcon = (name) => `<svg viewBox="0 0 64 32" aria-hidden="true"><path d="${ICONS[name]}" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const pips = (l, n = 5) => `<span class="pips">${Array.from({ length:n }, (_, k) => k + 1).map(i => `<i class="${i<=l?'on':''}"></i>`).join('')}</span>`;
 
@@ -1147,10 +1144,11 @@ function newRound() {
   $('feedback').textContent = R.ui === 'grid' ? 'Press Play to hear the target beat. Click the grid to build yours, press B to hear it, then Check.' : S.i === 0 ? 'Press Play, flip between A and B, then answer.' : 'New round. Flip A and B, then answer.';
   $('question').textContent = `Level ${S.level}: ${R.q || S.g.levels[S.level - 1]}`;
   $('next').hidden = true; renderAnswer(); updateCover(); wireChain(); setSide('A');
+  if (S.i === 0 || howId) autoHowto(S.g.id, S.level);
   if (playing && R.ui === 'grid') { stopSeq(); startSeq(); } else if (playing && !srcNode) start();
 }
 function renderAnswer() {
-  const area = $('answerArea'); area.innerHTML = ''; showHowto(false);
+  const area = $('answerArea'); area.innerHTML = ''; $('spec').parentElement.classList.toggle('tall', R.stereo != null);
   if (R.ui === 'buttons') {
     const pad = document.createElement('div'); pad.className = 'pad';
     R.options.forEach(([id, label]) => { const b = document.createElement('button'); b.className = 'ans'; b.dataset.id = id; b.textContent = label; b.onclick = () => submit(id); pad.appendChild(b); });
@@ -1196,21 +1194,90 @@ function renderAnswer() {
   const lock = document.createElement('button'); lock.className = 'btn primary'; lock.textContent = 'Lock in'; lock.disabled = true; lock.id = 'lock';
   lock.onclick = () => guess != null && submit(guess);
   row.appendChild(lock); area.append(strip, row);
-  if (isF && R.gain) { const hb = document.createElement('button'); hb.className = 'btn howbtn'; hb.textContent = 'Show me how'; hb.onclick = () => showHowto(true); row.insertBefore(hb, row.children[1]); }
-  showHowto(isF && R.gain && R.tune && !howHidden);
   R._strip = { strip, toX };
 }
-// Animated walkthrough of the Shift-to-tune steps. Loops while visible.
-let howHidden = false, howRaf = 0;
-function showHowto(on) {
-  const box = $('howto'); box.hidden = !on; cancelAnimationFrame(howRaf); if (!on) return;
-  const q = c => box.querySelector(c), steps = [...box.querySelectorAll('.how-steps li')];
+// "How to play" demos: a looping animation of the four steps for each game.
+// Shows on its own at levels 1-2 until the student hides it; "Show me how" brings it back.
+const PEAK_DEMO = `<div class="demo" aria-hidden="true">
+  <div class="d-top"><span class="d-btn d-play">Play</span><span class="d-btn d-a">A</span><span class="d-btn d-b">B</span><span class="d-key"><b>⇧</b> Shift</span></div>
+  <div class="d-strip"><i class="d-heat"></i><span class="d-read">Click to place your guess</span><i class="d-mk"></i><i class="d-cur"></i>
+    <span class="d-tl" style="left:8%">50</span><span class="d-tl" style="left:30%">200</span><span class="d-tl" style="left:53%">1k</span><span class="d-tl" style="left:76%">5k</span></div>
+  <div class="d-bot"><span class="d-btn d-lock">Lock in</span><span class="d-yay">Correct! +150</span></div></div>`;
+const FLIP = '<b>Press Play.</b> Click <b>A</b>, then <b>B</b>, and keep flipping back and forth.';
+const HOWTO = {
+  filter:{ ans:['High-pass','Low-pass'], pick:1, steps:[FLIP,
+    "<b>Listen for what's missing on B.</b> Thin, no bass? That's a <b>high-pass</b>. Dull and muffled, no highs? That's a <b>low-pass</b>.",
+    '<b>Click the answer</b> that matches what you heard.',
+    '<b>Check the analyzer.</b> The part that got cut lights up <b>red</b>.'] },
+  peak:{ custom:true, note:'No keyboard? Turn on the <b>Tune</b> button under the strip. It does the same thing as holding Shift.', steps:[
+    '<b>Press Play.</b> Click <b>A</b>, then <b>B</b>. B has one boost hiding in it. Listen for what sticks out.',
+    '<b>Hold down Shift</b> and slide your mouse across the strip. Now you hear the boost move. Find the spot where it sounds like B.',
+    '<b>Let go of Shift</b> and <b>click</b> that spot to drop your guess.',
+    '<b>Hit Lock in.</b> The closer you are, the more points you get.'] },
+  eq:{ ans:['Boost','Cut'], pick:0, steps:[FLIP,
+    '<b>Does B jump out somewhere</b> (a boost) or sound like a chunk got <b>scooped out</b> (a cut)? Higher levels ask where: lows, mids or highs.',
+    '<b>Click the answer</b> that matches what you heard.',
+    '<b>Check the analyzer.</b> A boost lights up <b>green</b>, a cut lights up <b>red</b>.'] },
+  gain:{ ans:['Louder','Quieter'], pick:0, steps:[FLIP,
+    "<b>Is B louder or quieter?</b> Don't pick the one that sounds \"better\". Louder always tricks your ears.",
+    '<b>Click the answer.</b> Later levels ask how many dB: 1 dB is tiny, 6 dB is easy.',
+    '<b>Read the feedback</b> to see how big the change really was.'] },
+  comp:{ ans:['Compressed','Not compressed'], pick:0, steps:[FLIP,
+    '<b>Listen to the drum hits.</b> Compressed B has flatter, less punchy hits, and everything sounds packed together.',
+    '<b>Click the answer.</b> Later levels ask how hard it was squashed.',
+    '<b>Check the analyzer.</b> See how the peaks got flattened.'] },
+  pan:{ ans:['Left','Right'], pick:1, steps:[FLIP,
+    '<b>Put headphones on.</b> Does B move toward your <b>left ear</b> or your <b>right ear</b>?',
+    '<b>Click the side.</b> Later levels have you click the exact spot on a strip.',
+    '<b>Check the analyzer.</b> The heat map shows where the sound sits, and the knob shows how B was panned.'] },
+  space:{ ans:['Reverb','Dry'], pick:0, steps:[FLIP,
+    '<b>Listen right after each hit.</b> Reverb leaves a tail that rings out, like a gym. Dry stops short.',
+    '<b>Click the answer.</b> Later levels ask how long the tail is.',
+    '<b>Read the feedback</b> to see the decay time and how much reverb was on B.'] },
+  beat:{ ans:['Check my beat'], pick:0, grid:true, steps:[
+    '<b>Press Play.</b> <b>A</b> plays the beat you need to copy. Count along: 1 e + a, 2 e + a.',
+    '<b>Click squares</b> on the grid to build the same beat. Start with the kick, then the snare.',
+    '<b>Press B</b> to hear your version. Flip back to A and fix what sounds different.',
+    '<b>Hit Check my beat.</b> Green squares are right, red ones are wrong.'] },
+  maker:{ maker:true, steps:[
+    '<b>Click "+ New row"</b> and pick a sound, like an 808 kick or a clap.',
+    '<b>Click squares</b> to add hits. Click again for medium, again for hard, a fourth time to clear.',
+    '<b>Press Play.</b> Slide <b>Tempo</b> and <b>Swing</b> until it feels right.',
+    '<b>Add more rows</b> and keep building. Your beat saves on this computer.'] },
+};
+const howSeen = (() => { try { return new Set(JSON.parse(localStorage.getItem('clt-how') || '[]')); } catch (e) { return new Set(); } })();
+let howRaf = 0, howId = null;
+function autoHowto(id, level) { showHowto(level <= 2 && !howSeen.has(id) ? id : null); }
+function showHowto(id) {
+  const box = $('howto'); cancelAnimationFrame(howRaf); howId = id; box.hidden = !id; if (!id) return;
+  const H = HOWTO[id], view = id === 'maker' ? $('vFree') : $('vPlay');
+  view.insertBefore(box, view.children[1]);
+  $('howTitle').textContent = 'How to play ' + (id === 'maker' ? 'Beat Maker' : G(id).name);
+  $('howSteps').innerHTML = H.steps.map(s => `<li>${s}</li>`).join('');
+  $('howNote').innerHTML = H.note || ''; $('howNote').hidden = !H.note;
+  const demo = $('howDemo');
+  demo.innerHTML = H.custom ? PEAK_DEMO : `<div class="demo gdemo" aria-hidden="true">
+    <div class="d-top">${H.maker ? '<span class="d-btn d-new">+ New row</span>' : '<span class="d-btn d-play">Play</span><span class="d-btn d-a">A</span><span class="d-btn d-b">B</span>'}<span class="d-now"></span></div>
+    <canvas class="d-viz"></canvas>
+    <div class="d-ans">${H.maker ? '<span class="d-btn d-play">Play</span>' : H.ans.map(a => `<span class="d-btn d-opt">${a}</span>`).join('')}</div>
+    <span class="d-yay">${H.maker ? 'Nice beat!' : 'Correct! +150'}</span><i class="d-cur"></i></div>`;
+  const steps = [...$('howSteps').children], t0 = performance.now();
+  const frame = H.custom ? peakFrame(demo, steps) : demoFrame(H, id, demo, steps);
+  const loop = now => { frame((now - t0) % 13000); howRaf = requestAnimationFrame(loop); };
+  howRaf = requestAnimationFrame(loop);
+}
+$('howHide').onclick = () => { if (howId) { howSeen.add(howId); try { localStorage.setItem('clt-how', JSON.stringify([...howSeen])); } catch (e) {} } showHowto(null); };
+$('howShow').onclick = () => S && showHowto(S.g.id);
+$('bmHow').onclick = () => showHowto('maker');
+
+function peakFrame(box, steps) {
+  const q = c => box.querySelector(c);
   const play = q('.d-play'), A = q('.d-a'), B = q('.d-b'), key = q('.d-key'), strip = q('.d-strip'), heat = q('.d-heat'), read = q('.d-read'), mk = q('.d-mk'), cur = q('.d-cur'), lock = q('.d-lock'), yay = q('.d-yay');
-  const target = .58, hz = x => fmtHz(20 * Math.pow(1000, x)), T = 13000, t0 = performance.now();
-  const frame = now => {
-    const t = (now - t0) % T, step = t < 3000 ? 0 : t < 8000 ? 1 : t < 10000 ? 2 : 3;
+  const target = .58, hz = x => fmtHz(20 * Math.pow(1000, x));
+  return t => {
+    const step = t < 3000 ? 0 : t < 8000 ? 1 : t < 10000 ? 2 : 3;
     steps.forEach((li, i) => li.classList.toggle('on', i === step));
-    play.classList.toggle('lit', true); A.classList.toggle('lit', step === 0 && (t % 1000) < 500); B.classList.toggle('lit', step === 0 && (t % 1000) >= 500);
+    play.classList.add('lit'); A.classList.toggle('lit', step === 0 && (t % 1000) < 500); B.classList.toggle('lit', step === 0 && (t % 1000) >= 500);
     const shift = step === 1; key.classList.toggle('down', shift); strip.classList.toggle('tuning', shift);
     let x = .1;
     if (step === 1) { const u = (t - 3000) / 5000; x = u < .45 ? .1 + u / .45 * .8 : u < .75 ? .9 - (u - .45) / .3 * .5 : .4 + (u - .75) / .25 * (target - .4); }
@@ -1220,14 +1287,116 @@ function showHowto(on) {
       heat.style.background = `radial-gradient(ellipse 18% 140% at ${x * 100}% 50%, hsla(${220 - 220 * h}, 85%, 55%, ${.25 + .6 * h}), transparent)`;
       read.textContent = `Tuning ${hz(x)} · ${h > .85 ? 'Hot!' : h > .6 ? 'Warm' : h > .3 ? 'Cool' : 'Cold'}`; }
     else { heat.style.background = ''; read.textContent = step >= 2 && t > 8800 ? hz(target) : 'Click to place your guess'; }
-    const clicking = step === 2 && t > 8600 && t < 8900; cur.classList.toggle('click', clicking);
+    cur.classList.toggle('click', step === 2 && t > 8600 && t < 8900);
     mk.style.left = target * 100 + '%'; mk.style.opacity = step >= 2 && t > 8700 ? 1 : 0;
     lock.classList.toggle('lit', step === 3); yay.style.opacity = step === 3 && t > 11000 ? 1 : 0;
-    howRaf = requestAnimationFrame(frame);
   };
-  howRaf = requestAnimationFrame(frame);
 }
-$('howHide').onclick = () => { howHidden = true; showHowto(false); };
+
+// Generic demo: Play, flip A/B while the picture changes, click the answer, then the reveal.
+const BEAT_T = [[0,4,8,12,10],[4,12],[0,2,4,6,8,10,12,14]];   // kick, snare, hat
+function demoFrame(H, id, box, steps) {
+  const q = c => box.querySelector(c), cv = q('.d-viz'), g = cv.getContext('2d'), cur = q('.d-cur'), now = q('.d-now'), yay = q('.d-yay');
+  const play = q('.d-play'), A = q('.d-a'), B = q('.d-b'), opts = [...box.querySelectorAll('.d-opt')], nw = q('.d-new');
+  const at = (el, dx = .5, dy = .6) => { if (!el) return; cur.style.left = el.offsetLeft + el.offsetWidth * dx + 'px'; cur.style.top = el.offsetTop + el.offsetHeight * dy + 'px'; };
+  const atViz = (fx, fy) => { cur.style.left = cv.offsetLeft + cv.offsetWidth * fx + 'px'; cur.style.top = cv.offsetTop + cv.offsetHeight * fy + 'px'; };
+  return t => {
+    const step = t < 2500 ? 0 : t < 7500 ? 1 : t < 10000 ? 2 : 3;
+    steps.forEach((li, i) => li.classList.toggle('on', i === step));
+    let mode = 'idle', click = false, prog = 0;
+    if (H.maker) {
+      if (step === 0) { at(nw); click = t > 1200 && t < 1450; nw.classList.toggle('lit', t > 1200 && t < 1700); mode = t > 1300 ? 'row1' : 'idle'; }
+      else if (step === 1) { prog = (t - 2500) / 5000; mode = 'fill'; const k = Math.min(3, Math.floor(prog * 4)); atViz(.12 + [0, 4, 8, 12][k] / 16 * .86 + .02, .3); click = (t % 1250) < 200; }
+      else if (step === 2) { at(play); play.classList.toggle('lit', t > 8200); mode = t > 8200 ? 'playing' : 'full'; }
+      else { mode = 'row2'; prog = (t - 10000) / 2500; atViz(.12 + Math.min(15, Math.floor(prog * 2) * 8 + 4) / 16 * .86 + .02, .7); }
+      if (step !== 2) play.classList.toggle('lit', step === 3);
+      now.textContent = ''; yay.style.opacity = step === 3 && t > 12000 ? 1 : 0;
+    } else {
+      play.classList.toggle('lit', t > 900);
+      if (step === 0) at(play), click = t > 800 && t < 1050, mode = t > 900 ? 'A' : 'idle';
+      else if (step === 1) {
+        if (H.grid) { prog = (t - 2500) / 5000; const n = Math.min(6, Math.floor(prog * 7)), cell = [[0,0],[0,4],[0,8],[0,12],[1,4],[1,12],[1,12]][n];
+          atViz(.12 + (cell[1] + .5) / 16 * .86, (cell[0] + .5) / 3 * .9 + .05); click = (t % 715) < 150; mode = 'build'; }
+        else { const ph = Math.floor((t - 2500) / 1250) % 2; at(ph ? B : A); click = ((t - 2500) % 1250) < 180; mode = ph ? 'B' : 'A'; }
+      }
+      else if (step === 2) { if (H.grid) { at(B); mode = t > 8000 ? 'B' : 'built'; click = t > 7900 && t < 8100; }
+        else { at(opts[H.pick]); click = t > 8700 && t < 8950; mode = 'B'; } }
+      else { if (H.grid) at(opts[0]); mode = 'reveal'; }
+      A.classList.toggle('lit', mode === 'A'); B.classList.toggle('lit', mode === 'B');
+      opts.forEach((o, i) => o.classList.toggle('right', i === H.pick && (H.grid ? step === 3 && t > 10300 : (step === 2 && t > 8800) || step === 3)));
+      now.textContent = mode === 'A' ? 'hearing A' : mode === 'B' ? 'hearing B' : '';
+      yay.style.opacity = step === 3 ? 1 : 0;
+    }
+    cur.classList.toggle('click', click);
+    drawDemo(id, g, cv, mode, t, prog);
+  };
+}
+function drawDemo(id, g, cv, mode, t, prog) {
+  const d = devicePixelRatio, W = cv.width = cv.clientWidth * d, Hh = cv.height = cv.clientHeight * d;
+  const yel = '#ffe14d', red = '255,77,109', grn = '125,255,106', B = mode === 'B' || mode === 'reveal', rv = mode === 'reveal';
+  g.font = `400 ${11 * d}px Bungee, sans-serif`; g.textAlign = 'center';
+  const label = (txt, x, col) => { g.fillStyle = col; g.shadowColor = '#000'; g.shadowBlur = 6 * d; g.fillText(txt, x, 15 * d); g.shadowBlur = 0; };
+  const curve = fn => { g.beginPath(); for (let px = 0; px <= W; px += 3) { const y = Hh - fn(px / W) * Hh * .9; px ? g.lineTo(px, y) : g.moveTo(px, y); }
+    g.lineTo(W, Hh); g.lineTo(0, Hh); g.closePath(); g.fillStyle = 'rgba(255,225,77,.3)'; g.fill(); g.strokeStyle = yel; g.lineWidth = 1.5 * d; g.stroke(); };
+  const wig = x => .08 * Math.sin(x * 37 + t / 300) + .05 * Math.sin(x * 91 - t / 170);
+  const base = x => Math.max(.05, .72 - .32 * x + wig(x));
+  if (mode === 'idle') { g.fillStyle = 'rgba(255,255,255,.35)'; g.fillText(id === 'maker' ? 'CLICK + NEW ROW' : 'PRESS PLAY', W / 2, Hh / 2 + 4 * d); return; }
+  if (id === 'filter') { const c = .62;
+    if (rv) { const gr = g.createLinearGradient(c * W, 0, W, 0); gr.addColorStop(0, `rgba(${red},.25)`); gr.addColorStop(1, `rgba(${red},.55)`); g.fillStyle = gr; g.fillRect(c * W, 0, W, Hh); }
+    curve(x => B && x > c ? Math.max(0, base(x) - (x - c) * 3.2) : base(x));
+    if (rv) { g.fillStyle = `rgb(${red})`; g.fillRect(c * W - d, 0, 2 * d, Hh); label('CUT: HIGHS REMOVED', (c + 1) / 2 * W, `rgb(${red})`); }
+  } else if (id === 'eq') { const c = .68, bump = x => .28 * Math.exp(-Math.pow((x - c) / .06, 2));
+    if (rv) { g.fillStyle = `rgba(${grn},.25)`; g.fillRect((c - .1) * W, 0, .2 * W, Hh); }
+    curve(x => base(x) + (B ? bump(x) : 0)); if (rv) label('BOOST', c * W, `rgb(${grn})`);
+  } else if (id === 'gain' || id === 'comp') {
+    const n = 64, bw = (W * .82) / n, amp = id === 'gain' ? (B ? .85 : .55) : .8;
+    for (let i = 0; i < n; i++) { const hitp = (i % 8 === 0) ? 1 : (i % 8 === 1) ? .7 : .25 + .15 * Math.abs(Math.sin(i * 1.7 + t / 400));
+      let a = hitp * amp; if (id === 'comp' && B) a = (a > .35 ? .35 + (a - .35) * .2 : a) * 1.45;
+      const h = a * Hh * .9; g.fillStyle = yel; g.globalAlpha = .75; g.fillRect(i * bw + 2 * d, (Hh - h) / 2, bw - 2 * d, h); }
+    g.globalAlpha = 1;
+    if (id === 'gain') { const mh = (B ? .8 : .55) * Hh; g.fillStyle = 'rgba(255,255,255,.1)'; g.fillRect(W * .9, 6 * d, W * .06, Hh - 12 * d);
+      const gr = g.createLinearGradient(0, Hh, 0, 0); gr.addColorStop(0, '#7dff6a'); gr.addColorStop(.7, yel); gr.addColorStop(1, '#ff4d6d'); g.fillStyle = gr; g.fillRect(W * .9, Hh - 6 * d - mh, W * .06, mh);
+      if (rv) label('B IS LOUDER', W * .42, `rgb(${grn})`); }
+    else if (rv) { g.setLineDash([5 * d, 4 * d]); g.strokeStyle = `rgb(${red})`; g.lineWidth = 1.5 * d; const y = Hh / 2 - .35 * 1.45 * Hh * .45; g.beginPath(); g.moveTo(0, y); g.lineTo(W * .84, y); g.stroke(); g.setLineDash([]); label('PEAKS SQUASHED FLAT', W * .42, `rgb(${red})`); }
+  } else if (id === 'space') {
+    for (let k = 0; k < 4; k++) { const x0 = (k + .1) / 4 * W, len = (B ? .22 : .03) * W;
+      g.fillStyle = yel; g.fillRect(x0, Hh * .12, 3 * d, Hh * .8);
+      const gr = g.createLinearGradient(x0, 0, x0 + len, 0); gr.addColorStop(0, 'rgba(255,225,77,.55)'); gr.addColorStop(1, 'rgba(255,225,77,0)');
+      g.fillStyle = gr; g.beginPath(); g.moveTo(x0, Hh * .2); g.lineTo(x0 + len, Hh * .5); g.lineTo(x0, Hh * .85); g.fill(); }
+    if (rv) label('LONG TAILS = REVERB', W / 2, `rgb(${grn})`);
+  } else if (id === 'pan') {
+    const px = p => W * .08 + (p + 1) / 2 * W * .7, target = B ? .55 : 0;
+    g.fillStyle = 'rgba(255,255,255,.3)'; [-1, 0, 1].forEach(p => g.fillRect(px(p), 18 * d, 1, Hh - 30 * d));
+    g.fillStyle = 'rgba(255,255,255,.6)'; g.font = `${10 * d}px JetBrains Mono, monospace`; [['L', -1], ['C', 0], ['R', 1]].forEach(([s, p]) => g.fillText(s, px(p), Hh - 2 * d));
+    for (let i = 0; i < 6; i++) { const x = px(target), y = Hh * (.2 + i * .12), r = (14 - i) * d, gr = g.createRadialGradient(x, y, 0, x, y, r * 1.6);
+      gr.addColorStop(0, `hsla(${10 + i * 25},95%,60%,.85)`); gr.addColorStop(1, 'hsla(0,0%,0%,0)'); g.fillStyle = gr; g.fillRect(x - r * 2, y - r * 2, r * 4, r * 4); }
+    if (rv) { const cx = W * .9, cy = Hh * .5, r = Math.min(W * .05, Hh * .28), a = -Math.PI / 2 + .55 * Math.PI * .75;
+      g.fillStyle = '#26262c'; g.beginPath(); g.arc(cx, cy, r, 0, 7); g.fill(); g.strokeStyle = '#2ee6ff'; g.lineWidth = 4 * d; g.beginPath(); g.arc(cx, cy, r + 5 * d, -Math.PI / 2, a); g.stroke();
+      g.strokeStyle = '#fff'; g.lineWidth = 3 * d; g.beginPath(); g.moveTo(cx, cy); g.lineTo(cx + Math.cos(a) * r * .85, cy + Math.sin(a) * r * .85); g.stroke();
+      g.font = `400 ${11 * d}px Bungee, sans-serif`; label('B: 55 R', cx, '#2ee6ff'); }
+  } else {   // beat grids
+    const rows = id === 'maker' ? 2 : 3, x0 = W * .12, cw = (W * .86) / 16, ch = Hh * .9 / 3, names = id === 'maker' ? ['808', 'Clap'] : ['Kick', 'Snare', 'Hat'];
+    const showRows = id === 'maker' ? (mode === 'idle' ? 0 : mode === 'row2' ? 2 : 1) : 3;
+    const ph = Math.floor(t / 125) % 16, playingNow = ['A', 'B', 'playing', 'row2'].includes(mode);
+    const order = [[0,0],[0,4],[0,8],[0,12],[1,4],[1,12]];
+    const filled = (r, s) => {
+      if (id === 'maker') { if (r === 0) return mode === 'fill' ? order.slice(0, Math.min(4, Math.floor(prog * 4) + 1)).some(([a, b]) => a === 0 && b === s) : [0, 4, 8, 12].includes(s);
+        return mode === 'row2' && [4, 12].filter((_, k) => k < Math.floor(prog * 2) + 1).includes(s); }
+      if (mode === 'A' || mode === 'idle') return false;
+      if (mode === 'build') return order.slice(0, Math.min(6, Math.floor(prog * 7))).some(([a, b]) => a === r && b === s);
+      return r < 2 && order.some(([a, b]) => a === r && b === s);
+    };
+    g.font = `${10 * d}px JetBrains Mono, monospace`; g.textAlign = 'left';
+    for (let r = 0; r < showRows; r++) { g.fillStyle = 'rgba(255,255,255,.7)'; g.fillText(names[r], 2 * d, Hh * .05 + r * ch + ch * .62);
+      for (let s = 0; s < 16; s++) { const x = x0 + s * cw, y = Hh * .05 + r * ch, on = filled(r, s);
+        const tgt = BEAT_T[r] && BEAT_T[r].includes(s);
+        g.fillStyle = on ? (rv ? (tgt ? '#7dff6a' : '#ff4d6d') : id === 'maker' && r === 0 ? ['#ff7a1a', '#ffb86b', '#ff7a1a', '#ffe14d'][s / 4 | 0] : '#ff7a1a') : (Math.floor(s / 4) % 2 ? 'rgba(255,255,255,.1)' : 'rgba(255,255,255,.05)');
+        if (rv && !on && tgt && r < 2) g.fillStyle = 'rgba(255,77,109,.5)';
+        g.fillRect(x + 1.5 * d, y + 2 * d, cw - 3 * d, ch - 4 * d); } }
+    if (playingNow && showRows) { g.fillStyle = 'rgba(46,230,255,.35)'; g.fillRect(x0 + ph * cw, Hh * .05, cw, showRows * ch); }
+    if (mode === 'A') { g.textAlign = 'center'; g.font = `400 ${11 * d}px Bungee, sans-serif`; label('LISTEN TO THE TARGET', W / 2 + W * .06, '#2ee6ff'); }
+  }
+}
 function tolText(t) { return t >= 1 ? '1 octave' : t > .6 ? '⅔ octave' : t >= .5 ? '½ octave' : '⅓ octave'; }
 function submit(resp) {
   if (answered) return; answered = true;
@@ -1292,11 +1461,59 @@ function updateCover() { $('cover').hidden = answered; }
 /* ================= Analyzer ================= */
 const cv = $('spec'), g2 = cv.getContext('2d'); let fbuf;
 const cssVar = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+// Balance Test view: each frequency band is a glowing dot placed where it sits between
+// left and right (low notes at the bottom), plus a pan knob showing how B was set.
+const SBANDS = Array.from({ length:30 }, (_, i) => 40 * Math.pow(400, i / 29)), bandPos = new Float32Array(30), bandLvl = new Float32Array(30);
+let lbuf, rbuf;
+function drawStereo(W, H, fg) {
+  const d = devicePixelRatio, KW = Math.min(W * .26, 220 * d), FW = W - KW, pad = 22 * d;
+  const px = p => pad + (p + 1) / 2 * (FW - 2 * pad), py = i => H - 18 * d - i / 29 * (H - 36 * d);
+  g2.font = `${11 * d}px JetBrains Mono, monospace`; g2.fillStyle = fg; g2.textAlign = 'center';
+  g2.globalAlpha = .35; [-1, -.5, 0, .5, 1].forEach(p => g2.fillRect(px(p), 8 * d, p ? 1 : 2, H - 26 * d)); g2.globalAlpha = .8;
+  [['L', -1], ['CENTER', 0], ['R', 1]].forEach(([t, p]) => g2.fillText(t, px(p), H - 4 * d));
+  g2.textAlign = 'left'; g2.globalAlpha = .5; g2.fillText('highs', 4 * d, 16 * d); g2.fillText('lows', 4 * d, H - 22 * d); g2.globalAlpha = 1;
+  if (anL) {
+    lbuf ||= new Float32Array(anL.frequencyBinCount); rbuf ||= new Float32Array(anR.frequencyBinCount);
+    anL.getFloatFrequencyData(lbuf); anR.getFloatFrequencyData(rbuf);
+    const binHz = ctx.sampleRate / anL.fftSize; let sumL = 0, sumR = 0;
+    g2.globalCompositeOperation = 'lighter';
+    SBANDS.forEach((f, i) => {
+      const lo = Math.max(1, Math.floor(f / 1.12 / binHz)), hi = Math.max(lo + 1, Math.ceil(f * 1.12 / binHz));
+      let pl = 0, pr = 0; for (let k = lo; k < hi && k < lbuf.length; k++) { pl += Math.pow(10, lbuf[k] / 10); pr += Math.pow(10, rbuf[k] / 10); }
+      sumL += pl; sumR += pr;
+      const tot = pl + pr, b = tot > 0 ? (pr - pl) / tot : 0, pos = Math.asin(Math.max(-1, Math.min(1, b))) * 2 / Math.PI;
+      const lvl = Math.max(0, Math.min(1, (10 * Math.log10(tot + 1e-12) + 95) / 60));
+      bandPos[i] += (pos - bandPos[i]) * .2; bandLvl[i] += (lvl - bandLvl[i]) * .2;
+      const h = bandLvl[i]; if (h < .03) return;
+      const x0 = px(bandPos[i]), y0 = py(i), r = (10 + 22 * h) * d, gr = g2.createRadialGradient(x0, y0, 0, x0, y0, r);
+      gr.addColorStop(0, `hsla(${220 - 220 * h},95%,60%,${.25 + .6 * h})`); gr.addColorStop(1, 'hsla(0,0%,0%,0)');
+      g2.fillStyle = gr; g2.fillRect(x0 - r, y0 - r, 2 * r, 2 * r);
+    });
+    g2.globalCompositeOperation = 'source-over';
+    // overall balance bar along the top
+    const tb = sumL + sumR, bal = tb > 0 ? Math.asin(Math.max(-1, Math.min(1, (sumR - sumL) / tb))) * 2 / Math.PI : 0;
+    g2.fillStyle = cssVar('--accent'); g2.fillRect(Math.min(px(0), px(bal)), 4 * d, Math.max(3 * d, Math.abs(px(bal) - px(0))), 5 * d);
+  }
+  // pan knob
+  const p = R.stereo, cx = FW + KW / 2, cy = H * .48, r = Math.min(KW * .3, H * .28), a0 = -Math.PI * 1.25, a = -Math.PI / 2 + p * Math.PI * .75;
+  g2.lineCap = 'round'; g2.lineWidth = 6 * d; g2.strokeStyle = 'rgba(255,255,255,.12)';
+  g2.beginPath(); g2.arc(cx, cy, r + 9 * d, a0, Math.PI * .25); g2.stroke();
+  g2.strokeStyle = cssVar('--level'); g2.beginPath(); g2.arc(cx, cy, r + 9 * d, Math.min(-Math.PI / 2, a), Math.max(-Math.PI / 2, a)); g2.stroke();
+  const kg = g2.createRadialGradient(cx - r * .3, cy - r * .3, r * .1, cx, cy, r); kg.addColorStop(0, '#4a4a52'); kg.addColorStop(1, '#17171b');
+  g2.fillStyle = kg; g2.beginPath(); g2.arc(cx, cy, r, 0, Math.PI * 2); g2.fill(); g2.lineWidth = 2 * d; g2.strokeStyle = '#000'; g2.stroke();
+  g2.strokeStyle = '#fff'; g2.lineWidth = 4 * d; g2.beginPath(); g2.moveTo(cx + Math.cos(a) * r * .25, cy + Math.sin(a) * r * .25); g2.lineTo(cx + Math.cos(a) * r * .85, cy + Math.sin(a) * r * .85); g2.stroke();
+  g2.textAlign = 'center'; g2.fillStyle = fg; g2.font = `${10 * d}px JetBrains Mono, monospace`;
+  g2.fillText('L', cx + Math.cos(a0) * (r + 20 * d), cy + Math.sin(a0) * (r + 20 * d) + 4 * d); g2.fillText('R', cx + Math.cos(Math.PI * .25) * (r + 20 * d), cy + Math.sin(Math.PI * .25) * (r + 20 * d) + 4 * d);
+  g2.font = `400 ${12 * d}px Bungee, sans-serif`; g2.fillText('B PAN', cx, 16 * d);
+  g2.fillStyle = cssVar('--level'); g2.fillText(Math.abs(p) < .05 ? 'CENTER' : `${Math.round(Math.abs(p) * 100)} ${p < 0 ? 'L' : 'R'}`, cx, H - 8 * d);
+  g2.fillStyle = fg; g2.globalAlpha = .6; g2.font = `${10 * d}px JetBrains Mono, monospace`; g2.fillText(`hearing ${side}`, cx, cy + r + 30 * d > H - 22 * d ? H - 24 * d : cy + r + 30 * d); g2.globalAlpha = 1;
+}
 function draw() {
   requestAnimationFrame(draw);
   if ($('vPlay').hidden || !answered) return;  // never draw the spectrum before the answer
   const W = cv.width = cv.clientWidth * devicePixelRatio, H = cv.height = cv.clientHeight * devicePixelRatio;
   const fg = cssVar('--screen-fg'), lamp = cssVar('--lamp'), x = f => Math.log(f / 20) / Math.log(1000) * W;
+  if (R && R.stereo != null) return drawStereo(W, H, fg);
   g2.font = `${11 * devicePixelRatio}px IBM Plex Mono, monospace`; g2.fillStyle = fg; g2.globalAlpha = .45;
   [50,100,200,500,1000,2000,5000,10000].forEach(f => { g2.fillRect(x(f), 0, 1, H); g2.fillText(fmtHz(f).replace(' ',''), x(f) + 3, H - 4); });
   g2.globalAlpha = 1;
