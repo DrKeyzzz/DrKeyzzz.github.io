@@ -347,20 +347,36 @@ async function loadFeedback() {
 
 function renderClasses() {
   $('stats').innerHTML = '';
-  $('out').innerHTML = `<div style="display:grid;gap:14px;max-width:640px">
+  $('out').innerHTML = `<div style="display:grid;gap:14px;max-width:720px">
     <p class="note">These classes are shared with the music theory games. Give students the code; they type it when they sign in to the Listening Lab.</p>
-    <table style="min-width:0"><thead><tr><th>Class</th><th>Code</th></tr></thead><tbody>${S.classes.map(c => `<tr><td>${esc(c.name)}</td><td><b style="font-family:var(--mono)">${esc(c.code)}</b></td></tr>`).join('') || '<tr><td colspan="2" class="muted">No classes yet.</td></tr>'}</tbody></table>
-    <div class="row"><label class="f" style="flex:1">New class name<input id="c-name" maxlength="40" placeholder="Period 4 Recording"></label><button class="btn primary" id="c-go" style="align-self:end">Create class</button></div><p class="err" id="c-err"></p></div>`;
+    <table style="min-width:0"><thead><tr><th>Class</th><th>Code</th><th></th></tr></thead><tbody>${S.classes.map(c => `<tr><td>${esc(c.name)}</td><td><b style="font-family:var(--mono)">${esc(c.code)}</b></td><td style="text-align:right"><button class="btn ghost sm" data-cdel="${esc(c.code)}">Delete</button></td></tr>`).join('') || '<tr><td colspan="3" class="muted">No classes yet.</td></tr>'}</tbody></table>
+    <div class="box"><h2 style="font-size:.9rem">New class</h2>
+      <div class="row"><label class="f" style="flex:1;min-width:200px">Class name<input id="c-name" maxlength="40" placeholder="Period 4 Recording"></label>
+        <label class="f">Class code (optional)<input id="c-code" maxlength="7" placeholder="Random" style="width:130px;text-transform:uppercase;font-family:var(--mono)"></label>
+        <button class="btn primary" id="c-go" style="align-self:end">Create class</button></div>
+      <p class="note">Leave the code blank for a random one, or make your own: 4 to 7 letters or numbers, like REC4 or AUDIO2.</p><p class="err" id="c-err"></p></div></div>`;
+  $('c-code').oninput = () => { $('c-code').value = $('c-code').value.toUpperCase().replace(/[^A-Z0-9]/g, ''); };
   $('c-go').onclick = async () => {
-    const name = $('c-name').value.trim(); if (!name) return $('c-err').textContent = 'Type a class name.';
-    if (PREVIEW) return $('c-err').textContent = 'Preview only.';
-    try { const { fs, db } = await fb(); let code, tries = 0;
-      do { code = Array.from({ length:5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join(''); tries++; }
-      while ((await fs.getDoc(fs.doc(db, 'classes', code))).exists() && tries < 8);
+    const name = $('c-name').value.trim(), want = $('c-code').value.trim(); if (!name) return $('c-err').textContent = 'Type a class name.';
+    if (want && !/^[A-Z0-9]{4,7}$/.test(want)) return $('c-err').textContent = 'A class code is 4 to 7 letters or numbers.';
+    if (PREVIEW) { if (S.classes.some(c => c.code === want)) return $('c-err').textContent = `${want} is already taken. Try another code.`;
+      S.classes.push({ code: want || 'PRV' + Math.floor(Math.random() * 900 + 100), name }); S.classes.sort((a, b) => a.name.localeCompare(b.name)); fillClasses(); S.view = 'classes'; return renderClasses(); }
+    try { const { fs, db } = await fb(); let code = want;
+      if (code) { if ((await fs.getDoc(fs.doc(db, 'classes', code))).exists()) return $('c-err').textContent = `${code} is already taken. Try another code.`; }
+      else { let tries = 0;
+        do { code = Array.from({ length:5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join(''); tries++; }
+        while ((await fs.getDoc(fs.doc(db, 'classes', code))).exists() && tries < 8); }
       await fs.setDoc(fs.doc(db, 'classes', code), { name, ownerEmail: S.email, created_at: fs.serverTimestamp() });
-      S.code = code; await loadClasses(); S.view = 'classes'; renderClasses(); }
+      S.code = code; await loadClasses(); S.view = 'classes'; renderClasses(); msg(`Created ${esc(name)} with code <b>${esc(code)}</b>.`); }
     catch (e) { $('c-err').innerHTML = errText(e); }
   };
+  $('out').querySelectorAll('[data-cdel]').forEach(b => b.onclick = async () => {
+    const c = S.classes.find(x => x.code === b.dataset.cdel);
+    if (prompt(`Delete ${c.name} (${c.code})?\n\nThis also removes it from the music theory games. Students can't sign in with this code any more, and its assignment and tests stop showing. Practice records stay saved.\n\nType the code ${c.code} to confirm.`)?.trim().toUpperCase() !== c.code) return;
+    try { if (!PREVIEW) { const { fs, db } = await fb(); await fs.deleteDoc(fs.doc(db, 'classes', c.code)); }
+      S.classes = S.classes.filter(x => x !== c); fillClasses(); S.view = 'classes'; renderClasses(); msg(`Deleted ${esc(c.name)}.`); }
+    catch (e) { msg(errText(e)); }
+  });
 }
 async function loadAdmin() {
   $('out').innerHTML = '<p class="muted">Loading…</p>';
