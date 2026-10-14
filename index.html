@@ -208,6 +208,9 @@
   .hi .me { display: block; margin-top: 10px; color: var(--muted); font-size: 15px; }
   .hi .me b { font-size: inherit; color: var(--text); }
   .hi .me .cls::before { content: " · "; color: var(--muted); font-weight: 400; }
+  .clsbtn { font: 700 14px var(--f-ui, inherit); color: var(--gold); background: transparent; border: 2px solid var(--gold); border-radius: 999px; padding: 4px 12px; margin: 0 0 0 6px; cursor: pointer; }
+  .clsbtn.on { background: var(--gold); color: #10131a; }
+  .clsbtn:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
   .cont-box { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
   .cont { display: inline-flex; align-items: center; gap: 10px; font: 700 20px var(--f-ui); letter-spacing: .06em; text-transform: uppercase; text-decoration: none; color: var(--btn-ink); background: var(--btn); border-radius: 999px; padding: 15px 30px 12px; }
   .cont:hover { filter: brightness(1.08); }
@@ -436,7 +439,15 @@ function classesOf(p) {
   return list.filter(c => c && c.code).slice(0, 3);
 }
 // classes[0] is the main class: classCode/className/classOwner always mirror it, for code that only knows one class
-const withClasses = (p, cs) => ({ ...p, classes: cs, classCode: cs.length ? cs[0].code : '', className: cs.length ? cs[0].name : '', classOwner: cs.length ? cs[0].owner : '' });
+const withClasses = (p, list) => { const act = (p && list.find(c => c.code === p.classCode)) || list[0]; return { ...p, classes: act ? [act] : [], saved: list, classCode: act ? act.code : '', className: act ? act.name : '', classOwner: act ? act.owner : '' }; };
+/* MTG_CLASSSWITCH: a student can save up to 3 classes (p.saved) but only ONE is active (p.classes = [active]); scores, practice and tests count for the active class */
+const savedOf = p => { if (!p) return []; const l = Array.isArray(p.saved) && p.saved.length ? p.saved : classesOf(p); return l.filter(c => c && c.code).slice(0, 3); };
+const prefillOf = p => { const s = savedOf(p); return p ? [...s.filter(c => c.code === p.classCode), ...s.filter(c => c.code !== p.classCode)] : []; };
+function switchClass(code) { const p = getProfile(), s = savedOf(p), c = s.find(x => x.code === code); if (!p || !c) return; setProfile({ ...p, classCode: c.code, className: c.name || c.code, classOwner: c.owner || '', classes: [c], saved: s }); location.reload(); }
+const switchHTML = p => { const s = savedOf(p); return s.length > 1 ? `<div id="w-switchrow" role="group" aria-label="Switch class" style="margin:0 0 14px"><div style="font-weight:700;margin-bottom:6px">Your classes (tap to switch)</div><div style="display:flex;gap:8px;flex-wrap:wrap">${s.map(c => `<button type="button" data-switch-class="${String(c.code).replace(/[^A-Za-z0-9]/g, '')}" aria-pressed="${c.code === p.classCode}" style="font:inherit;font-weight:700;padding:10px 16px;border-radius:999px;cursor:pointer;background:transparent;color:inherit;border:${c.code === p.classCode ? '4px double' : '2px solid'} currentColor">${String(c.name || c.code).replace(/[<>&"]/g, '')}${c.code === p.classCode ? ' ✓' : ''}</button>`).join('')}</div></div>` : ''; };
+const showSwitch = p => { let sw = document.getElementById('w-switch'); const f = document.getElementById('w-first') && document.getElementById('w-first').closest('form'); if (!f) return; if (!sw) { sw = document.createElement('div'); sw.id = 'w-switch'; f.prepend(sw); } sw.innerHTML = p ? switchHTML(p) : ''; };
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-switch-class]'); if (b) switchClass(b.dataset.switchClass); });
+/* /MTG_CLASSSWITCH */
 const displayName = p => `${p.first.charAt(0).toUpperCase()}${p.first.slice(1)} ${p.init}.`;
 const cleanCode = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 
@@ -745,8 +756,9 @@ function render(focus) {
   if (p) {
     $('who-name').textContent = displayName(p);
     const cs = classesOf(p);
-    $('who-class').textContent = cs.length > 1 ? cs.map(c => c.name || c.code).join(' · ')
-      : p.classCode ? (p.className && p.className !== p.classCode ? `${p.className} · code ${p.classCode}` : `Class ${p.classCode}`) : 'Not in a class · World leaderboards only';
+    const sv = savedOf(p);
+    if (sv.length > 1) $('who-class').innerHTML = 'Class: ' + sv.map(c => `<button type="button" class="clsbtn${c.code === p.classCode ? ' on' : ''}" data-switch-class="${esc(c.code)}" aria-pressed="${c.code === p.classCode}" data-tip="${c.code === p.classCode ? 'Your scores and practice count for this class' : 'Switch to this class'}">${esc(c.name || c.code)}${c.code === p.classCode ? ' ✓' : ''}</button>`).join(' ');
+    else $('who-class').textContent = p.classCode ? (p.className && p.className !== p.classCode ? `${p.className} · code ${p.classCode}` : `Class ${p.classCode}`) : 'Not in a class · World leaderboards only';
   } else {
     $('who-help').textContent = isGuest() ? "You're playing as a guest in this tab, so nothing is saved. Sign in to keep your scores and progress." : 'Sign in here and all five games remember you on this computer.';
     if (focus) setTimeout(() => $(focus).focus(), 30);
@@ -781,7 +793,7 @@ async function submit(e) {
 }
 // keep the class names current, the way the games do (a deleted class is dropped; with none left the student stays signed in with no class)
 async function refreshClass() {
-  const p = getProfile(), cs = classesOf(p); if (!cs.length) return;
+  const p = getProfile(), cs = savedOf(p); if (!cs.length) return;
   try {
     const { fs, db } = await fb(), ds = await wait(Promise.all(cs.map(c => fs.getDoc(fs.doc(db, 'classes', c.code)))));
     saveAssigns(p, cs, ds);
@@ -807,7 +819,7 @@ function addBox(value = '') {
 const syncAdd = () => { $('w-add').hidden = $('w-solo').checked || codeBoxes().length >= 3; };
 function openForm(keep) {
   const p = keep ? getProfile() : null;
-  const cs = classesOf(p);
+  const cs = prefillOf(p);
   $('w-first').value = p ? p.first : ''; $('w-init').value = p ? p.init : ''; $('w-code').value = cs.length ? cs[0].code : '';
   $('w-solo').checked = !!(p && !cs.length); $('w-code').disabled = $('w-solo').checked; $('w-error').textContent = '';
   document.querySelectorAll('#w-more .extra').forEach(r => r.remove()); cs.slice(1).forEach(c => addBox(c.code)); syncAdd();
