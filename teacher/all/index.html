@@ -164,6 +164,7 @@
         <div class="opts" style="margin-top:14px">
           <label class="f" for="tsel">Test<select id="tsel"></select></label>
           <button class="btn sm" type="button" id="tnew">+ New test</button>
+          <button class="btn sm" type="button" id="tedit">Edit test</button>
           <button class="btn ghost sm" type="button" id="ttoggle">Switch off</button>
           <button class="btn ghost sm" type="button" id="treset">Reset a student</button>
           <button class="btn ghost sm" type="button" id="tdel">Delete test</button>
@@ -522,7 +523,7 @@ function renderUpcoming() {
   const { soon, live } = upItems();
   const li = i => `<li><button type="button" data-code="${esc(i.code)}" data-view="${i.view}" data-test="${esc(i.testId || '')}" style="--ic:${i.color}"><span class="w">${esc(i.when)}</span><span><span class="k">${i.kind}</span>${esc(i.name)} <span class="k" style="margin:0 0 0 6px">${esc(i.cls)}</span></span><span class="s">${esc(i.sub)}</span></button></li>`;
   const sec = (h, a, empty) => `<h3>${h}</h3>${a.length ? '<ul>' + a.map(li).join('') + '</ul>' : `<p class="none">${empty}</p>`}`;
-  $('upbox').innerHTML = '<div class="up">' + (S.loading ? '<p class="none">Loading…</p>' : sec('Coming up', soon, 'Nothing is scheduled. Set an open time on a test, or pick future dates when you assign practice.') + sec('Open now, with an end date', live, 'Nothing running right now has an end date coming up.')) + '</div>';
+  $('upbox').innerHTML = '<div class="up">' + '<p class="none" style="margin:14px 0 0">Click a test to edit it. Click an assignment to change it on the Assign page.</p>' + (S.loading ? '<p class="none">Loading…</p>' : sec('Coming up', soon, 'Nothing is scheduled. Set an open time on a test, or pick future dates when you assign practice.') + sec('Open now, with an end date', live, 'Nothing running right now has an end date coming up.')) + '</div>';
 }
 // ---------- Tests: tests/<id> made here, results in test_results/<id>_<sid> ----------
 const tstate = t => !t.open ? 'closed' : (t.opens_at && toMs(t.opens_at) > Date.now()) ? 'scheduled' : (t.closes_at && toMs(t.closes_at) < Date.now()) ? 'ended' : 'open';
@@ -544,18 +545,18 @@ function renderTestsBox() {
   $('tsel').innerHTML = S.tests.length ? S.tests.map(t => `<option value="${esc(t.id)}">${esc(t.name)}${tstate(t) === 'open' ? '' : ' (' + STATE_TEXT[tstate(t)].toLowerCase() + ')'}</option>`).join('') : '<option value="">No tests yet</option>';
   $('tsel').value = S.testId; $('tsel').disabled = !S.tests.length;
   const t = curTest();
-  ['ttoggle', 'treset', 'tdel'].forEach(id => { $(id).disabled = !t; });
+  ['ttoggle', 'treset', 'tdel', 'tedit'].forEach(id => { $(id).disabled = !t; });
   $('ttoggle').textContent = t && t.open ? 'Switch off' : 'Switch on';
   $('tmeta').textContent = t ? `${G[t.game] ? G[t.game].name : t.game} · ${t.tries ? (t.tries === 1 ? 'One and done' : t.tries + ' tries, best counts') : 'Unlimited tries, best counts'} · Scored by ${t.grade === 'score' ? 'points' : 'accuracy'} · ${STATE_TEXT[tstate(t)]}${t.opens_at ? ' · opens ' + fmtWhen(t.opens_at) : ''}${t.closes_at ? ' · closes ' + fmtWhen(t.closes_at) : ''}` : 'Make a test with + New test. It shows up on your students\' home page.';
 }
 function showNewTest() {
-  const f = $('tframe'); const want = '../index.html?embed=1&test=1';
+  const f = $('tframe'); const want = '../index.html?embed=1&test=1' + (S.editId ? '&edit=' + encodeURIComponent(S.editId) : '');
   if (f.getAttribute('src') !== want) {
     f.src = want;
     f.onload = () => { try { const d = f.contentDocument; const fit = () => { f.style.height = (d.documentElement.scrollHeight + 10) + 'px'; }; fit(); new ResizeObserver(fit).observe(d.body); } catch (e) {} };
   }
 }
-addEventListener('message', e => { if (e.origin === location.origin && e.data && e.data.type === 'mtg-test-saved') { S.view = 'tests'; S.testId = ''; load(); } });
+addEventListener('message', e => { if (e.origin === location.origin && e.data && e.data.type === 'mtg-test-saved') { S.view = 'tests'; S.testId = e.data.id || ''; S.editId = ''; load(); } });
 async function testAction(kind) {
   const t = curTest(); if (!t) return;
   try {
@@ -599,7 +600,7 @@ function buildTabs() {
 }
 function wire() {
   buildTabs();
-  $('upbox').onclick = e => { const b = e.target.closest('button[data-view]'); if (!b) return; S.code = b.dataset.code; $('cls').value = S.code; if (b.dataset.test) S.testId = b.dataset.test; S.view = b.dataset.view; load(); };
+  $('upbox').onclick = e => { const b = e.target.closest('button[data-view]'); if (!b) return; S.code = b.dataset.code; $('cls').value = S.code; if (b.dataset.test) { S.testId = b.dataset.test; S.editId = b.dataset.test; S.view = 'newtest'; } else S.view = b.dataset.view; load(); };
   $('views').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.view = b.dataset.v; load(); };
   $('cls').onchange = () => { S.code = $('cls').value; load(); };
   $('rng').onchange = load;
@@ -614,7 +615,8 @@ function wire() {
   };
   $('csv').onclick = csv;
   $('tsel').onchange = () => { S.testId = $('tsel').value; load(); };
-  $('tnew').onclick = () => { S.view = 'newtest'; render(); };
+  $('tnew').onclick = () => { S.editId = ''; S.view = 'newtest'; render(); };
+  $('tedit').onclick = () => { const t = curTest(); if (!t) return; S.editId = t.id; S.view = 'newtest'; render(); };
   $('tback').onclick = () => { S.view = 'tests'; load(); };
   $('ttoggle').onclick = () => testAction('toggle'); $('tdel').onclick = () => testAction('delete'); $('treset').onclick = resetStudent;
   $('signout').onclick = signOut;

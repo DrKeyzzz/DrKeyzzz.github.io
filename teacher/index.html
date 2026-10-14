@@ -498,6 +498,7 @@ function syncSets(row) {
 
 // ---------- state ----------
 const TESTMODE = document.documentElement.classList.contains('testmode');
+const EDIT = TESTMODE ? (new URLSearchParams(location.search).get('edit') || '') : '';   // ?test=1&edit=<testId>: change a test that already exists
 const TEST_GAMES = ['scale','tidal','rooftop','rhythm','earshot'];   // games that have a test hook (the home page's TEST_GAMES must match)
 const S = { email: '', classes: [], code: '', when: 'today', tasks: [newTask()] };
 const cls = () => S.classes.find(c => c.code === S.code);
@@ -570,6 +571,7 @@ function renderClasses() {
 // the form starts from the class's current assignment (if it hasn't ended), otherwise from the defaults
 function pickClass() {
   const c = cls(), a = !TESTMODE && c && c.hub_assignment, today = dayKey();
+  if (EDIT && !S.editStarted) { S.editStarted = true; loadEdit(); }
   if (TESTMODE) { if (!S.testInit) { S.testInit = true; S.tasks = [{ ...newTask(), game: 'scale', settings: setsFrom('scale'), open: true }]; } renderTasks(); renderClasses(); return; }
   if (a && DATE_RE.test(a.start) && DATE_RE.test(a.end) && a.end >= today && Array.isArray(a.tasks) && a.tasks.length) {
     S.tasks = a.tasks.slice(0, 3).map(t => { const game = GNAME[t.game] ? t.game : 'any';
@@ -689,6 +691,26 @@ function build() {
   if (!tasks.length) return { err: 'Add at least one task.' };
   return { a: { start, end, tasks } };
 }
+const toInput = ms => { const d = new Date(ms), p = n => String(n).padStart(2, '0'); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
+async function loadEdit() {
+  try {
+    const got = await run(async ({ fs, db }) => {
+      const snap = await fs.getDoc(fs.doc(db, 'tests', EDIT));
+      if (!snap.exists()) return null;
+      const t = snap.data(), any = await fs.getDocs(fs.query(fs.collection(db, 'test_results'), fs.where('test', '==', EDIT), fs.where('owner', '==', S.email), fs.limit(1)));
+      return { t, started: !any.empty };
+    });
+    if (!got) { msg('That test no longer exists.'); return; }
+    const t = got.t; S.edit = { t, started: got.started };
+    if (t.owner !== S.email) { msg('Only the teacher who made this test can change it.'); return; }
+    S.code = t.class_code; $('cls').value = t.class_code; $('cls').disabled = true;
+    S.tasks = [{ ...newTask(), game: t.game, settings: setsFrom(t.game, t.settings), open: false }];
+    renderTasks(); renderClasses();
+    $('t-name').value = t.name || ''; $('t-grade').value = t.grade || 'acc'; $('t-tries').value = String(t.tries || 0); $('t-open').checked = !!t.open;
+    $('t-from').value = t.opens_at ? toInput(t.opens_at.toMillis ? t.opens_at.toMillis() : t.opens_at) : ''; $('t-to').value = t.closes_at ? toInput(t.closes_at.toMillis ? t.closes_at.toMillis() : t.closes_at) : '';
+    if (got.started) { $('tasks').style.cssText = 'pointer-events:none;opacity:.55'; $('t-grade').disabled = true; $('tasks').setAttribute('aria-disabled', 'true'); msg('Students have already started this test, so the game, its settings and the scoring are locked. You can still change the name, times, tries and availability.', true); }
+  } catch (err) { msg(errText(err)); }
+}
 async function saveTest(c) {
   const name = $('t-name').value.trim(), t = S.tasks[0];
   if (!name) { msg('Give the test a name.'); $('t-name').focus(); return; }
@@ -698,6 +720,18 @@ async function saveTest(c) {
   const from = $('t-from').value ? new Date($('t-from').value) : null, to = $('t-to').value ? new Date($('t-to').value) : null;
   if (from && to && to <= from) { msg('Closes must be after Opens.'); $('t-to').focus(); return; }
   if (to && to <= new Date()) { msg('That close time has already passed.'); $('t-to').focus(); return; }
+  if (EDIT) {
+    if (!S.edit) { msg('Still loading the test. Try again in a moment.'); return; }
+    $('save').disabled = true; $('save').textContent = 'Saving…'; msg('');
+    try {
+      const locked = S.edit.started;
+      await run(({ fs, db }) => fs.updateDoc(fs.doc(db, 'tests', EDIT), { name, tries: +$('t-tries').value, open: $('t-open').checked, ...(locked ? {} : { game: t.game, settings, grade: $('t-grade').value }), opens_at: from ? fs.Timestamp.fromDate(from) : fs.deleteField(), closes_at: to ? fs.Timestamp.fromDate(to) : fs.deleteField() }));
+      msg(`Saved changes to "${name}".${from && from > new Date() ? ' It opens ' + from.toLocaleString() + '.' : ''}`, true);
+      try { parent.postMessage({ type: 'mtg-test-saved', id: EDIT }, location.origin); } catch {}
+    } catch (err) { msg(errText(err, true)); }
+    finally { $('save').disabled = false; $('save').textContent = 'Save changes'; }
+    return;
+  }
   $('save').disabled = true; $('save').textContent = 'Saving…'; msg('');
   try {
     await run(({ fs, db }) => fs.addDoc(fs.collection(db, 'tests'), { name, game: t.game, class_code: c.code, owner: S.email, settings, grade: $('t-grade').value, tries: +$('t-tries').value, open: $('t-open').checked, ...(from ? { opens_at: fs.Timestamp.fromDate(from) } : {}), ...(to ? { closes_at: fs.Timestamp.fromDate(to) } : {}), created_at: fs.serverTimestamp() }));
@@ -743,6 +777,7 @@ if (TESTMODE) {
   document.querySelector('h1').textContent = 'Create a test';
   document.querySelector('.sub').textContent = 'Pick a game, its settings and the scales. Students take it from a card on the home page. You choose unlimited tries (best score counts) or one and done.';
   $('a-head').textContent = 'New test'; $('save').textContent = 'Create test'; document.title = 'Create a Test · Music Theory Games';
+  if (EDIT) { document.querySelector('h1').textContent = 'Edit a test'; document.querySelector('.sub').textContent = 'Change the name, when it opens and closes, tries, availability, and (until a student starts it) the game, settings and scoring.'; $('a-head').textContent = 'Edit test'; $('save').textContent = 'Save changes'; document.title = 'Edit a Test · Music Theory Games'; }
   document.querySelector('label[for="cls"]').firstChild.textContent = 'Class ';
 }
 start();
