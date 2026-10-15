@@ -513,6 +513,7 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
 
   <!-- LOGIN -->
   <section id="vLogin" class="panel login" hidden>
+    <div style="text-align:right;margin-bottom:10px"><button class="btn small" id="teachBtn2" type="button">Teacher dashboard</button></div>
     <span class="label">Sign in</span>
     <h2>Who's listening?</h2>
     <p class="note">Use your first name and last initial. Your teacher gives you the class code.</p>
@@ -525,12 +526,12 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
     </form>
     <p class="err" id="loginErr" aria-live="polite"></p>
     <div class="rowsb"><span class="note">Just trying it out? Guest progress stays on this computer and is cleared when you leave guest mode.</span><button class="btn" id="guest" type="button">Continue as guest</button></div>
-    <div style="text-align:right;margin-top:10px"><button class="btn small" id="teachBtn2" type="button">Teacher dashboard</button></div>
     <div id="knownWrap" hidden><div class="label" style="margin-bottom:6px">Already signed in on this computer</div><div class="known" id="known"></div></div>
   </section>
 
   <!-- HOME -->
   <section id="vHome" class="view">
+    <div style="text-align:right"><button class="btn small" id="teachBtn" type="button">Teacher dashboard</button></div>
     <div class="from-teacher" id="fromTeacher" hidden></div>
     <div class="home-top">
       <div class="panel workout">
@@ -557,7 +558,7 @@ kbd{background:#0f0f12;border-color:var(--line);color:var(--fg)}
     </div>
     <div class="rowsb"><span class="label">All games</span><span class="status">Ten rounds per game. Levels adjust as you play.</span></div>
     <div class="games" id="games"></div>
-    <div class="rowsb"><p class="note">Progress is saved in this browser on this device.</p><div class="row" style="display:flex;gap:8px"><button class="btn small" id="fbBtn" type="button">Send feedback</button><button class="btn small" id="teachBtn">Teacher dashboard</button></div></div>
+    <div class="rowsb"><p class="note">Progress is saved in this browser on this device.</p><div class="row" style="display:flex;gap:8px"><button class="btn small" id="fbBtn" type="button">Send feedback</button></div></div>
   </section>
 
   <!-- PLAY -->
