@@ -2277,8 +2277,13 @@ async function lookupClass(code) {
 const sidOf = u => (u.first + u.init).toLowerCase().replace(/[^a-z]/g, '').slice(0, 16);
 let lastSync = 0;
 async function syncUp(force) {
-  if (!signedIn() || P.guest || !P.owner || !P.code) return;
+  if (!signedIn() || P.guest || !P.code) return;
   if (!force && Date.now() - lastSync < 55000) return; lastSync = Date.now();
+  if (!P.owner) {   // signed in while the class list was unreachable: find the teacher now so progress starts showing up
+    const me = P, cls = await lookupClass(P.code);
+    if (me !== P || !cls || cls === 'offline' || !cls.owner) return;
+    P.owner = cls.owner; P.className = cls.name || P.className; save(); refreshClass(true);
+  }
   const day = today(), sid = sidOf(P); if (sid.length < 2) return;
   const st = (P.stats || {})[day] || {};
   const data = { class_code: P.code, owner: P.owner, date: day, sid, student: displayName(P).slice(0, 24),
