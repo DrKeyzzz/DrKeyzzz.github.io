@@ -72,4 +72,4 @@ Edit the HTML files directly. Earlier sessions edited a scratch copy and wrapped
 
 ## Open items
 - Confirm the teacher has pasted the current `firestore.rules` into Firebase. The leaderboard (`listening_scores`) and `rounds_by` depend on it.
-- A small layout issue: the Hard / Vel / Soft labels beside the bass velocity lane sit a little squashed toward the bottom.
+- (Fixed) The Hard / Vel / Soft labels beside the bass velocity lane now sit one per click band.
