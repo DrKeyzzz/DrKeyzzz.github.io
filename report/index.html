@@ -384,6 +384,7 @@ async function syncScores(p, store) {
 const TIERS = [['Bronze', '#e39a5e'], ['Silver', '#cfd8e6'], ['Gold', '#ffc85c'], ['Platinum', '#7ff0e0'], ['Diamond', '#d4c4ff']];
 const more = (one, many) => (v, goal) => `${fmt(goal - v)} more ${goal - v === 1 ? one : many}`;
 const reach = f => (v, goal) => f(goal);
+const hm = min => min < 60 ? `${min} min` : `${Math.floor(min / 60)} h${min % 60 ? ` ${min % 60} min` : ''}`;
 // Top levels take practice on several days (rebalanced 2026-10-11): before, a Platinum or Diamond could be earned in one
 // sitting (100% in one easy game, picking 15 keys, a fast tempo), which left nothing to chase. Now Bronze, Silver and Gold
 // are unchanged (early wins stay easy), Platinum also needs play on 3 different days and Diamond on 7 different days
@@ -442,7 +443,10 @@ const BADGES = {
   all: [
     { id: 'streak', ic: '🔥', name: 'On Fire', desc: 'Your longest practice streak: days in a row with any game.', tiers: [2, 5, 10, 20, 40], days: false, m: X => X.streak, left: reach(g => `Practice ${g} days in a row`) },
     { id: 'titan', ic: '🧠', name: 'Theory Titan', desc: 'Right answers in all five games added together.', tiers: [100, 500, 2000, 5000, 10000], m: X => X.correct, left: more('right answer', 'right answers') },
-    { id: 'time', ic: '⏱️', name: 'Practice Hero', desc: 'Minutes practiced in all five games.', tiers: [30, 120, 300, 600, 1200], m: X => X.minutes, left: more('minute of practice', 'minutes of practice') },
+    // Practice Hero (2026-10-16): hours, matching the Practice time box in every game: Bronze 1 h, Silver 5 h, Gold 10 h,
+    // Platinum 25 h, Diamond 50 h (the box also shows a sixth tier, Legend 100 h; badges here have five levels).
+    // Minutes = the larger of this computer's history and the online total the time box knows (practice_time).
+    { id: 'time', ic: '⏱️', name: 'Practice Hero', desc: 'Time practiced in all the games: 1, 5, 10, 25 and 50 hours.', tiers: [60, 300, 600, 1500, 3000], m: X => X.minutes, left: (v, g) => `${hm(g - v)} more practice` },
     // All-Rounder (rebalanced 2026-10-11): it was Bronze 2 games, Silver 3, Gold 4, Platinum 5, so trying all five games once maxed it.
     // Now Bronze 2 games, Silver 3, Gold 4 (same as before), Platinum all 5 games each played on 3+ different days,
     // Diamond all 5 games each played on 7+ different days. m gives the level directly, so its goals are just 1 to 5.
@@ -776,6 +780,7 @@ async function boot() {
     }
     const allHits = {};
     const { X, active } = allStats(days, A, (d, x) => { for (const def of BADGES.all) { const k = tierOf(def, def.m(x), x.days), h = allHits[def.id] || (allHits[def.id] = {}); for (let i = 1; i <= k; i++) h[i] = h[i] || d; } });
+    if (window.MTGTime) X.minutes = Math.max(X.minutes, MTGTime.allTimeMin());   // every game and every device (the shared time box)
     const all = BADGES.all.map(def => evalOne(`all:${def.id}`, def, def.m(X), [allHits[def.id]], GOLD_ACC, X.days, 'All games'));
     // XP: every right answer, every game and every badge level counts
     const levels = GAMES.flatMap(g => perGame[g.id]).concat(all).reduce((s, b) => s + b.tier, 0);
@@ -810,13 +815,19 @@ async function boot() {
       return box(`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left">Test</th><th style="text-align:right">Best</th><th style="text-align:right">Tries</th><th style="text-align:right">Last try</th></tr></thead><tbody>${rows.map(line).join('')}</tbody></table></div><p class="sub" style="margin-top:12px">Your best score is the one your teacher records. Start a test from the card on the home page.</p>`);
     } catch { return box("<p class=\"sub\">Couldn't load your tests. Check your internet connection and open this tab again.</p>"); }
   }
-  const tabs = [{ id: 'all', name: 'All games', acc: GOLD_ACC }].concat(GAMES, [{ id: 'tests', name: 'Tests', acc: '#ff5d6c' }]);
+  const tabs = [{ id: 'all', name: 'All games', acc: GOLD_ACC }].concat(GAMES, [{ id: 'time', name: 'Practice time', acc: DAYSKIN ? '#0f7a70' : '#7ff0e0' }, { id: 'tests', name: 'Tests', acc: '#ff5d6c' }]);
   let current = 0;
   $('tabs').innerHTML = tabs.map((g, i) => `<button role="tab" id="tab-${g.id}" aria-controls="panel" style="--acc:${g.acc}" data-i="${i}"><i></i>${esc(g.name)}</button>`).join('');
   function showTab(i) {
     current = i; const g = tabs[i]; hideTip(); BMAP = {};
     for (const b of $('tabs').children) { b.setAttribute('aria-selected', String(+b.dataset.i === i)); b.tabIndex = +b.dataset.i === i ? 0 : -1; }
     const panel = $('panel'); panel.style.setProperty('--acc', g.acc); panel.setAttribute('aria-labelledby', 'tab-' + g.id);
+    // Practice time: the same leaderboard as the time box in every game (shared/mtg-time.snippet.html); it reads only when opened
+    if (g.id === 'time') {
+      panel.innerHTML = '<div class="box"><h2>Practice time</h2><p class="sub">Your time in every game, added together. Bronze 1 h · Silver 5 h · Gold 10 h · Platinum 25 h · Diamond 50 h · Legend 100 h.</p><div id="time-board" style="margin-top:12px"></div></div>';
+      if (window.MTGTime) MTGTime.renderBoard($('time-board')); else $('time-board').innerHTML = '<p class="sub">The leaderboard is still loading. Open this tab again in a moment.</p>';
+      return;
+    }
     if (g.id === 'tests') { panel.innerHTML = '<div class="box"><h2>Tests</h2><p class="sub">Loading your tests…</p></div>'; testsPanel(p, cls).then(h => { if (current === i) panel.innerHTML = h; }); return; }
     panel.innerHTML = i === 0 ? allPanel(ctx) : gamePanel(g, T[g.id], A[g.id], ctx.perGame[g.id], ctx);
     confetti(panel, g.acc);
@@ -851,5 +862,441 @@ async function boot() {
 boot();
 })();
 </script>
+<!-- MTG_TIME start: identical in every game, only data-mount / data-place change. Master copy: Music Games/shared/mtg-time.snippet.html -->
+<script id="mtg-time" data-mount=".wrap > .top" data-place="append">
+/* Practice time box (added 2026-10-16). Shows "Today: N min" (every game added together) and "All time" with a
+   Practice Hero tier, and opens a Practice Time leaderboard. Time comes from the shared practice history
+   (localStorage mtg_hist_v1:<sid>, the MTG_HIST snippet). Signed-in students send their new whole minutes to
+   Firestore practice_time/<classCode or none>_<sid> at most once a minute, at most 30 minutes per write.
+   A local ledger (mtg_time_sync_v1:<sid>) remembers what each day already sent, and a short lock stops two tabs
+   from sending the same minutes. The leaderboard is read only when it is opened (cached 60 s). */
+(function(){
+  if (window.MTGTime) return;
+  var me = document.currentScript;
+  var MOUNT = (me && me.getAttribute('data-mount')) || '.mtg-home';
+  var PLACE = (me && me.getAttribute('data-place')) || 'append';
+  var CFG = { apiKey: 'AIzaSyDU9vbCWJ4yWuD8bAX984DmQF4dvo13BHs', authDomain: 'rhythm-trainer-fc313.firebaseapp.com', projectId: 'rhythm-trainer-fc313', appId: '1:956677028482:web:c3ec72a279e61b6f6c929b' };
+  var SDK = 'https://www.gstatic.com/firebasejs/10.12.2/', COL = 'practice_time', HOME = 'https://drkeyzzz.github.io/';
+  var MIN = 60000, MAX_SEND = 30, GAP = 60000, LOCK_MS = 45000, DOC_TTL = 300000, BOARD_TTL = 60000, BACKOFF = 600000;
+  // Practice Hero tiers in minutes (My Report's badge uses the first five; Legend shows here only)
+  var TIERS = [[60, 'Bronze', '🥉'], [300, 'Silver', '🥈'], [600, 'Gold', '🥇'], [1500, 'Platinum', '💠'], [3000, 'Diamond', '💎'], [6000, 'Legend', '🏆']];
+  var TAB_ID = Math.random().toString(36).slice(2);
+
+  var css = document.createElement('style');
+  css.textContent =
+    'button.mtgtm-box.mtgtm-box{position:relative;display:inline-flex;align-items:center;gap:6px;max-width:100%;min-width:0;min-height:0;height:auto;margin:0;box-sizing:border-box;font:600 13px/1 system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.03em;text-transform:none;color:inherit;background:transparent;border:1px solid color-mix(in srgb,currentColor 35%,transparent);border-radius:999px;padding:6px 12px 7px 10px;box-shadow:none;cursor:pointer;opacity:.86;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;-webkit-tap-highlight-color:transparent;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;vertical-align:middle}' +
+    'button.mtgtm-box.mtgtm-box:hover,button.mtgtm-box.mtgtm-box:focus-visible{opacity:1;border-color:currentColor;background:transparent}' +
+    'button.mtgtm-box.mtgtm-box:focus-visible{outline:2px solid currentColor;outline-offset:2px}' +
+    '.mtgtm-box b{font-weight:800}.mtgtm-box .mtgtm-k,.mtgtm-box .mtgtm-next{opacity:.78;font-weight:600}.mtgtm-box .mtgtm-sep{opacity:.5}' +
+    '.mtgtm-box .mtgtm-short{display:none}' +
+    '.mtgtm-box .mtgtm-bar{position:absolute;left:12px;right:12px;bottom:2px;height:2px;border-radius:2px;background:color-mix(in srgb,currentColor 20%,transparent);overflow:hidden}' +
+    '.mtgtm-box .mtgtm-bar i{display:block;height:100%;width:0;background:currentColor;border-radius:2px}' +
+    '@media (max-width:1100px){.mtgtm-box .mtgtm-next,.mtgtm-box .mtgtm-nsep{display:none}}' +
+    '@media (max-width:700px){.mtgtm-box .mtgtm-full{display:none}.mtgtm-box .mtgtm-short{display:inline}}' +
+    '.mtgtm-tip{position:fixed;left:0;top:0;z-index:2147483001;max-width:min(270px,calc(100vw - 16px));padding:7px 11px;border-radius:9px;font:600 13.5px/1.3 system-ui,-apple-system,"Segoe UI",sans-serif;pointer-events:none;background:var(--mtgtm-bg);color:var(--mtgtm-ink);border:1px solid var(--mtgtm-line);box-shadow:0 8px 20px -6px rgba(0,0,0,.45)}' +
+    '.mtgtm-tip[hidden]{display:none}.mtgtm-tip small{display:block;font-weight:500;opacity:.8;margin-top:2px}' +
+    '.mtgtm-dark{--mtgtm-bg:#141a2e;--mtgtm-ink:#f2f5fb;--mtgtm-dim:#aab4ca;--mtgtm-line:#323d60}' +
+    '.mtgtm-light{--mtgtm-bg:#ffffff;--mtgtm-ink:#14213a;--mtgtm-dim:#4d5b74;--mtgtm-line:#d3dbe8}' +
+    '.mtgtm-ov{position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;padding:16px;background:rgba(7,8,20,.66);overflow:auto}' +
+    '.mtgtm-ov[hidden]{display:none}' +
+    '.mtgtm-panel{position:relative;box-sizing:border-box;width:100%;max-width:440px;max-height:calc(100vh - 32px);overflow:auto;background:var(--mtgtm-bg);color:var(--mtgtm-ink);border:1px solid var(--mtgtm-line);border-radius:16px;padding:18px 18px 16px;font:16px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;text-align:left;letter-spacing:normal;text-transform:none;box-shadow:0 16px 48px rgba(0,0,0,.45)}' +
+    '.mtgtm-panel *{box-sizing:border-box}' +
+    '.mtgtm-h{margin:0 40px 2px 0;font-size:21px;font-weight:800;letter-spacing:-.01em}' +
+    '.mtgtm-x{position:absolute;top:10px;right:10px;width:36px;height:36px;border-radius:50%;border:1px solid var(--mtgtm-line);background:transparent;color:inherit;font:700 16px/1 system-ui,sans-serif;cursor:pointer}' +
+    '.mtgtm-x:focus-visible,.mtgtm-tabs button:focus-visible,.mtgtm-go:focus-visible{outline:3px solid var(--mtgtm-acc,currentColor);outline-offset:2px}' +
+    '.mtgtm-me{margin:4px 0 14px;color:var(--mtgtm-dim,inherit);font-size:15px}.mtgtm-me b{color:var(--mtgtm-ink,inherit)}' +
+    '.mtgtm-mebar{height:6px;border-radius:6px;margin:8px 0 4px;background:color-mix(in srgb,currentColor 16%,transparent);overflow:hidden}.mtgtm-mebar i{display:block;height:100%;background:var(--mtgtm-acc,currentColor);border-radius:6px}' +
+    '.mtgtm-board{font:15px/1.3 system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:normal;text-transform:none;text-align:left}' +
+    '.mtgtm-tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 10px}' +
+    '.mtgtm-tabs button{font:700 14px/1 system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.02em;text-transform:none;color:inherit;background:transparent;border:1px solid color-mix(in srgb,currentColor 30%,transparent);border-radius:999px;padding:9px 14px;min-height:36px;cursor:pointer;margin:0;box-shadow:none}' +
+    '.mtgtm-tabs button[aria-selected="true"]{background:var(--mtgtm-acc,currentColor);border-color:var(--mtgtm-acc,currentColor);color:var(--mtgtm-acc-ink,#000)}' +
+    '.mtgtm-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}' +
+    '.mtgtm-list li{display:grid;grid-template-columns:2.2em 1.6em minmax(0,1fr) auto;align-items:center;gap:6px;padding:8px 10px;border-radius:10px;background:color-mix(in srgb,currentColor 6%,transparent)}' +
+    '.mtgtm-list li.me{background:color-mix(in srgb,var(--mtgtm-acc,currentColor) 22%,transparent);box-shadow:inset 3px 0 0 var(--mtgtm-acc,currentColor)}' +
+    '.mtgtm-list li.gap{background:transparent;padding:0 10px;opacity:.6;display:block;text-align:center}' +
+    '.mtgtm-list .r{font-weight:800;opacity:.8;text-align:right}.mtgtm-list .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}' +
+    '.mtgtm-list .n em{font-style:normal;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;margin-left:6px;padding:2px 6px;border-radius:999px;background:var(--mtgtm-acc,currentColor);color:var(--mtgtm-acc-ink,#000)}' +
+    '.mtgtm-list .v{font-weight:800;white-space:nowrap;font-variant-numeric:tabular-nums}' +
+    '.mtgtm-msg{margin:8px 0;opacity:.8}' +
+    '.mtgtm-foot{margin:10px 0 0;font-size:13px;opacity:.75}' +
+    '.mtgtm-go{display:inline-block;margin-top:10px;font:700 15px/1 system-ui,sans-serif;padding:11px 16px;border-radius:10px;background:var(--mtgtm-acc,currentColor);color:var(--mtgtm-acc-ink,#000);text-decoration:none}';
+  document.head.appendChild(css);
+
+  // ---------- who is playing (shared sign-in) ----------
+  function who(){
+    try {
+      if (sessionStorage.getItem('music_guest') === '1') return null;
+      var p = JSON.parse(localStorage.getItem('rdt_profile_v1') || 'null');
+      return p && p.first && p.init ? p : null;
+    } catch(e){ return null; }
+  }
+  function sidOf(p){ return (p.first + p.init).toLowerCase().replace(/[^a-z]/g, ''); }
+  function nameOf(p){ var f = String(p.first); return (f.charAt(0).toUpperCase() + f.slice(1) + ' ' + p.init + '.').slice(0, 24); }
+  // the ACTIVE class (MULTI-CLASS.md section 10: classes = [active]); everything counts for it
+  function activeClass(p){
+    var l = Array.isArray(p.classes) && p.classes.length ? p.classes : (p.classCode ? [{ code: p.classCode, name: p.className || p.classCode }] : []);
+    l = l.filter(function(c){ return c && c.code; });
+    return l.length ? { code: String(l[0].code), name: String(l[0].name || l[0].code) } : null;
+  }
+  function docIdOf(p){ var c = activeClass(p); return (c ? c.code : 'none') + '_' + sidOf(p); }
+
+  // ---------- dates (local time) ----------
+  function pad(n){ return (n < 10 ? '0' : '') + n; }
+  function dayKey(d){ return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function weekKey(d){   // ISO week, e.g. 2026-W42
+    var t = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12), dow = (t.getDay() + 6) % 7;
+    t.setDate(t.getDate() - dow + 3);
+    var y = t.getFullYear(), j4 = new Date(y, 0, 4, 12);
+    j4.setDate(j4.getDate() - (j4.getDay() + 6) % 7 + 3);
+    return y + '-W' + pad(1 + Math.round((t - j4) / 6048e5));
+  }
+  function weekOfDay(k){ var a = k.split('-'); return weekKey(new Date(+a[0], +a[1] - 1, +a[2])); }
+
+  // ---------- local data ----------
+  function readJSON(k){ try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch(e){ return null; } }
+  function writeJSON(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+  function histDays(sid){ var h = readJSON('mtg_hist_v1:' + sid); return h && h.days && typeof h.days === 'object' ? h.days : {}; }
+  function dayMs(d){ var s = 0; for (var g in d) { var v = d[g] && d[g].ms; if (typeof v === 'number' && v > 0) s += v; } return s; }
+  function ledgerKey(sid){ return 'mtg_time_sync_v1:' + sid; }
+  function ledger(sid){ var L = readJSON(ledgerKey(sid)); if (!L || L.v !== 1) L = { v: 1, sent: {}, last: 0 }; if (!L.sent) L.sent = {}; return L; }
+
+  // what the history holds that the ledger has not sent yet (whole minutes per day), and the next write (max 30)
+  function plan(days, L, now){
+    var today = dayKey(now), wk = weekKey(now), items = [], unsent = 0, unsentToday = 0, unsentWeek = 0, all = 0, weekMs = 0;
+    for (var k in days) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(k)) continue;
+      var ms = dayMs(days[k]), inWeek = weekOfDay(k) === wk; all += ms; if (inWeek) weekMs += ms;
+      var un = Math.floor((ms - (L.sent[k] || 0)) / MIN);
+      if (un > 0) { items.push({ day: k, un: un, today: k === today, week: inWeek }); unsent += un; if (k === today) unsentToday += un; if (inWeek) unsentWeek += un; }
+    }
+    items.sort(function(a, b){ return (b.today - a.today) || (b.week - a.week) || (a.day < b.day ? 1 : -1); });
+    var left = MAX_SEND, alloc = [], n = 0, w = 0, d = 0;
+    for (var i = 0; i < items.length && left > 0; i++) {
+      var m = Math.min(left, items[i].un); left -= m; n += m; alloc.push([items[i].day, m]);
+      if (items[i].week) w += m; if (items[i].today) d += m;
+    }
+    return { today: today, week: wk, n: n, w: w, d: d, alloc: alloc, unsent: unsent, unsentToday: unsentToday, unsentWeek: unsentWeek, localWeek: Math.floor(weekMs / MIN),
+      localAll: Math.floor(all / MIN), localToday: Math.floor(dayMs(days[today] || {}) / MIN) };
+  }
+
+  // ---------- numbers shown ----------
+  function stats(){
+    var p = who(); if (!p) return null;
+    var sid = sidOf(p), L = ledger(sid), now = new Date(), pl = plan(histDays(sid), L, now), id = docIdOf(p);
+    var doc = L.doc && L.doc.id === id && L.doc.exists ? L.doc : null;
+    var onToday = doc && doc.day === pl.today ? doc.day_min : 0;
+    var onWeek = doc && doc.week === pl.week ? doc.week_min : 0;
+    var all = Math.max(pl.localAll, doc ? doc.total_min + pl.unsent : 0);
+    return { p: p, sid: sid, id: id, cls: activeClass(p), today: Math.max(pl.localToday, onToday + pl.unsentToday), all: all,
+      week: Math.max(pl.localWeek, onWeek + pl.unsentWeek), tier: tierOf(all) };
+  }
+  function tierOf(min){
+    var k = 0; while (k < TIERS.length && min >= TIERS[k][0]) k++;
+    var from = k ? TIERS[k - 1][0] : 0, next = TIERS[k] || null;
+    return { k: k, name: k ? TIERS[k - 1][1] : '', ic: k ? TIERS[k - 1][2] : '', next: next ? next[1] : '', nextIc: next ? next[2] : '',
+      left: next ? next[0] - min : 0, pct: next ? Math.max(0, Math.min(100, Math.round(100 * (min - from) / (next[0] - from)))) : 100 };
+  }
+  function fmt(min){ min = Math.max(0, Math.round(min)); if (min < 60) return min + ' min'; var h = Math.floor(min / 60), m = min % 60; return h + ' h' + (m ? ' ' + m + ' min' : ''); }
+  function fmtShort(min){ min = Math.max(0, Math.round(min)); if (min < 60) return min + ' min'; var h = Math.floor(min / 60), m = min % 60; return h + ' h' + (m ? ' ' + m : ''); }
+  function fmtSay(min){ min = Math.max(0, Math.round(min)); var h = Math.floor(min / 60), m = min % 60, s = []; if (h) s.push(h + (h === 1 ? ' hour' : ' hours')); if (m || !h) s.push(m + (m === 1 ? ' minute' : ' minutes')); return s.join(' '); }
+  var esc = function(v){ return String(v == null ? '' : v).replace(/[&<>"']/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+
+  // ---------- Firebase (own named app, so it never clashes with the game's) ----------
+  var fbP = null;
+  function fb(){
+    if (typeof window.__MTG_TIME_FB === 'function') return (fbP = fbP || Promise.resolve(window.__MTG_TIME_FB()));   // tests only: an in-memory stand-in
+    fbP = fbP || Promise.all([import(SDK + 'firebase-app.js'), import(SDK + 'firebase-firestore.js')]).then(function(m){
+      var a = m[0], fs = m[1];
+      var app = a.getApps().filter(function(x){ return x.name === 'mtg-time'; })[0] || a.initializeApp(CFG, 'mtg-time');
+      return { fs: fs, db: fs.getFirestore(app) };
+    }).catch(function(e){ fbP = null; throw e; });
+    return fbP;
+  }
+  var fbReady = false;
+  function wait(p){ return Promise.race([p, new Promise(function(_, bad){ setTimeout(function(){ var e = new Error('timeout'); e.code = 'mtg-timeout'; bad(e); }, 15000); })]); }
+
+  // ---------- sync (at most once a minute across tabs) ----------
+  function lockKey(sid){ return 'mtg_time_lock_v1:' + sid; }
+  function lock(sid){
+    var k = lockKey(sid), l = readJSON(k), now = Date.now();
+    if (l && l.id !== TAB_ID && now - l.t < LOCK_MS) return false;
+    writeJSON(k, { id: TAB_ID, t: now });
+    l = readJSON(k); return !!(l && l.id === TAB_ID);
+  }
+  function unlock(sid){ var l = readJSON(lockKey(sid)); if (l && l.id === TAB_ID) try { localStorage.removeItem(lockKey(sid)); } catch(e){} }
+  var syncing = false, leaving = false;
+  function sync(why){
+    var p = who(); if (!p || syncing || leaving) return Promise.resolve(false);
+    var sid = sidOf(p); if (!/^[a-z]{2,16}$/.test(sid)) return Promise.resolve(false);
+    if (why === 'leave' && !fbReady) return Promise.resolve(false);   // don't start loading Firebase while the page closes
+    var L = ledger(sid), now = Date.now();
+    if (now - (L.last || 0) < GAP || (L.back && now < L.back)) return Promise.resolve(false);
+    var id = docIdOf(p), cls = activeClass(p);
+    var needRead = !L.doc || L.doc.id !== id || now - (L.doc.t || 0) > DOC_TTL;
+    if (!needRead && !plan(histDays(sid), L, new Date(now)).n) return Promise.resolve(false);
+    if (!lock(sid)) return Promise.resolve(false);
+    syncing = true;
+    var F, ref, SKIP = { skip: true };
+    // wait a moment, then check the lock is still ours (two tabs grabbing it at once: the last write wins)
+    return new Promise(function(ok){ setTimeout(ok, 200 + Math.random() * 300); }).then(function(){
+      var l = readJSON(lockKey(sid)); if (!l || l.id !== TAB_ID) throw SKIP;
+      L = ledger(sid);                                     // fresh copy inside the lock
+      if (Date.now() - (L.last || 0) < GAP) throw SKIP;
+      L.last = Date.now(); writeJSON(ledgerKey(sid), L);  // claim this minute for every tab
+      return fb();
+    }).then(function(f){
+      F = f; fbReady = true; ref = f.fs.doc(f.db, COL, id);
+      if (!needRead) return L.doc;
+      return wait(f.fs.getDoc(ref)).then(function(s){
+        var d = s.exists() ? s.data() : {};
+        var st = { id: id, exists: s.exists(), t: Date.now(), total_min: +d.total_min || 0, week: d.week || '', week_min: +d.week_min || 0, day: d.day || '', day_min: +d.day_min || 0 };
+        L = ledger(sid); L.doc = st; writeJSON(ledgerKey(sid), L); return st;
+      });
+    }).then(function(st){
+      L = ledger(sid);
+      var pl = plan(histDays(sid), L, new Date());
+      if (!pl.n) return true;
+      var fs = F.fs, data = { name: nameOf(p), sid: sid, class_code: cls ? cls.code : '', updated_at: fs.serverTimestamp() };
+      if (!st.exists) { data.total_min = pl.n; data.week = pl.week; data.week_min = pl.w; data.day = pl.today; data.day_min = pl.d; }
+      else {
+        data.total_min = fs.increment(pl.n);
+        if (st.week === pl.week) data.week_min = fs.increment(pl.w); else { data.week = pl.week; data.week_min = pl.w; }
+        if (st.day === pl.today) data.day_min = fs.increment(pl.d); else { data.day = pl.today; data.day_min = pl.d; }
+      }
+      // mark the minutes as sent BEFORE writing (a write that never leaves a closing page loses minutes, it never doubles them)
+      pl.alloc.forEach(function(a){ L.sent[a[0]] = (L.sent[a[0]] || 0) + a[1] * MIN; });
+      writeJSON(ledgerKey(sid), L);
+      var undo = function(){ var L2 = ledger(sid); pl.alloc.forEach(function(a){ L2.sent[a[0]] = Math.max(0, (L2.sent[a[0]] || 0) - a[1] * MIN); }); return L2; };
+      return wait(fs.setDoc(ref, data, { merge: true })).then(function(){
+        var L2 = ledger(sid), s2 = L2.doc && L2.doc.id === id ? L2.doc : st;
+        s2.exists = true; s2.total_min += pl.n;
+        if (s2.week === pl.week) s2.week_min += pl.w; else { s2.week = pl.week; s2.week_min = pl.w; }
+        if (s2.day === pl.today) s2.day_min += pl.d; else { s2.day = pl.today; s2.day_min = pl.d; }
+        L2.doc = s2; writeJSON(ledgerKey(sid), L2); return true;
+      }, function(e){
+        if (e && e.code === 'mtg-timeout') throw e;    // still queued by Firestore: keep it counted as sent
+        var L2 = undo();
+        if (e && e.code === 'permission-denied') { L2.doc = null; L2.back = Date.now() + BACKOFF; }   // stale class or doc: re-read later
+        writeJSON(ledgerKey(sid), L2); throw e;
+      });
+    }).catch(function(e){ if (e !== SKIP) console.warn('[practice time] sync skipped:', e && (e.code || e.message) || e); return false; })
+      .then(function(r){ syncing = false; unlock(sid); render(); return r; });
+  }
+
+  // ---------- the box ----------
+  var boxes = [], tip = null, theme = 'mtgtm-dark';
+  function makeBox(){
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'mtgtm-box'; b.setAttribute('aria-haspopup', 'dialog');
+    b.addEventListener('click', function(e){ if (b._eat) { b._eat = false; e.preventDefault(); return; } openBoard(b); });
+    b.addEventListener('mouseenter', function(){ showTip(b); }); b.addEventListener('mouseleave', hideTip);
+    b.addEventListener('focus', function(){ try { if (b.matches(':focus-visible')) showTip(b); } catch(e){} }); b.addEventListener('blur', hideTip);
+    var t = null, sx = 0, sy = 0;
+    b.addEventListener('pointerdown', function(e){ if (e.pointerType === 'mouse') return; sx = e.clientX; sy = e.clientY; t = setTimeout(function(){ b._eat = true; showTip(b); }, 500); });
+    b.addEventListener('pointermove', function(e){ if (t && Math.hypot(e.clientX - sx, e.clientY - sy) > 10) { clearTimeout(t); t = null; } });
+    ['pointerup', 'pointercancel'].forEach(function(ev){ b.addEventListener(ev, function(){ clearTimeout(t); t = null; if (b._eat) setTimeout(hideTip, 1600); }); });
+    b.addEventListener('contextmenu', function(e){ if (b._eat) e.preventDefault(); });
+    return b;
+  }
+  // look like the pills beside it (their font, spacing, fill and edge), so it fits every game and skin
+  function matchPills(){
+    boxes.forEach(function(b){
+      var sib = b.parentNode && b.parentNode.querySelector(':scope > a'); if (!sib) return;
+      var cs = getComputedStyle(sib), bg = rgb(cs.backgroundColor);
+      b.style.fontFamily = cs.fontFamily; b.style.letterSpacing = cs.letterSpacing;
+      b.style.background = bg && bg[3] > 0 ? cs.backgroundColor : '';
+      var bf = cs.backdropFilter || cs.webkitBackdropFilter; b.style.backdropFilter = bf && bf !== 'none' ? bf : '';
+    });
+  }
+  function mountBoxes(){
+    var hosts = document.querySelectorAll(MOUNT), changed = false;
+    boxes = boxes.filter(function(b){ return document.contains(b); });
+    Array.prototype.forEach.call(hosts, function(h){
+      if (h.querySelector(':scope > .mtgtm-box')) return;
+      var b = makeBox(); if (PLACE === 'prepend') h.insertBefore(b, h.firstChild); else h.appendChild(b);
+      boxes.push(b); changed = true;
+    });
+    return changed;
+  }
+  function render(){
+    if (mountBoxes()) { matchPills(); pickTheme(); }
+    var s = stats();
+    boxes.forEach(function(b){
+      if (!s) {
+        b.innerHTML = '<span aria-hidden="true">⏱</span><span>Sign in to track your time</span>';
+        b.setAttribute('aria-label', 'Sign in to track your practice time');
+        return;
+      }
+      var t = s.tier, nextTxt = t.next ? fmt(t.left) + ' to ' + t.next : 'Top tier!';
+      b.innerHTML = '<span aria-hidden="true">⏱</span>' +
+        '<span class="mtgtm-full"><span class="mtgtm-k">Today</span> <b>' + fmt(s.today) + '</b> <span class="mtgtm-sep">·</span> <span class="mtgtm-k">All time</span> <b>' + fmt(s.all) + '</b>' +
+          (t.ic ? ' <span aria-hidden="true">' + t.ic + '</span>' : '') + ' <span class="mtgtm-sep mtgtm-nsep">·</span> <span class="mtgtm-next">' + esc(nextTxt) + '</span></span>' +
+        '<span class="mtgtm-short"><b>' + fmt(s.today) + '</b> <span class="mtgtm-sep">·</span> ' + (t.ic ? t.ic + ' ' : '') + '<b>' + fmtShort(s.all) + '</b></span>' +
+        '<i class="mtgtm-bar" aria-hidden="true"><i style="width:' + t.pct + '%"></i></i>';
+      b.setAttribute('aria-label', 'Practice time: today ' + fmtSay(s.today) + ', all time ' + fmtSay(s.all) + (t.name ? ', ' + t.name : '') + '. ' + (t.next ? fmtSay(t.left) + ' to ' + t.next + '. ' : '') + 'Open the leaderboard.');
+    });
+    if (ov && !ov.hidden) renderMe();
+  }
+
+  // ---------- light or dark, from the header's own text color; accent from the game's colors ----------
+  function rgb(c){ var m = String(c).match(/[\d.]+/g); return m && m.length >= 3 ? [+m[0], +m[1], +m[2], m.length > 3 ? +m[3] : 1] : null; }
+  function lum(c){ var f = function(v){ v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }; return .2126 * f(c[0]) + .7152 * f(c[1]) + .0722 * f(c[2]); }
+  function contrast(a, b){ var x = lum(a), y = lum(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); }
+  function pickTheme(){
+    var el = boxes[0] || document.body, c = rgb(getComputedStyle(el).color);
+    theme = c && lum(c) < .35 ? 'mtgtm-light' : 'mtgtm-dark';
+    if (tip) tip.className = 'mtgtm-tip ' + theme;
+    if (ov) ov.className = 'mtgtm-ov ' + theme;
+  }
+  function accentFor(host, bg){
+    var cs = getComputedStyle(host), names = ['--acc', '--accent', '--cyan', '--gold', '--yel', '--lamp', '--neon'];
+    var probe = document.createElement('span'); probe.style.display = 'none'; host.appendChild(probe);
+    var out = null;
+    for (var i = 0; i < names.length && !out; i++) {
+      var v = cs.getPropertyValue(names[i]).trim(); if (!v) continue;
+      probe.style.color = ''; probe.style.color = v; var c = rgb(getComputedStyle(probe).color);
+      if (c && c[3] > .9 && contrast(c, bg) >= 3) out = c;
+    }
+    probe.remove();
+    if (!out) out = lum(bg) > .5 ? [37, 99, 235, 1] : [94, 200, 255, 1];
+    return { acc: 'rgb(' + out.slice(0, 3).join(',') + ')', ink: lum(out) > .4 ? '#0b0f1c' : '#ffffff' };
+  }
+
+  // ---------- tooltip ----------
+  function showTip(b){
+    if (!tip) { tip = document.createElement('div'); tip.className = 'mtgtm-tip ' + theme; tip.setAttribute('aria-hidden', 'true'); tip.hidden = true; document.body.appendChild(tip); }
+    var s = stats();
+    tip.innerHTML = s ? 'Your practice time in all the games · open the leaderboard' + (s.tier.next ? '<small>' + esc(fmt(s.tier.left)) + ' to ' + (s.tier.nextIc + ' ' + esc(s.tier.next)) + '</small>' : '<small>🏆 Legend: the top tier!</small>')
+      : 'Sign in on the home page to track your practice time';
+    tip.hidden = false;
+    var r = b.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+    var x = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2)), y = r.bottom + 8;
+    if (y + h > innerHeight - 8) y = Math.max(8, r.top - h - 8);
+    tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  }
+  function hideTip(){ if (tip) tip.hidden = true; }
+  addEventListener('scroll', hideTip, true); addEventListener('resize', hideTip);
+
+  // ---------- leaderboard ----------
+  var cache = {};
+  function loadRows(kind, s){
+    var key = kind === 'world' ? 'world' : 'class:' + (s.cls ? s.cls.code : ''), c = cache[key];
+    if (c && Date.now() - c.t < BOARD_TTL) return Promise.resolve(c.rows);
+    return fb().then(function(f){
+      fbReady = true;
+      var fs = f.fs, col = fs.collection(f.db, COL);
+      var q = kind === 'world' ? fs.query(col, fs.orderBy('total_min', 'desc'), fs.limit(10)) : fs.query(col, fs.where('class_code', '==', s.cls.code), fs.limit(60));
+      return wait(fs.getDocs(q));
+    }).then(function(snap){
+      var rows = snap.docs.map(function(d){ var x = d.data(); return { id: d.id, name: String(x.name || ''), total: +x.total_min || 0, week: x.week || '', week_min: +x.week_min || 0 }; });
+      cache[key] = { t: Date.now(), rows: rows }; return rows;
+    });
+  }
+  function boardRows(kind, rows, s){
+    var wk = weekKey(new Date()), mine = null;
+    rows = rows.map(function(r){ var o = { id: r.id, name: r.name, total: r.total, v: kind === 'week' ? (r.week === wk ? r.week_min : 0) : r.total }; if (r.id === s.id) mine = o; return o; });
+    // my own row always shows what this computer knows right now
+    var myV = kind === 'week' ? Math.max(s.week, mine ? mine.v : 0) : s.all;
+    if (mine) { mine.total = Math.max(mine.total, s.all); mine.v = Math.max(mine.v, myV); mine.me = true; }
+    else if (myV > 0 || kind !== 'world') { mine = { id: s.id, name: nameOf(s.p), total: s.all, v: myV, me: true }; rows.push(mine); }
+    if (kind === 'week') rows = rows.filter(function(r){ return r.v > 0 || r.me; });
+    rows.sort(function(a, b){ return b.v - a.v || (a.me ? -1 : b.me ? 1 : a.name < b.name ? -1 : 1); });
+    var lim = kind === 'world' ? 10 : 60, top = rows.slice(0, lim), html = '';
+    var line = function(r, i){ var t = tierOf(r.total); return '<li' + (r.me ? ' class="me"' : '') + '><span class="r">' + (i == null ? '–' : i + 1) + '</span><span aria-hidden="true">' + (t.ic || '·') + '</span><span class="n">' + esc(r.name) + (r.me ? '<em>You</em>' : '') + '</span><span class="v">' + fmt(r.v) + '</span></li>'; };
+    top.forEach(function(r, i){ html += line(r, i); });
+    if (mine && top.indexOf(mine) < 0) html += '<li class="gap" aria-hidden="true">⋯</li>' + line(mine, rows.indexOf(mine) >= lim ? null : rows.indexOf(mine));
+    return html || '<li class="gap">No practice time yet. Play any game to get on the board!</li>';
+  }
+  var TABS = [['class', 'My class'], ['world', 'World'], ['week', 'This week']];
+  function renderBoard(host, opts){
+    host.classList.add('mtgtm-board');
+    var s = stats();
+    if (!s) { host.innerHTML = '<p class="mtgtm-msg">Sign in on the home page to track your practice time and join the leaderboard.</p><a class="mtgtm-go" href="' + HOME + '">Sign in on the home page</a>'; return; }
+    var cur = host._tab || (s.cls ? 'class' : 'world');
+    var bg = rgb(getComputedStyle(host.closest('.mtgtm-panel') || document.body).backgroundColor) || [20, 26, 46, 1];
+    if (bg[3] < .5) bg = theme === 'mtgtm-light' ? [255, 255, 255, 1] : [20, 26, 46, 1];
+    var a = accentFor(host, bg); host.style.setProperty('--mtgtm-acc', a.acc); host.style.setProperty('--mtgtm-acc-ink', a.ink);
+    host.innerHTML = '<div class="mtgtm-tabs" role="tablist" aria-label="Leaderboard">' + TABS.map(function(t){
+      return '<button type="button" role="tab" data-tab="' + t[0] + '" aria-selected="' + (t[0] === cur) + '" tabindex="' + (t[0] === cur ? 0 : -1) + '">' + t[1] + '</button>'; }).join('') + '</div>' +
+      '<ol class="mtgtm-list" role="tabpanel" aria-live="polite"><li class="gap">Loading…</li></ol><p class="mtgtm-foot"></p>';
+    var list = host.querySelector('.mtgtm-list'), foot = host.querySelector('.mtgtm-foot');
+    var show = function(kind){
+      host._tab = kind;
+      Array.prototype.forEach.call(host.querySelectorAll('[role=tab]'), function(b){ var on = b.getAttribute('data-tab') === kind; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
+      foot.textContent = kind === 'world' ? 'The top 10 in every class.' : kind === 'week' ? 'Minutes since Monday in ' + (s.cls ? s.cls.name : 'your class') + '.' : 'All-time practice in ' + (s.cls ? s.cls.name : 'your class') + '.';
+      if (kind !== 'world' && !s.cls) { list.innerHTML = '<li class="gap">Join a class to see your class board. Add your class code on the home page.</li>'; return; }
+      list.innerHTML = '<li class="gap">Loading…</li>';
+      loadRows(kind, s).then(function(rows){ if (host._tab === kind) list.innerHTML = boardRows(kind, rows, s); })
+        .catch(function(e){ console.warn('[practice time] board:', e && (e.code || e.message)); if (host._tab === kind) list.innerHTML = '<li class="gap">Couldn\'t load the leaderboard. Check your internet connection and try again.</li>'; });
+    };
+    var tabs = host.querySelector('.mtgtm-tabs');
+    tabs.addEventListener('click', function(e){ var b = e.target.closest('[data-tab]'); if (b) show(b.getAttribute('data-tab')); });
+    tabs.addEventListener('keydown', function(e){
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      var ids = TABS.map(function(t){ return t[0]; }), i = (ids.indexOf(host._tab) + (e.key === 'ArrowRight' ? 1 : ids.length - 1)) % ids.length;
+      show(ids[i]); tabs.querySelector('[data-tab="' + ids[i] + '"]').focus(); e.preventDefault();
+    });
+    show(cur);
+  }
+
+  // ---------- the modal ----------
+  var ov = null, lastFocus = null;
+  function renderMe(){
+    var s = stats(), el = ov.querySelector('.mtgtm-me'); if (!el) return;
+    if (!s) { el.innerHTML = ''; return; }
+    var t = s.tier;
+    el.innerHTML = 'Today <b>' + fmt(s.today) + '</b> · All time <b>' + fmt(s.all) + '</b>' + (t.name ? ' · ' + t.ic + ' <b>' + t.name + '</b>' : '') +
+      '<div class="mtgtm-mebar" aria-hidden="true"><i style="width:' + t.pct + '%"></i></div>' +
+      (t.next ? esc(fmt(t.left)) + ' to ' + t.nextIc + ' ' + t.next : '🏆 Legend: the top tier!') + ' <span style="opacity:.75">(Bronze 1 h · Silver 5 h · Gold 10 h · Platinum 25 h · Diamond 50 h · Legend 100 h)</span>';
+  }
+  function openBoard(from){
+    hideTip(); pickTheme();
+    if (!ov) {
+      ov = document.createElement('div'); ov.className = 'mtgtm-ov ' + theme; ov.hidden = true;
+      ov.innerHTML = '<div class="mtgtm-panel" role="dialog" aria-modal="true" aria-labelledby="mtgtm-h">' +
+        '<button type="button" class="mtgtm-x" aria-label="Close">✕</button><h2 class="mtgtm-h" id="mtgtm-h">⏱ Practice Time</h2>' +
+        '<div class="mtgtm-me"></div><div class="mtgtm-b"></div></div>';
+      document.body.appendChild(ov);
+      ov.querySelector('.mtgtm-x').addEventListener('click', closeBoard);
+      ov.addEventListener('mousedown', function(e){ if (e.target === ov) closeBoard(); });
+      ['keydown', 'keyup', 'keypress'].forEach(function(t){
+        ov.addEventListener(t, function(e){
+          e.stopPropagation();   // never reach the game's keyboard shortcuts
+          if (t !== 'keydown') return;
+          if (e.key === 'Escape') { e.preventDefault(); closeBoard(); }
+          if (e.key === 'Tab') {
+            var f = Array.prototype.filter.call(ov.querySelectorAll('button,a[href]'), function(x){ return x.offsetParent !== null && x.tabIndex >= 0; });
+            if (!f.length) return; var a = f[0], z = f[f.length - 1];
+            if (e.shiftKey && document.activeElement === a) { e.preventDefault(); z.focus(); }
+            else if (!e.shiftKey && document.activeElement === z) { e.preventDefault(); a.focus(); }
+          }
+        });
+      });
+    }
+    lastFocus = from && from.focus ? from : document.activeElement;
+    renderMe(); var host = ov.querySelector('.mtgtm-b'); ov.hidden = false; renderBoard(host);
+    setTimeout(function(){ var b = ov.querySelector('[role=tab][aria-selected=true]') || ov.querySelector('.mtgtm-x'); b.focus(); }, 30);
+  }
+  function closeBoard(){ if (!ov || ov.hidden) return; ov.hidden = true; if (lastFocus && lastFocus.focus) lastFocus.focus(); }
+
+  // ---------- start ----------
+  window.MTGTime = {
+    stats: stats, sync: sync, render: render, open: openBoard, close: closeBoard, renderBoard: renderBoard, tierOf: tierOf, TIERS: TIERS, fmt: fmt,
+    allTimeMin: function(){ var s = stats(); return s ? s.all : 0; }
+  };
+  function start(){
+    render();
+    try { new MutationObserver(function(){ matchPills(); pickTheme(); }).observe(document.documentElement, { attributes: true, attributeFilter: ['data-skin', 'class'] }); } catch(e){}
+    setInterval(function(){ render(); sync('tick'); }, 30000);
+    setTimeout(function(){ sync('start'); }, 5000);
+    addEventListener('storage', function(e){ if (!e.key || /^(mtg_hist_v1|mtg_time_sync_v1|rdt_profile_v1)/.test(e.key)) render(); });
+    document.addEventListener('visibilitychange', function(){ if (document.visibilityState === 'hidden') sync('leave'); else render(); });
+    // a closing page never takes or keeps the lock (pagehide comes before the last visibilitychange)
+    addEventListener('pagehide', function(){ leaving = true; var p = who(); if (p) unlock(sidOf(p)); });
+    addEventListener('pageshow', function(){ leaving = false; });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();
+</script>
+<!-- MTG_TIME end -->
 </body>
 </html>
