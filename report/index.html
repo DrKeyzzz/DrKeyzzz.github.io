@@ -319,7 +319,7 @@ function improvements(t) {
 }
 // "Practice this" opens the game already set up for the skill (each game reads ?focus=)
 const FOCUS = {
-  scale: lab => /(major|minor|Dorian|Phrygian|Lydian|Mixolydian|Aeolian|Locrian)$/.test(lab) || /^(Tonic|Supertonic|Mediant|Subdominant|Dominant|Submediant|Leading Tone)$/.test(lab),
+  scale: lab => /(major|minor|Dorian|Phrygian|Lydian|Mixolydian|Aeolian|Locrian)$/.test(lab) || /^(Tonic|Supertonic|Mediant|Subdominant|Dominant|Submediant|Leading Tone|Key signatures)$/.test(lab),
   rhythm: lab => /^(Quarters & eighths|Sixteenths|Dotted rhythms|Rests|Syncopation|Compound beat|Triplets|Hemiola & duplets)$/.test(lab) || / (level|time)$/.test(lab),
   tidal: lab => /^(Treble|Bass|Alto) clef notes$|^Ledger lines$|^Intervals$|^[A-G][♯♭]?\d|^([MmPAd][2-8]|2nd|3rd|[4-7]th|Octave)$/.test(lab),
   earshot: lab => /^(Minor|Major|Perfect|Augmented|Diminished) (unison|2nd|3rd|4th|5th|6th|7th|octave)$|^Tritone$|^Octave$/.test(lab),
