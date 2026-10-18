@@ -121,6 +121,80 @@
   footer { text-align: center; color: var(--muted); font-size: 14px; margin-top: 28px; }
   .pv { background: var(--gold); color: #10131a; font-weight: 700; text-align: center; padding: 6px; font-size: 14px; border-radius: 10px; margin: 12px 0 0; }
 
+  /* ---------- Messages and Teacher Board (added 2026-10-18) ---------- */
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .seg button .nb, .mx-item .rq { display: inline-block; min-width: 18px; margin-left: 6px; padding: 1px 5px 0; border-radius: 999px; font-size: 12px; letter-spacing: 0; text-align: center; }
+  .seg button .nb { background: var(--gold); color: #10131a; }
+  .mx-item .rq { background: #c0392b; color: #fff; margin-left: 0; }
+  .mx { display: grid; grid-template-columns: minmax(230px, 300px) 1fr; gap: 14px; margin-top: 14px; height: clamp(420px, calc(100vh - 240px), 680px); }
+  .mx.solo { grid-template-columns: 1fr; }
+  .mx-list, .mx-thread { display: flex; flex-direction: column; min-height: 0; min-width: 0; border: 1px solid var(--card-border); border-radius: 12px; overflow: hidden; }
+  .mx-top, .mx-head { display: flex; align-items: center; gap: 8px 10px; padding: 10px 12px; border-bottom: 1px solid var(--card-border); background: var(--bg); }
+  .mx-top { justify-content: space-between; }
+  .mx-top h3, .mx-head h3 { margin: 0; font: 700 16px var(--f-ui); }
+  .mx-head h3:focus { outline: none; }
+  .mx-head small { color: var(--muted); font-size: 13px; }
+  .mx-list ul { list-style: none; margin: 0; padding: 0; overflow-y: auto; flex: 1; }
+  .mx-item { display: grid; grid-template-columns: 1fr auto; gap: 1px 8px; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--card-border); color: var(--text); font: inherit; font-size: 15px; padding: 10px 12px; cursor: pointer; }
+  .mx-item:hover { background: color-mix(in srgb, var(--gold) 7%, transparent); }
+  .mx-item.on { background: color-mix(in srgb, var(--gold) 15%, transparent); box-shadow: inset 3px 0 0 var(--gold); }
+  .mx-item:focus-visible { outline: 2px solid var(--text); outline-offset: -3px; }
+  .mx-n { display: flex; align-items: center; gap: 6px; min-width: 0; }
+  .mx-n b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mx-s, .mx-p { grid-column: 1 / -1; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mx-item.unread .mx-p { color: var(--text); font-weight: 600; }
+  .mx-item time { grid-row: 1; grid-column: 2; font-size: 12px; color: var(--muted); }
+  .mx-empty { align-items: center; justify-content: center; padding: 24px; text-align: center; color: var(--muted); }
+  .mx-back { display: none; white-space: nowrap; flex: none; }
+  .mx-log { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+  .mx-log:focus-visible { outline: 2px solid var(--gold); outline-offset: -3px; }
+  .mx-older { align-self: center; }
+  .card .mx-none { margin: auto; color: var(--muted); text-align: center; max-width: 360px; }
+  .bub { max-width: min(78%, 560px); padding: 9px 13px 6px; border-radius: 16px 16px 16px 4px; border: 1px solid var(--card-border); background: var(--bg); align-self: flex-start; }
+  .bub.me { align-self: flex-end; border-radius: 16px 16px 4px 16px; background: color-mix(in srgb, var(--gold) 20%, var(--card)); border-color: color-mix(in srgb, var(--gold) 45%, var(--card-border)); }
+  .card .bub p { margin: 0; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.4; }
+  .bt { display: flex; gap: 8px; justify-content: flex-end; align-items: center; margin-top: 3px; font-size: 12px; color: var(--muted); }
+  .bx { background: none; border: 0; color: var(--muted); cursor: pointer; font: inherit; padding: 0 2px; }
+  .bx:hover, .bx:focus-visible { color: var(--err); }
+  .reply { border-top: 1px solid var(--card-border); padding: 10px 12px; background: var(--bg); }
+  .reply textarea, .bd-new textarea { display: block; width: 100%; resize: vertical; min-height: 48px; max-height: 240px; font: 500 16px/1.4 var(--f-ui); color: var(--text); background: var(--card); border: 1px solid var(--card-border); border-radius: 10px; padding: 9px 11px; }
+  .reply textarea:focus, .bd-new textarea:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
+  .reply-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px 12px; margin-top: 8px; }
+  .reply-bar .hint { margin-right: auto; color: var(--muted); font-size: 12.5px; }
+  .ck { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .ck input { width: 17px; height: 17px; accent-color: #ffb547; }
+  .bd { margin-top: 14px; display: grid; gap: 14px; }
+  .bd-new { border: 1px solid var(--card-border); border-radius: 12px; padding: 12px; background: var(--bg); }
+  .bd-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+  .post { border: 1px solid var(--card-border); border-radius: 12px; padding: 12px 14px 8px; background: var(--card); }
+  .post.pin { border-color: color-mix(in srgb, var(--gold) 60%, var(--card-border)); }
+  .post.ann { border: 2px solid #ffb547; background: color-mix(in srgb, #ffb547 9%, var(--card)); }
+  .annl { font: 700 12px var(--f-ui); letter-spacing: .12em; text-transform: uppercase; color: var(--gold); margin-bottom: 4px; }
+  .ph { font-size: 13.5px; color: var(--muted); } .ph b { color: var(--text); }
+  .chip { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 1px 7px 0; border-radius: 999px; border: 1px solid var(--card-border); color: var(--muted); margin-left: 4px; }
+  .chip.new { background: var(--gold); color: #10131a; border-color: var(--gold); }
+  .card .ptext { margin: 6px 0 6px; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; }
+  .pa { display: flex; flex-wrap: wrap; gap: 2px 18px; }
+  .lnk { background: none; border: 0; padding: 6px 0; font: 700 14px var(--f-ui); color: var(--gold); cursor: pointer; }
+  .lnk.del { color: var(--muted); } .lnk.del:hover { color: var(--err); }
+  .lnk:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; border-radius: 4px; }
+  .replies { margin: 6px 0 6px; border-left: 3px solid var(--card-border); padding-left: 12px; }
+  .replies ul { list-style: none; margin: 0 0 8px; padding: 0; display: grid; gap: 10px; }
+  .card .rp p { margin: 2px 0 0; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.4; }
+  .replies .reply { border: 1px solid var(--card-border); border-radius: 10px; }
+  .bd-more { justify-self: center; }
+  @media (max-width: 720px) {
+    #views { display: grid; grid-template-columns: repeat(3, 1fr); border-radius: 14px; background: var(--bg); width: 100%; }
+    #views button { padding: 11px 6px 9px; white-space: nowrap; }
+    .mx { grid-template-columns: 1fr; height: auto; }
+    .mx.show-thread .mx-list, .mx:not(.show-thread) .mx-thread { display: none; }
+    .mx-list ul { max-height: 70vh; }
+    .mx-thread { height: calc(100vh - 120px); min-height: 420px; }
+    .mx-back { display: inline-block; }
+    .bub { max-width: 88%; }
+    .post { padding: 10px 12px 6px; }
+  }
+
   html:not([data-skin="classic"]) {
     --bg: #0f1a2b; --bg-glow: #0f1a2b; --card: #16233a; --card-border: #263a56;
     --text: #eef2f7; --muted: #a3b2c6; --gold: #ffcc66; --btn: #ffcc66; --btn-ink: #10131a; --err: #ff8a7a;
@@ -167,6 +241,8 @@
           <button type="button" data-v="assign" aria-pressed="false">Assign</button>
           <button type="button" data-v="tests" aria-pressed="false">Tests</button>
           <button type="button" data-v="feedback" aria-pressed="false">Feedback</button>
+          <button type="button" data-v="messages" aria-pressed="false">Messages<span class="rq" id="msgcount" hidden></span></button>
+          <button type="button" data-v="board" aria-pressed="false">Board<span class="nb" id="boardcount" hidden></span></button>
           <button type="button" data-v="admin" aria-pressed="false" hidden>Admin<span class="rq" id="rqcount" hidden></span></button>
         </div>
         <span class="grow"></span>
@@ -193,9 +269,12 @@
         <div class="tw"><table id="tbl"></table></div>
         <p class="note" id="note"></p>
       </div>
+      <div id="msgview" hidden></div>
+      <div id="boardview" hidden></div>
       <div id="assignbox" hidden><iframe id="aframe" title="Assign practice" style="width:100%;border:0;min-height:700px;margin-top:14px;background:transparent"></iframe></div>
     </section>
   </div>
+  <p class="sr" id="srlive" aria-live="polite"></p>
   <footer>Click any column heading to sort. Click again to reverse.</footer>
 </div>
 
@@ -403,6 +482,13 @@ function render() {
   const g = G[S.game]; document.documentElement.style.setProperty('--gc', g.color);
   document.querySelectorAll('.gt').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.g === S.game)));
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view)));
+  const social = S.view === 'messages' || S.view === 'board';
+  $('msgview').hidden = S.view !== 'messages'; $('boardview').hidden = S.view !== 'board'; document.querySelector('footer').hidden = social; $('games').hidden = social; syncHash();
+  if (social) {
+    ['upbox', 'adminsum', 'adminacc', 'data', 'assignbox', 'testsbox', 'newtestbox', 'csv'].forEach(id => { $(id).hidden = true; });
+    $('cls').closest('label').hidden = true; $('rng').closest('label').hidden = true;
+    return S.view === 'messages' ? renderMessages() : renderBoard();
+  }
   const asg = S.view === 'assign', nt = S.view === 'newtest', ts = S.view === 'tests', ad = S.view === 'admin';
   $('upbox').hidden = !ts; $('adminsum').hidden = !ad; $('adminacc').hidden = !ad;
   $('data').hidden = asg || nt; $('assignbox').hidden = !asg; $('testsbox').hidden = !ts; $('newtestbox').hidden = !nt; $('csv').hidden = asg || nt;
@@ -427,6 +513,7 @@ function render() {
 }
 async function load() {
   if (S.view === 'assign' || S.view === 'newtest') { render(); return; }
+  if (S.view === 'messages' || S.view === 'board') { msg(''); render(); return S.view === 'messages' ? openMessages() : openBoard(); }
   msg(''); S.rows = []; S.loading++; render();
   const my = ++load.n;
   try {
@@ -673,6 +760,472 @@ function showAssign() {
   }
 }
 
+// ---------- Messages (admin <-> each teacher) and the Teacher Board (added 2026-10-18) ----------
+// teacher_threads/{email}: { email, name, school, last_at, last_text, last_from, unread_admin, unread_teacher }
+//   + /messages/{id}: { from: 'admin'|'teacher', text, at }
+// teacher_board/{id}: { author_email, author_name, author_school, text, pinned, announce, created_at, last_at, reply_count }
+//   + /replies/{id}: { author_email, author_name, author_school, text, at }
+// Reads stay small: the tab counts are one query of teacher_threads (admin) or one getDoc (teacher) on sign-in and every
+// 2 minutes; the Board count comes from the first Board page (pinned posts + the 30 latest), read once on sign-in.
+const PV_TEACHER = PREVIEW && new URLSearchParams(location.search).get('as') === 'teacher';
+const amAdmin = () => (PREVIEW ? !PV_TEACHER : ADMIN_EMAILS.includes(S.email));
+const MSG_MAX = 1000, PAGE_MSG = 50, PAGE_POST = 30;
+const KEY = /Mac|iPhone|iPad/.test(navigator.platform || '') ? '⌘' : 'Ctrl';
+S.me = null; S.drafts = {};
+S.mx = { threads: {}, mine: null, teachers: null, open: '', msgs: [], cursor: null, more: false, compose: false, loading: false, unread: 0, bottom: false, busy: false };
+S.bd = { posts: [], cursor: null, more: false, loadedAt: 0, open: new Set(), replies: {}, newIds: new Set(), busy: false, loading: false };
+const socialErr = e => (e && e.code === 'permission-denied' ? 'Messages and the Board aren’t switched on yet: the new Firebase rules need to be published.' : errText(e));
+const clean = t => String(t || '').replace(/\r\n?/g, '\n').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, '').trim();
+function sr(t) { const e = $('srlive'); e.textContent = ''; setTimeout(() => { e.textContent = t; }, 40); }
+function shortWhen(v) {
+  const ms = toMs(v); if (!ms) return ''; const d = new Date(ms);
+  return ymd(d) === ymd(new Date()) ? d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+// ----- the database (Firestore), or an in-memory copy for ?preview=1 -----
+function threadMeta(fs, email, from, text, who) {
+  return { email, name: String(who.name || '').slice(0, 60), school: String(who.school || '').slice(0, 80), last_at: fs.serverTimestamp(), last_text: text.slice(0, 120), last_from: from,
+    unread_admin: from === 'teacher' ? fs.increment(1) : 0, unread_teacher: from === 'admin' ? fs.increment(1) : 0 };
+}
+const postOf = d => ({ id: d.id, ...d.data() });
+const REAL = {
+  me: email => run(async ({ fs, db }) => { const d = await fs.getDoc(fs.doc(db, 'teachers', email)); return d.exists() ? d.data() : null; }),
+  threads: () => run(async ({ fs, db }) => (await fs.getDocs(fs.collection(db, 'teacher_threads'))).docs.map(d => ({ ...d.data(), email: d.id }))),
+  thread: email => run(async ({ fs, db }) => { const d = await fs.getDoc(fs.doc(db, 'teacher_threads', email)); return d.exists() ? { ...d.data(), email } : null; }),
+  teachers: () => run(async ({ fs, db }) => (await fs.getDocs(fs.collection(db, 'teachers'))).docs.map(d => ({ ...d.data(), email: d.id }))),
+  messages: (email, cursor) => run(async ({ fs, db }) => {
+    const q = [fs.collection(db, 'teacher_threads', email, 'messages'), fs.orderBy('at', 'desc')];
+    if (cursor) q.push(fs.startAfter(cursor)); q.push(fs.limit(PAGE_MSG));
+    const snap = await fs.getDocs(fs.query(...q));
+    return { list: snap.docs.map(d => ({ id: d.id, ...d.data() })).reverse(), cursor: snap.docs[snap.docs.length - 1] || null, more: snap.docs.length === PAGE_MSG };
+  }),
+  send: (email, from, text, who) => run(async ({ fs, db }) => {
+    const b = fs.writeBatch(db), ref = fs.doc(fs.collection(db, 'teacher_threads', email, 'messages'));
+    b.set(ref, { from, text, at: fs.serverTimestamp() });
+    b.set(fs.doc(db, 'teacher_threads', email), threadMeta(fs, email, from, text, who), { merge: true });
+    await b.commit(); return ref.id;
+  }),
+  sendAll: (list, text) => run(async ({ fs, db }) => {
+    for (let i = 0; i < list.length; i += 200) {   // 2 writes per teacher, 500 writes per batch at most
+      const b = fs.writeBatch(db);
+      list.slice(i, i + 200).forEach(t => {
+        b.set(fs.doc(fs.collection(db, 'teacher_threads', t.email, 'messages')), { from: 'admin', text, at: fs.serverTimestamp() });
+        b.set(fs.doc(db, 'teacher_threads', t.email), threadMeta(fs, t.email, 'admin', text, t), { merge: true });
+      });
+      await b.commit();
+    }
+  }),
+  markRead: (email, side) => run(({ fs, db }) => fs.updateDoc(fs.doc(db, 'teacher_threads', email), { ['unread_' + side]: 0 })),
+  delMessage: (email, id, lastText) => run(async ({ fs, db }) => {
+    const b = fs.writeBatch(db); b.delete(fs.doc(db, 'teacher_threads', email, 'messages', id));
+    if (lastText != null) b.update(fs.doc(db, 'teacher_threads', email), { last_text: lastText });
+    await b.commit();
+  }),
+  pinned: () => run(async ({ fs, db }) => (await fs.getDocs(fs.query(fs.collection(db, 'teacher_board'), fs.where('pinned', '==', true)))).docs.map(postOf)),
+  posts: cursor => run(async ({ fs, db }) => {
+    const q = [fs.collection(db, 'teacher_board'), fs.orderBy('last_at', 'desc')];
+    if (cursor) q.push(fs.startAfter(cursor)); q.push(fs.limit(PAGE_POST));
+    const snap = await fs.getDocs(fs.query(...q));
+    return { list: snap.docs.map(postOf), cursor: snap.docs[snap.docs.length - 1] || null, more: snap.docs.length === PAGE_POST };
+  }),
+  addPost: d => run(async ({ fs, db }) => (await fs.addDoc(fs.collection(db, 'teacher_board'), { ...d, created_at: fs.serverTimestamp(), last_at: fs.serverTimestamp(), reply_count: 0 })).id),
+  replies: id => run(async ({ fs, db }) => (await fs.getDocs(fs.query(fs.collection(db, 'teacher_board', id, 'replies'), fs.orderBy('at', 'asc'), fs.limit(300)))).docs.map(postOf)),
+  addReply: (id, d) => run(async ({ fs, db }) => {
+    const b = fs.writeBatch(db), ref = fs.doc(fs.collection(db, 'teacher_board', id, 'replies'));
+    b.set(ref, { ...d, at: fs.serverTimestamp() });
+    b.update(fs.doc(db, 'teacher_board', id), { last_at: fs.serverTimestamp(), reply_count: fs.increment(1) });
+    await b.commit(); return ref.id;
+  }),
+  delReply: (id, rid) => run(async ({ fs, db }) => {
+    const b = fs.writeBatch(db); b.delete(fs.doc(db, 'teacher_board', id, 'replies', rid));
+    b.update(fs.doc(db, 'teacher_board', id), { reply_count: fs.increment(-1) }); await b.commit();
+  }),
+  delPost: id => run(async ({ fs, db }) => {   // its replies first (in batches), then the post
+    const reps = (await fs.getDocs(fs.collection(db, 'teacher_board', id, 'replies'))).docs;
+    for (let i = 0; i < reps.length; i += 450) { const b = fs.writeBatch(db); reps.slice(i, i + 450).forEach(d => b.delete(d.ref)); await b.commit(); }
+    await fs.deleteDoc(fs.doc(db, 'teacher_board', id));
+  }),
+  setFlag: (id, k, v) => run(({ fs, db }) => fs.updateDoc(fs.doc(db, 'teacher_board', id), { [k]: v })),
+};
+const MEM = (() => {   // ?preview=1: sample teachers, conversations and Board posts, kept in memory only
+  const now = Date.now(), MIN = 60000, H = 60 * MIN, D = 24 * H; let n = 0; const nid = p => p + (++n);
+  const later = f => new Promise(r => setTimeout(() => r(f()), 90));
+  const T = [{ email: 'a.lopez@sample', name: 'Ana Lopez', school: 'EHT High School' }, { email: 'r.kim@sample', name: 'Ron Kim', school: 'EHT High School' },
+    { email: 'j.shaw@sample', name: 'Jo Shaw', school: 'Middle School' }, { email: 'p.rivera@sample', name: 'Pat Rivera', school: 'Lincoln Elementary' }];
+  const msgs = {}, th = {};
+  const put = (email, from, text, at) => {
+    const id = nid('m'); (msgs[email] = msgs[email] || []).push({ id, from, text, at });
+    const t = th[email] || (th[email] = { email, name: (T.find(x => x.email === email) || {}).name || '', school: (T.find(x => x.email === email) || {}).school || '', unread_admin: 0, unread_teacher: 0 });
+    Object.assign(t, { last_at: at, last_text: text.slice(0, 120), last_from: from });
+    if (from === 'admin') { t.unread_teacher++; t.unread_admin = 0; } else { t.unread_admin++; t.unread_teacher = 0; }
+    return id;
+  };
+  put('a.lopez@sample', 'teacher', 'Hi David! My 5th period loved Rooftop Runner today.', now - 2 * D);
+  put('a.lopez@sample', 'admin', 'So glad to hear it! Did the class code work for everyone?', now - 2 * D + 40 * MIN);
+  put('a.lopez@sample', 'teacher', 'Yes, all 28 got in. Can I give a test in Tidal Tones?', now - 3 * H);
+  put('a.lopez@sample', 'teacher', 'Also, is there a way to see minutes per student for the whole week?', now - 2 * H);
+  put('r.kim@sample', 'teacher', 'Thanks for setting me up!', now - 6 * D);
+  put('r.kim@sample', 'admin', 'Welcome aboard, Ron! Let me know if anything is confusing. The Board tab is a good place to ask the other teachers too.', now - 5 * D);
+  for (let i = 0; i < 56; i++) put('j.shaw@sample', i % 3 ? 'teacher' : 'admin', `Message ${i + 1}: notes about scales, key signatures and how the class is doing.`, now - 9 * D + i * 3 * H);
+  th['j.shaw@sample'].unread_admin = 0; th['j.shaw@sample'].unread_teacher = 0;
+  const TX = ['Has anyone tried Earshot Saloon as a warm-up? My 7th graders asked for it every day this week.', 'Tip: project Scale Quest on the board and let teams shout answers. Instant energy.',
+    'How long do you give for a Tidal Tones test? I was thinking 10 minutes.', 'Rhythm Trainer level 3 is a big jump for my 4th graders. Anyone else see that?',
+    'My students compete for the Practice Hero badges. Gold is the big goal right now.', 'Is there a way to print a class code card? I keep writing it on the board.',
+    'Rooftop Runner on iPads works great with the on-screen buttons.', 'We did a week of only key signatures. Scores went way up on the unit test.',
+    'Anyone using the games with chorus kids? Looking for sight-reading ideas.', 'Quick question: do guests count on the leaderboards?',
+    'I assign 15 minutes a week and check the Progress tab on Fridays.', 'The feedback button is gold. My students found a typo for me.'];
+  const posts = [], reps = {};
+  const addP = (o) => { const p = { id: nid('p'), pinned: false, announce: false, reply_count: 0, ...o }; posts.push(p); return p; };
+  addP({ author_email: 'sample@preview', author_name: 'David Milnes', author_school: 'EHT High School', text: 'Welcome to the Teacher Board! Share what works in your classes, ask questions and post ideas. Please keep student names out of posts.', pinned: true, announce: true, created_at: now - 12 * D, last_at: now - 12 * D });
+  for (let i = 0; i < 36; i++) { const t = T[i % 4]; addP({ author_email: t.email, author_name: t.name, author_school: t.school, text: TX[i % TX.length] + (i >= TX.length ? ` (${['again', 'follow-up', 'part 2'][Math.floor(i / TX.length) - 1]})` : ''), created_at: now - (i * 9 + 2) * H, last_at: now - (i * 9 + 2) * H }); }
+  const addR = (p, t, text, ago) => { (reps[p.id] = reps[p.id] || []).push({ id: nid('r'), author_email: t.email, author_name: t.name, author_school: t.school, text, at: now - ago }); p.reply_count++; p.last_at = Math.max(p.last_at, now - ago); };
+  addR(posts[1], T[1], 'Yes! I use it the first 5 minutes. The posters are a hit.', 60 * MIN);
+  addR(posts[1], { email: 'sample@preview', name: 'David Milnes', school: 'EHT High School' }, 'Love this. Medium difficulty is a good start.', 30 * MIN);
+  addR(posts[3], T[2], 'I give 8 minutes and two tries.', 5 * H);
+  const ME = { email: 'sample@preview', name: 'David Milnes', school: 'EHT High School' };
+  const copy = o => ({ ...o });
+  return {
+    me: email => later(() => email === ME.email ? { name: ME.name, school: ME.school } : (T.find(t => t.email === email) || null)),
+    threads: () => later(() => Object.values(th).map(copy)),
+    thread: email => later(() => th[email] ? copy(th[email]) : null),
+    teachers: () => later(() => T.map(copy)),
+    messages: (email, cur) => later(() => { const all = (msgs[email] || []).slice().sort((a, b) => a.at - b.at), end = cur == null ? all.length : cur, start = Math.max(0, end - PAGE_MSG); return { list: all.slice(start, end).map(copy), cursor: start, more: start > 0 }; }),
+    send: (email, from, text, who) => later(() => { if (!th[email]) th[email] = { email, name: who.name || '', school: who.school || '', unread_admin: 0, unread_teacher: 0 }; return put(email, from, text, Date.now()); }),
+    sendAll: (list, text) => later(() => list.forEach(t => { if (!th[t.email]) th[t.email] = { email: t.email, name: t.name || '', school: t.school || '', unread_admin: 0, unread_teacher: 0 }; put(t.email, 'admin', text, Date.now()); })),
+    markRead: (email, side) => later(() => { if (th[email]) th[email]['unread_' + side] = 0; }),
+    delMessage: (email, id, lastText) => later(() => { msgs[email] = (msgs[email] || []).filter(m => m.id !== id); if (lastText != null && th[email]) th[email].last_text = lastText; }),
+    pinned: () => later(() => posts.filter(p => p.pinned).map(copy)),
+    posts: cur => later(() => { const all = posts.slice().sort((a, b) => b.last_at - a.last_at), s = cur || 0, list = all.slice(s, s + PAGE_POST); return { list: list.map(copy), cursor: s + list.length, more: s + list.length < all.length }; }),
+    addPost: d => later(() => addP({ ...d, created_at: Date.now(), last_at: Date.now() }).id),
+    replies: id => later(() => (reps[id] || []).map(copy)),
+    addReply: (id, d) => later(() => { const rid = nid('r'); (reps[id] = reps[id] || []).push({ ...d, id: rid, at: Date.now() }); const p = posts.find(x => x.id === id); if (p) { p.last_at = Date.now(); p.reply_count++; } return rid; }),
+    delReply: (id, rid) => later(() => { reps[id] = (reps[id] || []).filter(r => r.id !== rid); const p = posts.find(x => x.id === id); if (p) p.reply_count = Math.max(0, p.reply_count - 1); }),
+    delPost: id => later(() => { delete reps[id]; const i = posts.findIndex(p => p.id === id); if (i >= 0) posts.splice(i, 1); }),
+    setFlag: (id, k, v) => later(() => { const p = posts.find(x => x.id === id); if (p) p[k] = v; }),
+  };
+})();
+const API = PREVIEW ? MEM : REAL;
+
+async function loadMe() {
+  if (S.me) return S.me;
+  let d = null; try { d = await API.me(S.email); } catch (e) {}
+  S.me = { name: String((d && d.name) || (amAdmin() ? 'Mr. Milnes' : S.email.split('@')[0])).slice(0, 60), school: String((d && d.school) || '').slice(0, 80) };
+  return S.me;
+}
+function setBadge(v, n) {
+  const b = $('views').querySelector(`[data-v=${v}]`), c = $(v === 'messages' ? 'msgcount' : 'boardcount');
+  c.hidden = !n; c.textContent = n > 99 ? '99+' : String(n);
+  if (v === 'messages') b.classList.toggle('waiting', n > 0);
+  b.title = n ? (v === 'messages' ? `${n} unread message${n > 1 ? 's' : ''}` : `${n} new on the Board since your last visit`) : '';
+}
+// After a draft-keeping re-render: put focus and the message list's scroll position back.
+function keepFocus(box, fn) {
+  const a = document.activeElement, fk = a && box.contains(a) && a.dataset ? a.dataset.draft : '', sel = fk && a.tagName === 'TEXTAREA' ? [a.selectionStart, a.selectionEnd] : null;
+  const log = box.querySelector('.mx-log'), st = log ? log.scrollTop : 0;
+  fn();
+  box.querySelectorAll('[data-draft]').forEach(t => { const v = S.drafts[t.dataset.draft]; if (t.type === 'checkbox') t.checked = !!v; else { t.value = v || ''; countChars(t); } });
+  if (fk) { const t = box.querySelector(`[data-draft="${CSS.escape(fk)}"]`); if (t) { t.focus(); if (sel) t.setSelectionRange(sel[0], sel[1]); } }
+  const nl = box.querySelector('.mx-log'); if (nl) nl.scrollTop = st;
+}
+function countChars(t) { const c = t.closest('form') && t.closest('form').querySelector('[data-cnt]'); if (c) c.textContent = t.value.length; }
+function replyForm(key, ph, btn, extra = '') {
+  return `<form class="reply" data-form="${esc(key)}"><label class="sr" for="ta-${esc(key)}">${esc(ph)}</label><textarea id="ta-${esc(key)}" data-draft="${esc(key)}" maxlength="${MSG_MAX}" rows="2" placeholder="${esc(ph)}"></textarea>
+    <div class="reply-bar"><small class="hint">${KEY}+Enter sends · <span data-cnt>0</span>/${MSG_MAX}</small>${extra}<button class="btn sm" type="submit">${esc(btn)}</button></div></form>`;
+}
+
+// ----- Messages -----
+const myThread = () => (amAdmin() ? S.mx.threads[S.mx.open] : S.mx.mine);
+const mySide = () => (amAdmin() ? 'admin' : 'teacher');
+function recountInbox() {
+  S.mx.unread = amAdmin() ? Object.values(S.mx.threads).reduce((s, t) => s + (+t.unread_admin || 0), 0) : (+(S.mx.mine && S.mx.mine.unread_teacher) || 0);
+  setBadge('messages', S.mx.unread);
+}
+async function checkInbox() {
+  if (!S.email) return;
+  const before = S.mx.unread;
+  try {
+    if (amAdmin()) S.mx.threads = Object.fromEntries((await API.threads()).map(t => [t.email, t]));
+    else S.mx.mine = await API.thread(S.email);
+  } catch (e) { console.warn('messages:', e && e.code); return; }
+  recountInbox();
+  if (S.view !== 'messages' || document.hidden) { if (S.mx.unread > before) sr(`${S.mx.unread} unread message${S.mx.unread > 1 ? 's' : ''}.`); return; }
+  const t = myThread(), open = amAdmin() ? S.mx.open : S.email;
+  if (open && t && +t['unread_' + mySide()] > 0 && !S.mx.compose) await openThread(open, { quiet: true });
+  else renderMessages();
+}
+function teacherInfo(email) {
+  return (S.mx.teachers || []).find(t => t.email === email) || S.mx.threads[email] || { email, name: email, school: '' };
+}
+const isAdminEmail = e => ADMIN_EMAILS.includes(e) || e === 'sample@preview';
+function convRows() {
+  const by = {};
+  (S.mx.teachers || []).forEach(t => { if (!isAdminEmail(t.email)) by[t.email] = { email: t.email, name: t.name || t.email, school: t.school || '' }; });
+  Object.values(S.mx.threads).forEach(t => { if (isAdminEmail(t.email)) return; const r = by[t.email] || (by[t.email] = { email: t.email, name: t.name || t.email, school: t.school || '' }); Object.assign(r, { last_at: t.last_at, last_text: t.last_text, last_from: t.last_from, unread: +t.unread_admin || 0 }); });
+  return Object.values(by).sort((a, b) => (toMs(b.last_at) - toMs(a.last_at)) || String(a.name).localeCompare(String(b.name)));
+}
+const allTargets = () => (S.mx.teachers || []).filter(t => !isAdminEmail(t.email));
+async function openMessages() {
+  const mx = S.mx; mx.reveal = true;
+  if (amAdmin()) {
+    mx.loading = true; renderMessages();
+    try {
+      const [list, ts] = await Promise.all([API.threads(), API.teachers()]);
+      mx.threads = Object.fromEntries(list.map(t => [t.email, t])); mx.teachers = ts;
+    } catch (e) { msg(socialErr(e)); }
+    mx.loading = false; recountInbox();
+    if (mx.open && !mx.compose) return openThread(mx.open, { quiet: true });
+    return renderMessages();
+  }
+  try { mx.mine = await API.thread(S.email); } catch (e) { msg(socialErr(e)); }
+  return openThread(S.email, { quiet: true });
+}
+async function openThread(email, opt = {}) {
+  const mx = S.mx, same = mx.open === email;
+  if (!opt.quiet) mx.reveal = true;
+  const seen = new Set(same ? mx.msgs.map(m => m.id) : []);
+  mx.open = email;
+  mx.compose = false;
+  if (!same) { mx.msgs = []; mx.more = false; mx.cursor = null; }
+  mx.loading = true; if (!same) renderMessages();
+  try {
+    const r = await API.messages(email, null);
+    const older = same ? mx.msgs.filter(m => !r.list.some(x => x.id === m.id) && toMs(m.at) < toMs((r.list[0] || {}).at)) : [];
+    mx.msgs = older.concat(r.list); if (!older.length) { mx.cursor = r.cursor; mx.more = r.more; }
+    const fresh = same && seen.size ? r.list.filter(m => !seen.has(m.id) && m.from !== mySide()) : [];
+    if (fresh.length) sr(`New message${fresh.length > 1 ? 's' : ''} from ${amAdmin() ? teacherInfo(email).name : 'Mr. Milnes'}: ${fresh[fresh.length - 1].text.slice(0, 140)}`);
+    const t = myThread(), side = mySide();
+    if (t && +t['unread_' + side] > 0) { await API.markRead(email, side); t['unread_' + side] = 0; recountInbox(); }
+  } catch (e) { msg(errText(e)); }
+  mx.loading = false; mx.bottom = true; renderMessages();
+  if (!opt.quiet) { const h = $('mx-title'); if (h) h.focus(); }
+}
+async function showOlderMsgs() {
+  const mx = S.mx, email = amAdmin() ? mx.open : S.email; if (!mx.more) return;
+  const log = $('mx-log'), h0 = log ? log.scrollHeight : 0, t0 = log ? log.scrollTop : 0;
+  try { const r = await API.messages(email, mx.cursor); mx.msgs = r.list.concat(mx.msgs); mx.cursor = r.cursor; mx.more = r.more; } catch (e) { return msg(errText(e)); }
+  renderMessages(); const l = $('mx-log'); if (l) l.scrollTop = l.scrollHeight - h0 + t0;
+  const f = $('mx-log') && $('mx-log').querySelector('.bub'); if (f) f.setAttribute('tabindex', '-1'), f.focus({ preventScroll: true });
+}
+async function sendMsg(form) {
+  const ta = form.querySelector('textarea'), text = clean(ta.value), mx = S.mx;
+  if (!text) { msg('Write a message first.'); ta.focus(); return; }
+  if (mx.busy) return; mx.busy = true; form.querySelector('[type=submit]').disabled = true;
+  const admin = amAdmin(), email = admin ? mx.open : S.email, from = mySide();
+  try {
+    const who = admin ? teacherInfo(email) : await loadMe();
+    const id = await API.send(email, from, text, who);
+    mx.msgs.push({ id, from, text, at: Date.now() });
+    const t = (admin ? mx.threads[email] : mx.mine) || { email, name: who.name || '', school: who.school || '', unread_admin: 0, unread_teacher: 0 };
+    Object.assign(t, { last_at: Date.now(), last_text: text.slice(0, 120), last_from: from, ['unread_' + from]: 0 });
+    t['unread_' + (from === 'admin' ? 'teacher' : 'admin')] = (+t['unread_' + (from === 'admin' ? 'teacher' : 'admin')] || 0) + 1;
+    if (admin) mx.threads[email] = t; else mx.mine = t;
+    delete S.drafts[ta.dataset.draft]; msg(''); mx.bottom = true; sr('Message sent.');
+  } catch (e) { msg(errText(e)); }
+  mx.busy = false; renderMessages();
+  const nt = $('msgview').querySelector('textarea'); if (nt) nt.focus();
+}
+async function sendAllMsg(form) {
+  const ta = form.querySelector('textarea'), text = clean(ta.value), list = allTargets(), mx = S.mx;
+  if (!text) { msg('Write a message first.'); ta.focus(); return; }
+  if (!list.length) { msg('There are no approved teachers to send to yet.'); return; }
+  if (!confirm(`Send this message to all ${list.length} teacher${list.length > 1 ? 's' : ''}? Each one gets it in their own private conversation.\n\n"${text.slice(0, 160)}${text.length > 160 ? '…' : ''}"`)) return;
+  if (mx.busy) return; mx.busy = true; form.querySelector('[type=submit]').disabled = true;
+  try {
+    await API.sendAll(list, text);
+    const now = Date.now();
+    list.forEach(tc => { const t = mx.threads[tc.email] || (mx.threads[tc.email] = { email: tc.email, name: tc.name || '', school: tc.school || '', unread_admin: 0, unread_teacher: 0 }); Object.assign(t, { last_at: now, last_text: text.slice(0, 120), last_from: 'admin', unread_admin: 0, unread_teacher: (+t.unread_teacher || 0) + 1 }); });
+    delete S.drafts.all; mx.compose = false; recountInbox(); msg(`Sent to ${list.length} teacher${list.length > 1 ? 's' : ''}.`, true); sr(`Sent to ${list.length} teachers.`);
+  } catch (e) { msg(errText(e)); }
+  mx.busy = false; renderMessages();
+}
+async function deleteMsg(id) {
+  const mx = S.mx, email = mx.open, i = mx.msgs.findIndex(m => m.id === id); if (i < 0) return;
+  if (!confirm('Delete this message for both of you? This can\'t be undone.')) return;
+  const t = mx.threads[email], wasLast = i === mx.msgs.length - 1, prev = mx.msgs[i - 1];
+  // keep the conversation preview honest without changing who wrote last (the rules keep last_from as is)
+  const lastText = wasLast && t ? (prev && prev.from === t.last_from ? prev.text.slice(0, 120) : '(message deleted)') : null;
+  try { await API.delMessage(email, id, lastText); mx.msgs.splice(i, 1); if (lastText != null && t) t.last_text = lastText; sr('Message deleted.'); } catch (e) { msg(errText(e)); }
+  renderMessages();
+}
+function bubbleHTML(m, admin) {
+  const mine = (m.from === 'admin') === admin, who = mine ? 'You' : admin ? teacherInfo(S.mx.open).name : 'Mr. Milnes';
+  return `<div class="bub ${mine ? 'me' : 'them'}" role="article" aria-label="${esc(who)}, ${esc(fmtDate(toMs(m.at)))}"><p>${esc(m.text)}</p><span class="bt"><time>${esc(fmtDate(toMs(m.at)))}</time>${admin ? `<button class="bx" type="button" data-delmsg="${esc(m.id)}" aria-label="Delete this message" title="Delete">✕</button>` : ''}</span></div>`;
+}
+function threadHTML(email) {
+  const admin = amAdmin(), mx = S.mx, info = admin ? teacherInfo(email) : null;
+  const title = admin ? (info.name || email) : 'Mr. Milnes', sub = admin ? [info.school, email].filter(Boolean).join(' · ') : 'Private: only you and Mr. Milnes can read this.';
+  const empty = mx.loading ? 'Loading…' : admin ? `No messages with ${esc(title)} yet. Say hello below.` : 'Say hi to Mr. Milnes: questions, ideas, how it’s going.';
+  return `<section class="mx-thread" aria-label="Conversation with ${esc(title)}">
+    <div class="mx-head">${admin ? '<button class="btn ghost sm mx-back" type="button" data-mx="back">← Teachers</button>' : ''}<div><h3 tabindex="-1" id="mx-title">${esc(title)}</h3><small>${esc(sub)}</small></div></div>
+    <div class="mx-log" id="mx-log" tabindex="0" aria-label="Messages, newest at the bottom">${mx.more ? '<button class="btn ghost sm mx-older" type="button" data-mx="older">Show older</button>' : ''}${mx.msgs.map(m => bubbleHTML(m, admin)).join('') || `<p class="mx-none">${empty}</p>`}</div>
+    ${replyForm(admin ? 'mx:' + email : 'mx', admin ? `Write to ${title}…` : 'Write to Mr. Milnes…', 'Send')}
+  </section>`;
+}
+function composeHTML() {
+  const n = allTargets().length;
+  return `<section class="mx-thread" aria-label="Message to all teachers">
+    <div class="mx-head"><button class="btn ghost sm mx-back" type="button" data-mx="back">← Teachers</button><div><h3 tabindex="-1" id="mx-title">✉ All teachers</h3><small>One message, written into each teacher’s own private conversation (${n} teacher${n === 1 ? '' : 's'}). Their replies come back to you one by one.</small></div></div>
+    <div class="mx-log"><p class="mx-none">Good for news everyone should see. For a discussion among teachers, post on the Board instead.</p></div>
+    ${replyForm('all', 'Write to every teacher…', `Send to ${n}`, '<button class="btn ghost sm" type="button" data-mx="back">Cancel</button>')}
+  </section>`;
+}
+function renderMessages() {
+  const box = $('msgview'); if (S.view !== 'messages') return;
+  const mx = S.mx, admin = amAdmin();
+  keepFocus(box, () => {
+    if (!admin) { box.innerHTML = `<div class="mx solo show-thread">${threadHTML(S.email)}</div>`; return; }
+    const rows = convRows();
+    const list = `<aside class="mx-list" aria-label="Conversations"><div class="mx-top"><h3>Teachers</h3><button class="btn sm" type="button" data-mx="all"${allTargets().length ? '' : ' disabled'}>✉ All teachers</button></div>
+      <ul>${rows.length ? rows.map(r => `<li><button type="button" class="mx-item${r.email === mx.open && !mx.compose ? ' on' : ''}${r.unread ? ' unread' : ''}" data-open="${esc(r.email)}"${r.email === mx.open && !mx.compose ? ' aria-current="true"' : ''}>
+        <span class="mx-n"><b>${esc(r.name)}</b>${r.unread ? `<span class="rq" aria-label="${r.unread} unread">${r.unread}</span>` : ''}</span>${r.last_at ? `<time>${esc(shortWhen(r.last_at))}</time>` : ''}
+        <span class="mx-s">${esc(r.school || r.email)}</span><span class="mx-p">${r.last_text ? (r.last_from === 'admin' ? 'You: ' : '') + esc(r.last_text) : 'No messages yet'}</span></button></li>`).join('')
+        : `<li class="note" style="padding:12px">${mx.loading ? 'Loading…' : 'No approved teachers yet. Add them in the Admin tab.'}</li>`}</ul></aside>`;
+    const right = mx.compose ? composeHTML() : mx.open ? threadHTML(mx.open) : '<section class="mx-thread mx-empty"><p>Pick a teacher to read and reply, or send one message to every teacher with ✉ All teachers.</p></section>';
+    box.innerHTML = `<div class="mx${mx.open || mx.compose ? ' show-thread' : ''}">${list}${right}</div>`;
+  });
+  if (mx.bottom) { const l = $('mx-log'); if (l) l.scrollTop = l.scrollHeight; mx.bottom = false; }
+  // when a conversation opens, show all of it (the reply box included) without the reader scrolling
+  if (mx.reveal && !mx.loading) { mx.reveal = false; const t = box.querySelector('.mx-thread:not(.mx-empty)') || box.querySelector('.mx'); if (t) t.scrollIntoView({ block: 'nearest' }); }
+}
+
+// ----- Teacher Board -----
+const seenKey = () => 'mtg_board_seen_v1:' + S.email;
+function boardSeen() { try { const v = +localStorage.getItem(seenKey()); if (v) return v; } catch (e) {} return Date.now() - 7 * 86400000; }   // first visit: the last week counts as new
+function markBoardSeen() { try { localStorage.setItem(seenKey(), String(Date.now())); } catch (e) {} }
+const isNewPost = (p, seen) => toMs(p.last_at) > seen && !(p.author_email === S.email && !p.reply_count);
+function sortPosts(list) {
+  const by = new Map(); list.forEach(p => by.set(p.id, p));
+  return [...by.values()].sort((a, b) => (b.pinned - a.pinned) || (toMs(b.last_at) - toMs(a.last_at)));
+}
+async function loadBoardFirst() {
+  const bd = S.bd, [pins, page] = await Promise.all([API.pinned(), API.posts(null)]);
+  bd.posts = sortPosts([...pins, ...page.list]); bd.cursor = page.cursor; bd.more = page.more; bd.loadedAt = Date.now();
+  bd.replies = {}; bd.open = new Set([...bd.open].filter(id => bd.posts.some(p => p.id === id)));
+}
+async function checkBoard() {
+  if (!S.email || S.view === 'board') return;
+  try { await loadBoardFirst(); } catch (e) { console.warn('board:', e && e.code); return; }
+  const seen = boardSeen(); setBadge('board', S.bd.posts.filter(p => isNewPost(p, seen)).length);
+}
+async function openBoard() {
+  const bd = S.bd;
+  if (!bd.loadedAt || Date.now() - bd.loadedAt > 60000) { bd.loading = true; renderBoard(); try { await loadBoardFirst(); } catch (e) { msg(socialErr(e)); } bd.loading = false; }
+  const seen = boardSeen(); bd.newIds = new Set(bd.posts.filter(p => isNewPost(p, seen)).map(p => p.id));
+  markBoardSeen(); setBadge('board', 0); loadMe(); renderBoard();
+  await Promise.all([...bd.open].filter(id => !bd.replies[id]).map(loadReplies));
+}
+async function loadReplies(id) {
+  try { S.bd.replies[id] = await API.replies(id); } catch (e) { msg(socialErr(e)); S.bd.replies[id] = []; }
+  renderBoard();
+}
+function replyItemHTML(p, r) {
+  const canDel = amAdmin() || r.author_email === S.email;
+  return `<li class="rp"><div class="ph"><b>${esc(r.author_name || r.author_email)}</b>${r.author_school ? ' · ' + esc(r.author_school) : ''} · <time>${esc(fmtDate(toMs(r.at)))}</time>${canDel ? ` <button class="lnk del" type="button" data-delrep="${esc(p.id)}|${esc(r.id)}" style="padding:0 0 0 8px;font-size:13px">Delete</button>` : ''}</div><p>${esc(r.text)}</p></li>`;
+}
+function postHTML(p) {
+  const bd = S.bd, admin = amAdmin(), open = bd.open.has(p.id), reps = bd.replies[p.id], n = +p.reply_count || 0, canDel = admin || p.author_email === S.email;
+  return `<li class="post${p.announce ? ' ann' : ''}${p.pinned ? ' pin' : ''}" id="post-${esc(p.id)}">
+    ${p.announce ? '<div class="annl">📣 Announcement</div>' : ''}
+    <div class="ph"><b>${esc(p.author_name || p.author_email)}</b>${p.author_school ? ' · ' + esc(p.author_school) : ''} · <time>${esc(fmtDate(toMs(p.created_at)))}</time>${p.pinned ? '<span class="chip">📌 Pinned</span>' : ''}${bd.newIds.has(p.id) ? '<span class="chip new">New</span>' : ''}</div>
+    <p class="ptext">${esc(p.text)}</p>
+    <div class="pa"><button class="lnk" type="button" data-exp="${esc(p.id)}" aria-expanded="${open}" aria-controls="rep-${esc(p.id)}">💬 ${n ? n + (n === 1 ? ' reply' : ' replies') : 'Reply'}</button>${admin ? `<button class="lnk" type="button" data-pin="${esc(p.id)}">${p.pinned ? 'Unpin' : 'Pin'}</button>` : ''}${canDel ? `<button class="lnk del" type="button" data-delpost="${esc(p.id)}">Delete</button>` : ''}</div>
+    ${open ? `<div class="replies" id="rep-${esc(p.id)}">${reps ? (reps.length ? '<ul>' + reps.map(r => replyItemHTML(p, r)).join('') + '</ul>' : '') : '<p class="note" style="margin:4px 0 8px">Loading replies…</p>'}${replyForm('r:' + p.id, 'Write a reply…', 'Reply')}</div>` : ''}
+  </li>`;
+}
+function renderBoard() {
+  const box = $('boardview'); if (S.view !== 'board') return;
+  const bd = S.bd, admin = amAdmin();
+  keepFocus(box, () => {
+    box.innerHTML = `<div class="bd"><form class="bd-new" data-form="post"><label class="sr" for="ta-post">New post for every teacher</label><textarea id="ta-post" data-draft="post" maxlength="${MSG_MAX}" rows="3" placeholder="Share an idea or ask a question…"></textarea>
+      <div class="reply-bar"><small class="hint">Every teacher can read this. ${KEY}+Enter posts · <span data-cnt>0</span>/${MSG_MAX}</small>${admin ? '<label class="ck"><input type="checkbox" data-draft="pin"> 📌 Pin</label><label class="ck"><input type="checkbox" data-draft="ann"> 📣 Announcement</label>' : ''}<button class="btn sm" type="submit">Post</button></div></form>
+      <ul class="bd-list" aria-label="Board posts">${bd.posts.map(postHTML).join('') || `<li class="empty">${bd.loading ? 'Loading…' : 'Nothing here yet. Be the first to post!'}</li>`}</ul>
+      ${bd.more ? '<button class="btn ghost sm bd-more" type="button" data-bd="older">Show older</button>' : ''}</div>`;
+  });
+}
+async function addPost(form) {
+  const ta = form.querySelector('textarea'), text = clean(ta.value), bd = S.bd, admin = amAdmin();
+  if (!text) { msg('Write something first.'); ta.focus(); return; }
+  if (bd.busy) return; bd.busy = true; form.querySelector('[type=submit]').disabled = true;
+  try {
+    const me = await loadMe();
+    const d = { author_email: S.email, author_name: me.name, author_school: me.school, text, pinned: admin && !!S.drafts.pin, announce: admin && !!S.drafts.ann };
+    const id = await API.addPost(d);
+    bd.posts = sortPosts([{ ...d, id, created_at: Date.now(), last_at: Date.now(), reply_count: 0 }, ...bd.posts]);
+    delete S.drafts.post; delete S.drafts.pin; delete S.drafts.ann; markBoardSeen(); msg('Posted.', true); sr('Posted to the Board.');
+  } catch (e) { msg(errText(e)); }
+  bd.busy = false; renderBoard();
+}
+async function addReply(form, id) {
+  const ta = form.querySelector('textarea'), text = clean(ta.value), bd = S.bd, p = bd.posts.find(x => x.id === id);
+  if (!text) { msg('Write a reply first.'); ta.focus(); return; }
+  if (!p || bd.busy) return; bd.busy = true; form.querySelector('[type=submit]').disabled = true;
+  try {
+    const me = await loadMe(), d = { author_email: S.email, author_name: me.name, author_school: me.school, text };
+    const rid = await API.addReply(id, d);
+    (bd.replies[id] = bd.replies[id] || []).push({ ...d, id: rid, at: Date.now() }); p.reply_count = (+p.reply_count || 0) + 1; p.last_at = Date.now();
+    delete S.drafts['r:' + id]; markBoardSeen(); msg(''); sr('Reply posted.');
+  } catch (e) { msg(errText(e)); }
+  bd.busy = false; renderBoard();
+  const nt = $('boardview').querySelector(`[data-draft="r:${CSS.escape(id)}"]`); if (nt) nt.focus();
+}
+async function boardClick(e) {
+  const bd = S.bd, t = e.target.closest('button'); if (!t) return;
+  try {
+    if (t.dataset.exp) {
+      const id = t.dataset.exp; if (bd.open.has(id)) bd.open.delete(id); else bd.open.add(id);
+      renderBoard(); if (bd.open.has(id)) { const f = $('boardview').querySelector(`[data-draft="r:${CSS.escape(id)}"]`); if (f) f.focus({ preventScroll: true }); if (!bd.replies[id]) await loadReplies(id); }
+    } else if (t.dataset.pin) {
+      const p = bd.posts.find(x => x.id === t.dataset.pin); if (!p) return;
+      await API.setFlag(p.id, 'pinned', !p.pinned); p.pinned = !p.pinned; bd.posts = sortPosts(bd.posts); renderBoard(); sr(p.pinned ? 'Pinned.' : 'Unpinned.');
+    } else if (t.dataset.delpost) {
+      const p = bd.posts.find(x => x.id === t.dataset.delpost); if (!p) return; const n = +p.reply_count || 0;
+      if (!confirm(`Delete this post${n ? ` and its ${n} repl${n === 1 ? 'y' : 'ies'}` : ''}? This can't be undone.`)) return;
+      t.disabled = true; await API.delPost(p.id); bd.posts = bd.posts.filter(x => x !== p); bd.open.delete(p.id); delete bd.replies[p.id]; renderBoard(); msg('Post deleted.', true);
+    } else if (t.dataset.delrep) {
+      const [pid, rid] = t.dataset.delrep.split('|'), p = bd.posts.find(x => x.id === pid);
+      if (!confirm('Delete this reply? This can\'t be undone.')) return;
+      await API.delReply(pid, rid); bd.replies[pid] = (bd.replies[pid] || []).filter(r => r.id !== rid); if (p) p.reply_count = Math.max(0, (+p.reply_count || 0) - 1); renderBoard(); sr('Reply deleted.');
+    } else if (t.dataset.bd === 'older') {
+      t.disabled = true; const r = await API.posts(bd.cursor); const nIds = new Set(r.list.map(p => p.id));
+      bd.posts = bd.posts.concat(r.list.filter(p => !bd.posts.some(x => x.id === p.id))); bd.cursor = r.cursor; bd.more = r.more; renderBoard();
+      const first = [...$('boardview').querySelectorAll('.post')].find(li => nIds.has(li.id.slice(5))); if (first) { first.setAttribute('tabindex', '-1'); first.focus(); }
+    }
+  } catch (er) { msg(errText(er)); renderBoard(); }
+}
+function wireSocial() {
+  for (const box of [$('msgview'), $('boardview')]) {
+    box.addEventListener('input', e => { const t = e.target.closest('[data-draft]'); if (!t) return; S.drafts[t.dataset.draft] = t.type === 'checkbox' ? t.checked : t.value; if (t.tagName === 'TEXTAREA') countChars(t); });
+    box.addEventListener('change', e => { const t = e.target.closest('input[type=checkbox][data-draft]'); if (t) S.drafts[t.dataset.draft] = t.checked; });
+    box.addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && e.target.matches('textarea')) { e.preventDefault(); e.target.form.requestSubmit(); } });
+    box.addEventListener('submit', e => {
+      e.preventDefault(); const f = e.target, k = f.dataset.form;
+      if (k === 'all') sendAllMsg(f); else if (k === 'mx' || k.startsWith('mx:')) sendMsg(f); else if (k === 'post') addPost(f); else if (k.startsWith('r:')) addReply(f, k.slice(2));
+    });
+  }
+  $('msgview').addEventListener('click', e => {
+    const t = e.target.closest('button'); if (!t) return;
+    if (t.dataset.open) openThread(t.dataset.open);
+    else if (t.dataset.delmsg) deleteMsg(t.dataset.delmsg);
+    else if (t.dataset.mx === 'all') { S.mx.compose = true; S.mx.open = ''; renderMessages(); const ta = $('msgview').querySelector('textarea'); if (ta) ta.focus(); }
+    else if (t.dataset.mx === 'back') { S.mx.compose = false; S.mx.open = ''; renderMessages(); const b = $('msgview').querySelector('.mx-item'); if (b) b.focus(); }
+    else if (t.dataset.mx === 'older') showOlderMsgs();
+  });
+  $('boardview').addEventListener('click', boardClick);
+  addEventListener('hashchange', () => { const v = hashView(); if (v && S.email && S.view !== v) { S.view = v; load(); } });
+}
+const hashView = () => { const v = location.hash.slice(1); return v === 'messages' || v === 'board' ? v : ''; };
+function syncHash() {
+  const h = S.view === 'messages' || S.view === 'board' ? '#' + S.view : '';
+  if (location.hash !== h && (h || hashView())) history.replaceState(null, '', location.pathname + location.search + h);
+}
+// on sign-in: the two tab counts, then the message count every 2 minutes while the page is visible
+function startSocial() {
+  if (startSocial.on) { checkInbox(); checkBoard(); return; } startSocial.on = true;
+  if (S.view !== 'messages') checkInbox();
+  checkBoard(); loadMe();
+  setInterval(() => { if (!document.hidden) checkInbox(); }, 120000);
+}
+
 // ---------- CSV ----------
 function csv() {
   const cols = COLS[S.view].filter(c => c.t !== 'x'); const rows = visible();
@@ -711,6 +1264,7 @@ function wire() {
   $('tback').onclick = () => { S.view = 'tests'; load(); };
   $('ttoggle').onclick = () => testAction('toggle'); $('tdel').onclick = () => testAction('delete'); $('treset').onclick = resetStudent;
   $('signout').onclick = signOut;
+  wireSocial();
 }
 
 // ---------- sign in ----------
@@ -741,11 +1295,15 @@ async function signedIn(email) {
   $('views').querySelector('[data-v=admin]').hidden = !ADMIN_EMAILS.includes(email);
   $('gate').hidden = true; $('main').hidden = false;
   if (ADMIN_EMAILS.includes(email)) { checkRequests(); setInterval(() => { if (!document.hidden) checkRequests(); }, 120000); }
+  if (hashView()) S.view = hashView();
+  startSocial();
   await loadClasses();
 }
 async function signOut() {
   try { const { auth, authMod } = await fbAuth(); await authMod.signOut(auth); } catch {}
-  S.email = ''; S.classes = []; S.rows = []; signInScreen();
+  S.email = ''; S.classes = []; S.rows = []; S.me = null; S.drafts = {};
+  Object.assign(S.mx, { threads: {}, mine: null, teachers: null, open: '', msgs: [], compose: false, unread: 0 }); Object.assign(S.bd, { posts: [], loadedAt: 0, open: new Set(), replies: {} });
+  setBadge('messages', 0); setBadge('board', 0); signInScreen();
 }
 async function loadClasses() {
   try {
@@ -764,8 +1322,11 @@ function fillClasses() {
 async function start() {
   wire();
   if (PREVIEW) {
-    $('gate').hidden = true; $('main').hidden = false; $('who').innerHTML = 'Signed in as <b>sample@preview</b>'; $('views').querySelector('[data-v=admin]').hidden = false;
-    $('main').insertAdjacentHTML('afterbegin', '<div class="pv">Preview with sample students. Nothing here is real.</div>'); checkRequests();
+    S.email = PV_TEACHER ? 'r.kim@sample' : 'sample@preview';
+    $('gate').hidden = true; $('main').hidden = false; $('who').innerHTML = `Signed in as <b>${S.email}</b>`; $('views').querySelector('[data-v=admin]').hidden = PV_TEACHER;
+    $('main').insertAdjacentHTML('afterbegin', `<div class="pv">Preview with sample ${PV_TEACHER ? 'data, seen by a teacher (Ron Kim)' : 'students'}. Nothing here is real.</div>`); if (!PV_TEACHER) checkRequests();
+    if (hashView()) S.view = hashView();
+    startSocial();
     { const dk = n => ymd(new Date(Date.now() + n * 86400000)); S.classes = [{ code: 'PREVW', name: 'Period 3 Music Theory', hub_assignment: { start: dk(3), end: dk(9), tasks: [{ game: 'scale', skills: ['Major scales'], goal: 15, unit: 'minutes' }] } }, { code: 'PREV2', name: 'Period 5 Band', hub_assignment: { start: dk(-2), end: dk(4), tasks: [{ game: 'tidal', goal: 60, unit: 'answers' }] } }]; }
      return fillClasses();
   }
