@@ -66,6 +66,21 @@
   .seg { display: inline-flex; border: 1px solid var(--card-border); border-radius: 999px; overflow: hidden; }
   .seg button { font: 700 14px var(--f-ui); letter-spacing: .06em; text-transform: uppercase; background: var(--bg); color: var(--muted); border: 0; padding: 11px 18px 9px; cursor: pointer; }
   .seg button[aria-pressed="true"] { background: var(--gc); color: #10131a; }
+  /* Admin tab pulses (admin only) while teacher requests are waiting */
+  .seg button.waiting { position: relative; color: #10131a; background: #ffb547; animation: adminpulse 1.4s ease-in-out infinite; }
+  .seg button.waiting .rq { display: inline-block; min-width: 18px; margin-left: 6px; padding: 1px 5px 0; border-radius: 999px; background: #c0392b; color: #fff; font-size: 12px; letter-spacing: 0; }
+  @keyframes adminpulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,181,71,.75); } 50% { box-shadow: 0 0 0 8px rgba(255,181,71,0); filter: brightness(1.15); } }
+  @media (prefers-reduced-motion: reduce) { .seg button.waiting { animation: none; } }
+  .access { margin-top: 16px; display: grid; gap: 14px; }
+  .access h3 { font: 700 15px var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 6px 0 6px; }
+  .access .req { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; padding: 10px 14px; border: 2px solid #ffb547; border-radius: 12px; }
+  .access .req .who { flex: 1 1 260px; }
+  .access .req .who small, .access .tlist small { color: var(--muted); }
+  .access form { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: end; }
+  .access form label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .access form input { font: 600 15px var(--f-ui); padding: 9px 10px; border-radius: 10px; border: 1px solid var(--card-border); background: var(--bg); color: var(--text); min-width: 0; }
+  .access .tlist { display: grid; gap: 6px; }
+  .access .tlist div { display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--card-border); }
   .xseg .segl { font: 700 14px var(--f-ui); letter-spacing: .06em; text-transform: uppercase; background: var(--bg); color: var(--gold); text-decoration: none; padding: 11px 18px 9px; border-left: 1px solid var(--card-border); }
   .seg .segl:hover { color: var(--text); }
   .seg .segl:focus-visible { outline: 2px solid var(--text); outline-offset: -3px; }
@@ -152,7 +167,7 @@
           <button type="button" data-v="assign" aria-pressed="false">Assign</button>
           <button type="button" data-v="tests" aria-pressed="false">Tests</button>
           <button type="button" data-v="feedback" aria-pressed="false">Feedback</button>
-          <button type="button" data-v="admin" aria-pressed="false" hidden>Admin</button>
+          <button type="button" data-v="admin" aria-pressed="false" hidden>Admin<span class="rq" id="rqcount" hidden></span></button>
         </div>
         <span class="grow"></span>
         <button class="btn ghost sm" type="button" id="csv">Download CSV</button>
@@ -170,6 +185,7 @@
         </div>
         <p class="note" id="tmeta"></p>
       </div>
+      <div id="adminacc" class="access" hidden></div>
       <div id="adminsum" hidden></div>
       <div id="newtestbox" hidden><button class="btn ghost sm" type="button" id="tback" style="margin-top:14px">← Back to Tests</button><iframe id="tframe" title="Create a test" style="width:100%;border:0;min-height:700px;margin-top:8px;background:transparent"></iframe></div>
       <div id="data">
@@ -388,7 +404,7 @@ function render() {
   document.querySelectorAll('.gt').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.g === S.game)));
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view)));
   const asg = S.view === 'assign', nt = S.view === 'newtest', ts = S.view === 'tests', ad = S.view === 'admin';
-  $('upbox').hidden = !ts; $('adminsum').hidden = !ad;
+  $('upbox').hidden = !ts; $('adminsum').hidden = !ad; $('adminacc').hidden = !ad;
   $('data').hidden = asg || nt; $('assignbox').hidden = !asg; $('testsbox').hidden = !ts; $('newtestbox').hidden = !nt; $('csv').hidden = asg || nt;
   $('cls').closest('label').hidden = asg || ad; $('rng').closest('label').hidden = asg || nt || ts;
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (nt && b.dataset.v === 'tests'))));
@@ -400,7 +416,7 @@ function render() {
   const body = rows.length ? rows.map(r => '<tr>' + cols.map(c => `<td class="${(c.num ? 'num ' : '') + (c.cls || '')}">${cellText(c, r)}</td>`).join('') + '</tr>').join('')
     : `<tr><td class="empty" colspan="${cols.length}">${S.loading ? 'Loading…' : 'Nothing here yet for this class and time.'}</td></tr>`;
   $('tbl').innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
-  if (ad) renderAdminSum();
+  if (ad) { renderAdminSum(); renderAccess(); }
   const label = { progress: 'practice records', scores: 'scores', feedback: 'notes', tests: 'students with a result', admin: 'teacher and game rows' }[S.view];
   $('count').textContent = S.loading && !rows.length ? '' : S.view === 'tests' ? testSummary(rows) : rows.length + ' ' + label + (S.game === 'all' ? ' across all games' : ' in ' + g.name);
   $('note').textContent = S.view === 'progress' && (S.game === 'earshot')
@@ -489,6 +505,72 @@ function renderAdminSum() {
   $('adminsum').innerHTML = '<h3 style="font:700 15px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px">Every teacher, most active first</h3><div class="tw"><table><thead><tr><th>Teacher</th><th>School</th><th class="num">Students</th><th class="num">Minutes</th><th class="num">Answers</th><th style="padding-left:18px">Games used</th><th>Last used</th></tr></thead><tbody>'
     + (list.length ? list.map(t => `<tr><td>${esc(t.name)}${t.email && t.email !== t.name ? `<br><span style="color:var(--muted);font-size:13px">${esc(t.email)}</span>` : ''}</td><td>${esc(t.school)}</td><td class="num">${t.students}</td><td class="num">${Math.round(t.minutes * 10) / 10}</td><td class="num">${t.attempts}</td><td style="padding-left:18px">${dots(t)}</td><td>${t.dateMs ? esc(fmtDate(t.dateMs)) : '<span style="color:var(--muted)">No activity</span>'}</td></tr>`).join('') : '<tr><td class="empty" colspan="7">No teachers yet.</td></tr>')
     + '</tbody></table></div><h3 style="font:700 15px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:22px 0 0">By teacher and game</h3>';
+}
+// ---------- Teacher access (admin only): add teachers directly, approve or deny requests, remove ----------
+// Firebase rules already let the admin create and delete docs in `teachers` and read/delete `teacher_requests`.
+S.requests = [];
+async function checkRequests() {
+  if (!ADMIN_EMAILS.includes(S.email) && !PREVIEW) return;
+  try {
+    S.requests = PREVIEW ? (S.pvSeeded ? S.requests : (S.pvSeeded = true, [{ email: 'new.teacher@sample', name: 'Pat Rivera', school: 'Lincoln Elementary', note: 'I teach 4th and 5th grade general music.' }]))
+      : await run(async ({ fs, db }) => (await fs.getDocs(fs.collection(db, 'teacher_requests'))).docs.map(d => ({ ...d.data(), email: d.id })));
+  } catch (e) { console.warn('teacher requests:', e && e.code); }
+  const b = $('views').querySelector('[data-v=admin]'), n = S.requests.length;
+  b.classList.toggle('waiting', n > 0);
+  $('rqcount').hidden = !n; $('rqcount').textContent = n;
+  b.title = n ? `${n} teacher request${n > 1 ? 's' : ''} waiting` : '';
+  if (S.view === 'admin') renderAccess();
+}
+const validEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+function renderAccess() {
+  const box = $('adminacc'), reqs = S.requests || [], ts = (S.adminTeachers || []).slice().sort((a, b) => String(a.name || a.email).localeCompare(String(b.name || b.email)));
+  box.innerHTML = (reqs.length ? `<div><h3>Waiting for approval (${reqs.length})</h3>${reqs.map((r, i) => `<div class="req"><div class="who"><b>${esc(r.name || r.email)}</b> · ${esc(r.email)}${r.school ? `<br><small>${esc(r.school)}</small>` : ''}${r.note ? `<br><small>“${esc(r.note)}”</small>` : ''}</div>
+      <button class="btn sm" type="button" data-ok="${i}">Approve</button><button class="btn ghost sm" type="button" data-no="${i}">Deny</button></div>`).join('')}</div>` : '')
+    + `<div><h3>Add a teacher</h3><form id="addt" autocomplete="off" novalidate>
+        <label>Google email<input type="email" id="at-email" placeholder="teacher@school.org" required style="width:240px"></label>
+        <label>Name<input type="text" id="at-name" maxlength="60" placeholder="Ms. Rivera" style="width:180px"></label>
+        <label>School<input type="text" id="at-school" maxlength="80" placeholder="Lincoln Elementary" style="width:200px"></label>
+        <button class="btn sm" type="submit">Add teacher</button></form>
+        <p class="note" style="margin:6px 0 0">They can sign in to any Teacher dashboard with that Google account right away. No request needed.</p></div>`
+    + `<div><h3>Teachers (${ts.length})</h3><div class="tlist">${ts.length ? ts.map(t => `<div><span><b>${esc(t.name || t.email)}</b> · ${esc(t.email)}${t.school ? ` <small>· ${esc(t.school)}</small>` : ''}</span>${ADMIN_EMAILS.includes(String(t.email).toLowerCase()) ? '' : `<button class="btn ghost sm" type="button" data-rm="${esc(t.email)}">Remove</button>`}</div>`).join('') : '<p class="note">No approved teachers yet.</p>'}</div></div>`;
+  box.onclick = async e => {
+    const ok = e.target.closest('[data-ok]'), no = e.target.closest('[data-no]'), rm = e.target.closest('[data-rm]');
+    try {
+      if (ok) {
+        const r = reqs[+ok.dataset.ok]; ok.disabled = true;
+        if (!PREVIEW) await run(async ({ fs, db }) => { const b = fs.writeBatch(db);
+          b.set(fs.doc(db, 'teachers', r.email), { name: String(r.name || '').slice(0, 60), school: String(r.school || '').slice(0, 80), approved_at: fs.serverTimestamp(), approved_by: S.email });
+          b.delete(fs.doc(db, 'teacher_requests', r.email)); await b.commit(); });
+        (S.adminTeachers = S.adminTeachers || []).push({ email: r.email, name: r.name, school: r.school });
+        S.requests = reqs.filter(x => x !== r); msg(`${r.name || r.email} is now a teacher.`); await checkRequests();
+      } else if (no) {
+        const r = reqs[+no.dataset.no];
+        if (!confirm(`Deny the request from ${r.name || r.email}?`)) return;
+        if (!PREVIEW) await run(({ fs, db }) => fs.deleteDoc(fs.doc(db, 'teacher_requests', r.email)));
+        S.requests = reqs.filter(x => x !== r); msg(`Request from ${r.name || r.email} denied.`); await checkRequests();
+      } else if (rm) {
+        const email = rm.dataset.rm;
+        if (!confirm(`Remove ${email} as a teacher? Their classes and students' data stay, but they can't open the Teacher dashboards until you add them again.`)) return;
+        if (!PREVIEW) await run(({ fs, db }) => fs.deleteDoc(fs.doc(db, 'teachers', email)));
+        S.adminTeachers = (S.adminTeachers || []).filter(t => t.email !== email); msg(`${email} removed.`); renderAccess();
+      }
+    } catch (err) { msg(errText(err)); if (ok) ok.disabled = false; }
+  };
+  $('addt').onsubmit = async e => {
+    e.preventDefault();
+    const email = $('at-email').value.trim().toLowerCase(), name = $('at-name').value.trim(), school = $('at-school').value.trim();
+    if (!validEmail(email)) { msg('Enter the teacher’s Google email address.'); $('at-email').focus(); return; }
+    if ((S.adminTeachers || []).some(t => String(t.email).toLowerCase() === email)) { msg(`${email} is already a teacher.`); return; }
+    try {
+      if (!PREVIEW) await run(async ({ fs, db }) => { const b = fs.writeBatch(db);
+        b.set(fs.doc(db, 'teachers', email), { name: name.slice(0, 60), school: school.slice(0, 80), approved_at: fs.serverTimestamp(), approved_by: S.email });
+        if (S.requests.some(r => r.email === email)) b.delete(fs.doc(db, 'teacher_requests', email));
+        await b.commit(); });
+      (S.adminTeachers = S.adminTeachers || []).push({ email, name, school });
+      S.requests = S.requests.filter(r => r.email !== email);
+      msg(`${name || email} added as a teacher.`); await checkRequests(); renderAccess();
+    } catch (err) { msg(errText(err)); }
+  };
 }
 // ---------- Upcoming: every class's scheduled and still-running assignments and tests ----------
 const dayMs = k => { const [y, m, d] = String(k).split('-').map(Number); return new Date(y, m - 1, d).getTime(); };
@@ -658,6 +740,7 @@ async function signedIn(email) {
   S.email = email; $('who').innerHTML = `Signed in as <b>${esc(email)}</b>`;
   $('views').querySelector('[data-v=admin]').hidden = !ADMIN_EMAILS.includes(email);
   $('gate').hidden = true; $('main').hidden = false;
+  if (ADMIN_EMAILS.includes(email)) { checkRequests(); setInterval(() => { if (!document.hidden) checkRequests(); }, 120000); }
   await loadClasses();
 }
 async function signOut() {
@@ -682,7 +765,7 @@ async function start() {
   wire();
   if (PREVIEW) {
     $('gate').hidden = true; $('main').hidden = false; $('who').innerHTML = 'Signed in as <b>sample@preview</b>'; $('views').querySelector('[data-v=admin]').hidden = false;
-    $('main').insertAdjacentHTML('afterbegin', '<div class="pv">Preview with sample students. Nothing here is real.</div>');
+    $('main').insertAdjacentHTML('afterbegin', '<div class="pv">Preview with sample students. Nothing here is real.</div>'); checkRequests();
     { const dk = n => ymd(new Date(Date.now() + n * 86400000)); S.classes = [{ code: 'PREVW', name: 'Period 3 Music Theory', hub_assignment: { start: dk(3), end: dk(9), tasks: [{ game: 'scale', skills: ['Major scales'], goal: 15, unit: 'minutes' }] } }, { code: 'PREV2', name: 'Period 5 Band', hub_assignment: { start: dk(-2), end: dk(4), tasks: [{ game: 'tidal', goal: 60, unit: 'answers' }] } }]; }
      return fillClasses();
   }
