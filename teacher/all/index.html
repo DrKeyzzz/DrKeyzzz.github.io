@@ -69,6 +69,7 @@
   /* Admin tab pulses (admin only) while teacher requests are waiting */
   .seg button.waiting { position: relative; color: #10131a; background: #ffb547; animation: adminpulse 1.4s ease-in-out infinite; }
   .seg button.waiting .rq { display: inline-block; min-width: 18px; margin-left: 6px; padding: 1px 5px 0; border-radius: 999px; background: #c0392b; color: #fff; font-size: 12px; letter-spacing: 0; }
+  .newsbar { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; margin: 8px 0 4px; padding: 10px 14px; border: 2px solid #ffb547; border-radius: 12px; font-weight: 700; }
   @keyframes adminpulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255,181,71,.75); } 50% { box-shadow: 0 0 0 8px rgba(255,181,71,0); filter: brightness(1.15); } }
   @media (prefers-reduced-motion: reduce) { .seg button.waiting { animation: none; } }
   .access { margin-top: 16px; display: grid; gap: 14px; }
@@ -915,8 +916,19 @@ async function loadMe() {
 function setBadge(v, n) {
   const b = $('views').querySelector(`[data-v=${v}]`), c = $(v === 'messages' ? 'msgcount' : 'boardcount');
   c.hidden = !n; c.textContent = n > 99 ? '99+' : String(n);
-  if (v === 'messages') b.classList.toggle('waiting', n > 0);
+  b.classList.toggle('waiting', n > 0);   // Messages and Board both pulse while something is new
+  (S.newCounts = S.newCounts || {})[v] = n; newsBar();
   b.title = n ? (v === 'messages' ? `${n} unread message${n > 1 ? 's' : ''}` : `${n} new on the Board since your last visit`) : '';
+}
+// A line under "Signed in as" that says what's new and jumps to it (hidden when nothing is new)
+function newsBar() {
+  let bar = $('newsbar');
+  if (!bar) { $('who').closest('.who').insertAdjacentHTML('afterend', '<div id="newsbar" class="newsbar" role="status" hidden></div>'); bar = $('newsbar');
+    bar.onclick = e => { const t = e.target.closest('[data-go]'); if (t) $('views').querySelector(`[data-v=${t.dataset.go}]`).click(); }; }
+  const c = S.newCounts || {}, m = c.messages || 0, b = c.board || 0, parts = [];
+  if (m) parts.push(`<button type="button" class="btn sm" data-go="messages">✉ ${m} new message${m > 1 ? 's' : ''}</button>`);
+  if (b) parts.push(`<button type="button" class="btn sm" data-go="board">📌 ${b} new on the Board</button>`);
+  bar.innerHTML = parts.length ? '<span>📬 New for you:</span> ' + parts.join(' ') : ''; bar.hidden = !parts.length;
 }
 // After a draft-keeping re-render: put focus and the message list's scroll position back.
 function keepFocus(box, fn) {
@@ -929,7 +941,7 @@ function keepFocus(box, fn) {
 }
 function countChars(t) { const c = t.closest('form') && t.closest('form').querySelector('[data-cnt]'); if (c) c.textContent = t.value.length; }
 function replyForm(key, ph, btn, extra = '') {
-  return `<form class="reply" data-form="${esc(key)}"><label class="sr" for="ta-${esc(key)}">${esc(ph)}</label><textarea id="ta-${esc(key)}" data-draft="${esc(key)}" maxlength="${MSG_MAX}" rows="2" placeholder="${esc(ph)}"></textarea>
+  return `<form class="reply" data-form="${esc(key)}"><label class="sr" for="ta-${esc(key)}">${esc(ph)}</label><textarea spellcheck="true" lang="en" autocorrect="on" autocapitalize="sentences" id="ta-${esc(key)}" data-draft="${esc(key)}" maxlength="${MSG_MAX}" rows="2" placeholder="${esc(ph)}"></textarea>
     <div class="reply-bar"><small class="hint">${KEY}+Enter sends · <span data-cnt>0</span>/${MSG_MAX}</small>${extra}<button class="btn sm" type="submit">${esc(btn)}</button></div></form>`;
 }
 
@@ -1136,7 +1148,7 @@ function renderBoard() {
   const box = $('boardview'); if (S.view !== 'board') return;
   const bd = S.bd, admin = amAdmin();
   keepFocus(box, () => {
-    box.innerHTML = `<div class="bd"><form class="bd-new" data-form="post"><label class="sr" for="ta-post">New post for every teacher</label><textarea id="ta-post" data-draft="post" maxlength="${MSG_MAX}" rows="3" placeholder="Share an idea or ask a question…"></textarea>
+    box.innerHTML = `<div class="bd"><form class="bd-new" data-form="post"><label class="sr" for="ta-post">New post for every teacher</label><textarea spellcheck="true" lang="en" autocorrect="on" autocapitalize="sentences" id="ta-post" data-draft="post" maxlength="${MSG_MAX}" rows="3" placeholder="Share an idea or ask a question…"></textarea>
       <div class="reply-bar"><small class="hint">Every teacher can read this. ${KEY}+Enter posts · <span data-cnt>0</span>/${MSG_MAX}</small>${admin ? '<label class="ck"><input type="checkbox" data-draft="pin"> 📌 Pin</label><label class="ck"><input type="checkbox" data-draft="ann"> 📣 Announcement</label>' : ''}<button class="btn sm" type="submit">Post</button></div></form>
       <ul class="bd-list" aria-label="Board posts">${bd.posts.map(postHTML).join('') || `<li class="empty">${bd.loading ? 'Loading…' : 'Nothing here yet. Be the first to post!'}</li>`}</ul>
       ${bd.more ? '<button class="btn ghost sm bd-more" type="button" data-bd="older">Show older</button>' : ''}</div>`;
