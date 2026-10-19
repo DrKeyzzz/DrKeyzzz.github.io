@@ -107,6 +107,7 @@
   .good { color: var(--ok); font-weight: 700; }
   .empty { padding: 26px 14px; text-align: center; color: var(--muted); }
   table.plain th { padding: 11px 14px 9px; }
+  .devtag { font-size: 11px; font-weight: 700; letter-spacing: .08em; padding: 2px 6px; margin-left: 6px; border-radius: 6px; background: #ff5fd2; color: #120b1f; vertical-align: middle; }
   .tlink { font: inherit; color: var(--text); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
   .tlink b { text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 3px; }
   .tlink:hover b, .tlink:focus-visible b { text-decoration-color: currentColor; }
@@ -380,7 +381,7 @@ function normProgress(gid, d) {
   };
 }
 function normScore(gid, d, col) {
-  const o = { game: gid, col: col || G[gid].scores, name: d.name || 'Student', dateMs: toMs(d.created_at), score: num(d.score), acc: null, detail: '' };
+  const o = { game: gid, col: col || G[gid].scores, dev: !!d.dev, name: d.name || 'Student', dateMs: toMs(d.created_at), score: num(d.score), acc: null, detail: '' };
   if (gid === 'rhythm') { o.acc = pct(num(d.correct), num(d.total)); o.detail = d.level ? 'Level ' + d.level : ''; }
   else if (gid === 'scale') { const a = num(d.accuracy); o.acc = a ? Math.round(a <= 1 ? a * 100 : a) : null; o.detail = d.questions ? d.questions + ' questions' : ''; }
   else if (gid === 'earshot') { const a = num(d.acc); o.acc = a ? Math.round(a <= 1 ? a * 100 : a) : null; o.detail = d.town ? String(d.town) : ''; }
@@ -468,7 +469,7 @@ const COLS = {
     { k: 'minutes', h: 'Minutes', t: 'n', num: 1 },
   ],
   scores: [
-    { k: 'name', h: 'Student', t: 's' }, { k: 'game', h: 'Game', t: 'g' }, { k: 'score', h: 'Score', t: 'n', num: 1, f: r => esc(r.score.toLocaleString()) },
+    { k: 'name', h: 'Student', t: 's', f: r => esc(r.name) + (r.dev ? ' <span class="devtag" title="Posted by Mr. Milnes (developer score: shows on every class board)">DEV</span>' : '') }, { k: 'game', h: 'Game', t: 'g' }, { k: 'score', h: 'Score', t: 'n', num: 1, f: r => esc(r.score.toLocaleString()) },
     { k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) }, { k: 'detail', h: 'Details', t: 's' }, { k: 'dateMs', h: 'Date', t: 'n', f: r => esc(fmtDate(r.dateMs)) },
     { k: 'x', h: '', t: 'x' },
   ],
