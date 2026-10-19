@@ -208,7 +208,7 @@
     margin-top: 40px;
   }
 
-  /* sign in once here: the five games read the same saved student */
+  /* sign in once here: all the games read the same saved student */
   .who { max-width: 980px; margin: 0 auto 28px; background: var(--card); border: 1px solid var(--card-border); border-radius: 18px; padding: 18px 20px; }
   .who h2 { margin: 0 0 4px; font-size: 13px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
   .who p { margin: 0; color: var(--muted); }
@@ -338,7 +338,7 @@
         <div>
           <h2 class="hello" id="hi-name">Hi!</h2>
           <div class="chips"><span class="chip" id="hi-rank"></span><span class="chip" id="hi-streak"></span></div>
-          <div class="me">Signed in for all five games as <b id="who-name"></b><span class="cls" id="who-class"></span></div>
+          <div class="me">Signed in for all six games as <b id="who-name"></b><span class="cls" id="who-class"></span></div>
         </div>
         <div class="cont-box" id="hi-go" hidden>
           <a class="cont" id="hi-cont" href="#" data-tip="Jump back into the last game you played"><span aria-hidden="true">▶</span> Continue</a>
@@ -353,7 +353,7 @@
     </div>
     <div id="who-out">
       <h2>Sign in once, play every game</h2>
-      <p id="who-help">Sign in here and all five games remember you on this computer.</p>
+      <p id="who-help">Sign in here and all six games remember you on this computer.</p>
       <form id="who-form" autocomplete="off" novalidate>
         <label for="w-first">First name<input type="text" id="w-first" maxlength="15" autocapitalize="words" spellcheck="false"></label>
         <label for="w-init">Last initial<input type="text" id="w-init" maxlength="1" autocapitalize="characters" spellcheck="false"></label>
@@ -443,7 +443,7 @@
       </div>
     </a>
 
-    <a class="game brainwaves" href="https://drkeyzzz.github.io/brainwaves/">
+    <a class="game brainwaves" data-game="brainwaves" href="https://drkeyzzz.github.io/brainwaves/">
       <span class="step" aria-hidden="true"><b>6</b>Ear training</span>
       <span class="new-star" aria-hidden="true"><span class="burst"></span><b>NEW!</b></span>
       <div class="shot bw-shot"><canvas class="bw-sparks" aria-hidden="true"></canvas><img src="screenshots/brainwaves.jpg" alt="Brainwaves: a glowing brain where each area is an ear-training game"></div>
@@ -451,6 +451,7 @@
         <div>
           <p class="name">Brainwaves</p>
           <p class="desc">Ear training: pitch, intervals, chords, scales and singing</p>
+          <p class="prog" hidden></p>
         </div>
         <span class="play">Play</span>
       </div>
@@ -468,7 +469,7 @@
     <span class="go">Play</span>
   </a>
 
-  <footer>One sign-in works across all five games on this computer.</footer>
+  <footer>One sign-in works across all six games on this computer.</footer>
 
 <script>
 (() => {
@@ -526,14 +527,28 @@ const GAMES = [
   { id: 'rhythm', name: 'The Big Score', acc: '#f5c542', url: 'https://drkeyzzz.github.io/rhythm-trainer/' },
   { id: 'scale', name: 'Scale Quest', acc: '#3ee8f0', url: 'https://drkeyzzz.github.io/scale-quest/' },
   { id: 'earshot', name: 'Earshot Saloon', acc: '#ff9a4a', url: 'https://drkeyzzz.github.io/earshot-saloon/' },
+  { id: 'brainwaves', name: 'Brainwaves', acc: '#7c8cff', url: 'https://drkeyzzz.github.io/brainwaves/' },
 ];
 const GAME = Object.fromEntries(GAMES.map(g => [g.id, g]));
 // the "Start here" order for new players: read notes, read rhythm, hear intervals, build scales, then dictation
-const PATH = ['tidal', 'rooftop', 'earshot', 'scale', 'rhythm'];
-const PITCH = { tidal: 'Name the notes on the staff to guide the boats home.', rooftop: 'Read the rhythm and jump across the rooftops.', earshot: 'Hear two notes and play the interval card.', scale: 'Build scales on the piano, arcade style.', rhythm: 'Listen and write down the rhythm to crack the safe.' };
+const PATH = ['tidal', 'rooftop', 'earshot', 'scale', 'rhythm', 'brainwaves'];
+const PITCH = { brainwaves: 'Train your ears in seven brain areas, from sharp or flat to chords and scales.', tidal: 'Name the notes on the staff to guide the boats home.', rooftop: 'Read the rhythm and jump across the rooftops.', earshot: 'Hear two notes and play the interval card.', scale: 'Build scales on the piano, arcade style.', rhythm: 'Listen and write down the rhythm to crack the safe.' };
 const DAILY_GOAL = 30;
 
-const history = p => { const h = load('mtg_hist_v1:' + sidOf(p)); return h && h.days ? h.days : {}; };
+// Brainwaves saves each brain area under its own id; here they count as one game, with the area in front of each skill
+const BW_AREAS = { synapse: 'Sharp or Flat?', intervals: 'Intervals', chords: 'Chord Colors', progressions: 'Progressions', scales: 'Scales and modes', voice: 'Pick a Voice', tuner: 'Tuner' };
+function foldBrainwaves(days) {
+  for (const day of Object.values(days)) for (const [id, area] of Object.entries(BW_AREAS)) {
+    const x = day[id]; if (!x) continue; delete day[id];
+    const b = day.brainwaves || (day.brainwaves = { plays: 0, answers: 0, correct: 0, ms: 0, best: 0, level: 0, acc: 0, skills: {}, last: 0 });
+    b.plays += x.plays || 0; b.answers += x.answers || 0; b.correct += x.correct || 0; b.ms += x.ms || 0;
+    b.best = Math.max(b.best, x.best || 0); b.level = Math.max(b.level, x.level || 0); b.acc = Math.max(b.acc, x.acc || 0); b.last = Math.max(b.last, x.last || 0);
+    for (const [lab, [r, n]] of Object.entries(x.skills || {})) { const k = `${area} · ${lab}`, s = b.skills[k] || (b.skills[k] = [0, 0]); s[0] += r; s[1] += n; }
+  }
+  return days;
+}
+const bwAreas = t => new Set(Object.keys(t.skills).map(k => k.split(' · ')[0])).size;   // brain areas played
+const history = p => { const h = load('mtg_hist_v1:' + sidOf(p)); return h && h.days ? foldBrainwaves(h.days) : {}; };
 // per game: totals from the history, all-time and this week
 function practice(days, gid) {
   const t = { answers: 0, correct: 0, ms: 0, plays: 0, best: 0, level: 0, bpm: 0, caught: 0, acc: 0, skills: {}, skW: {}, skP: {}, days: 0, week: { answers: 0, correct: 0 }, prev: { answers: 0, correct: 0 } };
@@ -612,7 +627,13 @@ const BADGES = {
     special(t => Object.entries(t.skills).some(([k, [r]]) => /^(Augmented|Diminished)/.test(k) && r > 0)),
     special((t, a) => a.flags.expert),
   ],
-  // across all five games; X = { streak, correct, minutes, tried }
+  brainwaves: [
+    { tiers: [50, 200, 500, 1500, 5000], m: t => t.correct },
+    { tiers: [1, 10, 50, 150, 400], m: (t, a) => Math.max(t.plays, a.n) },
+    { tiers: [2, 3, 4, 5, 6], m: t => bwAreas(t) },
+    sharp,
+  ],
+  // across all six games; X = { streak, correct, minutes, tried }
   all: [
     { tiers: [2, 5, 10, 20, 40], m: X => X.streak },
     { tiers: [100, 500, 2000, 5000, 10000], m: X => X.correct },
@@ -658,6 +679,7 @@ function progLine(gid, t) {
     earshot: [t.level && `Town ${t.level}`, t.level ? acc : t.best && `Best $${fmt(t.best)}`],
     scale: [t.best && `Best ${fmt(t.best)}`, acc],
     rhythm: [t.best && `Best ${t.best}%`, acc],
+    brainwaves: [acc, bwAreas(t) && `${bwAreas(t)} of 7 brain areas`],
   }[gid].filter(Boolean);
   return (bits.length ? bits : [acc, `${fmt(t.plays)} played`].filter(Boolean)).slice(0, 2).join(' · ');
 }
@@ -819,7 +841,7 @@ function render(focus) {
     if (sv.length > 1) $('who-class').innerHTML = 'Class: ' + sv.map(c => `<button type="button" class="clsbtn${c.code === p.classCode ? ' on' : ''}" data-switch-class="${esc(c.code)}" aria-pressed="${c.code === p.classCode}" data-tip="${c.code === p.classCode ? 'Your scores and practice count for this class' : 'Switch to this class'}">${esc(c.name || c.code)}${c.code === p.classCode ? ' ✓' : ''}</button>`).join(' ');
     else $('who-class').textContent = p.classCode ? (p.className && p.className !== p.classCode ? `${p.className} · code ${p.classCode}` : `Class ${p.classCode}`) : 'Not in a class · World leaderboards only';
   } else {
-    $('who-help').textContent = isGuest() ? "You're playing as a guest in this tab, so nothing is saved. Sign in to keep your scores and progress." : 'Sign in here and all five games remember you on this computer.';
+    $('who-help').textContent = isGuest() ? "You're playing as a guest in this tab, so nothing is saved. Sign in to keep your scores and progress." : 'Sign in here and all six games remember you on this computer.';
     if (focus) setTimeout(() => $(focus).focus(), 30);
   }
 }

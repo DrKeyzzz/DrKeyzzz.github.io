@@ -282,6 +282,7 @@ const GAMES = [
   { id: 'rhythm', name: 'The Big Score', acc: '#f5c542', url: 'https://drkeyzzz.github.io/rhythm-trainer/', col: 'rhythm_scores', unit: 'rhythms right', day: '#8a6a00' },
   { id: 'scale', name: 'Scale Quest', acc: '#3ee8f0', url: 'https://drkeyzzz.github.io/scale-quest/', col: 'scale_scores', unit: 'answers right', day: '#0e7490' },
   { id: 'earshot', name: 'Earshot Saloon', acc: '#ff9a4a', url: 'https://drkeyzzz.github.io/earshot-saloon/', col: 'earshot_scores', unit: 'intervals right', day: '#c2410c' },
+  { id: 'brainwaves', name: 'Brainwaves', acc: '#7c8cff', url: 'https://drkeyzzz.github.io/brainwaves/', cols: ['synapse_scores', 'intervals_scores', 'chords_scores', 'progressions_scores', 'scales_scores'], unit: 'answers right', day: '#4451c9' },
 ];
 // The Day skin is light, so each game's bright color is swapped for a darker shade of it that reads on white.
 const DAYSKIN = document.documentElement.dataset.skin === 'day', GOLD_ACC = DAYSKIN ? '#a15c00' : '#ffc85c';
@@ -289,7 +290,20 @@ if (DAYSKIN) GAMES.forEach(g => { g.acc = g.day; });
 const fmtScore = (g, v) => g.id === 'rhythm' ? v + '%' : g.id === 'earshot' ? '$' + fmt(v) : fmt(v);
 
 // ---------- practice saved on this computer (MTG_HIST, written by every game) ----------
-const history = p => { const h = load('mtg_hist_v1:' + sidOf(p)); return h && h.days ? h.days : {}; };
+// Brainwaves saves each brain area under its own id; here they count as one game, with the area in front of each skill
+const BW_AREAS = { synapse: 'Sharp or Flat?', intervals: 'Intervals', chords: 'Chord Colors', progressions: 'Progressions', scales: 'Scales and modes', voice: 'Pick a Voice', tuner: 'Tuner' };
+function foldBrainwaves(days) {
+  for (const day of Object.values(days)) for (const [id, area] of Object.entries(BW_AREAS)) {
+    const x = day[id]; if (!x) continue; delete day[id];
+    const b = day.brainwaves || (day.brainwaves = { plays: 0, answers: 0, correct: 0, ms: 0, best: 0, level: 0, acc: 0, skills: {}, last: 0 });
+    b.plays += x.plays || 0; b.answers += x.answers || 0; b.correct += x.correct || 0; b.ms += x.ms || 0;
+    b.best = Math.max(b.best, x.best || 0); b.level = Math.max(b.level, x.level || 0); b.acc = Math.max(b.acc, x.acc || 0); b.last = Math.max(b.last, x.last || 0);
+    for (const [lab, [r, n]] of Object.entries(x.skills || {})) { const k = `${area} · ${lab}`, s = b.skills[k] || (b.skills[k] = [0, 0]); s[0] += r; s[1] += n; }
+  }
+  return days;
+}
+const bwAreas = t => new Set(Object.keys(t.skills).map(k => k.split(' · ')[0])).size;   // brain areas played
+const history = p => { const h = load('mtg_hist_v1:' + sidOf(p)); return h && h.days ? foldBrainwaves(h.days) : {}; };
 // per game: totals from the history, all-time and this week
 function practice(days, gid) {
   const t = { answers: 0, correct: 0, ms: 0, plays: 0, best: 0, level: 0, bpm: 0, caught: 0, acc: 0, skills: {}, skW: {}, skP: {}, days: 0, week: { answers: 0, correct: 0 }, prev: { answers: 0, correct: 0 } };
@@ -334,7 +348,7 @@ function foldRow(g, a, r) {
   const at = r.at, s = r.score || 0, acc = g.id === 'rhythm' ? s : (r.acc ?? r.accuracy ?? 0);
   a.n++;
   if (s > a.best) { a.prevBest = a.best; a.best = s; a.bestAt = at; }
-  a.lvl = Math.max(a.lvl, typeof r.level === 'number' ? r.level : typeof r.town === 'number' ? r.town : 0); a.bpm = Math.max(a.bpm, r.bpm || 0); a.acc = Math.max(a.acc, Math.round(acc || 0)); a.keys = Math.max(a.keys, r.key_count || 0);
+  a.lvl = Math.max(a.lvl, typeof r.level === 'number' ? r.level : typeof r.town === 'number' ? r.town : typeof r.floor === 'number' ? r.floor : 0); a.bpm = Math.max(a.bpm, r.bpm || 0); a.acc = Math.max(a.acc, Math.round(acc || 0)); a.keys = Math.max(a.keys, r.key_count || 0);
   const f = a.flags;
   if (r.style === 'live') f.live = 1;
   if (r.diff === 'expert') f.expert = 1;
@@ -360,19 +374,23 @@ async function syncScores(p, store) {
   await Promise.all(GAMES.map(async g => {
     const a = store.games[g.id];
     try {
-      let docs = null;
-      if (!noIndex[g.col]) {
-        try {
-          docs = [];
-          for (let page = 0, from = a.upTo; page < 20; page++) {
-            const snap = await wait(fs.getDocs(fs.query(fs.collection(db, g.col), fs.where('name', '==', name), fs.where('created_at', '>', fs.Timestamp.fromMillis(from)), fs.orderBy('created_at'), fs.limit(500))));
-            docs.push(...snap.docs); if (snap.size < 500) break;
-            from = snap.docs[snap.size - 1].data().created_at.toMillis();
-          }
-        } catch (e) { if (e.code !== 'failed-precondition') throw e; noIndex[g.col] = 1; docs = null; console.warn('[index needed]', e.message); }
+      const all = [];
+      for (const col of g.cols || [g.col]) {   // Brainwaves has one score collection per brain area
+        let docs = null;
+        if (!noIndex[col]) {
+          try {
+            docs = [];
+            for (let page = 0, from = a.upTo; page < 20; page++) {
+              const snap = await wait(fs.getDocs(fs.query(fs.collection(db, col), fs.where('name', '==', name), fs.where('created_at', '>', fs.Timestamp.fromMillis(from)), fs.orderBy('created_at'), fs.limit(500))));
+              docs.push(...snap.docs); if (snap.size < 500) break;
+              from = snap.docs[snap.size - 1].data().created_at.toMillis();
+            }
+          } catch (e) { if (e.code !== 'failed-precondition') throw e; noIndex[col] = 1; docs = null; console.warn('[index needed]', e.message); }
+        }
+        if (!docs) docs = (await wait(fs.getDocs(fs.query(fs.collection(db, col), fs.where('name', '==', name))))).docs;
+        all.push(...docs);
       }
-      if (!docs) docs = (await wait(fs.getDocs(fs.query(fs.collection(db, g.col), fs.where('name', '==', name))))).docs;
-      const rows = docs.map(d => { const r = d.data(); return { ...r, at: r.created_at && r.created_at.toMillis ? r.created_at.toMillis() : 0 }; })
+      const rows = all.map(d => { const r = d.data(); return { ...r, at: r.created_at && r.created_at.toMillis ? r.created_at.toMillis() : 0 }; })
         .filter(r => r.at > a.upTo && mine(r))
         .sort((x, y) => x.at - y.at);
       for (const r of rows) { foldRow(g, a, r); a.upTo = r.at; }
@@ -439,10 +457,16 @@ const BADGES = {
     special('disguise', '🥸', 'Disguise Detector', 'You heard through an outlaw\'s disguise: an augmented or diminished interval.', 'Get an augmented or diminished interval right on Expert.', t => Object.entries(t.skills).some(([k, [r]]) => /^(Augmented|Diminished)/.test(k) && r > 0)),
     special('expert', '⭐', 'Expert Sheriff', 'You posted a score at the Expert table.', 'Finish a trail run on Expert.', (t, a) => a.flags.expert),
   ],
-  // across all five games; X = { streak, correct, minutes, tried, days, g3, g7 }
+  brainwaves: [
+    { id: 'right', ic: '🧠', name: 'Big Brain', desc: 'Every right answer in any brain area counts.', tiers: [50, 200, 500, 1500, 5000], m: t => t.correct, left: more('right answer', 'right answers') },
+    { id: 'runs', ic: '⚡', name: 'Brainstorm', desc: 'Every run you finish counts.', tiers: [1, 10, 50, 150, 400], m: (t, a) => Math.max(t.plays, a.n), left: more('run', 'runs') },
+    { id: 'areas', ic: '🗺️', name: 'Brain Explorer', desc: 'Brain areas you have played.', tiers: [2, 3, 4, 5, 6], m: t => bwAreas(t), left: reach(g => `Play ${g} different brain areas`) },
+    sharp,
+  ],
+  // across all six games; X = { streak, correct, minutes, tried, days, g3, g7 }
   all: [
     { id: 'streak', ic: '🔥', name: 'On Fire', desc: 'Your longest practice streak: days in a row with any game.', tiers: [2, 5, 10, 20, 40], days: false, m: X => X.streak, left: reach(g => `Practice ${g} days in a row`) },
-    { id: 'titan', ic: '🧠', name: 'Theory Titan', desc: 'Right answers in all five games added together.', tiers: [100, 500, 2000, 5000, 10000], m: X => X.correct, left: more('right answer', 'right answers') },
+    { id: 'titan', ic: '🧠', name: 'Theory Titan', desc: 'Right answers in all six games added together.', tiers: [100, 500, 2000, 5000, 10000], m: X => X.correct, left: more('right answer', 'right answers') },
     // Practice Hero (2026-10-16): hours, matching the Practice time box in every game: Bronze 1 h, Silver 5 h, Gold 10 h,
     // Platinum 25 h, Diamond 50 h (the box also shows a sixth tier, Legend 100 h; badges here have five levels).
     // Minutes = the larger of this computer's history and the online total the time box knows (practice_time).
@@ -450,9 +474,9 @@ const BADGES = {
     // All-Rounder (rebalanced 2026-10-11): it was Bronze 2 games, Silver 3, Gold 4, Platinum 5, so trying all five games once maxed it.
     // Now Bronze 2 games, Silver 3, Gold 4 (same as before), Platinum all 5 games each played on 3+ different days,
     // Diamond all 5 games each played on 7+ different days. m gives the level directly, so its goals are just 1 to 5.
-    { id: 'rounder', ic: '🌈', name: 'All-Rounder', desc: 'Play all five games, and keep coming back to each one.', tiers: [1, 2, 3, 4, 5], days: false,
-      m: X => X.tried >= 5 && X.g7 >= 5 ? 5 : X.tried >= 5 && X.g3 >= 5 ? 4 : X.tried >= 4 ? 3 : X.tried >= 3 ? 2 : X.tried >= 2 ? 1 : 0,
-      left: (v, g) => ['Play 2 different games', 'Play 3 different games', 'Play 4 different games', 'Play each of the five games on 3 different days', 'Play each of the five games on 7 different days'][g - 1] },
+    { id: 'rounder', ic: '🌈', name: 'All-Rounder', desc: 'Play all six games, and keep coming back to each one.', tiers: [1, 2, 3, 4, 5], days: false,
+      m: X => X.tried >= 6 && X.g7 >= 6 ? 5 : X.tried >= 6 && X.g3 >= 6 ? 4 : X.tried >= 4 ? 3 : X.tried >= 3 ? 2 : X.tried >= 2 ? 1 : 0,
+      left: (v, g) => ['Play 2 different games', 'Play 3 different games', 'Play 4 different games', 'Play each of the six games on 3 different days', 'Play each of the six games on 7 different days'][g - 1] },
   ],
 };
 const RANKS = [[0, 'Rookie Listener'], [250, 'Beat Keeper'], [700, 'Note Reader'], [1500, 'Rhythm Rider'], [2800, 'Scale Climber'], [4600, 'Harmony Hero'], [7000, 'Theory Wizard'], [10500, 'Virtuoso'], [15000, 'Maestro'], [21000, 'Superior Music Theory Master']];
@@ -629,6 +653,9 @@ function gamePanel(g, t, a, list, ctx) {
   } else if (g.id === 'rhythm') {
     tro.push(['Rhythms right', fmt(t.correct), '']);
     tro.push(['Hardest level', a.flags.extreme ? 'Extreme' : a.flags.hard ? 'Hard' : a.n ? 'Easy' : '—', '']);
+  } else if (g.id === 'brainwaves') {
+    tro.push(['Brain areas played', bwAreas(t) || '—', '']);
+    tro.push(['Best accuracy', Math.max(t.acc, a.acc) + '%', '']);
   } else {
     tro.push(['Best accuracy', Math.max(t.acc, a.acc) + '%', '']);
     tro.push(['Most keys', Math.max(a.keys, t.level) || '—', '']);
