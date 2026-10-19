@@ -380,7 +380,7 @@ function normProgress(gid, d) {
   };
 }
 function normScore(gid, d, col) {
-  const o = { game: gid, name: d.name || 'Student', dateMs: toMs(d.created_at), score: num(d.score), acc: null, detail: '' };
+  const o = { game: gid, col: col || G[gid].scores, name: d.name || 'Student', dateMs: toMs(d.created_at), score: num(d.score), acc: null, detail: '' };
   if (gid === 'rhythm') { o.acc = pct(num(d.correct), num(d.total)); o.detail = d.level ? 'Level ' + d.level : ''; }
   else if (gid === 'scale') { const a = num(d.accuracy); o.acc = a ? Math.round(a <= 1 ? a * 100 : a) : null; o.detail = d.questions ? d.questions + ' questions' : ''; }
   else if (gid === 'earshot') { const a = num(d.acc); o.acc = a ? Math.round(a <= 1 ? a * 100 : a) : null; o.detail = d.town ? String(d.town) : ''; }
@@ -408,14 +408,14 @@ async function fetchScores(gid) {
   if (S.code === WORLD) return run(async ({ fs, db }) => {
     const out = [];
     for (const col of [].concat(g.scores)) (await fs.getDocs(fs.query(fs.collection(db, col), fs.orderBy('score', 'desc'), fs.limit(50)))).forEach(x => {
-      const d = x.data(), r = normScore(gid, d, col); r.detail = [r.detail, d.class_code ? 'Class ' + d.class_code : 'No class'].filter(Boolean).join(' · '); out.push(r);
+      const d = x.data(), r = normScore(gid, d, col); r.id = x.id; r.detail = [r.detail, d.class_code ? 'Class ' + d.class_code : 'No class'].filter(Boolean).join(' · '); out.push(r);
     });
     return out;
   });
   const ds = days(); const cutoff = ds ? new Date(ds[ds.length - 1] + 'T00:00:00').getTime() : 0;
   return run(async ({ fs, db }) => {
     const out = [];
-    for (const col of [].concat(g.scores)) (await fs.getDocs(fs.query(fs.collection(db, col), fs.where('class_code', '==', S.code)))).forEach(x => out.push(normScore(gid, x.data(), col)));
+    for (const col of [].concat(g.scores)) (await fs.getDocs(fs.query(fs.collection(db, col), fs.where('class_code', '==', S.code)))).forEach(x => out.push({ ...normScore(gid, x.data(), col), id: x.id }));
     return out.filter(r => !cutoff || r.dateMs >= cutoff);
   });
 }
@@ -449,7 +449,7 @@ function sample() {
     names.forEach(n => {
       if (rnd() < .35) return;
       const d = ds[Math.floor(rnd() * 7)];
-      scores.push({ game: gid, name: n, dateMs: Date.parse(d + 'T' + pad(8 + Math.floor(rnd() * 7)) + ':' + pad(Math.floor(rnd() * 60)) + ':00'), score: Math.round(200 + rnd() * 2800), acc: 55 + Math.floor(rnd() * 45), detail: gid === 'scale' ? Math.round(10 + rnd() * 20) + ' questions' : gid === 'earshot' ? 'Dry Gulch' : gid === 'brainwaves' ? 'Sharp or Flat? · Level ' + (1 + Math.floor(rnd() * 5)) : 'Level ' + (1 + Math.floor(rnd() * 5)) });
+      scores.push({ id: 'pv' + scores.length, game: gid, name: n, dateMs: Date.parse(d + 'T' + pad(8 + Math.floor(rnd() * 7)) + ':' + pad(Math.floor(rnd() * 60)) + ':00'), score: Math.round(200 + rnd() * 2800), acc: 55 + Math.floor(rnd() * 45), detail: gid === 'scale' ? Math.round(10 + rnd() * 20) + ' questions' : gid === 'earshot' ? 'Dry Gulch' : gid === 'brainwaves' ? 'Sharp or Flat? · Level ' + (1 + Math.floor(rnd() * 5)) : 'Level ' + (1 + Math.floor(rnd() * 5)) });
     });
   });
   const T = ['Loved the new level!', 'The piano sound is too quiet on my Chromebook.', 'Can we play Rooftop Runner in class tomorrow?', 'Scale Quest is hard but fun.'];
@@ -470,6 +470,7 @@ const COLS = {
   scores: [
     { k: 'name', h: 'Student', t: 's' }, { k: 'game', h: 'Game', t: 'g' }, { k: 'score', h: 'Score', t: 'n', num: 1, f: r => esc(r.score.toLocaleString()) },
     { k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) }, { k: 'detail', h: 'Details', t: 's' }, { k: 'dateMs', h: 'Date', t: 'n', f: r => esc(fmtDate(r.dateMs)) },
+    { k: 'x', h: '', t: 'x' },
   ],
   tests: [
     { k: 'name', h: 'Student', t: 's' }, { k: 'best', h: 'Best score', t: 'n', num: 1, f: r => esc(r.best + r.unit) }, { k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) },
@@ -490,7 +491,7 @@ const DEFAULT_SORT = { progress: { k: 'dateMs', dir: -1 }, scores: { k: 'score',
 function accCell(a) { return a == null ? '<span style="color:var(--muted)">–</span>' : `<span class="${a < 60 ? 'low' : a >= 85 ? 'good' : ''}">${a}%</span>`; }
 function cellText(c, r) {
   if (c.k === 'game') { const g = G[r.game]; return g ? `<span class="dot" style="background:${g.color}"></span>${esc(g.name)}` : esc(r.game); }
-  if (c.t === 'x') return `<button class="x" type="button" data-del="${esc(r.id)}" aria-label="Delete this note">Delete</button>`;
+  if (c.t === 'x') return `<button class="x" type="button" data-del="${esc(r.id)}" aria-label="Delete this ${S.view === 'scores' ? 'score' : 'note'}">Delete</button>`;
   if (c.f) return c.f(r);
   return esc(r[c.k] ?? '');
 }
@@ -1357,6 +1358,12 @@ function wire() {
     const h = e.target.closest('th button');
     if (h) { const cur = S.sort[S.view] || DEFAULT_SORT[S.view]; const k = h.dataset.k; S.sort[S.view] = { k, dir: cur.k === k ? -cur.dir : (/^(name|game|detail|text)$/.test(k) ? 1 : -1) }; return render(); }
     const del = e.target.closest('[data-del]');
+    if (del && S.view === 'scores') {   // a wrong or unfair score: removed for good (scores can't be edited, only deleted)
+      const r = S.rows.find(x => x.id === del.dataset.del); if (!r) return;
+      if (!confirm(`Delete ${r.name}'s score of ${r.score.toLocaleString()} in ${G[r.game].name}${r.detail ? ' (' + r.detail + ')' : ''}? It comes off the leaderboard for good.`)) return;
+      if (!PREVIEW) try { await run(({ fs, db }) => fs.deleteDoc(fs.doc(db, r.col, r.id))); } catch (er) { return msg(er && er.code === 'permission-denied' ? "You can delete scores from your own classes only." : errText(er)); }
+      S.rows = S.rows.filter(x => x !== r); render(); msg(`Deleted ${r.name}'s score of ${r.score.toLocaleString()}.`, true); return;
+    }
     if (del && confirm('Delete this note?')) {
       if (PREVIEW) { S.rows = S.rows.filter(r => r.id !== del.dataset.del); return render(); }
       try { await run(({ fs, db }) => fs.deleteDoc(fs.doc(db, 'game_feedback', del.dataset.del))); S.rows = S.rows.filter(r => r.id !== del.dataset.del); render(); } catch (er) { msg(errText(er)); }
