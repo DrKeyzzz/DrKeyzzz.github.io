@@ -402,8 +402,16 @@ async function fetchProgress(gid) {
     return out;
   });
 }
+const WORLD = '*';   // the class menu's World choice: top scores from every class and the world boards (Scores only)
 async function fetchScores(gid) {
   const g = G[gid];
+  if (S.code === WORLD) return run(async ({ fs, db }) => {
+    const out = [];
+    for (const col of [].concat(g.scores)) (await fs.getDocs(fs.query(fs.collection(db, col), fs.orderBy('score', 'desc'), fs.limit(50)))).forEach(x => {
+      const d = x.data(), r = normScore(gid, d, col); r.detail = [r.detail, d.class_code ? 'Class ' + d.class_code : 'No class'].filter(Boolean).join(' · '); out.push(r);
+    });
+    return out;
+  });
   const ds = days(); const cutoff = ds ? new Date(ds[ds.length - 1] + 'T00:00:00').getTime() : 0;
   return run(async ({ fs, db }) => {
     const out = [];
@@ -532,12 +540,14 @@ function render() {
   $('note').textContent = S.view === 'progress' && (S.game === 'earshot' || S.game === 'brainwaves')
     ? G[S.game].name + ' does not keep daily practice records yet. Open Scores to see its results.'
     : S.view === 'progress' ? 'One row per student per game per day. Accuracy is correct answers out of all answers.'
+    : S.view === 'scores' && S.code === WORLD ? 'World: the top 50 scores in each game from every class and the world boards, all time (the time range does not apply). Details shows each score\'s class.'
     : S.view === 'tests' ? 'Best score is the highest of all tries. Students who have not started do not appear.'
     : S.view === 'admin' ? 'Time is student practice time recorded in each teacher\'s classes (not teacher log-ins, and not tests). Earshot Saloon records scores only, so it shows no minutes. What they practice lists the most used levels, keys, scale types, modes and time signatures in the records.' : '';
 }
 async function load() {
   if (S.view === 'assign' || S.view === 'newtest') { render(); return; }
   if (S.view === 'messages' || S.view === 'board') { msg(''); render(); return S.view === 'messages' ? openMessages() : openBoard(); }
+  if (S.code === WORLD && !['scores', 'admin'].includes(S.view)) { S.code = S.lastCode || (S.classes[0] || {}).code || ''; $('cls').value = S.code; }
   msg(''); S.rows = []; S.loading++; render();
   const my = ++load.n;
   try {
@@ -1341,7 +1351,7 @@ function wire() {
     const t = e.target.closest('[data-teacher]'); if (t) openTeacher(t.dataset.teacher);
   };
   $('views').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.view = b.dataset.v; load(); };
-  $('cls').onchange = () => { S.code = $('cls').value; load(); };
+  $('cls').onchange = () => { S.code = $('cls').value; if (S.code === WORLD) { if (!['scores', 'admin'].includes(S.view)) S.view = 'scores'; } else S.lastCode = S.code; load(); };
   $('rng').onchange = load;
   $('tbl').onclick = async e => {
     const h = e.target.closest('th button');
@@ -1408,9 +1418,11 @@ async function loadClasses() {
   fillClasses();
 }
 function fillClasses() {
-  if (!S.classes.some(c => c.code === S.code)) S.code = S.classes.length ? S.classes[0].code : '';
-  $('cls').innerHTML = S.classes.length ? S.classes.map(c => `<option value="${esc(c.code)}">${esc(c.name)} · ${esc(c.code)}</option>`).join('') : '<option value="">No classes yet</option>';
-  $('cls').value = S.code; $('cls').disabled = !S.classes.length;
+  if (S.code !== WORLD && !S.classes.some(c => c.code === S.code)) S.code = S.classes.length ? S.classes[0].code : '';
+  if (S.code !== WORLD) S.lastCode = S.code;
+  $('cls').innerHTML = (S.classes.length ? S.classes.map(c => `<option value="${esc(c.code)}">${esc(c.name)} · ${esc(c.code)}</option>`).join('') : '<option value="">No classes yet</option>')
+    + `<option value="${WORLD}">🌍 World · top scores, every class</option>`;
+  $('cls').value = S.code; $('cls').disabled = false;
   if (!S.classes.length) $('note').textContent = "You have no classes yet. Create one in any game's Teacher dashboard (Classes tab).";
   load();
 }
