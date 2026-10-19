@@ -530,6 +530,7 @@ const GAMES = [
   { id: 'brainwaves', name: 'Brainwaves', acc: '#7c8cff', url: 'https://drkeyzzz.github.io/brainwaves/' },
 ];
 const GAME = Object.fromEntries(GAMES.map(g => [g.id, g]));
+GAME.synapse = { ...GAME.brainwaves, name: 'Brainwaves: Sharp or Flat?' };   // Brainwaves tests are saved under its Sharp or Flat? game
 // the "Start here" order for new players: read notes, read rhythm, hear intervals, build scales, then dictation
 const PATH = ['tidal', 'rooftop', 'earshot', 'scale', 'rhythm', 'brainwaves'];
 const PITCH = { brainwaves: 'Train your ears in seven brain areas, from sharp or flat to chords and scales.', tidal: 'Name the notes on the staff to guide the boats home.', rooftop: 'Read the rhythm and jump across the rooftops.', earshot: 'Hear two notes and play the interval card.', scale: 'Build scales on the piano, arcade style.', rhythm: 'Listen and write down the rhythm to crack the safe.' };
@@ -736,7 +737,7 @@ const taskTip = (g, t) => !g ? 'Any game counts: pick one below' : t.settings ? 
   : t.skill && FOCUS[g.id] && FOCUS[g.id](t.skill) ? `Opens ${g.name} set up to practice ${t.skill}` : `Opens ${g.name}`;
 // ---------- Tests: tests/<id> (made on the teacher dashboard) for the student's classes; the student's own result is test_results/<id>_<sid> ----------
 // Only games that have a test hook open a test (the game reads ?test=<id>, locks its settings and saves the best score).
-const TEST_GAMES = ['scale','tidal','rooftop','rhythm','earshot'];
+const TEST_GAMES = ['scale','tidal','rooftop','rhythm','earshot','synapse'];
 const TESTS_KEY = p => 'mtg_tests_v1:' + sidOf(p);
 async function refreshTests(p) {
   const cs = classesOf(p); if (!cs.length) return;

@@ -296,9 +296,13 @@ const GAMES = [
   { id: 'rhythm',  name: 'Rhythm Trainer', color: '#f5c542', prog: 'progress',         scores: 'rhythm_scores',  attempts: 'slots',   url: '../../../rhythm-trainer/' },
   { id: 'scale',   name: 'Scale Quest',    color: '#3ee8f0', prog: 'scale_progress',   scores: 'scale_scores',   attempts: 'questions', url: '../../../scale-quest/' },
   { id: 'earshot', name: 'Earshot Saloon', color: '#ff9a4a', prog: null,               scores: 'earshot_scores', attempts: null,      url: '../../../earshot-saloon/' },
+  { id: 'brainwaves', name: 'Brainwaves', color: '#7c8cff', prog: null, scores: ['synapse_scores', 'intervals_scores', 'chords_scores', 'progressions_scores', 'scales_scores'], attempts: null, url: '../../../brainwaves/' },
 ];
 const G = Object.fromEntries(GAMES.map(g => [g.id, g]));
-const FB_NAME = { 'tidal-tones': 'tidal', 'rooftop-runner': 'rooftop', 'rhythm-trainer': 'rhythm', 'scale-quest': 'scale', 'earshot-saloon': 'earshot', hub: null };
+G.synapse = { ...G.brainwaves, name: 'Brainwaves: Sharp or Flat?' };   // Brainwaves tests are saved under its Sharp or Flat? game
+// Brainwaves keeps one score collection per brain area
+const BW_COL = { synapse_scores: 'Sharp or Flat?', intervals_scores: 'Intervals', chords_scores: 'Chord Colors', progressions_scores: 'Progressions', scales_scores: 'Scales and modes' };
+const FB_NAME = { 'tidal-tones': 'tidal', 'rooftop-runner': 'rooftop', 'rhythm-trainer': 'rhythm', 'scale-quest': 'scale', 'earshot-saloon': 'earshot', 'ear-brain': 'brainwaves', hub: null };
 
 const S = { email: '', classes: [], code: '', game: 'all', view: 'progress', rows: [], sort: {}, loading: 0, tests: [], testId: '', live: '' };
 
@@ -359,11 +363,12 @@ function normProgress(gid, d) {
     attempts, correct, acc: pct(correct, attempts), minutes: Math.round(num(d.minutes) * 10) / 10,
   };
 }
-function normScore(gid, d) {
+function normScore(gid, d, col) {
   const o = { game: gid, name: d.name || 'Student', dateMs: toMs(d.created_at), score: num(d.score), acc: null, detail: '' };
   if (gid === 'rhythm') { o.acc = pct(num(d.correct), num(d.total)); o.detail = d.level ? 'Level ' + d.level : ''; }
   else if (gid === 'scale') { const a = num(d.accuracy); o.acc = a ? Math.round(a <= 1 ? a * 100 : a) : null; o.detail = d.questions ? d.questions + ' questions' : ''; }
   else if (gid === 'earshot') { const a = num(d.acc); o.acc = a ? Math.round(a <= 1 ? a * 100 : a) : null; o.detail = d.town ? String(d.town) : ''; }
+  else if (gid === 'brainwaves') { o.acc = d.acc == null ? null : Math.round(num(d.acc)); o.detail = (BW_COL[col] || '') + (d.floor || d.level ? ' · Level ' + (d.floor || d.level) : ''); }
   else { const a = num(d.acc); o.acc = a ? Math.round(a <= 1 ? a * 100 : a) : null; o.detail = d.level ? 'Level ' + d.level : ''; }
   return o;
 }
@@ -385,8 +390,8 @@ async function fetchScores(gid) {
   const g = G[gid];
   const ds = days(); const cutoff = ds ? new Date(ds[ds.length - 1] + 'T00:00:00').getTime() : 0;
   return run(async ({ fs, db }) => {
-    const snap = await fs.getDocs(fs.query(fs.collection(db, g.scores), fs.where('class_code', '==', S.code)));
-    const out = []; snap.forEach(x => out.push(normScore(gid, x.data())));
+    const out = [];
+    for (const col of [].concat(g.scores)) (await fs.getDocs(fs.query(fs.collection(db, col), fs.where('class_code', '==', S.code)))).forEach(x => out.push(normScore(gid, x.data(), col)));
     return out.filter(r => !cutoff || r.dateMs >= cutoff);
   });
 }
@@ -416,11 +421,11 @@ function sample() {
       }
     });
   });
-  ['tidal', 'rooftop', 'rhythm', 'scale', 'earshot'].forEach(gid => {
+  ['tidal', 'rooftop', 'rhythm', 'scale', 'earshot', 'brainwaves'].forEach(gid => {
     names.forEach(n => {
       if (rnd() < .35) return;
       const d = ds[Math.floor(rnd() * 7)];
-      scores.push({ game: gid, name: n, dateMs: Date.parse(d + 'T' + pad(8 + Math.floor(rnd() * 7)) + ':' + pad(Math.floor(rnd() * 60)) + ':00'), score: Math.round(200 + rnd() * 2800), acc: 55 + Math.floor(rnd() * 45), detail: gid === 'scale' ? Math.round(10 + rnd() * 20) + ' questions' : gid === 'earshot' ? 'Dry Gulch' : 'Level ' + (1 + Math.floor(rnd() * 5)) });
+      scores.push({ game: gid, name: n, dateMs: Date.parse(d + 'T' + pad(8 + Math.floor(rnd() * 7)) + ':' + pad(Math.floor(rnd() * 60)) + ':00'), score: Math.round(200 + rnd() * 2800), acc: 55 + Math.floor(rnd() * 45), detail: gid === 'scale' ? Math.round(10 + rnd() * 20) + ' questions' : gid === 'earshot' ? 'Dry Gulch' : gid === 'brainwaves' ? 'Sharp or Flat? · Level ' + (1 + Math.floor(rnd() * 5)) : 'Level ' + (1 + Math.floor(rnd() * 5)) });
     });
   });
   const T = ['Loved the new level!', 'The piano sound is too quiet on my Chromebook.', 'Can we play Rooftop Runner in class tomorrow?', 'Scale Quest is hard but fun.'];
@@ -506,8 +511,8 @@ function render() {
   if (ad) { renderAdminSum(); renderAccess(); }
   const label = { progress: 'practice records', scores: 'scores', feedback: 'notes', tests: 'students with a result', admin: 'teacher and game rows' }[S.view];
   $('count').textContent = S.loading && !rows.length ? '' : S.view === 'tests' ? testSummary(rows) : rows.length + ' ' + label + (S.game === 'all' ? ' across all games' : ' in ' + g.name);
-  $('note').textContent = S.view === 'progress' && (S.game === 'earshot')
-    ? 'Earshot Saloon does not keep daily practice records yet. Open Scores to see its results.'
+  $('note').textContent = S.view === 'progress' && (S.game === 'earshot' || S.game === 'brainwaves')
+    ? G[S.game].name + ' does not keep daily practice records yet. Open Scores to see its results.'
     : S.view === 'progress' ? 'One row per student per game per day. Accuracy is correct answers out of all answers.'
     : S.view === 'tests' ? 'Best score is the highest of all tries. Students who have not started do not appear.'
     : S.view === 'admin' ? 'Time is student practice time recorded in each teacher\'s classes (not teacher log-ins, and not tests). Earshot Saloon records scores only, so it shows no minutes. What they practice lists the most used levels, keys, scale types, modes and time signatures in the records.' : '';
@@ -573,15 +578,15 @@ async function loadAdmin() {
           ['levels', 'ts', 'skills', 'types', 'by_key', 'by_game'].forEach(f => addDetail(r.det, d[f]));
         });
       } else {
-        (await fs.getDocs(fs.collection(db, g.scores))).forEach(x => {
-          const d = x.data(), ms = toMs(d.created_at); if (cutoff && ms < cutoff) return;
+        for (const col of [].concat(g.scores)) (await fs.getDocs(fs.collection(db, col))).forEach(x => {
+          const d = x.data(), ms = toMs(d.created_at), n = num(d.hands ?? d.rounds); if (cutoff && ms < cutoff) return;   // Earshot counts hands, Brainwaves rounds
           const owner = classOwner[d.class_code] || 'unknown', r = rowOf(owner, g.id);
-          r.sids.add(d.class_code + '|' + String(d.name).toLowerCase()); r.dset.add(ymd(new Date(ms))); r.attempts += num(d.hands); r.correct += Math.round(num(d.hands) * num(d.acc) / 100); r.dateMs = Math.max(r.dateMs, ms);
+          r.sids.add(d.class_code + '|' + String(d.name).toLowerCase()); r.dset.add(ymd(new Date(ms))); r.attempts += n; r.correct += Math.round(n * num(d.acc) / 100); r.dateMs = Math.max(r.dateMs, ms);
           addDetail(r.det, d.diff); addDetail(r.det, d.clef);
         });
       }
     }
-    return Object.values(agg).map(r => ({ email: r.email, game: r.game, students: r.sids.size, days: r.dset.size, minutes: r.game === 'earshot' ? null : Math.round(r.minutes * 10) / 10, attempts: r.attempts, correct: r.correct, acc: pct(r.correct, r.attempts), dateMs: r.dateMs, detail: topOf(r.det) }));
+    return Object.values(agg).map(r => ({ email: r.email, game: r.game, students: r.sids.size, days: r.dset.size, minutes: r.game === 'earshot' || r.game === 'brainwaves' ? null : Math.round(r.minutes * 10) / 10, attempts: r.attempts, correct: r.correct, acc: pct(r.correct, r.attempts), dateMs: r.dateMs, detail: topOf(r.det) }));
   }).then(rows => { const nm = {}; S.adminTeachers.forEach(t => { nm[String(t.email).toLowerCase()] = t.name; }); return rows.map(r => r.email === 'unknown' ? { ...r, name: 'No class (Earshot world board, or a deleted class)', email: '' } : { ...r, name: nm[r.email] || (ADMIN_EMAILS.includes(r.email) ? 'David Milnes (you)' : r.email) }); });
 }
 function renderAdminSum() {

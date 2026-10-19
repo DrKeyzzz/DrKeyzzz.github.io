@@ -830,7 +830,7 @@ async function boot() {
       const rs = await wait(Promise.all(tests.map(t => fs.getDoc(fs.doc(db, 'test_results', t.id + '_' + sid)))));
       const rows = tests.map((t, i) => ({ t, r: rs[i].exists() ? rs[i].data() : null })).filter(x => x.r || x.t.open);
       if (!rows.length) return box('<p class="sub">No tests yet. When your teacher gives a test, your scores show up here.</p>');
-      const gm = Object.fromEntries(GAMES.map(g => [g.id, g]));
+      const gm = Object.fromEntries(GAMES.map(g => [g.id, g])); gm.synapse = { ...gm.brainwaves, name: 'Brainwaves: Sharp or Flat?' };
       const line = ({ t, r }) => {
         const g = gm[t.game] || { name: t.game, acc: '#999' }, unit = t.grade === 'score' ? '' : '%';
         const best = r ? `<b>${esc(r.best)}${unit}</b>` : '<span class="sub">Not taken yet</span>';
