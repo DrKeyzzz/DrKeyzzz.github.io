@@ -106,6 +106,22 @@
   .low { color: var(--err); font-weight: 700; }
   .good { color: var(--ok); font-weight: 700; }
   .empty { padding: 26px 14px; text-align: center; color: var(--muted); }
+  table.plain th { padding: 11px 14px 9px; }
+  .tlink { font: inherit; color: var(--text); background: none; border: 0; padding: 0; cursor: pointer; text-align: left; }
+  .tlink b { text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 3px; }
+  .tlink:hover b, .tlink:focus-visible b { text-decoration-color: currentColor; }
+  tr.trow { cursor: pointer; } tr.trow:hover td { background: color-mix(in srgb, var(--text) 5%, transparent); }
+  .tp h3 { font: 700 15px var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 26px 0 0; }
+  .tp .tpwho { display: flex; justify-content: flex-start; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-top: 12px; }
+  .tp .tpwho h2 { margin: 0; font-size: 26px; }
+  .tp .tpwho span { color: var(--muted); }
+  .tp .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-top: 14px; }
+  .tp .tile { border: 1px solid var(--card-border); border-radius: 12px; padding: 10px 14px; }
+  .tp .tile small { display: block; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .tp .tile b { font-size: 22px; }
+  .tp .st { font-size: 13px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: color-mix(in srgb, var(--text) 10%, transparent); }
+  .tp .st.on { background: color-mix(in srgb, #5fe3a4 25%, transparent); color: #5fe3a4; }
+  .tp td.wrap { white-space: normal; min-width: 220px; }
   .up { margin: 16px 0 6px; }
   .up h3 { font: 700 12px var(--f-ui); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
   .up ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
@@ -304,7 +320,7 @@ G.synapse = { ...G.brainwaves, name: 'Brainwaves: Sharp or Flat?' };   // Brainw
 const BW_COL = { synapse_scores: 'Sharp or Flat?', intervals_scores: 'Intervals', chords_scores: 'Chord Colors', progressions_scores: 'Progressions', scales_scores: 'Scales and modes' };
 const FB_NAME = { 'tidal-tones': 'tidal', 'rooftop-runner': 'rooftop', 'rhythm-trainer': 'rhythm', 'scale-quest': 'scale', 'earshot-saloon': 'earshot', 'ear-brain': 'brainwaves', hub: null };
 
-const S = { email: '', classes: [], code: '', game: 'all', view: 'progress', rows: [], sort: {}, loading: 0, tests: [], testId: '', live: '' };
+const S = { teacher: '', tp: null, email: '', classes: [], code: '', game: 'all', view: 'progress', rows: [], sort: {}, loading: 0, tests: [], testId: '', live: '' };
 
 // ---------- Firebase ----------
 let fbP = null, fbAuthP = null;
@@ -496,8 +512,10 @@ function render() {
     return S.view === 'messages' ? renderMessages() : renderBoard();
   }
   const asg = S.view === 'assign', nt = S.view === 'newtest', ts = S.view === 'tests', ad = S.view === 'admin';
-  $('upbox').hidden = !ts; $('adminsum').hidden = !ad; $('adminacc').hidden = !ad;
-  $('data').hidden = asg || nt; $('assignbox').hidden = !asg; $('testsbox').hidden = !ts; $('newtestbox').hidden = !nt; $('csv').hidden = asg || nt;
+  if (!ad) S.teacher = '';
+  const tpg = ad && !!S.teacher;
+  $('upbox').hidden = !ts; $('adminsum').hidden = !ad; $('adminacc').hidden = !ad || tpg;
+  $('data').hidden = asg || nt || tpg; $('assignbox').hidden = !asg; $('testsbox').hidden = !ts; $('newtestbox').hidden = !nt; $('csv').hidden = asg || nt || tpg;
   $('cls').closest('label').hidden = asg || ad; $('rng').closest('label').hidden = asg || nt || ts;
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (nt && b.dataset.v === 'tests'))));
   if (asg) { showAssign(); return; }
@@ -587,16 +605,72 @@ async function loadAdmin() {
       }
     }
     return Object.values(agg).map(r => ({ email: r.email, game: r.game, students: r.sids.size, days: r.dset.size, minutes: r.game === 'earshot' || r.game === 'brainwaves' ? null : Math.round(r.minutes * 10) / 10, attempts: r.attempts, correct: r.correct, acc: pct(r.correct, r.attempts), dateMs: r.dateMs, detail: topOf(r.det) }));
-  }).then(rows => { const nm = {}; S.adminTeachers.forEach(t => { nm[String(t.email).toLowerCase()] = t.name; }); return rows.map(r => r.email === 'unknown' ? { ...r, name: 'No class (Earshot world board, or a deleted class)', email: '' } : { ...r, name: nm[r.email] || (ADMIN_EMAILS.includes(r.email) ? 'David Milnes (you)' : r.email) }); });
+  }).then(rows => { const nm = {}; S.adminTeachers.forEach(t => { nm[String(t.email).toLowerCase()] = t.name; }); return rows.map(r => r.email === 'unknown' ? { ...r, name: 'No class (world leaderboards, or a deleted class)', email: '' } : { ...r, name: nm[r.email] || (ADMIN_EMAILS.includes(r.email) ? 'David Milnes (you)' : r.email) }); });
+}
+// ---------- Admin: one teacher's page (click a name in the list) ----------
+// Classes and tests can be read by anyone signed in, so this needs no new rules. Read once when the page opens.
+const GNAMES = { ...Object.fromEntries(GAMES.slice(1).map(g => [g.id, g.name])), synapse: 'Brainwaves: Sharp or Flat?', listen: 'Critical Listening Lab', any: 'Any game' };
+const OLD_ASSIGN = { assignment: 'The Big Score', scale_assignment: 'Scale Quest', tidal_assignment: 'Tidal Tones', rooftop_assignment: 'Rooftop Runner', listen_assignment: 'Critical Listening Lab' };
+const setsText = o => Object.entries(o || {}).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : typeof v === 'object' && v ? JSON.stringify(v) : v}`).join(' · ');
+async function openTeacher(email) {
+  S.teacher = email; S.tp = { email, loading: true, classes: [], tests: [] }; render(); scrollTo({ top: $('adminsum').getBoundingClientRect().top + scrollY - 20 });
+  try {
+    if (PREVIEW) {
+      const today = ymd(new Date()), later = ymd(new Date(Date.now() + 6 * 864e5)), past = ymd(new Date(Date.now() - 9 * 864e5));
+      S.tp.classes = [{ code: 'PREVW', name: 'Period 3 Music Theory', hub_assignment: { start: today, end: later, tasks: [{ game: 'scale', skills: ['Dorian', 'Mixolydian'], goal: 30, unit: 'answers' }, { game: 'any', goal: 20, unit: 'minutes' }] }, scale_assignment: { keys: ['C', 'G'] } },
+        { code: 'PREV2', name: 'Period 5 Chorus', hub_assignment: { start: past, end: past, tasks: [{ game: 'earshot', skill: 'Perfect 5th', goal: 40, unit: 'answers' }] } }];
+      S.tp.tests = [{ id: 't1', name: 'Unit 2 scales quiz', game: 'scale', class_code: 'PREVW', settings: { keys: ['C', 'G', 'D'] }, grade: 'acc', tries: 2, open: true, created: Date.now() - 2 * 864e5, from: 0, to: Date.now() + 3 * 864e5 },
+        { id: 't2', name: 'Pitch check', game: 'synapse', class_code: 'PREV2', settings: { floor: '3' }, grade: 'score', tries: 1, open: false, created: Date.now() - 12 * 864e5, from: 0, to: 0 }];
+      await new Promise(r => setTimeout(r, 150));
+    } else await run(async ({ fs, db }) => {
+      const [cs, ts] = await Promise.all([fs.getDocs(fs.query(fs.collection(db, 'classes'), fs.where('ownerEmail', '==', email))), fs.getDocs(fs.query(fs.collection(db, 'tests'), fs.where('owner', '==', email)))]);
+      S.tp.classes = cs.docs.map(d => ({ code: d.id, ...d.data() })).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+      S.tp.tests = ts.docs.map(d => { const t = d.data(); return { id: d.id, ...t, created: toMs(t.created_at), from: toMs(t.opens_at), to: toMs(t.closes_at) }; }).sort((a, b) => b.created - a.created);
+    });
+  } catch (e) { S.tp.err = errText(e); }
+  if (S.tp && S.tp.email === email) { S.tp.loading = false; render(); }
+}
+function renderTeacherPage() {
+  const email = S.teacher, tp = S.tp || {}, tinfo = (S.adminTeachers || []).find(t => String(t.email).toLowerCase() === email) || {};
+  const rows = S.rows.filter(r => r.email === email), sum = k => rows.reduce((a, r) => a + (r[k] || 0), 0), last = Math.max(0, ...rows.map(r => r.dateMs || 0));
+  const today = ymd(new Date()), cname = c => { const x = (tp.classes || []).find(k => k.code === c); return x ? `${x.name || c} (${c})` : c; };
+  const tile = (h, v) => `<div class="tile"><small>${esc(h)}</small><b>${v}</b></div>`;
+  const table = (heads, body, n) => `<div class="tw"><table class="plain"><thead><tr>${heads.map(h => `<th${Array.isArray(h) && h[1] ? ' class="num"' : ''}>${esc(Array.isArray(h) ? h[0] : h)}</th>`).join('')}</tr></thead><tbody>${body || `<tr><td class="empty" colspan="${n || heads.length}">${tp.loading ? 'Loading…' : 'None yet.'}</td></tr>`}</tbody></table></div>`;
+  const games = rows.slice().sort((a, b) => (b.minutes || 0) - (a.minutes || 0) || b.attempts - a.attempts).map(r => `<tr><td><span class="dot" style="background:${G[r.game].color}"></span>${esc(G[r.game].name)}</td><td class="num">${r.students}</td><td class="num">${r.days}</td><td class="num">${r.minutes == null ? '—' : Math.round(r.minutes * 10) / 10}</td><td class="num">${r.attempts}</td><td class="num">${r.acc == null ? '—' : r.acc + '%'}</td><td class="wrap">${esc(r.detail || '')}</td><td>${r.dateMs ? esc(fmtDate(r.dateMs)) : ''}</td></tr>`).join('');
+  const asg = [];
+  (tp.classes || []).forEach(c => {
+    const a = c.hub_assignment;
+    if (a && Array.isArray(a.tasks)) {
+      const st = a.start > today ? ['Upcoming', ''] : a.end < today ? ['Past', ''] : ['Active', ' on'];
+      const what = a.tasks.map(t => `${GNAMES[t.game] || t.game}${[].concat(t.skills || t.skill || []).filter(Boolean).length ? ': ' + [].concat(t.skills || t.skill).filter(Boolean).join(', ') : ''} · ${t.goal} ${t.unit === 'minutes' ? 'min' : 'answers'}${t.settings ? ' (' + setsText(t.settings) + ')' : ''}`).join('<br>');
+      asg.push({ key: (st[0] === 'Active' ? 0 : st[0] === 'Upcoming' ? 1 : 2) + a.end, html: `<tr><td>${esc(cname(c.code))}</td><td class="wrap">${what.split('<br>').map(esc).join('<br>')}</td><td>${esc(fmtDay(a.start))} – ${esc(fmtDay(a.end))}</td><td><span class="st${st[1]}">${st[0]}</span></td></tr>` });
+    }
+    Object.entries(OLD_ASSIGN).forEach(([k, gname]) => { const v = c[k]; if (v && typeof v === 'object' && Object.keys(v).length) asg.push({ key: '3', html: `<tr><td>${esc(cname(c.code))}</td><td class="wrap">${esc(gname)} (set inside the game) · ${esc(setsText(v).slice(0, 160))}</td><td></td><td><span class="st">In game</span></td></tr>` }); });
+  });
+  asg.sort((a, b) => String(a.key).localeCompare(String(b.key)));
+  const now = Date.now(), tests = (tp.tests || []).map(t => {
+    const live = t.open && (!t.from || t.from <= now) && (!t.to || t.to > now), st = !t.open ? 'Closed' : t.to && t.to <= now ? 'Ended' : t.from > now ? 'Scheduled' : 'Open';
+    const when = [t.from ? 'Opens ' + fmtDate(t.from) : '', t.to ? 'Closes ' + fmtDate(t.to) : ''].filter(Boolean).join('<br>');
+    return `<tr><td><b>${esc(t.name)}</b></td><td>${esc(GNAMES[t.game] || t.game)}</td><td>${esc(cname(t.class_code))}</td><td class="wrap">${esc(setsText(t.settings)) || '<span style="color:var(--muted)">Game defaults</span>'}</td><td>${t.grade === 'score' ? 'Points' : 'Accuracy'}</td><td>${t.tries ? t.tries : 'Unlimited'}</td><td><span class="st${live ? ' on' : ''}">${st}</span></td><td>${when.split('<br>').map(esc).join('<br>') || '—'}</td><td>${t.created ? esc(fmtDate(t.created)) : ''}</td></tr>`;
+  }).join('');
+  $('adminsum').innerHTML = `<div class="tp"><button class="btn ghost sm" type="button" id="tpback" style="margin-top:14px">← All teachers</button>
+    <div class="tpwho"><h2>${esc(tinfo.name || email)}</h2><span>${esc(tinfo.school || '')}</span><span>${esc(email)}</span></div>
+    ${tp.err ? `<p class="msg">${esc(tp.err)}</p>` : ''}
+    <div class="tiles">${tile('Classes', tp.loading ? '…' : (tp.classes || []).length)}${tile('Students', sum('students'))}${tile('Minutes', Math.round(sum('minutes') * 10) / 10)}${tile('Answers', sum('attempts'))}${tile('Last used', last ? esc(fmtDate(last)) : '—')}</div>
+    <h3>Assignments</h3>${table(['Class', 'What', 'Dates', 'Status'], asg.map(a => a.html).join(''))}
+    <h3>Tests</h3>${table(['Test', 'Game', 'Class', 'Settings', 'Graded by', 'Tries', 'Status', 'When', 'Made'], tests)}
+    <h3>Games their classes use</h3>${table([['Game'], ['Students', 1], ['Days', 1], ['Minutes', 1], ['Answers', 1], ['Accuracy', 1], ['What they practice'], ['Last used']], games)}
+    <p class="note">Games and minutes follow the Game buttons and the time range above. Assignments and tests are everything this teacher has set up.</p></div>`;
 }
 function renderAdminSum() {
+  if (S.teacher) return renderTeacherPage();
   const rows = S.rows.filter(r => S.game === 'all' || r.game === S.game), by = {};
   (S.adminTeachers || []).forEach(t => { by[String(t.email).toLowerCase()] = { name: t.name || t.email, email: t.email, school: t.school || '', students: 0, minutes: 0, attempts: 0, dateMs: 0, games: new Set() }; });
   rows.forEach(r => { const t = by[r.email] || (by[r.email] = { name: r.name, email: r.email, school: '', students: 0, minutes: 0, attempts: 0, dateMs: 0, games: new Set() }); t.students += r.students; t.minutes += r.minutes || 0; t.attempts += r.attempts; t.dateMs = Math.max(t.dateMs, r.dateMs); t.games.add(r.game); });
   const list = Object.values(by).sort((a, b) => b.minutes - a.minutes || b.attempts - a.attempts || a.name.localeCompare(b.name));
   const dots = t => [...t.games].map(g => `<span class="dot" style="background:${G[g].color}" title="${esc(G[g].name)}"></span>`).join('') || '<span style="color:var(--muted)">none</span>';
-  $('adminsum').innerHTML = '<h3 style="font:700 15px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px">Every teacher, most active first</h3><div class="tw"><table><thead><tr><th>Teacher</th><th>School</th><th class="num">Students</th><th class="num">Minutes</th><th class="num">Answers</th><th style="padding-left:18px">Games used</th><th>Last used</th></tr></thead><tbody>'
-    + (list.length ? list.map(t => `<tr><td>${esc(t.name)}${t.email && t.email !== t.name ? `<br><span style="color:var(--muted);font-size:13px">${esc(t.email)}</span>` : ''}</td><td>${esc(t.school)}</td><td class="num">${t.students}</td><td class="num">${Math.round(t.minutes * 10) / 10}</td><td class="num">${t.attempts}</td><td style="padding-left:18px">${dots(t)}</td><td>${t.dateMs ? esc(fmtDate(t.dateMs)) : '<span style="color:var(--muted)">No activity</span>'}</td></tr>`).join('') : '<tr><td class="empty" colspan="7">No teachers yet.</td></tr>')
+  $('adminsum').innerHTML = '<h3 style="font:700 15px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px">Every teacher, most active first <span style="text-transform:none;letter-spacing:0;font-weight:400">· click a name to see their classes, assignments and tests</span></h3><div class="tw"><table class="plain"><thead><tr><th>Teacher</th><th>School</th><th class="num">Students</th><th class="num">Minutes</th><th class="num">Answers</th><th style="padding-left:18px">Games used</th><th>Last used</th></tr></thead><tbody>'
+    + (list.length ? list.map(t => `<tr${t.email ? ` class="trow" data-teacher="${esc(String(t.email).toLowerCase())}"` : ''}><td>${t.email ? `<button type="button" class="tlink" data-teacher="${esc(String(t.email).toLowerCase())}"><b>${esc(t.name)}</b></button>` : esc(t.name)}${t.email && t.email !== t.name ? `<br><span style="color:var(--muted);font-size:13px">${esc(t.email)}</span>` : ''}</td><td>${esc(t.school)}</td><td class="num">${t.students}</td><td class="num">${Math.round(t.minutes * 10) / 10}</td><td class="num">${t.attempts}</td><td style="padding-left:18px">${dots(t)}</td><td>${t.dateMs ? esc(fmtDate(t.dateMs)) : '<span style="color:var(--muted)">No activity</span>'}</td></tr>`).join('') : '<tr><td class="empty" colspan="7">No teachers yet.</td></tr>')
     + '</tbody></table></div><h3 style="font:700 15px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:22px 0 0">By teacher and game</h3>';
 }
 // ---------- Teacher access (admin only): add teachers directly, approve or deny requests, remove ----------
@@ -1262,6 +1336,10 @@ function buildTabs() {
 function wire() {
   buildTabs();
   $('upbox').onclick = e => { const b = e.target.closest('button[data-view]'); if (!b) return; S.code = b.dataset.code; $('cls').value = S.code; if (b.dataset.test) { S.testId = b.dataset.test; S.editId = b.dataset.test; S.view = 'newtest'; } else S.view = b.dataset.view; load(); };
+  $('adminsum').onclick = e => {
+    if (e.target.closest('#tpback')) { S.teacher = ''; S.tp = null; render(); return; }
+    const t = e.target.closest('[data-teacher]'); if (t) openTeacher(t.dataset.teacher);
+  };
   $('views').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.view = b.dataset.v; load(); };
   $('cls').onchange = () => { S.code = $('cls').value; load(); };
   $('rng').onchange = load;
