@@ -152,6 +152,12 @@
   .tidal   { --accent: #ffc85c; --shot-bg: #0c1a23; }
   .rhythm  { --accent: #f5c542; --shot-bg: #0b1020; }
   .brainwaves { --accent: #7c8cff; --shot-bg: #05070d; }
+  /* Brainwaves card: the brain slowly breathes and glows through its area colors (still for reduced motion) */
+  .brainwaves .shot img { animation: bwbreathe 6s ease-in-out infinite, bwglow 9s linear infinite; }
+  @keyframes bwbreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); } }
+  @keyframes bwglow { 0% { filter: drop-shadow(0 0 10px #7c8cff) brightness(1); } 25% { filter: drop-shadow(0 0 16px #ff6fd8) brightness(1.08); }
+    50% { filter: drop-shadow(0 0 10px #3ee8f0) brightness(1); } 75% { filter: drop-shadow(0 0 16px #ffc85c) brightness(1.08); } 100% { filter: drop-shadow(0 0 10px #7c8cff) brightness(1); } }
+  @media (prefers-reduced-motion: reduce) { .brainwaves .shot img { animation: none; } }
   .scale   { --accent: #3ee8f0; --shot-bg: #0e0a25; }
   .rooftop { --accent: #ff4fa3; --shot-bg: #121025; }
   .earshot { --accent: #ff9a4a; --shot-bg: #1a120c; }
