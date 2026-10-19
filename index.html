@@ -271,6 +271,10 @@
   /* "From your teacher": the class's assignment for today, before the other quests */
   .q.tq { background: linear-gradient(color-mix(in srgb, var(--accent) 7%, transparent), transparent 70%), var(--card); }
   .q.tq .qk { color: var(--text); }
+  /* an assignment or test that still needs doing: red outline that pulses, so nobody misses it among the quests */
+  .q.must { border: 2px solid #ff3b4e; border-top-width: 3px; animation: mustpulse 1.6s ease-in-out infinite; }
+  @keyframes mustpulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 59, 78, .55); } 50% { box-shadow: 0 0 0 7px rgba(255, 59, 78, 0), 0 0 24px rgba(255, 59, 78, .45); } }
+  @media (prefers-reduced-motion: reduce) { .q.must { animation: none; box-shadow: 0 0 18px rgba(255, 59, 78, .4); } }
   .q.tq .qp { min-width: 0; white-space: nowrap; font-size: 15px; }
   .q.tq.done .qp { color: var(--accent); }
   html[data-skin="day"] .q.tq.done :is(.qn, .qp) { color: var(--text); }
@@ -759,7 +763,7 @@ function testCards(p) {
     const g = GAME[t.game], r = (d.results || {})[t.id], used = r ? r.tries : 0, left = t.tries ? Math.max(0, t.tries - used) : Infinity;
     const unit = t.grade === 'score' ? '' : '%', policy = t.tries ? (t.tries === 1 ? 'One and done' : `${t.tries} tries, best counts`) : 'Unlimited tries, best counts';
     const status = (t.to ? `Closes ${new Date(t.to).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })} · ` : '') + (used ? `Best ${r.best}${unit} · ${used} ${used === 1 ? 'try' : 'tries'} used` : 'Not taken yet');
-    return `<article class="q tq" style="--accent:${g.acc}"><p class="qk"><i></i>Test · ${esc(g.name)}</p>
+    return `<article class="q tq${left > 0 && !(t.from && t.from > Date.now()) ? ' must' : ''}" style="--accent:${g.acc}"><p class="qk"><i></i>Test · ${esc(g.name)}</p>
       <b class="qn">${esc(t.name)}</b><p class="qt">${esc(t.className || '')} · ${esc(policy)}</p><p class="qt">${esc(status)}</p>
       ${t.from && t.from > Date.now() ? `<span class="qp">Opens ${esc(new Date(t.from).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' }))}</span>` : left === 0 ? '<span class="qp">✓ All tries used</span>' : `<a class="go" href="${esc(g.url + '?test=' + encodeURIComponent(t.id))}" data-tip="Opens the test in ${esc(g.name)}. Settings are set by your teacher.">${used ? 'Take it again' : 'Start the test'}</a>`}</article>`;
   });
@@ -771,10 +775,10 @@ function teacherCards(p, days) {
     if (!a || a.start > today || a.end < today) continue;
     for (const t of a.tasks) {
       if (out.length >= 3) break;
-      const g = GAME[t.game] || null, what = skl(t).join(', ') || 'any practice', title = `${g ? g.name : 'Any game'}: ${what}`;
+      const g = GAME[t.game] || null, what = skl(t).join(', ') || (t.settings && Array.isArray(t.settings.keys) && t.settings.keys.length ? t.settings.keys.slice(0, 6).join(', ') + (t.settings.keys.length > 6 ? '…' : '') : 'any practice'), title = `${g ? g.name : 'Any game'}: ${what}`;
       const v = assignDone(days, a, t), done = v >= t.goal, unit = t.unit === 'minutes' ? 'min' : 'answers';
       const href = g ? taskLink(g, t) : '#games';
-      out.push(`<article class="q tq${done ? ' done' : ''}" style="--accent:${g ? g.acc : 'var(--gold)'}"><p class="qk"><i></i>From your teacher · ${esc(dueText(a.end))}</p>
+      out.push(`<article class="q tq${done ? ' done' : ' must'}" style="--accent:${g ? g.acc : 'var(--gold)'}"><p class="qk"><i></i>From your teacher · ${esc(dueText(a.end))}</p>
         <b class="qn">${esc(title)}</b>${cs.length > 1 ? `<p class="qt">${esc(c.name || c.code)}</p>` : ''}
         <div class="qrow">${bar(Math.round(100 * v / t.goal), `${title}: ${v} of ${t.goal} ${unit}`)}<span class="qp">${done ? '✓ Done' : `${fmt(v)} of ${t.goal} ${unit}`}</span></div>
         <a class="go" href="${esc(href)}" data-tip="${esc(taskTip(g, t))}" aria-label="${done ? 'Practice more' : 'Start'}: ${esc(title)}">${g ? (done ? 'Practice more' : 'Start') : 'Pick a game'}</a></article>`);

@@ -392,7 +392,7 @@ function normScore(gid, d, col) {
 }
 // ---------- Grades: how far each student got on the class's assignment (for the grade book) ----------
 // A class keeps one assignment (classes/<code>.hub_assignment: start, end, up to 3 tasks). Each task counts the student's
-// practice records in that game from start to end: answers (or minutes); Scale Quest counts only the assigned keys.
+// practice records in that game from start to end: answers (or minutes), the same count the student's home page shows.
 // Grade = the average of the tasks, each capped at 100%. Earshot Saloon and Brainwaves keep no practice records yet.
 const dayList = (a, b) => { const out = []; for (let d = new Date(a + 'T12:00:00'); ymd(d) <= b && out.length < 120; d.setDate(d.getDate() + 1)) out.push(ymd(d)); return out; };
 const taskName = t => { const g = G[t.game], keys = t.game === 'scale' && t.settings && Array.isArray(t.settings.keys) ? t.settings.keys : [], sk = [].concat(t.skills || t.skill || []).filter(Boolean);
@@ -400,9 +400,8 @@ const taskName = t => { const g = G[t.game], keys = t.game === 'scale' && t.sett
 function taskCount(t, recs) {   // recs: one student's practice records in the date range
   const mine = recs.filter(r => t.game === 'any' || r.game === t.game);
   if (t.unit === 'minutes') return { done: Math.round(mine.reduce((a, r) => a + r.minutes, 0)), right: null, all: null };
-  const keys = t.game === 'scale' && t.settings && Array.isArray(t.settings.keys) && t.settings.keys.length ? t.settings.keys : null;
   let done = 0, right = 0;
-  mine.forEach(r => { if (keys && r.raw && r.raw.by_key) keys.forEach(k => { const v = r.raw.by_key[k]; if (v) { right += num(v[0]); done += num(v[1]); } }); else if (!keys) { done += r.attempts; right += r.correct; } });
+  mine.forEach(r => { done += r.attempts; right += r.correct; });
   return { done, right, all: done };
 }
 async function loadGrades() {
@@ -583,7 +582,7 @@ function render() {
   if (ad) { renderAdminSum(); renderAccess(); }
   const label = { progress: 'practice records', scores: 'scores', feedback: 'notes', tests: 'students with a result', admin: 'teacher and game rows' }[S.view];
   $('count').textContent = S.loading && !rows.length ? '' : S.view === 'tests' ? testSummary(rows) : S.view === 'grades' ? (S.gradeA ? `Assignment ${fmtDay(S.gradeA.start)}${S.gradeA.end !== S.gradeA.start ? ' – ' + fmtDay(S.gradeA.end) : ''}: ${S.gradeA.tasks.map(t => taskName(t) + ', ' + t.goal + (t.unit === 'minutes' ? ' min' : ' answers')).join(' · ')} · ${rows.length} student${rows.length === 1 ? '' : 's'}` : 'This class has no assignment yet. Make one in Assign.') : rows.length + ' ' + label + (S.game === 'all' ? ' across all games' : ' in ' + g.name);
-  $('note').textContent = S.view === 'grades' ? 'Grade = how much of each task is done (each capped at 100%), averaged. Scale Quest counts only answers in the assigned keys. Students who have not practiced yet do not appear. Earshot Saloon and Brainwaves tasks cannot be counted yet. Making a new assignment replaces this one, so download the CSV first.'
+  $('note').textContent = S.view === 'grades' ? 'Grade = how much of each task is done (each capped at 100%), averaged. It counts all practice in that game during the dates, the same number students see on their home page. Students who have not practiced yet do not appear. Earshot Saloon and Brainwaves tasks cannot be counted yet. Making a new assignment replaces this one, so download the CSV first.'
     : S.view === 'progress' && (S.game === 'earshot' || S.game === 'brainwaves')
     ? G[S.game].name + ' does not keep daily practice records yet. Open Scores to see its results.'
     : S.view === 'progress' ? 'One row per student per game per day. Accuracy is correct answers out of all answers.'
