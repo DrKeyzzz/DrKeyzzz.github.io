@@ -157,7 +157,9 @@
   @keyframes bwbreathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.045); } }
   @keyframes bwglow { 0% { filter: drop-shadow(0 0 10px #7c8cff) brightness(1); } 25% { filter: drop-shadow(0 0 16px #ff6fd8) brightness(1.08); }
     50% { filter: drop-shadow(0 0 10px #3ee8f0) brightness(1); } 75% { filter: drop-shadow(0 0 16px #ffc85c) brightness(1.08); } 100% { filter: drop-shadow(0 0 10px #7c8cff) brightness(1); } }
-  @media (prefers-reduced-motion: reduce) { .brainwaves .shot img { animation: none; } }
+  .bw-shot { position: relative; }
+  .bw-sparks { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; mix-blend-mode: screen; }
+  @media (prefers-reduced-motion: reduce) { .brainwaves .shot img { animation: none; } .bw-sparks { display: none; } }
   .scale   { --accent: #3ee8f0; --shot-bg: #0e0a25; }
   .rooftop { --accent: #ff4fa3; --shot-bg: #121025; }
   .earshot { --accent: #ff9a4a; --shot-bg: #1a120c; }
@@ -433,7 +435,7 @@
 
     <a class="game brainwaves" href="https://drkeyzzz.github.io/brainwaves/">
       <span class="step" aria-hidden="true"><b>6</b>Ear training</span>
-      <div class="shot"><img src="screenshots/brainwaves.jpg" alt="Brainwaves: a glowing brain where each area is an ear-training game"></div>
+      <div class="shot bw-shot"><canvas class="bw-sparks" aria-hidden="true"></canvas><img src="screenshots/brainwaves.jpg" alt="Brainwaves: a glowing brain where each area is an ear-training game"></div>
       <div class="info">
         <div>
           <p class="name">Brainwaves</p>
@@ -1540,5 +1542,47 @@ render(); refreshClass(); tipIds();
 })();
 </script>
 <!-- MTG_FEEDBACK end -->
+<script>
+// Brainwaves card: electric pulses hop neuron to neuron over the brain picture (like the Brainwaves brain page), trails and flashes.
+(() => {
+  const cv = document.querySelector('.bw-sparks'); if (!cv || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const img = cv.nextElementSibling, cx = cv.getContext('2d'), COLS = ['#7c8cff', '#ff6fd8', '#3ee8f0', '#ffc85c', '#7dffb0', '#ff8a5c'];
+  let W = 0, H = 0, N = [], P = [], F = [], on = true, last = 0;
+  function layout() {
+    const r = cv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1); W = r.width; H = r.height;
+    cv.width = W * dpr; cv.height = H * dpr; cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // neurons scattered over the picture itself (it's centered and contained in the box)
+    const ir = img.getBoundingClientRect(), ox = ir.left - r.left, oy = ir.top - r.top, iw = ir.width || W, ih = ir.height || H;
+    N = Array.from({ length: 42 }, () => { const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random());
+      return { x: ox + iw * (.5 + Math.cos(a) * d * .36), y: oy + ih * (.47 + Math.sin(a) * d * .3) }; });
+    N.forEach(n => { n.nb = N.filter(m => m !== n).sort((a, b) => Math.hypot(a.x - n.x, a.y - n.y) - Math.hypot(b.x - n.x, b.y - n.y)).slice(0, 4); });
+    P = Array.from({ length: 22 }, spawn);
+  }
+  function spawn() { const a = N[Math.random() * N.length | 0]; return { a, b: a.nb[Math.random() * a.nb.length | 0], t: Math.random(), v: .9 + Math.random() * 1.1, c: COLS[Math.random() * COLS.length | 0], tr: [] }; }
+  function frame(now) {
+    if (!on) return; requestAnimationFrame(frame);
+    const dt = Math.min(.05, (now - (last || now)) / 1000); last = now;
+    cx.clearRect(0, 0, W, H); cx.lineCap = 'round';
+    for (const p of P) {
+      p.t += dt * p.v * 1.6;
+      if (p.t >= 1) { F.push({ x: p.b.x, y: p.b.y, c: p.c, life: 1 }); p.a = p.b; p.b = p.a.nb[Math.random() * p.a.nb.length | 0]; p.t = 0; if (Math.random() < .25) p.c = COLS[Math.random() * COLS.length | 0]; }
+      const x = p.a.x + (p.b.x - p.a.x) * p.t, y = p.a.y + (p.b.y - p.a.y) * p.t;
+      p.tr.push([x, y]); if (p.tr.length > 18) p.tr.shift();
+      for (let k = 1; k < p.tr.length; k++) { cx.strokeStyle = p.c; cx.globalAlpha = k / p.tr.length * .8; cx.lineWidth = 1.5 + k / p.tr.length * 3;
+        cx.beginPath(); cx.moveTo(p.tr[k - 1][0], p.tr[k - 1][1]); cx.lineTo(p.tr[k][0], p.tr[k][1]); cx.stroke(); }
+      cx.globalAlpha = 1; cx.shadowColor = p.c; cx.shadowBlur = 16; cx.fillStyle = '#fff'; cx.beginPath(); cx.arc(x, y, 3.2, 0, 7); cx.fill(); cx.shadowBlur = 0;
+    }
+    F = F.filter(f => (f.life -= dt * 2.2) > 0);
+    for (const f of F) { cx.globalAlpha = f.life; cx.fillStyle = f.c; cx.shadowColor = f.c; cx.shadowBlur = 24; cx.beginPath(); cx.arc(f.x, f.y, 4 + (1 - f.life) * 9, 0, 7); cx.fill(); }
+    cx.globalAlpha = 1; cx.shadowBlur = 0;
+  }
+  const go = () => { layout(); last = 0; requestAnimationFrame(frame); };
+  if (img.complete) go(); else img.addEventListener('load', go);
+  addEventListener('resize', () => layout());
+  // only run while the card is on screen and the tab is visible
+  new IntersectionObserver(([e]) => { const was = on; on = e.isIntersecting && !document.hidden; if (on && !was) { last = 0; requestAnimationFrame(frame); } }).observe(cv);
+  document.addEventListener('visibilitychange', () => { const was = on; on = !document.hidden; if (on && !was) { last = 0; requestAnimationFrame(frame); } });
+})();
+</script>
 </body>
 </html>
