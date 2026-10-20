@@ -426,7 +426,8 @@ function taskCount(t, recs) {   // recs: one student's practice records in the d
 }
 // Past assignments: teacher/ also keeps classes/<code>.hub_assignments (newest first) when it saves, so Grades lists every
 // assignment as a row with an arrow; the open one shows its table. S.gradeOpen = the open one's key ('' = all closed, unset = newest).
-const aKey = a => [a.start, a.end, JSON.stringify(a.tasks)].join('|');
+const stab = v => Array.isArray(v) ? '[' + v.map(stab) + ']' : v && typeof v === 'object' ? '{' + Object.keys(v).sort().map(k => k + ':' + stab(v[k])) + '}' : JSON.stringify(v);   // same text whatever order Firestore returns map keys in
+const aKey = a => [a.start, a.end, stab(a.tasks)].join('|');
 function gradeList(c) {
   const dk = n => ymd(new Date(Date.now() + n * 864e5));
   const all = PREVIEW ? [{ start: dk(-2), end: dk(0), tasks: [{ game: 'scale', goal: 40, unit: 'answers', settings: { keys: ['F', 'Bb', 'Eb', 'Ab'] } }, { game: 'tidal', goal: 15, unit: 'minutes' }] },

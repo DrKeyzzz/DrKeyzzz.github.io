@@ -763,8 +763,20 @@ $('form').addEventListener('submit', async e => {
     return;
   }
   $('save').disabled = true; $('save').textContent = 'Saving…'; msg('');
+  const stab = v => Array.isArray(v) ? '[' + v.map(stab) + ']' : v && typeof v === 'object' ? '{' + Object.keys(v).sort().map(k => k + ':' + stab(v[k])) + '}' : JSON.stringify(v);   // same text whatever order Firestore returns map keys in
+  // hub_assignments keeps every assignment (newest first, up to 40) for the dashboard's Grades list. Saving over the
+  // current one with the same start date is an edit and replaces it there; any other current one stays in the list.
+  const plain = a => ({ start: a.start, end: a.end, tasks: a.tasks }), key = a => [a.start, a.end, stab(a.tasks)].join('|');
+  const cur = c.hub_assignment && Array.isArray(c.hub_assignment.tasks) && c.hub_assignment.tasks.length ? plain(c.hub_assignment) : null;
+  const seen = new Set(), hist = [{ ...b.a, set_ms: Date.now() }, ...(cur && cur.start !== b.a.start ? [cur] : []), ...(Array.isArray(c.hub_assignments) ? c.hub_assignments : [])]
+    .filter((a, i) => a && a.start && Array.isArray(a.tasks) && !(i && cur && cur.start === b.a.start && key(a) === key(cur)) && !seen.has(key(a)) && seen.add(key(a)))
+    .sort((x, y) => y.start.localeCompare(x.start)).slice(0, 40);
   try {
-    await run(({ fs, db }) => fs.updateDoc(fs.doc(db, 'classes', c.code), { hub_assignment: { ...b.a, set_at: fs.serverTimestamp() } }));
+    try { await run(({ fs, db }) => fs.updateDoc(fs.doc(db, 'classes', c.code), { hub_assignment: { ...b.a, set_at: fs.serverTimestamp() }, hub_assignments: hist })); c.hub_assignments = hist; }
+    catch (err) {   // Firebase rules without hub_assignments yet: save the assignment alone, as before
+      if (!err || err.code !== 'permission-denied') throw err;
+      await run(({ fs, db }) => fs.updateDoc(fs.doc(db, 'classes', c.code), { hub_assignment: { ...b.a, set_at: fs.serverTimestamp() } }));
+    }
     c.hub_assignment = b.a; pickClass();
     msg(`Saved for ${c.name}. Students see it on the home page the next time it loads.`, true);
   } catch (err) { msg(errText(err, true)); }
