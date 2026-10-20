@@ -136,6 +136,19 @@
   .x { font: 700 14px var(--f-ui); border: 1px solid var(--card-border); background: transparent; color: var(--muted); border-radius: 999px; padding: 4px 11px 2px; cursor: pointer; }
   .x:hover { color: var(--err); border-color: var(--err); }
   .count { color: var(--muted); font-size: 15px; margin: 14px 0 0; }
+  /* Grades: one row per assignment, the open one shows its table */
+  .glist { display: grid; gap: 8px; margin-top: 14px; }
+  #gradelist2:not(:empty) { margin-top: 18px; }
+  .gi { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; width: 100%; text-align: left; font: 600 16px var(--f-ui); color: var(--text); background: var(--bg); border: 1px solid var(--card-border); border-radius: 12px; padding: 12px 14px; cursor: pointer; }
+  .gi:hover { border-color: var(--gold); }
+  .gi:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+  .gi.on { border-color: var(--gold); }
+  .gar { color: var(--gold); transition: transform .15s; display: inline-block; }
+  .gi.on .gar { transform: rotate(90deg); }
+  .gd { white-space: nowrap; }
+  .gw { flex: 1; min-width: 180px; color: var(--muted); font-weight: 400; font-size: 15px; }
+  .gs { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; border: 1px solid currentColor; }
+  .gs.now { color: var(--ok, #2fbf71); } .gs.up { color: var(--gold); } .gs.end { color: var(--muted); }
   footer { text-align: center; color: var(--muted); font-size: 14px; margin-top: 28px; }
   .pv { background: var(--gold); color: #10131a; font-weight: 700; text-align: center; padding: 6px; font-size: 14px; border-radius: 10px; margin: 12px 0 0; }
 
@@ -283,11 +296,13 @@
       <div id="adminacc" class="access" hidden></div>
       <div id="adminsum" hidden></div>
       <div id="newtestbox" hidden><button class="btn ghost sm" type="button" id="tback" style="margin-top:14px">← Back to Tests</button><iframe id="tframe" title="Create a test" style="width:100%;border:0;min-height:700px;margin-top:8px;background:transparent"></iframe></div>
+      <div id="gradelist" class="glist" hidden></div>
       <div id="data">
         <p class="count" id="count"></p>
         <div class="tw"><table id="tbl"></table></div>
         <p class="note" id="note"></p>
       </div>
+      <div id="gradelist2" class="glist" hidden></div>
       <div id="msgview" hidden></div>
       <div id="boardview" hidden></div>
       <div id="assignbox" hidden><iframe id="aframe" title="Assign practice" style="width:100%;border:0;min-height:700px;margin-top:14px;background:transparent"></iframe></div>
@@ -409,11 +424,37 @@ function taskCount(t, recs) {   // recs: one student's practice records in the d
   mine.forEach(r => { done += r.attempts; right += r.correct; });
   return { done, right, all: done };
 }
-async function loadGrades() {
-  const c = S.classes.find(x => x.code === S.code), a = PREVIEW ? { start: ymd(new Date(Date.now() - 2 * 864e5)), end: ymd(new Date()), tasks: [{ game: 'scale', goal: 40, unit: 'answers', settings: { keys: ['F', 'Bb', 'Eb', 'Ab'] } }, { game: 'tidal', goal: 15, unit: 'minutes' }] } : c && c.hub_assignment;
-  S.gradeA = a && Array.isArray(a.tasks) && a.tasks.length ? a : null;
+// Past assignments: teacher/ also keeps classes/<code>.hub_assignments (newest first) when it saves, so Grades lists every
+// assignment as a row with an arrow; the open one shows its table. S.gradeOpen = the open one's key ('' = all closed, unset = newest).
+const aKey = a => [a.start, a.end, JSON.stringify(a.tasks)].join('|');
+function gradeList(c) {
+  const dk = n => ymd(new Date(Date.now() + n * 864e5));
+  const all = PREVIEW ? [{ start: dk(-2), end: dk(0), tasks: [{ game: 'scale', goal: 40, unit: 'answers', settings: { keys: ['F', 'Bb', 'Eb', 'Ab'] } }, { game: 'tidal', goal: 15, unit: 'minutes' }] },
+      { start: dk(-9), end: dk(-3), tasks: [{ game: 'scale', goal: 30, unit: 'answers', settings: { keys: ['C', 'G', 'D'] } }] },
+      { start: dk(-16), end: dk(-10), tasks: [{ game: 'tidal', goal: 20, unit: 'minutes' }, { game: 'rhythm', goal: 25, unit: 'answers' }] }]
+    : [].concat((c && c.hub_assignment) || [], (c && Array.isArray(c.hub_assignments) && c.hub_assignments) || []);
+  const seen = new Set();
+  return all.filter(a => a && Array.isArray(a.tasks) && a.tasks.length && a.start && a.end && !seen.has(aKey(a)) && seen.add(aKey(a)))
+    .sort((x, y) => y.start.localeCompare(x.start) || y.end.localeCompare(x.end));
+}
+function gradePick() {
+  S.gradeList = gradeList(S.classes.find(x => x.code === S.code));
+  S.gradeA = S.gradeOpen === '' ? null : S.gradeList.find(a => aKey(a) === S.gradeOpen) || S.gradeList[0] || null;
   COLS.grades = [{ k: 'name', h: 'Student', t: 's' }].concat((S.gradeA ? S.gradeA.tasks : []).map((t, i) => ({ k: 't' + i, h: `${taskName(t)} (goal ${t.goal} ${t.unit === 'minutes' ? 'min' : 'answers'})`, t: 'n', num: 1, f: r => `${r['t' + i] >= t.goal ? '✓ ' : ''}${fmtN(r['t' + i])} / ${t.goal}` })),
     [{ k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) }, { k: 'grade', h: 'Grade', t: 'n', num: 1, f: r => `<b>${r.grade}%</b>` }, { k: 'status', h: 'Status', t: 's', f: r => r.grade >= 100 ? '<b style="color:#2fbf71">✓ Done</b>' : r.status }, { k: 'dateMs', h: 'Last practiced', t: 'n', f: r => esc(fmtDate(r.dateMs)) }]);
+}
+function renderGradeList() {
+  const today = ymd(new Date()), open = S.gradeA ? aKey(S.gradeA) : '';
+  const item = (a, i) => { const on = aKey(a) === open, st = a.end < today ? ['Ended', 'end'] : a.start > today ? ['Upcoming', 'up'] : ['Now', 'now'];
+    return `<button type="button" class="gi${on ? ' on' : ''}" data-ga="${i}" aria-expanded="${on}"><span class="gar" aria-hidden="true">▸</span><span class="gd">${esc(fmtDay(a.start))}${a.end !== a.start ? ' – ' + esc(fmtDay(a.end)) : ''}</span>`
+      + `<span class="gw">${a.tasks.map(t => esc(taskName(t)) + ', ' + t.goal + (t.unit === 'minutes' ? ' min' : ' answers')).join(' · ')}</span><span class="gs ${st[1]}">${st[0]}</span></button>`; };
+  const L = S.gradeList || [], at = L.findIndex(a => aKey(a) === open);
+  $('gradelist').innerHTML = L.length ? L.slice(0, at < 0 ? L.length : at + 1).map(item).join('') : '<p class="count">This class has no assignment yet. Make one in Assign.</p>';
+  $('gradelist2').innerHTML = at < 0 ? '' : L.slice(at + 1).map((a, j) => item(a, at + 1 + j)).join('');
+}
+async function loadGrades() {
+  const c = S.classes.find(x => x.code === S.code);
+  gradePick();
   if (!S.gradeA) return [];
   const games = [...new Set(S.gradeA.tasks.flatMap(t => t.game === 'any' ? GAMES.slice(1).filter(g => g.prog).map(g => g.id) : [t.game]))].filter(id => G[id] && G[id].prog);
   const ds = dayList(S.gradeA.start, S.gradeA.end);
@@ -565,7 +606,7 @@ function render() {
   const social = S.view === 'messages' || S.view === 'board';
   $('msgview').hidden = S.view !== 'messages'; $('boardview').hidden = S.view !== 'board'; document.querySelector('footer').hidden = social; $('games').hidden = social; syncHash();
   if (social) {
-    ['upbox', 'adminsum', 'adminacc', 'data', 'assignbox', 'testsbox', 'newtestbox', 'csv'].forEach(id => { $(id).hidden = true; });
+    ['upbox', 'adminsum', 'adminacc', 'data', 'gradelist', 'gradelist2', 'assignbox', 'testsbox', 'newtestbox', 'csv'].forEach(id => { $(id).hidden = true; });
     $('cls').closest('label').hidden = true; $('rng').closest('label').hidden = true;
     return S.view === 'messages' ? renderMessages() : renderBoard();
   }
@@ -573,7 +614,9 @@ function render() {
   if (!ad) S.teacher = '';
   const tpg = ad && !!S.teacher;
   $('upbox').hidden = !ts; $('adminsum').hidden = !ad; $('adminacc').hidden = !ad || tpg;
-  $('data').hidden = asg || nt || tpg; $('assignbox').hidden = !asg; $('testsbox').hidden = !ts; $('newtestbox').hidden = !nt; $('csv').hidden = asg || nt || tpg;
+  const gv = S.view === 'grades'; if (gv) { gradePick(); renderGradeList(); }
+  $('gradelist').hidden = $('gradelist2').hidden = !gv;
+  $('data').hidden = asg || nt || tpg || (gv && !S.gradeA); $('assignbox').hidden = !asg; $('testsbox').hidden = !ts; $('newtestbox').hidden = !nt; $('csv').hidden = asg || nt || tpg || (gv && !S.gradeA);
   $('cls').closest('label').hidden = asg || ad; $('rng').closest('label').hidden = asg || nt || ts;
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (nt && b.dataset.v === 'tests'))));
   if (asg) { showAssign(); return; }
@@ -586,8 +629,8 @@ function render() {
   $('tbl').innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
   if (ad) { renderAdminSum(); renderAccess(); }
   const label = { progress: 'practice records', scores: 'scores', feedback: 'notes', tests: 'students with a result', admin: 'teacher and game rows' }[S.view];
-  $('count').textContent = S.loading && !rows.length ? '' : S.view === 'tests' ? testSummary(rows) : S.view === 'grades' ? (S.gradeA ? `Assignment ${fmtDay(S.gradeA.start)}${S.gradeA.end !== S.gradeA.start ? ' – ' + fmtDay(S.gradeA.end) : ''}: ${S.gradeA.tasks.map(t => taskName(t) + ', ' + t.goal + (t.unit === 'minutes' ? ' min' : ' answers')).join(' · ')} · ${rows.length} student${rows.length === 1 ? '' : 's'}` : 'This class has no assignment yet. Make one in Assign.') : rows.length + ' ' + label + (S.game === 'all' ? ' across all games' : ' in ' + g.name);
-  $('note').textContent = S.view === 'grades' ? 'Grade = how much of each task is done (each capped at 100%), averaged. It counts all practice in that game during the dates, the same number students see on their home page. Students who have not practiced yet do not appear. Earshot Saloon tasks cannot be counted yet. Making a new assignment replaces this one, so download the CSV first.'
+  $('count').textContent = S.loading && !rows.length ? '' : S.view === 'tests' ? testSummary(rows) : S.view === 'grades' ? `${rows.length} student${rows.length === 1 ? '' : 's'} practiced for this assignment` : rows.length + ' ' + label + (S.game === 'all' ? ' across all games' : ' in ' + g.name);
+  $('note').textContent = S.view === 'grades' ? 'Grade = how much of each task is done (each capped at 100%), averaged. It counts all practice in that game during the dates, the same number students see on their home page. Students who have not practiced yet do not appear. Earshot Saloon tasks cannot be counted yet. Click any assignment to open or close its grades. Past assignments are kept from now on (the list starts with the assignment each class had when this was added).'
     : S.view === 'progress' && S.game === 'earshot'
     ? G[S.game].name + ' does not keep daily practice records yet. Open Scores to see its results.'
     : S.view === 'progress' ? 'One row per student per game per day. Accuracy is correct answers out of all answers.'
@@ -1388,7 +1431,7 @@ function csv() {
   const text = [cols.map(c => cell(c.h)).join(','), ...rows.map(line)].join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + text], { type: 'text/csv' }));
   const cls = (S.classes.find(c => c.code === S.code) || {}).name || 'class';
-  a.download = `${S.view}-${S.game}-${cls}-${ymd(new Date())}.csv`.replace(/[^\w.\-]+/g, '_'); document.body.appendChild(a); a.click(); a.remove();
+  a.download = `${S.view}-${S.view === 'grades' && S.gradeA ? S.gradeA.start : S.game}-${cls}-${ymd(new Date())}.csv`.replace(/[^\w.\-]+/g, '_'); document.body.appendChild(a); a.click(); a.remove();
 }
 
 // ---------- wiring ----------
@@ -1406,6 +1449,8 @@ function wire() {
   $('views').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.view = b.dataset.v; load(); };
   $('cls').onchange = () => { S.code = $('cls').value; if (S.code === WORLD) { if (!['scores', 'admin'].includes(S.view)) S.view = 'scores'; } else S.lastCode = S.code; load(); };
   $('rng').onchange = load;
+  const gclick = e => { const b = e.target.closest('[data-ga]'); if (!b) return; const a = S.gradeList[+b.dataset.ga]; S.gradeOpen = S.gradeA && aKey(S.gradeA) === aKey(a) ? '' : aKey(a); load(); };
+  $('gradelist').onclick = $('gradelist2').onclick = gclick;
   $('tbl').onclick = async e => {
     const h = e.target.closest('th button');
     if (h) { const cur = S.sort[S.view] || DEFAULT_SORT[S.view]; const k = h.dataset.k; S.sort[S.view] = { k, dir: cur.k === k ? -cur.dir : (/^(name|game|detail|text)$/.test(k) ? 1 : -1) }; return render(); }
