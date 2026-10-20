@@ -314,11 +314,12 @@ const GAMES = [
   { id: 'rhythm',  name: 'Rhythm Trainer', color: '#f5c542', prog: 'progress',         scores: 'rhythm_scores',  attempts: 'slots',   url: '../../../rhythm-trainer/' },
   { id: 'scale',   name: 'Scale Quest',    color: '#3ee8f0', prog: 'scale_progress',   scores: 'scale_scores',   attempts: 'questions', url: '../../../scale-quest/' },
   { id: 'earshot', name: 'Earshot Saloon', color: '#ff9a4a', prog: null,               scores: 'earshot_scores', attempts: null,      url: '../../../earshot-saloon/' },
-  { id: 'brainwaves', name: 'Brainwaves', color: '#7c8cff', prog: null, scores: ['synapse_scores', 'intervals_scores', 'chords_scores', 'progressions_scores', 'scales_scores'], attempts: null, url: '../../../brainwaves/' },
+  { id: 'brainwaves', name: 'Brainwaves', color: '#7c8cff', prog: 'brainwaves_progress', attempts: 'answers', scores: ['synapse_scores', 'intervals_scores', 'chords_scores', 'progressions_scores', 'scales_scores'], url: '../../../brainwaves/' },
 ];
 const G = Object.fromEntries(GAMES.map(g => [g.id, g]));
-G.synapse = { ...G.brainwaves, name: 'Brainwaves: Sharp or Flat?' };   // Brainwaves tests are saved under its Sharp or Flat? game
+G.synapse = { ...G.brainwaves, name: 'Brainwaves' };   // Brainwaves tests are saved under its Sharp or Flat? game
 // Brainwaves keeps one score collection per brain area
+const BW_NAME = { synapse: 'Sharp or Flat?', intervals: 'Intervals', chords: 'Chord Colors', progressions: 'Progressions', scales: 'Scales and modes', voice: 'Pick a Voice', tuner: 'Tuner' };
 const BW_COL = { synapse_scores: 'Sharp or Flat?', intervals_scores: 'Intervals', chords_scores: 'Chord Colors', progressions_scores: 'Progressions', scales_scores: 'Scales and modes' };
 const FB_NAME = { 'tidal-tones': 'tidal', 'rooftop-runner': 'rooftop', 'rhythm-trainer': 'rhythm', 'scale-quest': 'scale', 'earshot-saloon': 'earshot', 'ear-brain': 'brainwaves', hub: null };
 
@@ -393,7 +394,9 @@ function normScore(gid, d, col) {
 // ---------- Grades: how far each student got on the class's assignment (for the grade book) ----------
 // A class keeps one assignment (classes/<code>.hub_assignment: start, end, up to 3 tasks). Each task counts the student's
 // practice records in that game from start to end: answers (or minutes), the same count the student's home page shows.
-// Grade = the average of the tasks, each capped at 100%. Earshot Saloon and Brainwaves keep no practice records yet.
+// Grade = the average of the tasks, each capped at 100%. Earshot Saloon keeps no practice records yet.
+// A Brainwaves task's skills are brain areas: only answers in those areas count (by_area in brainwaves_progress).
+const BW_AREA_ID = { 'Sharp or Flat?': 'synapse', 'Intervals': 'intervals', 'Chord Colors': 'chords', 'Progressions': 'progressions', 'Scales and modes': 'scales', 'Pick a Voice': 'voice', 'Tuner': 'tuner' };
 const dayList = (a, b) => { const out = []; for (let d = new Date(a + 'T12:00:00'); ymd(d) <= b && out.length < 120; d.setDate(d.getDate() + 1)) out.push(ymd(d)); return out; };
 const taskName = t => { const g = G[t.game], keys = t.game === 'scale' && t.settings && Array.isArray(t.settings.keys) ? t.settings.keys : [], sk = [].concat(t.skills || t.skill || []).filter(Boolean);
   return `${g ? g.name : 'Any game'}${keys.length ? ': ' + keys.join(', ') : sk.length ? ': ' + sk.join(', ') : ''}`; };
@@ -401,6 +404,8 @@ function taskCount(t, recs) {   // recs: one student's practice records in the d
   const mine = recs.filter(r => t.game === 'any' || r.game === t.game);
   if (t.unit === 'minutes') return { done: Math.round(mine.reduce((a, r) => a + r.minutes, 0)), right: null, all: null };
   let done = 0, right = 0;
+  const areas = t.game === 'brainwaves' ? [].concat(t.skills || t.skill || []).map(k => BW_AREA_ID[k]).filter(Boolean) : [];
+  if (areas.length) { mine.forEach(r => areas.forEach(a => { const x = ((r.raw && r.raw.by_area) || {})[a] || [0, 0]; done += num(x[1]); right += num(x[0]); })); return { done, right, all: done }; }
   mine.forEach(r => { done += r.attempts; right += r.correct; });
   return { done, right, all: done };
 }
@@ -582,8 +587,8 @@ function render() {
   if (ad) { renderAdminSum(); renderAccess(); }
   const label = { progress: 'practice records', scores: 'scores', feedback: 'notes', tests: 'students with a result', admin: 'teacher and game rows' }[S.view];
   $('count').textContent = S.loading && !rows.length ? '' : S.view === 'tests' ? testSummary(rows) : S.view === 'grades' ? (S.gradeA ? `Assignment ${fmtDay(S.gradeA.start)}${S.gradeA.end !== S.gradeA.start ? ' – ' + fmtDay(S.gradeA.end) : ''}: ${S.gradeA.tasks.map(t => taskName(t) + ', ' + t.goal + (t.unit === 'minutes' ? ' min' : ' answers')).join(' · ')} · ${rows.length} student${rows.length === 1 ? '' : 's'}` : 'This class has no assignment yet. Make one in Assign.') : rows.length + ' ' + label + (S.game === 'all' ? ' across all games' : ' in ' + g.name);
-  $('note').textContent = S.view === 'grades' ? 'Grade = how much of each task is done (each capped at 100%), averaged. It counts all practice in that game during the dates, the same number students see on their home page. Students who have not practiced yet do not appear. Earshot Saloon and Brainwaves tasks cannot be counted yet. Making a new assignment replaces this one, so download the CSV first.'
-    : S.view === 'progress' && (S.game === 'earshot' || S.game === 'brainwaves')
+  $('note').textContent = S.view === 'grades' ? 'Grade = how much of each task is done (each capped at 100%), averaged. It counts all practice in that game during the dates, the same number students see on their home page. Students who have not practiced yet do not appear. Earshot Saloon tasks cannot be counted yet. Making a new assignment replaces this one, so download the CSV first.'
+    : S.view === 'progress' && S.game === 'earshot'
     ? G[S.game].name + ' does not keep daily practice records yet. Open Scores to see its results.'
     : S.view === 'progress' ? 'One row per student per game per day. Accuracy is correct answers out of all answers.'
     : S.view === 'scores' && S.code === WORLD ? 'World: the top 50 scores in each game from every class and the world boards, all time (the time range does not apply). Details shows each score\'s class.'
@@ -651,6 +656,7 @@ async function loadAdmin() {
           r.sids.add(d.class_code + '|' + d.sid); r.dset.add(d.date); r.minutes += num(d.minutes); r.attempts += num(d[g.attempts]); r.correct += num(d.correct);
           r.dateMs = Math.max(r.dateMs, toMs(d.last_at) || toMs(d.updated_at) || Date.parse((d.date || '') + 'T12:00:00') || 0);
           ['levels', 'ts', 'skills', 'types', 'by_key', 'by_game'].forEach(f => addDetail(r.det, d[f]));
+          if (d.by_area) addDetail(r.det, Object.fromEntries(Object.entries(d.by_area).map(([a, x]) => [BW_NAME[a] || a, x])));
         });
       } else {
         for (const col of [].concat(g.scores)) (await fs.getDocs(fs.collection(db, col))).forEach(x => {
@@ -661,12 +667,12 @@ async function loadAdmin() {
         });
       }
     }
-    return Object.values(agg).map(r => ({ email: r.email, game: r.game, students: r.sids.size, days: r.dset.size, minutes: r.game === 'earshot' || r.game === 'brainwaves' ? null : Math.round(r.minutes * 10) / 10, attempts: r.attempts, correct: r.correct, acc: pct(r.correct, r.attempts), dateMs: r.dateMs, detail: topOf(r.det) }));
+    return Object.values(agg).map(r => ({ email: r.email, game: r.game, students: r.sids.size, days: r.dset.size, minutes: r.game === 'earshot' ? null : Math.round(r.minutes * 10) / 10, attempts: r.attempts, correct: r.correct, acc: pct(r.correct, r.attempts), dateMs: r.dateMs, detail: topOf(r.det) }));
   }).then(rows => { const nm = {}; S.adminTeachers.forEach(t => { nm[String(t.email).toLowerCase()] = t.name; }); return rows.map(r => r.email === 'unknown' ? { ...r, name: 'No class (world leaderboards, or a deleted class)', email: '' } : { ...r, name: nm[r.email] || (ADMIN_EMAILS.includes(r.email) ? 'David Milnes (you)' : r.email) }); });
 }
 // ---------- Admin: one teacher's page (click a name in the list) ----------
 // Classes and tests can be read by anyone signed in, so this needs no new rules. Read once when the page opens.
-const GNAMES = { ...Object.fromEntries(GAMES.slice(1).map(g => [g.id, g.name])), synapse: 'Brainwaves: Sharp or Flat?', listen: 'Critical Listening Lab', any: 'Any game' };
+const GNAMES = { ...Object.fromEntries(GAMES.slice(1).map(g => [g.id, g.name])), synapse: 'Brainwaves', listen: 'Critical Listening Lab', any: 'Any game' };
 const OLD_ASSIGN = { assignment: 'The Big Score', scale_assignment: 'Scale Quest', tidal_assignment: 'Tidal Tones', rooftop_assignment: 'Rooftop Runner', listen_assignment: 'Critical Listening Lab' };
 const setsText = o => Object.entries(o || {}).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : typeof v === 'object' && v ? JSON.stringify(v) : v}`).join(' · ');
 async function openTeacher(email) {

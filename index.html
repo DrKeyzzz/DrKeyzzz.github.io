@@ -534,7 +534,7 @@ const GAMES = [
   { id: 'brainwaves', name: 'Brainwaves', acc: '#7c8cff', url: 'https://drkeyzzz.github.io/brainwaves/' },
 ];
 const GAME = Object.fromEntries(GAMES.map(g => [g.id, g]));
-GAME.synapse = { ...GAME.brainwaves, name: 'Brainwaves: Sharp or Flat?' };   // Brainwaves tests are saved under its Sharp or Flat? game
+GAME.synapse = { ...GAME.brainwaves, name: 'Brainwaves' };   // Brainwaves tests are saved under its Sharp or Flat? game
 // the "Start here" order for new players: read notes, read rhythm, hear intervals, build scales, then dictation
 const PATH = ['tidal', 'rooftop', 'earshot', 'scale', 'rhythm', 'brainwaves'];
 const PITCH = { brainwaves: 'Train your ears in seven brain areas, from sharp or flat to chords and scales.', tidal: 'Name the notes on the staff to guide the boats home.', rooftop: 'Read the rhythm and jump across the rooftops.', earshot: 'Hear two notes and play the interval card.', scale: 'Build scales on the piano, arcade style.', rhythm: 'Listen and write down the rhythm to crack the safe.' };
@@ -545,7 +545,8 @@ const BW_AREAS = { synapse: 'Sharp or Flat?', intervals: 'Intervals', chords: 'C
 function foldBrainwaves(days) {
   for (const day of Object.values(days)) for (const [id, area] of Object.entries(BW_AREAS)) {
     const x = day[id]; if (!x) continue; delete day[id];
-    const b = day.brainwaves || (day.brainwaves = { plays: 0, answers: 0, correct: 0, ms: 0, best: 0, level: 0, acc: 0, skills: {}, last: 0 });
+    const b = day.brainwaves || (day.brainwaves = { plays: 0, answers: 0, correct: 0, ms: 0, best: 0, level: 0, acc: 0, skills: {}, areas: {}, last: 0 });
+    b.areas[area] = [x.correct || 0, x.answers || 0];   // a Brainwaves assignment skill is an area name (assignDone)
     b.plays += x.plays || 0; b.answers += x.answers || 0; b.correct += x.correct || 0; b.ms += x.ms || 0;
     b.best = Math.max(b.best, x.best || 0); b.level = Math.max(b.level, x.level || 0); b.acc = Math.max(b.acc, x.acc || 0); b.last = Math.max(b.last, x.last || 0);
     for (const [lab, [r, n]] of Object.entries(x.skills || {})) { const k = `${area} · ${lab}`, s = b.skills[k] || (b.skills[k] = [0, 0]); s[0] += r; s[1] += n; }
@@ -578,6 +579,7 @@ const FOCUS = {
   rhythm: lab => /^(Quarters & eighths|Sixteenths|Dotted rhythms|Rests|Syncopation|Compound beat|Triplets|Hemiola & duplets)$/.test(lab) || / (level|time)$/.test(lab),
   tidal: lab => /^(Treble|Bass|Alto) clef notes$|^Ledger lines$|^Intervals$|^[A-G][♯♭]?\d|^([MmPAd][2-8]|2nd|3rd|[4-7]th|Octave)$/.test(lab),
   earshot: lab => /^(Minor|Major|Perfect|Augmented|Diminished) (unison|2nd|3rd|4th|5th|6th|7th|octave)$|^Tritone$|^Octave$/.test(lab),
+  brainwaves: lab => Object.values(BW_AREAS).includes(lab.split(' · ')[0]),   // Brainwaves opens the skill's brain area
   rooftop: lab => /^(Sixteenth triplets|Syncopation|Eighth notes|Quarter notes|Dotted quarters|Half notes|Dotted halves|Whole notes|Sixteenth notes|Dotted eighths|Triplets)$/.test(lab),
 };
 const practiceLink = (g, lab) => (FOCUS[g.id] && FOCUS[g.id](lab) ? `${g.url}?focus=${encodeURIComponent(lab)}` : g.url);
@@ -725,7 +727,7 @@ function assignDone(days, a, t) {
     if (d < a.start || d > a.end) continue;
     for (const gid of gids) {
       const g = games[gid]; if (!g) continue;
-      n += t.unit === 'minutes' ? (g.ms || 0) : skl(t).length ? skl(t).reduce((m, k) => m + (((g.skills || {})[k] || [0, 0])[1]), 0) : (g.answers || 0);
+      n += t.unit === 'minutes' ? (g.ms || 0) : skl(t).length ? skl(t).reduce((m, k) => m + (((g.skills || {})[k] || (g.areas || {})[k] || [0, 0])[1]), 0) : (g.answers || 0);
     }
   }
   return t.unit === 'minutes' ? Math.floor(n / 60000) : n;
