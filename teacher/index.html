@@ -307,6 +307,7 @@ const GAMES = [
   { id: 'scale', name: 'Scale Quest' },
   { id: 'rhythm', name: 'The Big Score' },
   { id: 'brainwaves', name: 'Brainwaves' },   // assignments: skills are brain areas (each area is saved under its own id; the home page folds them)
+  { id: 'listen', name: 'Critical Listening Lab' },   // assignments only: skills are its games (no settings; counted from listening_progress)
   { id: 'synapse', name: 'Brainwaves' },   // tests only: Brainwaves tests are saved under the id synapse (settings.area picks the area)
   { id: 'any', name: 'Any game' },
 ];
@@ -334,6 +335,7 @@ const SKILLS = {
     ['Levels', ['Beginner level', 'Beginner + 16ths level', 'Easy level', 'Hard level', 'Extreme level']],
     ['Meters', ['2/4 time', '3/4 time', '4/4 time', '6/8 time', '9/8 time', '12/8 time']],
   ],
+  listen: [['Games', ['Filter Spotter', 'Boost Hunt', 'Boost or Cut', 'Level Check', 'Compressor Ears', 'Balance Test', 'Reverb Space', 'Name That Hz', 'Beat Recreate']]],
   brainwaves: [['Brain areas', ['Sharp or Flat?', 'Intervals', 'Chord Colors', 'Progressions', 'Scales and modes', 'Pick a Voice']]],
   any: [],
 };
