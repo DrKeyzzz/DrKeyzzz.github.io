@@ -535,6 +535,7 @@ const GAMES = [
 ];
 const GAME = Object.fromEntries(GAMES.map(g => [g.id, g]));
 GAME.synapse = { ...GAME.brainwaves, name: 'Brainwaves' };   // Brainwaves tests are saved under its Sharp or Flat? game
+GAME.listen = { id: 'listen', name: 'Critical Listening Lab', acc: '#ff5fd2', url: 'https://drkeyzzz.github.io/critical-listening-lab/' };   // assignments only (not a card, badge or XP game); it writes mtg_hist under 'listen'
 // the "Start here" order for new players: read notes, read rhythm, hear intervals, build scales, then dictation
 const PATH = ['tidal', 'rooftop', 'earshot', 'scale', 'rhythm', 'brainwaves'];
 const PITCH = { brainwaves: 'Train your ears in seven brain areas, from sharp or flat to chords and scales.', tidal: 'Name the notes on the staff to guide the boats home.', rooftop: 'Read the rhythm and jump across the rooftops.', earshot: 'Hear two notes and play the interval card.', scale: 'Build scales on the piano, arcade style.', rhythm: 'Listen and write down the rhythm to crack the safe.' };
@@ -721,7 +722,7 @@ const dueText = end => {
 // progress inside the assignment's dates, from the practice history: answers in that skill (or in the game, or in every game), or minutes played
 const skl = t => (t.skills && t.skills.length ? t.skills : t.skill ? [t.skill] : []);
 function assignDone(days, a, t) {
-  const gids = t.game === 'any' ? GAMES.map(g => g.id) : [t.game];
+  const gids = t.game === 'any' ? [...GAMES.map(g => g.id), 'listen'] : [t.game];
   let n = 0;
   for (const [d, games] of Object.entries(days)) {
     if (d < a.start || d > a.end) continue;
