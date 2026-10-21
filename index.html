@@ -186,6 +186,31 @@
   .path-note { max-width: 980px; margin: 0 auto 16px; color: var(--muted); font-size: 16px; text-align: center; }
   .prog { margin: 6px 0 0; font-size: 14px; font-weight: 700; color: var(--text); opacity: .85; }
   @media (prefers-reduced-motion: reduce) { .game, .shot img, .shot video { transition: none; } }
+  /* Super Music Theory Genius: a gold border around the six games, with the challenge on a plate at the top center
+     and a red arcade Leaderboard button. Critical Listening Lab stays outside it (not part of the challenge). */
+  .genius-ring { position: relative; max-width: 1030px; margin: 70px auto 0; padding: 78px 24px 24px; border: 3px solid #f5c542; border-radius: 30px;
+    box-shadow: 0 0 0 1px rgba(255, 214, 102, .25), 0 0 46px rgba(245, 197, 66, .28), inset 0 0 46px rgba(245, 197, 66, .08); }
+  .genius { position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); z-index: 4; display: flex; align-items: center; gap: 18px;
+    padding: 12px 18px 12px 22px; background: linear-gradient(180deg, #2b1f06, #120c02); border: 3px solid #f5c542; border-radius: 20px; white-space: nowrap;
+    box-shadow: 0 0 30px rgba(245, 197, 66, .45), 0 10px 26px -10px #000; }
+  .genius .go { display: flex; align-items: center; gap: 14px; color: #fff3d0; text-decoration: none; }
+  .genius .rk { font-size: 34px; line-height: 1; filter: drop-shadow(0 0 8px rgba(255, 190, 80, .7)); }
+  .genius small { display: block; font: 700 11px/1 var(--f-ui, 'Outfit', sans-serif); letter-spacing: .22em; color: #f5c542; margin-bottom: 6px; }
+  .genius b { display: block; font: 400 clamp(17px, 2.6vw, 26px)/1.05 'Bungee', sans-serif; background: linear-gradient(180deg, #fff6c9, #ffd257 55%, #e09a1c);
+    -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 2px 0 #4a3005); }
+  .genius .go:hover b, .genius .go:focus-visible b { filter: drop-shadow(0 0 10px rgba(255, 210, 90, .8)); }
+  .genius .lb { display: flex; align-items: center; gap: 10px; padding-left: 18px; border-left: 1px solid rgba(245, 197, 66, .35); color: #fff3d0; text-decoration: none;
+    font: 700 13px var(--f-ui, 'Outfit', sans-serif); letter-spacing: .1em; text-transform: uppercase; }
+  .redbtn { width: 38px; height: 38px; border-radius: 50%; flex: none; background: radial-gradient(circle at 35% 30%, #ff9a9a, #e3242b 45%, #8e0d12);
+    border: 3px solid #3a0a0c; box-shadow: 0 5px 0 #5a0a0e, 0 7px 14px rgba(0, 0, 0, .5), inset 0 -3px 6px rgba(0, 0, 0, .35); transition: transform .1s, box-shadow .1s; }
+  .genius .lb:hover .redbtn { filter: brightness(1.12); }
+  .genius .lb:active .redbtn { transform: translateY(4px); box-shadow: 0 1px 0 #5a0a0e, 0 2px 6px rgba(0, 0, 0, .5), inset 0 -3px 6px rgba(0, 0, 0, .35); }
+  .genius-ring .path-note { margin-top: 0; }
+  @media (max-width: 760px) {
+    .genius-ring { margin-top: 24px; padding: 16px 12px 12px; }
+    .genius { position: static; transform: none; white-space: normal; flex-wrap: wrap; justify-content: center; margin: -40px auto 18px; max-width: 100%; }
+    .genius .lb { border-left: 0; padding-left: 0; }
+  }
   /* Critical Listening Lab: a smaller graffiti banner under the theory games (its own look on purpose) */
   .cll { display: flex; align-items: center; gap: 20px; max-width: 980px; margin: 30px auto 0; padding: 18px 22px; border-radius: 16px; text-decoration: none; color: #f4f1ea;
     background: radial-gradient(22rem 12rem at 0% 0%, rgba(255,62,165,.35), transparent 70%), radial-gradient(20rem 12rem at 100% 100%, rgba(46,230,255,.25), transparent 70%),
@@ -381,6 +406,14 @@
     <div class="qgrid" id="q-list"></div>
   </section>
 
+  <section class="genius-ring" aria-label="The six theory games and the Super Music Theory Genius challenge">
+    <div class="genius">
+      <a class="go" href="../super-test/" aria-label="Take the Super Music Theory Genius challenge">
+        <span class="rk" aria-hidden="true">🚀</span>
+        <span><small>THE ULTIMATE CHALLENGE · ALL SIX GAMES</small><b>Super Music Theory Genius</b></span>
+      </a>
+      <a class="lb" href="../super-test/#leaderboard"><span class="redbtn" aria-hidden="true"></span>Leaderboard</a>
+    </div>
   <p class="path-note" id="path-note">New here? Start with game 1 and work your way to 6.</p>
   <main id="games" class="path">
     <a class="game tidal" data-game="tidal" href="https://drkeyzzz.github.io/tidal-tones/">
@@ -463,6 +496,7 @@
     </a>
 
   </main>
+  </section>
 
   <a class="cll" href="https://drkeyzzz.github.io/critical-listening-lab/" aria-label="Play Critical Listening Lab">
     <img src="screenshots/critical-listening-lab.jpg" alt="">
