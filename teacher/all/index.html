@@ -326,7 +326,7 @@ const GAMES = [
   { id: 'all',     name: 'All games',      color: '#c9d4e6' },
   { id: 'tidal',   name: 'Tidal Tones',    color: '#ffc85c', prog: 'tidal_progress',   scores: 'tidal_scores',   attempts: 'answers', url: '../../../tidal-tones/' },
   { id: 'rooftop', name: 'Rooftop Runner', color: '#ff4fa3', prog: 'rooftop_progress', scores: 'sight_scores',   attempts: 'answers', url: '../../../rooftop-runner/' },
-  { id: 'rhythm',  name: 'Rhythm Trainer', color: '#f5c542', prog: 'progress',         scores: 'rhythm_scores',  attempts: 'slots',   url: '../../../rhythm-trainer/' },
+  { id: 'rhythm',  name: 'The Big Score',  color: '#f5c542', prog: 'progress',         scores: 'rhythm_scores',  attempts: 'slots',   url: '../../../rhythm-trainer/' },
   { id: 'scale',   name: 'Scale Quest',    color: '#3ee8f0', prog: 'scale_progress',   scores: 'scale_scores',   attempts: 'questions', url: '../../../scale-quest/' },
   { id: 'earshot', name: 'Earshot Saloon', color: '#ff9a4a', prog: null,               scores: 'earshot_scores', attempts: null,      url: '../../../earshot-saloon/' },
   { id: 'brainwaves', name: 'Brainwaves', color: '#7c8cff', prog: 'brainwaves_progress', attempts: 'answers', scores: ['synapse_scores', 'intervals_scores', 'chords_scores', 'progressions_scores', 'scales_scores'], url: '../../../brainwaves/' },
@@ -1056,7 +1056,7 @@ const MEM = (() => {   // ?preview=1: sample teachers, conversations and Board p
   for (let i = 0; i < 56; i++) put('j.shaw@sample', i % 3 ? 'teacher' : 'admin', `Message ${i + 1}: notes about scales, key signatures and how the class is doing.`, now - 9 * D + i * 3 * H);
   th['j.shaw@sample'].unread_admin = 0; th['j.shaw@sample'].unread_teacher = 0;
   const TX = ['Has anyone tried Earshot Saloon as a warm-up? My 7th graders asked for it every day this week.', 'Tip: project Scale Quest on the board and let teams shout answers. Instant energy.',
-    'How long do you give for a Tidal Tones test? I was thinking 10 minutes.', 'Rhythm Trainer level 3 is a big jump for my 4th graders. Anyone else see that?',
+    'How long do you give for a Tidal Tones test? I was thinking 10 minutes.', 'The Big Score level 3 is a big jump for my 4th graders. Anyone else see that?',
     'My students compete for the Practice Hero badges. Gold is the big goal right now.', 'Is there a way to print a class code card? I keep writing it on the board.',
     'Rooftop Runner on iPads works great with the on-screen buttons.', 'We did a week of only key signatures. Scores went way up on the unit test.',
     'Anyone using the games with chorus kids? Looking for sight-reading ideas.', 'Quick question: do guests count on the leaderboards?',
