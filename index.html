@@ -242,9 +242,10 @@
   .hi .me { display: block; margin-top: 10px; color: var(--muted); font-size: 15px; }
   .hi .me b { font-size: inherit; color: var(--text); }
   .hi .me .cls::before { content: " · "; color: var(--muted); font-weight: 400; }
-  .clsbtn { font: 700 14px var(--f-ui, inherit); color: var(--gold); background: transparent; border: 2px solid var(--gold); border-radius: 999px; padding: 4px 12px; margin: 0 0 0 6px; cursor: pointer; }
-  .clsbtn.on { background: var(--gold); color: #10131a; }
-  .clsbtn:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+  .clssel { font: 700 15px var(--f-ui, inherit); color: var(--gold); background: var(--bg); border: 2px solid var(--gold); border-radius: 999px; padding: 4px 12px; margin: 0 0 0 6px; cursor: pointer; max-width: 100%; }
+  .me label.clsl { display: inline; margin: 0; font: inherit; letter-spacing: 0; text-transform: none; color: inherit; }
+  .clssel option { color: var(--text); background: var(--bg); }
+  .clssel:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
   .cont-box { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
   .cont { display: inline-flex; align-items: center; gap: 10px; font: 700 20px var(--f-ui); letter-spacing: .06em; text-transform: uppercase; text-decoration: none; color: var(--btn-ink); background: var(--btn); border-radius: 999px; padding: 15px 30px 12px; }
   .cont:hover { filter: brightness(1.08); }
@@ -846,7 +847,8 @@ function render(focus) {
     $('who-name').textContent = displayName(p);
     const cs = classesOf(p);
     const sv = savedOf(p);
-    if (sv.length > 1) $('who-class').innerHTML = 'Class: ' + sv.map(c => `<button type="button" class="clsbtn${c.code === p.classCode ? ' on' : ''}" data-switch-class="${esc(c.code)}" aria-pressed="${c.code === p.classCode}" data-tip="${c.code === p.classCode ? 'Your scores and practice count for this class' : 'Switch to this class'}">${esc(c.name || c.code)}${c.code === p.classCode ? ' ✓' : ''}</button>`).join(' ');
+    // 2+ saved classes: a dropdown picks the current class (assignments, scores and practice in every game follow it)
+    if (sv.length > 1) $('who-class').innerHTML = `<label class="clsl" for="who-pick">Class:</label><select id="who-pick" class="clssel" data-tip="Pick the class you're working in now. Your assignments, scores and practice count for it.">${sv.map(c => `<option value="${esc(c.code)}"${c.code === p.classCode ? ' selected' : ''}>${esc(c.name || c.code)}</option>`).join('')}</select>`;
     else $('who-class').textContent = p.classCode ? (p.className && p.className !== p.classCode ? `${p.className} · code ${p.classCode}` : `Class ${p.classCode}`) : 'Not in a class · World leaderboards only';
   } else {
     $('who-help').textContent = isGuest() ? "You're playing as a guest in this tab, so nothing is saved. Sign in to keep your scores and progress." : 'Sign in here and all six games remember you on this computer.';
@@ -922,6 +924,7 @@ $('w-code').addEventListener('input', e => { const c = cleanCode(e.target.value)
 $('w-guest').addEventListener('click', () => { try { sessionStorage.setItem(GUEST_KEY, '1'); } catch {} render(); $('who-help').textContent = "Playing as a guest in this tab: scores and progress aren't saved. Pick a game below."; });
 $('who-switch').addEventListener('click', () => openForm(false));
 $('who-class-btn').addEventListener('click', () => openForm(true));
+$('who-class').addEventListener('change', e => { if (e.target.id === 'who-pick') switchClass(e.target.value); });
 // a sign-in made in a game in another tab shows up here too
 addEventListener('storage', e => { if (e.key === PROFILE_KEY) render(); else if (e.key && e.key.startsWith('mtg_hist_v1:') && getProfile()) renderHub(getProfile()); });
 // coming back from a game (or the back button): fresh progress and Continue
