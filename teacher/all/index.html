@@ -330,13 +330,17 @@ const GAMES = [
   { id: 'scale',   name: 'Scale Quest',    color: '#3ee8f0', prog: 'scale_progress',   scores: 'scale_scores',   attempts: 'questions', url: '../../../scale-quest/' },
   { id: 'earshot', name: 'Earshot Saloon', color: '#ff9a4a', prog: null,               scores: 'earshot_scores', attempts: null,      url: '../../../earshot-saloon/' },
   { id: 'brainwaves', name: 'Brainwaves', color: '#7c8cff', prog: 'brainwaves_progress', attempts: 'answers', scores: ['synapse_scores', 'intervals_scores', 'chords_scores', 'progressions_scores', 'scales_scores'], url: '../../../brainwaves/' },
+  { id: 'listen', name: 'Critical Listening Lab', color: '#ff5fd2', prog: 'listening_progress', scores: 'listening_scores', attempts: 'rounds', url: '../../../critical-listening-lab/' },
 ];
 const G = Object.fromEntries(GAMES.map(g => [g.id, g]));
 G.synapse = { ...G.brainwaves, name: 'Brainwaves' };   // Brainwaves tests are saved under its Sharp or Flat? game
 // Brainwaves keeps one score collection per brain area
 const BW_NAME = { synapse: 'Sharp or Flat?', intervals: 'Intervals', chords: 'Chord Colors', progressions: 'Progressions', scales: 'Scales and modes', voice: 'Pick a Voice', tuner: 'Tuner' };
 const BW_COL = { synapse_scores: 'Sharp or Flat?', intervals_scores: 'Intervals', chords_scores: 'Chord Colors', progressions_scores: 'Progressions', scales_scores: 'Scales and modes' };
-const FB_NAME = { 'tidal-tones': 'tidal', 'rooftop-runner': 'rooftop', 'rhythm-trainer': 'rhythm', 'scale-quest': 'scale', 'earshot-saloon': 'earshot', 'ear-brain': 'brainwaves', hub: null };
+// Critical Listening Lab: an assignment's skills are its games; listening_progress counts rounds per game in rounds_by (no right/wrong per game)
+const CLL_ID = { 'Filter Spotter': 'filter', 'Boost Hunt': 'peak', 'Boost or Cut': 'eq', 'Level Check': 'gain', 'Compressor Ears': 'comp', 'Balance Test': 'pan', 'Reverb Space': 'space', 'Name That Hz': 'tone', 'Beat Recreate': 'beat' };
+const CLL_NAME = Object.fromEntries(Object.entries(CLL_ID).map(([k, v]) => [v, k]));
+const FB_NAME = { 'critical-listening-lab': 'listen', 'tidal-tones': 'tidal', 'rooftop-runner': 'rooftop', 'rhythm-trainer': 'rhythm', 'scale-quest': 'scale', 'earshot-saloon': 'earshot', 'ear-brain': 'brainwaves', hub: null };
 
 const S = { teacher: '', tp: null, email: '', classes: [], code: '', game: 'all', view: 'progress', rows: [], sort: {}, loading: 0, tests: [], testId: '', live: '' };
 
@@ -402,6 +406,7 @@ function normScore(gid, d, col) {
   if (gid === 'rhythm') { o.acc = pct(num(d.correct), num(d.total)); o.detail = d.level ? 'Level ' + d.level : ''; }
   else if (gid === 'scale') { const a = num(d.accuracy); o.acc = a ? Math.round(a <= 1 ? a * 100 : a) : null; o.detail = d.questions ? d.questions + ' questions' : ''; }
   else if (gid === 'earshot') { const a = num(d.acc); o.acc = a ? Math.round(a <= 1 ? a * 100 : a) : null; o.detail = d.town ? String(d.town) : ''; }
+  else if (gid === 'listen') { o.acc = d.acc == null ? null : Math.round(num(d.acc) <= 1 ? num(d.acc) * 100 : num(d.acc)); o.detail = (CLL_NAME[d.game] || d.game || '') + (d.level ? ' · Level ' + d.level : ''); }
   else if (gid === 'brainwaves') { o.acc = d.acc == null ? null : Math.round(num(d.acc)); o.detail = (BW_COL[col] || '') + (d.floor || d.level ? ' · Level ' + (d.floor || d.level) : ''); }
   else { const a = num(d.acc); o.acc = a ? Math.round(a <= 1 ? a * 100 : a) : null; o.detail = d.level ? 'Level ' + d.level : ''; }
   return o;
@@ -420,6 +425,8 @@ function taskCount(t, recs) {   // recs: one student's practice records in the d
   if (t.unit === 'minutes') return { done: Math.round(mine.reduce((a, r) => a + r.minutes, 0)), right: null, all: null };
   let done = 0, right = 0;
   const areas = t.game === 'brainwaves' ? [].concat(t.skills || t.skill || []).map(k => BW_AREA_ID[k]).filter(Boolean) : [];
+  const cll = t.game === 'listen' ? [].concat(t.skills || t.skill || []).map(k => CLL_ID[k]).filter(Boolean) : [];
+  if (cll.length) { mine.forEach(r => cll.forEach(k => { done += num(((r.raw && r.raw.rounds_by) || {})[k]); })); return { done, right: 0, all: 0 }; }
   if (areas.length) { mine.forEach(r => areas.forEach(a => { const x = ((r.raw && r.raw.by_area) || {})[a] || [0, 0]; done += num(x[1]); right += num(x[0]); })); return { done, right, all: done }; }
   mine.forEach(r => { done += r.attempts; right += r.correct; });
   return { done, right, all: done };
@@ -431,7 +438,7 @@ const aKey = a => [a.start, a.end, stab(a.tasks)].join('|');
 function gradeList(c) {
   const dk = n => ymd(new Date(Date.now() + n * 864e5));
   const all = PREVIEW ? [{ start: dk(-2), end: dk(0), tasks: [{ game: 'scale', goal: 40, unit: 'answers', settings: { keys: ['F', 'Bb', 'Eb', 'Ab'] } }, { game: 'tidal', goal: 15, unit: 'minutes' }] },
-      { start: dk(-9), end: dk(-3), tasks: [{ game: 'scale', goal: 30, unit: 'answers', settings: { keys: ['C', 'G', 'D'] } }] },
+      { start: dk(-9), end: dk(-3), tasks: [{ game: 'scale', goal: 30, unit: 'answers', settings: { keys: ['C', 'G', 'D'] } }, { game: 'listen', skills: ['Filter Spotter'], goal: 20, unit: 'answers' }] },
       { start: dk(-16), end: dk(-10), tasks: [{ game: 'tidal', goal: 20, unit: 'minutes' }, { game: 'rhythm', goal: 25, unit: 'answers' }] }]
     : [].concat((c && c.hub_assignment) || [], (c && Array.isArray(c.hub_assignments) && c.hub_assignments) || []);
   const seen = new Set();
@@ -525,17 +532,17 @@ function sample() {
   let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
   const prog = [], scores = [], fbs = [];
   const ds = lastDays(7);
-  ['tidal', 'rooftop', 'rhythm', 'scale'].forEach(gid => {
+  ['tidal', 'rooftop', 'rhythm', 'scale', 'listen'].forEach(gid => {
     names.forEach((n, i) => {
       if (rnd() < .3) return;
       const k = 1 + Math.floor(rnd() * 3);
       for (let j = 0; j < k; j++) {
         const at = 20 + Math.floor(rnd() * 90); const c = Math.round(at * (.5 + rnd() * .5)); const d = ds[Math.floor(rnd() * 7)];
-        prog.push({ game: gid, name: n, date: d, dateMs: Date.parse(d + 'T' + pad(8 + Math.floor(rnd() * 7)) + ':' + pad(Math.floor(rnd() * 60)) + ':00'), attempts: at, correct: c, acc: pct(c, at), minutes: Math.round((3 + rnd() * 14) * 10) / 10 });
+        prog.push({ game: gid, name: n, date: d, dateMs: Date.parse(d + 'T' + pad(8 + Math.floor(rnd() * 7)) + ':' + pad(Math.floor(rnd() * 60)) + ':00'), attempts: at, correct: c, acc: pct(c, at), minutes: Math.round((3 + rnd() * 14) * 10) / 10, ...(gid === 'listen' ? { raw: { rounds_by: { filter: Math.round(at / 2), eq: at - Math.round(at / 2) } } } : {}) });
       }
     });
   });
-  ['tidal', 'rooftop', 'rhythm', 'scale', 'earshot', 'brainwaves'].forEach(gid => {
+  ['tidal', 'rooftop', 'rhythm', 'scale', 'earshot', 'brainwaves', 'listen'].forEach(gid => {
     names.forEach(n => {
       if (rnd() < .35) return;
       const d = ds[Math.floor(rnd() * 7)];
