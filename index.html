@@ -188,8 +188,15 @@
   @media (prefers-reduced-motion: reduce) { .game, .shot img, .shot video { transition: none; } }
   /* Super Music Theory Genius: a gold border around the six games, with the challenge on a plate at the top center
      and a red arcade Leaderboard button. Critical Listening Lab stays outside it (not part of the challenge). */
-  .genius-ring { position: relative; max-width: 1030px; margin: 70px auto 0; padding: 78px 24px 24px; border: 3px solid #f5c542; border-radius: 30px;
-    box-shadow: 0 0 0 1px rgba(255, 214, 102, .25), 0 0 46px rgba(245, 197, 66, .28), inset 0 0 46px rgba(245, 197, 66, .08); }
+  .genius-ring { position: relative; max-width: 1040px; margin: 70px auto 0; padding: 84px 30px 30px; border-radius: 34px;
+    box-shadow: 0 0 50px rgba(245, 197, 66, .3), inset 0 0 50px rgba(245, 197, 66, .1); }
+  /* the thick gold band: a moving gold gradient cut down to a 10px ring, so the inside stays the page's own background */
+  .genius-ring::before { content: ''; position: absolute; inset: 0; padding: 10px; border-radius: inherit; pointer-events: none;
+    background: linear-gradient(110deg, #7a4d0c 0%, #f5c542 18%, #fff7d1 25%, #f5c542 32%, #a8700f 50%, #f5c542 68%, #fff7d1 75%, #f5c542 82%, #7a4d0c 100%);
+    background-size: 200% 100%; animation: goldshimmer 4s linear infinite;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; }
+  @keyframes goldshimmer { to { background-position: -200% 0; } }
+  @media (prefers-reduced-motion: reduce) { .genius-ring::before { animation: none; } }
   .genius { position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); z-index: 4; display: flex; align-items: center; gap: 18px;
     padding: 12px 18px 12px 22px; background: linear-gradient(180deg, #2b1f06, #120c02); border: 3px solid #f5c542; border-radius: 20px; white-space: nowrap;
     box-shadow: 0 0 30px rgba(245, 197, 66, .45), 0 10px 26px -10px #000; }
@@ -207,7 +214,8 @@
   .genius .lb:active .redbtn { transform: translateY(4px); box-shadow: 0 1px 0 #5a0a0e, 0 2px 6px rgba(0, 0, 0, .5), inset 0 -3px 6px rgba(0, 0, 0, .35); }
   .genius-ring .path-note { margin-top: 0; }
   @media (max-width: 760px) {
-    .genius-ring { margin-top: 24px; padding: 16px 12px 12px; }
+    .genius-ring { margin-top: 24px; padding: 18px 16px 16px; }
+    .genius-ring::before { padding: 7px; }
     .genius { position: static; transform: none; white-space: normal; flex-wrap: wrap; justify-content: center; margin: -40px auto 18px; max-width: 100%; }
     .genius .lb { border-left: 0; padding-left: 0; }
   }
