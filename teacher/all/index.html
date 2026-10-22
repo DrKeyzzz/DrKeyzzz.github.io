@@ -295,6 +295,7 @@
       </div>
       <div id="adminacc" class="access" hidden></div>
       <div id="adminsum" hidden></div>
+      <div id="devfix" class="note" hidden style="margin-top:18px"><b>Developer scores:</b> rename every score posted under an old developer name to Maestro. <button class="btn ghost sm" type="button" id="devfixgo">Rename developer scores</button> <span id="devfixmsg"></span></div>
       <div id="newtestbox" hidden><button class="btn ghost sm" type="button" id="tback" style="margin-top:14px">← Back to Tests</button><iframe id="tframe" title="Create a test" style="width:100%;border:0;min-height:700px;margin-top:8px;background:transparent"></iframe></div>
       <div id="gradelist" class="glist" hidden></div>
       <div id="data">
@@ -317,7 +318,18 @@
 const $ = id => document.getElementById(id);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const FIREBASE = { apiKey: 'AIzaSyDU9vbCWJ4yWuD8bAX984DmQF4dvo13BHs', authDomain: 'rhythm-trainer-fc313.firebaseapp.com', projectId: 'rhythm-trainer-fc313', appId: '1:956677028482:web:c3ec72a279e61b6f6c929b' };
-const TEACHER_EMAILS = ['milnesda@eht.k12.nj.us'], ADMIN_EMAILS = ['milnesda@eht.k12.nj.us'];   // must match firestore.rules
+const TEACHER_EMAILS = [], ADMIN_EMAILS = [];   // filled by adminCheck() (admins in Firestore)
+// Admins are listed in Firestore (admins/<their Google email>, added in the Firebase Console), not in this file.
+// adminCheck reads that one entry after a Google sign-in and, for an admin, adds them to the lists above for this page.
+async function adminCheck(email) {
+  email = String(email || '').toLowerCase();
+  if (!email) return false;
+  const lists = [TEACHER_EMAILS, ADMIN_EMAILS];
+  if (lists[0].includes(email)) return true;
+  try { const { fs, db } = await (fbAuth)(); if (!(await fs.getDoc(fs.doc(db, 'admins', email))).exists()) return false; } catch { return false; }
+  lists.forEach(l => l.includes(email) || l.push(email));
+  return true;
+}
 const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
 const PREVIEW = new URLSearchParams(location.search).get('preview') === '1';
 
@@ -621,7 +633,7 @@ function render() {
   const asg = S.view === 'assign', nt = S.view === 'newtest', ts = S.view === 'tests', ad = S.view === 'admin';
   if (!ad) S.teacher = '';
   const tpg = ad && !!S.teacher;
-  $('upbox').hidden = !ts; $('adminsum').hidden = !ad; $('adminacc').hidden = !ad || tpg;
+  $('upbox').hidden = !ts; $('adminsum').hidden = !ad; $('adminacc').hidden = !ad || tpg; $('devfix').hidden = !ad || tpg || PREVIEW;
   const gv = S.view === 'grades'; if (gv) { gradePick(); renderGradeList(); }
   $('gradelist').hidden = $('gradelist2').hidden = !gv;
   $('data').hidden = asg || nt || tpg || (gv && !S.gradeA); $('assignbox').hidden = !asg; $('testsbox').hidden = !ts; $('newtestbox').hidden = !nt; $('csv').hidden = asg || nt || tpg || (gv && !S.gradeA);
@@ -719,7 +731,7 @@ async function loadAdmin() {
       }
     }
     return Object.values(agg).map(r => ({ email: r.email, game: r.game, students: r.sids.size, days: r.dset.size, minutes: r.game === 'earshot' ? null : Math.round(r.minutes * 10) / 10, attempts: r.attempts, correct: r.correct, acc: pct(r.correct, r.attempts), dateMs: r.dateMs, detail: topOf(r.det) }));
-  }).then(rows => { const nm = {}; S.adminTeachers.forEach(t => { nm[String(t.email).toLowerCase()] = t.name; }); return rows.map(r => r.email === 'unknown' ? { ...r, name: 'No class (world leaderboards, or a deleted class)', email: '' } : { ...r, name: nm[r.email] || (ADMIN_EMAILS.includes(r.email) ? 'David Milnes (you)' : r.email) }); });
+  }).then(rows => { const nm = {}; S.adminTeachers.forEach(t => { nm[String(t.email).toLowerCase()] = t.name; }); return rows.map(r => r.email === 'unknown' ? { ...r, name: 'No class (world leaderboards, or a deleted class)', email: '' } : { ...r, name: nm[r.email] || (ADMIN_EMAILS.includes(r.email) ? 'You' : r.email) }); });
 }
 // ---------- Admin: one teacher's page (click a name in the list) ----------
 // Classes and tests can be read by anyone signed in, so this needs no new rules. Read once when the page opens.
@@ -1450,6 +1462,22 @@ function buildTabs() {
 function wire() {
   buildTabs();
   $('upbox').onclick = e => { const b = e.target.closest('button[data-view]'); if (!b) return; S.code = b.dataset.code; $('cls').value = S.code; if (b.dataset.test) { S.testId = b.dataset.test; S.editId = b.dataset.test; S.view = 'newtest'; } else S.view = b.dataset.view; load(); };
+  // One-time tool (added 2026-10-22): scores the developer posted under an old name become "Maestro" (the rules let only the
+  // admin change a score's name, and only to Maestro). Super Genius rows under the old name are deleted (one row per player there).
+  $('devfixgo').onclick = async () => {
+    const old = (prompt('Old developer name, exactly as it shows on the boards:') || '').trim(), msg = $('devfixmsg');
+    if (!old || old === 'Maestro' || !confirm(`Rename every "${old}" score to Maestro?`)) return;
+    const cols = ['rhythm_scores', 'scale_scores', 'degree_scores', 'key_scores', 'nova_scores', 'tidal_scores', 'listening_scores', 'sight_scores',
+      'synapse_scores', 'intervals_scores', 'chords_scores', 'progressions_scores', 'scales_scores', 'earshot_scores'];
+    let n = 0; msg.textContent = 'Working…';
+    try {
+      for (const col of [...cols, 'genius_scores']) {
+        const docs = await run(async ({ fs, db }) => (await fs.getDocs(fs.query(fs.collection(db, col), fs.where('name', '==', old)))).docs);
+        for (const d of docs) { await run(({ fs }) => col === 'genius_scores' ? fs.deleteDoc(d.ref) : fs.updateDoc(d.ref, { name: 'Maestro' })); n++; }
+      }
+      msg.textContent = `Done: ${n} score${n === 1 ? '' : 's'} changed.`;
+    } catch (e) { msg.textContent = `Stopped after ${n} score${n === 1 ? '' : 's'}: ${errText(e)}`; }
+  };
   $('adminsum').onclick = e => {
     if (e.target.closest('#tpback')) { S.teacher = ''; S.tp = null; render(); return; }
     const t = e.target.closest('[data-teacher]'); if (t) openTeacher(t.dataset.teacher);
@@ -1497,7 +1525,7 @@ function signInScreen(err) {
   };
 }
 async function isTeacherEmail(email) {
-  if (TEACHER_EMAILS.includes(email)) return true;
+  if (TEACHER_EMAILS.includes(email) || await adminCheck(email)) return true;
   return run(async ({ fs, db }) => (await fs.getDoc(fs.doc(db, 'teachers', email))).exists());
 }
 async function signedIn(email) {

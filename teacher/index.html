@@ -262,7 +262,18 @@ const $ = id => document.getElementById(id);
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 // the same Firebase project, Google sign-in and teacher check as the games' Teacher dashboards
 const FIREBASE = { apiKey: 'AIzaSyDU9vbCWJ4yWuD8bAX984DmQF4dvo13BHs', authDomain: 'rhythm-trainer-fc313.firebaseapp.com', projectId: 'rhythm-trainer-fc313', appId: '1:956677028482:web:c3ec72a279e61b6f6c929b' };
-const TEACHER_EMAILS = ['milnesda@eht.k12.nj.us'];   // must match firestore.rules
+const TEACHER_EMAILS = [];   // filled by adminCheck() (admins in Firestore)
+// Admins are listed in Firestore (admins/<their Google email>, added in the Firebase Console), not in this file.
+// adminCheck reads that one entry after a Google sign-in and, for an admin, adds them to the lists above for this page.
+async function adminCheck(email) {
+  email = String(email || '').toLowerCase();
+  if (!email) return false;
+  const lists = [TEACHER_EMAILS];
+  if (lists[0].includes(email)) return true;
+  try { const { fs, db } = await (fbAuth)(); if (!(await fs.getDoc(fs.doc(db, 'admins', email))).exists()) return false; } catch { return false; }
+  lists.forEach(l => l.includes(email) || l.push(email));
+  return true;
+}
 const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
 let fbP = null, fbAuthP = null;
 function fb() {
@@ -524,7 +535,7 @@ function signInScreen(err) {
   };
 }
 async function isTeacherEmail(email) {
-  if (TEACHER_EMAILS.includes(email)) return true;
+  if (TEACHER_EMAILS.includes(email) || await adminCheck(email)) return true;
   return run(async ({ fs, db }) => (await fs.getDoc(fs.doc(db, 'teachers', email))).exists());
 }
 async function signedIn(email) {
