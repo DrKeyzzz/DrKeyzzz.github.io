@@ -565,7 +565,7 @@ const COLS = {
     { k: 'minutes', h: 'Minutes', t: 'n', num: 1 },
   ],
   scores: [
-    { k: 'name', h: 'Student', t: 's', f: r => esc(r.name) + (r.dev ? ' <span class="devtag" title="Posted by Mr. Milnes (developer score: shows on every class board)">DEV</span>' : '') }, { k: 'game', h: 'Game', t: 'g' }, { k: 'score', h: 'Score', t: 'n', num: 1, f: r => esc(r.score.toLocaleString()) },
+    { k: 'name', h: 'Student', t: 's', f: r => esc(r.name) + (r.dev ? ' <span class="devtag" title="Posted by the developer (developer score: shows on every class board)">DEV</span>' : '') }, { k: 'game', h: 'Game', t: 'g' }, { k: 'score', h: 'Score', t: 'n', num: 1, f: r => esc(r.score.toLocaleString()) },
     { k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) }, { k: 'detail', h: 'Details', t: 's' }, { k: 'dateMs', h: 'Date', t: 'n', f: r => esc(fmtDate(r.dateMs)) },
     { k: 'x', h: '', t: 'x' },
   ],
@@ -687,9 +687,9 @@ const topOf = (m, n = 5) => Object.entries(m).sort((a, b) => b[1] - a[1]).slice(
 async function loadAdmin() {
   if (PREVIEW) {
     const now = Date.now(), H = 3600000;
-    S.adminTeachers = [{ email: 'a.lopez@sample', name: 'Ana Lopez', school: 'EHT High School' }, { email: 'r.kim@sample', name: 'Ron Kim', school: 'EHT High School' }, { email: 'j.shaw@sample', name: 'Jo Shaw', school: 'Middle School' }, { email: 'sample@preview', name: 'David Milnes', school: 'EHT High School' }];
+    S.adminTeachers = [{ email: 'a.lopez@sample', name: 'Ana Lopez', school: 'Sample High School' }, { email: 'r.kim@sample', name: 'Ron Kim', school: 'Sample High School' }, { email: 'j.shaw@sample', name: 'Jo Shaw', school: 'Middle School' }, { email: 'sample@preview', name: 'Sample Teacher', school: 'Sample High School' }];
     const R = (email, name, game, students, days, minutes, attempts, acc, ago, detail) => ({ email, name, game, students, days, minutes, attempts, correct: Math.round(attempts * acc / 100), acc, dateMs: now - ago * H, detail });
-    return [R('sample@preview', 'David Milnes', 'scale', 24, 6, 214.5, 3120, 78, 3, 'major, minor, C, G, D'), R('sample@preview', 'David Milnes', 'tidal', 18, 4, 96.2, 1400, 71, 20, 'notes, intervals'), R('sample@preview', 'David Milnes', 'earshot', 22, 3, null, 140, 64, 30, 'medium, treble'),
+    return [R('sample@preview', 'Sample Teacher', 'scale', 24, 6, 214.5, 3120, 78, 3, 'major, minor, C, G, D'), R('sample@preview', 'Sample Teacher', 'tidal', 18, 4, 96.2, 1400, 71, 20, 'notes, intervals'), R('sample@preview', 'Sample Teacher', 'earshot', 22, 3, null, 140, 64, 30, 'medium, treble'),
       R('a.lopez@sample', 'Ana Lopez', 'rhythm', 31, 5, 141.8, 2210, 82, 26, 'easy, medium, 4/4, 3/4'), R('a.lopez@sample', 'Ana Lopez', 'rooftop', 12, 2, 38.4, 640, 69, 50, 'rhythm, keys, easy'), R('r.kim@sample', 'Ron Kim', 'tidal', 9, 1, 12.0, 180, 66, 140, 'notes')];
   }
   const ds = days(), cutoff = ds ? Math.min(...ds.map(dayMs)) : 0;
@@ -1044,7 +1044,7 @@ const REAL = {
 const MEM = (() => {   // ?preview=1: sample teachers, conversations and Board posts, kept in memory only
   const now = Date.now(), MIN = 60000, H = 60 * MIN, D = 24 * H; let n = 0; const nid = p => p + (++n);
   const later = f => new Promise(r => setTimeout(() => r(f()), 90));
-  const T = [{ email: 'a.lopez@sample', name: 'Ana Lopez', school: 'EHT High School' }, { email: 'r.kim@sample', name: 'Ron Kim', school: 'EHT High School' },
+  const T = [{ email: 'a.lopez@sample', name: 'Ana Lopez', school: 'Sample High School' }, { email: 'r.kim@sample', name: 'Ron Kim', school: 'Sample High School' },
     { email: 'j.shaw@sample', name: 'Jo Shaw', school: 'Middle School' }, { email: 'p.rivera@sample', name: 'Pat Rivera', school: 'Lincoln Elementary' }];
   const msgs = {}, th = {};
   const put = (email, from, text, at) => {
@@ -1070,13 +1070,13 @@ const MEM = (() => {   // ?preview=1: sample teachers, conversations and Board p
     'I assign 15 minutes a week and check the Progress tab on Fridays.', 'The feedback button is gold. My students found a typo for me.'];
   const posts = [], reps = {};
   const addP = (o) => { const p = { id: nid('p'), pinned: false, announce: false, reply_count: 0, ...o }; posts.push(p); return p; };
-  addP({ author_email: 'sample@preview', author_name: 'David Milnes', author_school: 'EHT High School', text: 'Welcome to the Teacher Board! Share what works in your classes, ask questions and post ideas. Please keep student names out of posts.', pinned: true, announce: true, created_at: now - 12 * D, last_at: now - 12 * D });
+  addP({ author_email: 'sample@preview', author_name: 'Sample Teacher', author_school: 'Sample High School', text: 'Welcome to the Teacher Board! Share what works in your classes, ask questions and post ideas. Please keep student names out of posts.', pinned: true, announce: true, created_at: now - 12 * D, last_at: now - 12 * D });
   for (let i = 0; i < 36; i++) { const t = T[i % 4]; addP({ author_email: t.email, author_name: t.name, author_school: t.school, text: TX[i % TX.length] + (i >= TX.length ? ` (${['again', 'follow-up', 'part 2'][Math.floor(i / TX.length) - 1]})` : ''), created_at: now - (i * 9 + 2) * H, last_at: now - (i * 9 + 2) * H }); }
   const addR = (p, t, text, ago) => { (reps[p.id] = reps[p.id] || []).push({ id: nid('r'), author_email: t.email, author_name: t.name, author_school: t.school, text, at: now - ago }); p.reply_count++; p.last_at = Math.max(p.last_at, now - ago); };
   addR(posts[1], T[1], 'Yes! I use it the first 5 minutes. The posters are a hit.', 60 * MIN);
-  addR(posts[1], { email: 'sample@preview', name: 'David Milnes', school: 'EHT High School' }, 'Love this. Medium difficulty is a good start.', 30 * MIN);
+  addR(posts[1], { email: 'sample@preview', name: 'Sample Teacher', school: 'Sample High School' }, 'Love this. Medium difficulty is a good start.', 30 * MIN);
   addR(posts[3], T[2], 'I give 8 minutes and two tries.', 5 * H);
-  const ME = { email: 'sample@preview', name: 'David Milnes', school: 'EHT High School' };
+  const ME = { email: 'sample@preview', name: 'Sample Teacher', school: 'Sample High School' };
   const copy = o => ({ ...o });
   return {
     me: email => later(() => email === ME.email ? { name: ME.name, school: ME.school } : (T.find(t => t.email === email) || null)),
@@ -1103,7 +1103,7 @@ const API = PREVIEW ? MEM : REAL;
 async function loadMe() {
   if (S.me) return S.me;
   let d = null; try { d = await API.me(S.email); } catch (e) {}
-  S.me = { name: String((d && d.name) || (amAdmin() ? 'Mr. Milnes' : S.email.split('@')[0])).slice(0, 60), school: String((d && d.school) || '').slice(0, 80) };
+  S.me = { name: String((d && d.name) || (amAdmin() ? 'Music Theory Games Support' : S.email.split('@')[0])).slice(0, 60), school: String((d && d.school) || '').slice(0, 80) };
   return S.me;
 }
 function setBadge(v, n) {
@@ -1197,7 +1197,7 @@ async function openThread(email, opt = {}) {
     const older = same ? mx.msgs.filter(m => !r.list.some(x => x.id === m.id) && toMs(m.at) < toMs((r.list[0] || {}).at)) : [];
     mx.msgs = older.concat(r.list); if (!older.length) { mx.cursor = r.cursor; mx.more = r.more; }
     const fresh = same && seen.size ? r.list.filter(m => !seen.has(m.id) && m.from !== mySide()) : [];
-    if (fresh.length) sr(`New message${fresh.length > 1 ? 's' : ''} from ${amAdmin() ? teacherInfo(email).name : 'Mr. Milnes'}: ${fresh[fresh.length - 1].text.slice(0, 140)}`);
+    if (fresh.length) sr(`New message${fresh.length > 1 ? 's' : ''} from ${amAdmin() ? teacherInfo(email).name : 'Music Theory Games Support'}: ${fresh[fresh.length - 1].text.slice(0, 140)}`);
     const t = myThread(), side = mySide();
     if (t && +t['unread_' + side] > 0) { await API.markRead(email, side); t['unread_' + side] = 0; recountInbox(); }
   } catch (e) { msg(errText(e)); }
@@ -1253,17 +1253,17 @@ async function deleteMsg(id) {
   renderMessages();
 }
 function bubbleHTML(m, admin) {
-  const mine = (m.from === 'admin') === admin, who = mine ? 'You' : admin ? teacherInfo(S.mx.open).name : 'Mr. Milnes';
+  const mine = (m.from === 'admin') === admin, who = mine ? 'You' : admin ? teacherInfo(S.mx.open).name : 'Music Theory Games Support';
   return `<div class="bub ${mine ? 'me' : 'them'}" role="article" aria-label="${esc(who)}, ${esc(fmtDate(toMs(m.at)))}"><p>${esc(m.text)}</p><span class="bt"><time>${esc(fmtDate(toMs(m.at)))}</time>${admin ? `<button class="bx" type="button" data-delmsg="${esc(m.id)}" aria-label="Delete this message" title="Delete">✕</button>` : ''}</span></div>`;
 }
 function threadHTML(email) {
   const admin = amAdmin(), mx = S.mx, info = admin ? teacherInfo(email) : null;
-  const title = admin ? (info.name || email) : 'Mr. Milnes', sub = admin ? [info.school, email].filter(Boolean).join(' · ') : 'Private: only you and Mr. Milnes can read this.';
-  const empty = mx.loading ? 'Loading…' : admin ? `No messages with ${esc(title)} yet. Say hello below.` : 'Say hi to Mr. Milnes: questions, ideas, how it’s going.';
+  const title = admin ? (info.name || email) : 'Music Theory Games Support', sub = admin ? [info.school, email].filter(Boolean).join(' · ') : 'Private: only you and Music Theory Games Support can read this.';
+  const empty = mx.loading ? 'Loading…' : admin ? `No messages with ${esc(title)} yet. Say hello below.` : 'Say hi to Music Theory Games Support: questions, ideas, how it’s going.';
   return `<section class="mx-thread" aria-label="Conversation with ${esc(title)}">
     <div class="mx-head">${admin ? '<button class="btn ghost sm mx-back" type="button" data-mx="back">← Teachers</button>' : ''}<div><h3 tabindex="-1" id="mx-title">${esc(title)}</h3><small>${esc(sub)}</small></div></div>
     <div class="mx-log" id="mx-log" tabindex="0" aria-label="Messages, newest at the bottom">${mx.more ? '<button class="btn ghost sm mx-older" type="button" data-mx="older">Show older</button>' : ''}${mx.msgs.map(m => bubbleHTML(m, admin)).join('') || `<p class="mx-none">${empty}</p>`}</div>
-    ${replyForm(admin ? 'mx:' + email : 'mx', admin ? `Write to ${title}…` : 'Write to Mr. Milnes…', 'Send')}
+    ${replyForm(admin ? 'mx:' + email : 'mx', admin ? `Write to ${title}…` : 'Write to Music Theory Games Support…', 'Send')}
   </section>`;
 }
 function composeHTML() {
