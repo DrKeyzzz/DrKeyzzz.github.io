@@ -41,16 +41,6 @@
     font-family: var(--f-ui);
     padding: 0 16px 48px;
   }
-  /* the default (dark) look: Mozart's own manuscript of Eine kleine Nachtmusik, K. 525, inverted (white is black), behind everything.
-     Public domain, Wikimedia Commons: File:Mozart_-_Eine_kleine_Nachtmusik_K.525_autograph.png */
-  /* Classic gets the same dark manuscript; Day shows it as it is (dark ink on old paper), faded behind the light page. */
-  html[data-skin="clean"] body, html[data-skin="classic"] body { background: #0d0a07; }
-  body::before, body::after { content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none; }
-  html[data-skin="clean"] body::before, html[data-skin="classic"] body::before { background: url(mozart-k525.jpg) center / cover no-repeat; filter: invert(1) sepia(.55) brightness(.75) contrast(1.15); }
-  html[data-skin="clean"] body::after, html[data-skin="classic"] body::after { background: radial-gradient(ellipse at 50% 40%, transparent 30%, rgba(0, 0, 0, .72) 100%); }
-  html[data-skin="day"] body { background: #f6efe0; }
-  html[data-skin="day"] body::before { background: url(mozart-k525.jpg) center / cover no-repeat; filter: sepia(.35); opacity: .22; }
-  html[data-skin="day"] body::after { background: radial-gradient(ellipse at 50% 40%, transparent 40%, rgba(120, 90, 40, .18) 100%); }
   .topbar { display: flex; justify-content: flex-end; gap: 10px; padding-top: 16px; max-width: 980px; margin: 0 auto; }
   .iconbtn { font: 600 12px var(--f-ui); letter-spacing: .1em; text-transform: uppercase; text-decoration: none; color: var(--muted); background: var(--card); border: 1px solid var(--card-border); border-radius: 999px; padding: 8px 14px 6px; cursor: pointer; }
   .iconbtn:hover { color: var(--text); border-color: var(--muted); }
