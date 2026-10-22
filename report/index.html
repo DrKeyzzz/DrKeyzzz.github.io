@@ -700,6 +700,14 @@ function gamePanel(g, t, a, list, ctx) {
     </div>`;
 }
 
+// ---------- Music Theory Super Genius (its own save, mtg_super_genius_v1:<sid>, written by super-genius/game.js) ----------
+const GENIUS_RANKS = ['Theory Genius', 'Super Theory Genius', 'Super Music Theory Genius'];
+function geniusBox(sid) {
+  const g = sid && load('mtg_super_genius_v1:' + sid); if (!g || g.version !== 2 || !g.best) return '';
+  const r = (g.ranks || []).lastIndexOf(true), b = g.best;
+  return `<div class="box"><h2>🚀 Music Theory Super Genius</h2><div class="win"><span class="ic" aria-hidden="true">${r >= 0 ? '✦' : '🚀'}</span><b>${r >= 0 ? esc(GENIUS_RANKS[r]) : 'No rank yet'}</b><span class="s">Best flight: ${b.correct} of 20 right · ${b.lives} ${b.lives === 1 ? 'life' : 'lives'} left${r < 2 ? ` · next: ${esc(GENIUS_RANKS[r + 1])} (${['get past Mars', 'get past Jupiter', 'survive all 20'][r + 1]})` : ''}</span></div><a href="https://drkeyzzz.github.io/super-genius/" style="color:var(--muted);font-size:14px">Launch another flight →</a></div>`;
+}
+
 // ---------- the All games tab ----------
 function allPanel(ctx) {
   const { rank, xp, all, X, perGame } = ctx;
@@ -709,6 +717,7 @@ function allPanel(ctx) {
     : 'Play any game while you\'re signed in and your best moments show up here.';
   return `
     ${heroHTML(news(ctx, GAMES), sum)}
+    ${geniusBox(ctx.sid)}
     <div class="trophies">
       <div class="trophy best"><span class="k">Music rank</span><span class="v" style="font-size:22px">${esc(RANKS[rank][1])}</span><span class="n">Rank ${rank + 1} of ${RANKS.length}</span></div>
       <div class="trophy"><span class="k">Total XP</span><span class="v">${fmt(xp)}</span><span class="n">${rank + 1 < RANKS.length ? `${fmt(RANKS[rank + 1][0] - xp)} to ${esc(RANKS[rank + 1][1])}` : 'Top rank! 👑'}</span></div>
@@ -860,7 +869,7 @@ async function boot() {
     confetti(panel, g.acc);
   }
   const render = () => {
-    ctx = compute();
+    ctx = compute(); ctx.sid = sidOf(p);
     const { xp, rank } = ctx, lo = RANKS[rank][0], hi = rank + 1 < RANKS.length ? RANKS[rank + 1][0] : null;
     $('p-level').innerHTML = `<span class="ranktag">RANK ${rank + 1} · ${esc(RANKS[rank][1].toUpperCase())}</span>`;
     $('p-xp').style.width = (hi ? Math.round(100 * (xp - lo) / (hi - lo)) : 100) + '%';
