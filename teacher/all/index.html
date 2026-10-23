@@ -144,7 +144,7 @@
 </script>
 <!-- MTG_MOVE end -->
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>All Games Dashboard · Music Theory Games</title>
+<title>All Games Dashboard · Music Theory Academy</title>
 <meta name="description" content="Teachers: see every game and every student's scores in one place.">
 <meta name="robots" content="noindex">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -385,7 +385,7 @@
 </head>
 <body>
 <div class="wrap">
-  <a class="back" href="../../">← Music Theory Games</a>
+  <a class="back" href="../../">← Music Theory Academy</a>
   <header>
     <p class="eyebrow">For teachers</p>
     <h1>All games dashboard</h1>
@@ -1336,7 +1336,7 @@ const API = PREVIEW ? MEM : REAL;
 async function loadMe() {
   if (S.me) return S.me;
   let d = null; try { d = await API.me(S.email); } catch (e) {}
-  S.me = { name: String((d && d.name) || (amAdmin() ? 'Music Theory Games Support' : S.email.split('@')[0])).slice(0, 60), school: String((d && d.school) || '').slice(0, 80) };
+  S.me = { name: String((d && d.name) || (amAdmin() ? 'Music Theory Academy Support' : S.email.split('@')[0])).slice(0, 60), school: String((d && d.school) || '').slice(0, 80) };
   return S.me;
 }
 function setBadge(v, n) {
@@ -1430,7 +1430,7 @@ async function openThread(email, opt = {}) {
     const older = same ? mx.msgs.filter(m => !r.list.some(x => x.id === m.id) && toMs(m.at) < toMs((r.list[0] || {}).at)) : [];
     mx.msgs = older.concat(r.list); if (!older.length) { mx.cursor = r.cursor; mx.more = r.more; }
     const fresh = same && seen.size ? r.list.filter(m => !seen.has(m.id) && m.from !== mySide()) : [];
-    if (fresh.length) sr(`New message${fresh.length > 1 ? 's' : ''} from ${amAdmin() ? teacherInfo(email).name : 'Music Theory Games Support'}: ${fresh[fresh.length - 1].text.slice(0, 140)}`);
+    if (fresh.length) sr(`New message${fresh.length > 1 ? 's' : ''} from ${amAdmin() ? teacherInfo(email).name : 'Music Theory Academy Support'}: ${fresh[fresh.length - 1].text.slice(0, 140)}`);
     const t = myThread(), side = mySide();
     if (t && +t['unread_' + side] > 0) { await API.markRead(email, side); t['unread_' + side] = 0; recountInbox(); }
   } catch (e) { msg(errText(e)); }
@@ -1486,17 +1486,17 @@ async function deleteMsg(id) {
   renderMessages();
 }
 function bubbleHTML(m, admin) {
-  const mine = (m.from === 'admin') === admin, who = mine ? 'You' : admin ? teacherInfo(S.mx.open).name : 'Music Theory Games Support';
+  const mine = (m.from === 'admin') === admin, who = mine ? 'You' : admin ? teacherInfo(S.mx.open).name : 'Music Theory Academy Support';
   return `<div class="bub ${mine ? 'me' : 'them'}" role="article" aria-label="${esc(who)}, ${esc(fmtDate(toMs(m.at)))}"><p>${esc(m.text)}</p><span class="bt"><time>${esc(fmtDate(toMs(m.at)))}</time>${admin ? `<button class="bx" type="button" data-delmsg="${esc(m.id)}" aria-label="Delete this message" title="Delete">✕</button>` : ''}</span></div>`;
 }
 function threadHTML(email) {
   const admin = amAdmin(), mx = S.mx, info = admin ? teacherInfo(email) : null;
-  const title = admin ? (info.name || email) : 'Music Theory Games Support', sub = admin ? [info.school, email].filter(Boolean).join(' · ') : 'Private: only you and Music Theory Games Support can read this.';
-  const empty = mx.loading ? 'Loading…' : admin ? `No messages with ${esc(title)} yet. Say hello below.` : 'Say hi to Music Theory Games Support: questions, ideas, how it’s going.';
+  const title = admin ? (info.name || email) : 'Music Theory Academy Support', sub = admin ? [info.school, email].filter(Boolean).join(' · ') : 'Private: only you and Music Theory Academy Support can read this.';
+  const empty = mx.loading ? 'Loading…' : admin ? `No messages with ${esc(title)} yet. Say hello below.` : 'Say hi to Music Theory Academy Support: questions, ideas, how it’s going.';
   return `<section class="mx-thread" aria-label="Conversation with ${esc(title)}">
     <div class="mx-head">${admin ? '<button class="btn ghost sm mx-back" type="button" data-mx="back">← Teachers</button>' : ''}<div><h3 tabindex="-1" id="mx-title">${esc(title)}</h3><small>${esc(sub)}</small></div></div>
     <div class="mx-log" id="mx-log" tabindex="0" aria-label="Messages, newest at the bottom">${mx.more ? '<button class="btn ghost sm mx-older" type="button" data-mx="older">Show older</button>' : ''}${mx.msgs.map(m => bubbleHTML(m, admin)).join('') || `<p class="mx-none">${empty}</p>`}</div>
-    ${replyForm(admin ? 'mx:' + email : 'mx', admin ? `Write to ${title}…` : 'Write to Music Theory Games Support…', 'Send')}
+    ${replyForm(admin ? 'mx:' + email : 'mx', admin ? `Write to ${title}…` : 'Write to Music Theory Academy Support…', 'Send')}
   </section>`;
 }
 function composeHTML() {
