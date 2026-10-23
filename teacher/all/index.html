@@ -285,6 +285,7 @@
       <div id="testsbox" hidden>
         <div class="opts" style="margin-top:14px">
           <label class="f" for="tsel">Test<select id="tsel"></select></label>
+          <label class="f" for="tout" title="Grades show as points, e.g. 19/20. Change it to match your grade book.">Grade out of<input id="tout" type="number" min="1" max="1000" step="1" inputmode="numeric" style="width:84px"></label>
           <button class="btn sm" type="button" id="tnew">+ New test</button>
           <button class="btn sm" type="button" id="tedit">Edit test</button>
           <button class="btn ghost sm" type="button" id="ttoggle">Switch off</button>
@@ -582,7 +583,8 @@ const COLS = {
     { k: 'x', h: '', t: 'x' },
   ],
   tests: [
-    { k: 'name', h: 'Student', t: 's' }, { k: 'best', h: 'Best score', t: 'n', num: 1, f: r => esc(r.best + r.unit) }, { k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) },
+    { k: 'name', h: 'Student', t: 's' }, { k: 'best', h: 'Best score', t: 'n', num: 1, f: r => esc(r.best + r.unit) }, { k: 'grade', h: 'Grade', t: 's', num: 1, f: r => gradeCell(r.grade) },
+    { k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) },
     { k: 'tries', h: 'Tries', t: 'n', num: 1 }, { k: 'dateMs', h: 'Last try', t: 'n', f: r => esc(fmtDate(r.dateMs)) },
     { k: 'st', h: 'Status', t: 's', f: r => (r.st || (r.best > 0 ? 'Finished' : 'Started')) === 'Playing now' ? '<b style="color:#2fbf71">● Playing now</b>' : (r.st || (r.best > 0 ? 'Finished' : 'Started')) === 'Finished' ? 'Finished' : '<span style="color:var(--muted)">Started, no score yet</span>' },
   ],
@@ -597,6 +599,7 @@ const COLS = {
   ],
 };
 COLS.grades = [{ k: 'name', h: 'Student', t: 's' }];   // filled in by loadGrades from the class's assignment
+const TEST_COLS = COLS.tests;   // one test's results; the All tests overview and grade book swap in their own columns
 const DEFAULT_SORT = { grades: { k: 'name', dir: 1 }, progress: { k: 'dateMs', dir: -1 }, scores: { k: 'score', dir: -1 }, tests: { k: 'best', dir: -1 }, admin: { k: 'minutes', dir: -1 }, feedback: { k: 'dateMs', dir: -1 } };
 function accCell(a) { return a == null ? '<span style="color:var(--muted)">–</span>' : `<span class="${a < 60 ? 'low' : a >= 85 ? 'good' : ''}">${a}%</span>`; }
 function cellText(c, r) {
@@ -655,7 +658,7 @@ function render() {
     ? G[S.game].name + ' does not keep daily practice records yet. Open Scores to see its results.'
     : S.view === 'progress' ? 'One row per student per game per day. Accuracy is correct answers out of all answers.'
     : S.view === 'scores' && S.code === WORLD ? 'World: the top 50 scores in each game from every class and the world boards, all time (the time range does not apply). Details shows each score\'s class.'
-    : S.view === 'tests' ? 'Best score is the highest of all tries. Students who have not started do not appear.'
+    : S.view === 'tests' ? 'Best score is the highest of all tries. Grade = accuracy of the best try as points out of the test\'s "Grade out of" (20 unless you change it), e.g. 95% of 20 = 19/20. Students who have not started do not appear.'
     : S.view === 'admin' ? 'Time is student practice time recorded in each teacher\'s classes (not teacher log-ins, and not tests). Earshot Saloon records scores only, so it shows no minutes. What they practice lists the most used levels, keys, scale types, modes and time signatures in the records.' : '';
 }
 async function load() {
@@ -671,10 +674,10 @@ async function load() {
     else if (PREVIEW) {
       SAMPLE = SAMPLE || sample();
       rows = S.view === 'progress' ? SAMPLE.prog : S.view === 'scores' ? SAMPLE.scores : S.view === 'tests' ? SAMPLE.tests : SAMPLE.fbs;
-      if (S.view === 'tests') { await loadUpcoming().catch(() => {}); S.tests = SAMPLE.testList; if (!S.testId) S.testId = S.tests[0].id; }
+      if (S.view === 'tests') { await loadUpcoming().catch(() => {}); S.tests = SAMPLE.testList; if (!S.testId) S.testId = S.tests[0].id; rows = await loadTestRows(); }
       await new Promise(r => setTimeout(r, 120));
     } else if (S.view === 'tests') {
-      await loadUpcoming().catch(() => {}); await loadTests(); rows = await fetchResults();
+      await loadUpcoming().catch(() => {}); await loadTests(); rows = await loadTestRows();
     } else if (S.view === 'feedback') {
       rows = (await fetchFeedback()).filter(r => !S.code || r.code === S.code);
     } else if (S.code) {
@@ -906,7 +909,53 @@ async function loadTests() {
   if (!S.code) { S.tests = []; S.testId = ''; return; }
   S.tests = await run(async ({ fs, db }) => (await fs.getDocs(fs.query(fs.collection(db, 'tests'), fs.where('class_code', '==', S.code)))).docs
     .map(d => ({ id: d.id, ...d.data() })).sort((a, b) => toMs(b.created_at) - toMs(a.created_at)));
-  if (!S.tests.some(t => t.id === S.testId)) S.testId = (S.tests.find(t => tstate(t) === 'open') || S.tests[0] || {}).id || '';
+  if (!TEST_MODES[S.testId] && !S.tests.some(t => t.id === S.testId)) S.testId = (S.tests.find(t => tstate(t) === 'open') || S.tests[0] || {}).id || '';
+}
+// Grades as points for the grade book: accuracy of the best try times the test's "Grade out of" (20 unless the teacher changes it).
+const outOf = t => num(t && t.out_of) || 20;
+const gradeOf = (acc, t) => acc == null ? '' : `${Math.round(acc * outOf(t) / 100)}/${outOf(t)}`;
+function gradeCell(g) { return g ? esc(g) : '<span style="color:var(--muted)">–</span>'; }
+// The Test menu also offers two views of every test in the class (one query of test_results for the class).
+const TEST_MODES = { __all: 'All tests: overview', __book: 'All tests: grade book' };
+async function fetchClassResults() {
+  if (PREVIEW) return SAMPLE.tests.map((r, i) => ({ ...r, test: S.tests[i % S.tests.length].id, sid: r.name }));
+  return run(async ({ fs, db }) => (await fs.getDocs(fs.query(fs.collection(db, 'test_results'), fs.where('owner', '==', S.email), fs.where('class_code', '==', S.code)))).docs
+    .map(d => { const r = d.data(); return { test: r.test, sid: r.sid, name: r.student || 'Student', best: num(r.best), acc: r.tries ? num(r.best_acc) : null, tries: num(r.tries), dateMs: toMs(r.updated_at) }; }));
+}
+function testOverview(res) {
+  COLS.tests = [
+    { k: 'name', h: 'Test', t: 's', f: r => `<button type="button" class="tlink" data-test="${esc(r.id)}">${esc(r.name)}</button>` }, { k: 'game', h: 'Game', t: 'g' },
+    { k: 'state', h: 'Status', t: 's' }, { k: 'dateMs', h: 'Made', t: 'n', f: r => esc(fmtDate(r.dateMs)) }, { k: 'closes', h: 'Closes', t: 's' },
+    { k: 'finished', h: 'Finished', t: 'n', num: 1 }, { k: 'started', h: 'Started', t: 'n', num: 1 },
+    { k: 'acc', h: 'Average accuracy', t: 'n', num: 1, f: r => accCell(r.acc) }, { k: 'grade', h: 'Average grade', t: 's', num: 1, f: r => gradeCell(r.grade) },
+  ];
+  DEFAULT_SORT.tests = { k: 'dateMs', dir: -1 };
+  return S.tests.map(t => {
+    const rs = res.filter(r => r.test === t.id), fin = rs.filter(r => r.best > 0 && r.acc != null);
+    const acc = fin.length ? Math.round(fin.reduce((a, r) => a + r.acc, 0) / fin.length) : null;
+    return { id: t.id, name: t.name, game: t.game, state: STATE_TEXT[tstate(t)], dateMs: toMs(t.created_at), closes: t.closes_at ? fmtWhen(t.closes_at) : '',
+      finished: fin.length, started: rs.length, acc, grade: gradeOf(acc, t) };
+  });
+}
+function testBook(res) {
+  const tests = S.tests.slice().reverse();   // oldest first, like a grade book
+  COLS.tests = [{ k: 'name', h: 'Student', t: 's' }].concat(tests.map((t, i) => ({ k: 't' + i, h: t.name, t: 's', num: 1, f: r => gradeCell(r['t' + i]) })),
+    [{ k: 'acc', h: 'Average accuracy', t: 'n', num: 1, f: r => accCell(r.acc) }]);
+  DEFAULT_SORT.tests = { k: 'name', dir: 1 };
+  const by = {};
+  res.forEach(r => {
+    const i = tests.findIndex(t => t.id === r.test); if (i < 0) return;
+    const s = by[r.sid] || (by[r.sid] = { name: r.name, game: 'all', accs: [] });
+    s['t' + i] = r.best > 0 ? gradeOf(r.acc, tests[i]) : 'no score';
+    if (r.best > 0 && r.acc != null) s.accs.push(r.acc);
+  });
+  return Object.values(by).map(s => ({ ...s, acc: s.accs.length ? Math.round(s.accs.reduce((a, b) => a + b, 0) / s.accs.length) : null }));
+}
+async function loadTestRows() {
+  if (TEST_MODES[S.testId]) { const res = await fetchClassResults(); return S.testId === '__all' ? testOverview(res) : testBook(res); }
+  COLS.tests = TEST_COLS; DEFAULT_SORT.tests = { k: 'best', dir: -1 };
+  const t = curTest();
+  return (PREVIEW ? SAMPLE.tests : await fetchResults()).map(r => ({ ...r, grade: gradeOf(r.acc, t) }));
 }
 async function fetchResults() {
   const t = curTest(); if (!t) return [];
@@ -914,6 +963,8 @@ async function fetchResults() {
     .map(d => { const r = d.data(); return { id: d.id, game: t.game, name: r.student || 'Student', best: num(r.best), unit: t.grade === 'score' ? '' : '%', acc: r.tries ? num(r.best_acc) : null, tries: num(r.tries), dateMs: toMs(r.updated_at), st: num(r.best) > 0 ? 'Finished' : (Date.now() - toMs(r.updated_at) < 20 * 60000 ? 'Playing now' : 'Started') }; }));
 }
 function testSummary(rows) {
+  if (S.testId === '__all') return `${rows.length} test${rows.length === 1 ? '' : 's'} in this class. Click a test's name to see its results.`;
+  if (S.testId === '__book') return `${rows.length} student${rows.length === 1 ? '' : 's'} across ${S.tests.length} test${S.tests.length === 1 ? '' : 's'}. Each grade uses that test's "Grade out of".`;
   const t = curTest(); if (!t) return '';
   const n = k => rows.filter(r => (r.st || (r.best > 0 ? 'Finished' : 'Started')) === k).length;
   return `Results for “${t.name}”: ${n('Finished')} finished · ${n('Playing now')} playing now · ${n('Started')} started, no score yet` +
@@ -926,10 +977,11 @@ function liveTick() {
 }
 function renderTestsBox() {
   if (!liveTimer) liveTimer = setInterval(liveTick, 10000);
-  $('tsel').innerHTML = S.tests.length ? S.tests.map(t => `<option value="${esc(t.id)}">${tstate(t) === 'open' ? '● RUNNING' : tstate(t) === 'scheduled' ? 'UPCOMING' : tstate(t) === 'ended' ? 'ENDED' : 'OFF'} · ${esc(t.name)} ${t.created_at ? '· ' + esc(fmtWhen(t.created_at)) : ''}</option>`).join('') : '<option value="">No tests yet</option>';
+  $('tsel').innerHTML = (S.tests.length ? Object.entries(TEST_MODES).map(([v, h]) => `<option value="${v}">${h}</option>`).join('') : '') + (S.tests.length ? S.tests.map(t => `<option value="${esc(t.id)}">${tstate(t) === 'open' ? '● RUNNING' : tstate(t) === 'scheduled' ? 'UPCOMING' : tstate(t) === 'ended' ? 'ENDED' : 'OFF'} · ${esc(t.name)} ${t.created_at ? '· ' + esc(fmtWhen(t.created_at)) : ''}</option>`).join('') : '<option value="">No tests yet</option>');
   $('tsel').value = S.testId; $('tsel').disabled = !S.tests.length;
   const t = curTest();
   ['ttoggle', 'treset', 'tdel', 'tedit'].forEach(id => { $(id).disabled = !t; });
+  $('tout').closest('label').hidden = !t; if (t) $('tout').value = outOf(t);
   $('ttoggle').textContent = t && t.open ? 'Switch off' : 'Switch on';
   $('tmeta').textContent = t ? `${G[t.game] ? G[t.game].name : t.game} · ${t.tries ? (t.tries === 1 ? 'One and done' : t.tries + ' tries, best counts') : 'Unlimited tries, best counts'} · Scored by ${t.grade === 'score' ? 'points' : 'accuracy'} · ${STATE_TEXT[tstate(t)]}${t.opens_at ? ' · opens ' + fmtWhen(t.opens_at) : ''}${t.closes_at ? ' · closes ' + fmtWhen(t.closes_at) : ''}` : 'Make a test with + New test. It shows up on your students\' home page.';
 }
@@ -1503,7 +1555,16 @@ function wire() {
     }
   };
   $('csv').onclick = csv;
-  $('tsel').onchange = () => { S.testId = $('tsel').value; S.live = ''; load(); };
+  $('tsel').onchange = () => { S.testId = $('tsel').value; S.live = ''; delete S.sort.tests; load(); };
+  $('tout').onchange = async () => {
+    const t = curTest(), v = Math.round(+$('tout').value);
+    if (!t || !(v >= 1 && v <= 1000)) { renderTestsBox(); return; }
+    try {
+      if (!PREVIEW) await run(({ fs, db }) => fs.updateDoc(fs.doc(db, 'tests', t.id), { out_of: v }));
+      t.out_of = v; S.rows.forEach(r => { r.grade = gradeOf(r.acc, t); }); render(); msg(`Grades for "${t.name}" are now out of ${v}.`, true);
+    } catch (e) { msg(errText(e)); renderTestsBox(); }
+  };
+  $('tbl').addEventListener('click', e => { const b = e.target.closest('[data-test]'); if (b && S.view === 'tests') { S.testId = b.dataset.test; S.live = ''; delete S.sort.tests; load(); } });
   $('tnew').onclick = () => { S.editId = ''; S.view = 'newtest'; render(); };
   $('tedit').onclick = () => { const t = curTest(); if (!t) return; S.editId = t.id; S.view = 'newtest'; render(); };
   $('tback').onclick = () => { S.view = 'tests'; load(); };
