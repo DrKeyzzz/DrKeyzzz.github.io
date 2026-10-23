@@ -381,6 +381,8 @@
   html:not([data-skin="classic"]) h1 { font-weight: 800; letter-spacing: -.02em; }
   html[data-skin="day"] .card { box-shadow: 0 6px 18px -14px rgba(23, 35, 58, .35); }
   html[data-skin="day"] th[aria-sort] button { color: var(--text); }
+.gjoin label { display: flex; flex-direction: column; gap: 4px; }
+.gjoin input { width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 15px; }
 </style>
 </head>
 <body>
@@ -1804,7 +1806,7 @@ async function joinScreen(email, note) {
   const self = schoolEmail(email) && note !== 'blocked';
   gate(`<h2 style="margin:0 0 10px">${self ? 'Welcome, teacher!' : 'Not a teacher account yet'}</h2>
     <p>${self ? `<b>${esc(email)}</b> is a school email, so you can start right away.` : `<b>${esc(email)}</b> isn't set up as a teacher yet. Ask for teacher access below and you'll be able to sign in once it's approved. Students: ask your teacher for your class code instead.`}</p>
-    <form id="g-join" autocomplete="off" style="display:flex;flex-direction:column;gap:8px;max-width:420px">
+    <form id="g-join" class="gjoin" autocomplete="off" style="display:flex;flex-direction:column;gap:10px;max-width:420px">
       <label>Your name<input type="text" id="gj-name" maxlength="60" placeholder="e.g. Ms. Rivera"></label>
       <label>School<input type="text" id="gj-school" maxlength="80"></label>
       ${self ? '' : '<label>Note (optional)<input type="text" id="gj-note" maxlength="300" placeholder="What you teach, how you heard about it"></label>'}
