@@ -631,6 +631,7 @@ function visible() {
   return rows;
 }
 function render() {
+  syncLive();
   const g = G[S.game]; document.documentElement.style.setProperty('--gc', g.color);
   document.querySelectorAll('.gt').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.g === S.game)));
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (S.view === 'newtest' && b.dataset.v === 'tests') || (S.view === 'assign' && b.dataset.v === 'grades'))));
@@ -968,8 +969,12 @@ async function loadTestRows() {
 }
 async function fetchResults() {
   const t = curTest(); if (!t) return [];
-  return run(async ({ fs, db }) => (await fs.getDocs(fs.query(fs.collection(db, 'test_results'), fs.where('test', '==', t.id), fs.where('owner', '==', S.email)))).docs
-    .map(d => { const r = d.data(); return { id: d.id, game: t.game, name: r.student || 'Student', best: num(r.best), unit: t.grade === 'score' ? '' : '%', acc: r.tries ? num(r.best_acc) : null, tries: num(r.tries), dateMs: toMs(r.updated_at), st: num(r.best) > 0 ? 'Finished' : (Date.now() - toMs(r.updated_at) < 20 * 60000 ? 'Playing now' : 'Started') }; }));
+  return run(async ({ fs, db }) => (await fs.getDocs(resultsQuery(fs, db, t))).docs.map(d => resultRow(d, t)));
+}
+const resultsQuery = (fs, db, t) => fs.query(fs.collection(db, 'test_results'), fs.where('test', '==', t.id), fs.where('owner', '==', S.email));
+function resultRow(d, t) {
+  const r = d.data();
+  return { id: d.id, game: t.game, name: r.student || 'Student', best: num(r.best), unit: t.grade === 'score' ? '' : '%', acc: r.tries ? num(r.best_acc) : null, tries: num(r.tries), dateMs: toMs(r.updated_at), st: num(r.best) > 0 ? 'Finished' : (Date.now() - toMs(r.updated_at) < 20 * 60000 ? 'Playing now' : 'Started') };
 }
 function testSummary(rows) {
   if (S.testId === '__all') return `${rows.length} test${rows.length === 1 ? '' : 's'} in this class. Click a test's name to see its results.`;
@@ -979,14 +984,27 @@ function testSummary(rows) {
   return `Results for “${t.name}”: ${n('Finished')} finished · ${n('Playing now')} playing now · ${n('Started')} started, no score yet` +
     (S.live ? ` · Live, updated ${S.live}` : '');
 }
-let liveTimer = null;
-function liveTick() {
-  if (S.view !== 'tests' || PREVIEW || !curTest() || document.hidden) return;
+// Live results: while a running test is open in the Tests view and the tab is visible, Firestore pushes only the
+// results that change (one read each) instead of the page re-reading the whole class on a timer.
+let live = null;   // { key, stop }
+function syncLive() {
   const t = curTest();
-  fetchResults().then(rows => { S.rows = rows.map(r => ({ ...r, grade: gradeOf(r.acc, t) })); S.live = new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', second: '2-digit' }); render(); }).catch(() => {});
+  const key = S.view === 'tests' && !PREVIEW && t && tstate(t) === 'open' && !document.hidden ? t.id : '';
+  if ((live ? live.key : '') === key) return;
+  if (live) { live.stop(); live = null; S.live = ''; }
+  if (!key) return;
+  const me = live = { key, stop: () => {} };
+  run(async ({ fs, db }) => {
+    const stop = fs.onSnapshot(resultsQuery(fs, db, t), snap => {
+      if (live !== me || S.testId !== key) return;
+      S.rows = snap.docs.map(d => resultRow(d, t)).map(r => ({ ...r, grade: gradeOf(r.acc, t) }));
+      S.live = new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', second: '2-digit' }); render();
+    }, () => { if (live === me) S.live = ''; });
+    if (live === me) me.stop = stop; else stop();
+  }).catch(() => {});
 }
+document.addEventListener('visibilitychange', syncLive);
 function renderTestsBox() {
-  if (!liveTimer) liveTimer = setInterval(liveTick, 10000);
   $('tsel').innerHTML = (S.tests.length ? Object.entries(TEST_MODES).map(([v, h]) => `<option value="${v}">${h}</option>`).join('') : '') + (S.tests.length ? S.tests.map(t => `<option value="${esc(t.id)}">${tstate(t) === 'open' ? '● RUNNING' : tstate(t) === 'scheduled' ? 'UPCOMING' : tstate(t) === 'ended' ? 'ENDED' : 'OFF'} · ${esc(t.name)} ${t.created_at ? '· ' + esc(fmtWhen(t.created_at)) : ''}</option>`).join('') : '<option value="">No tests yet</option>');
   $('tsel').value = S.testId; $('tsel').disabled = !S.tests.length;
   const t = curTest();
