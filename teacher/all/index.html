@@ -982,7 +982,8 @@ function testSummary(rows) {
 let liveTimer = null;
 function liveTick() {
   if (S.view !== 'tests' || PREVIEW || !curTest() || document.hidden) return;
-  fetchResults().then(rows => { S.rows = rows; S.live = new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', second: '2-digit' }); render(); }).catch(() => {});
+  const t = curTest();
+  fetchResults().then(rows => { S.rows = rows.map(r => ({ ...r, grade: gradeOf(r.acc, t) })); S.live = new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', second: '2-digit' }); render(); }).catch(() => {});
 }
 function renderTestsBox() {
   if (!liveTimer) liveTimer = setInterval(liveTick, 10000);
