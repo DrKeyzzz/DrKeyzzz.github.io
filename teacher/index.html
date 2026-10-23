@@ -2,6 +2,122 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<!-- MTG_MOVE start: carries a browser's saved data from drkeyzzz.github.io to musictheorygames.org. Master copy: shared/mtg-move.snippet.html; install with shared/apply-move.py, never edit the copy in a page. -->
+<script>
+/* Old address (drkeyzzz.github.io): pack everything this browser saved there and forward to the same page on the new address.
+   New address (musictheorygames.org): unpack it once (missing items are added, practice history is combined), then reload clean.
+   The first time a browser opens the new address it hops to the old one once, so students who type the new address keep their data too.
+   The data rides after the # in the link, which browsers never send to any server. Local test: port 8771, 127.0.0.1 = old, localhost = new. */
+(function () {
+  if (window.top !== window.self) return;                       // pages shown inside another page never move
+  var host = location.hostname, NEW = 'https://musictheorygames.org', OLD = 'https://drkeyzzz' + '.github.io', role = '';
+  if (host === 'drkeyzzz.github.io') role = 'old';
+  else if (host === 'musictheorygames.org') role = 'new';
+  else if (location.port === '8771') { NEW = 'http://localhost:8771'; OLD = 'http://127.0.0.1:8771'; role = host === '127.0.0.1' ? 'old' : host === 'localhost' ? 'new' : ''; }
+  if (!role) return;
+  var FLAG = 'mtg_move_v1', TAG = '#mtgmove=', ls = null;
+  try { ls = window.localStorage; ls.getItem(FLAG); } catch (e) { ls = null; }
+  var page = location.pathname + location.search;
+  function halt() { try { window.stop(); } catch (e) {} try { document.documentElement.style.visibility = 'hidden'; } catch (e) {} }
+  function skip(k) { return k === FLAG || k.indexOf('mtg_time_lock_v1:') === 0 || k.indexOf('firebase:') === 0; }
+
+  function b64u(bytes) {
+    var s = '';
+    for (var i = 0; i < bytes.length; i += 32768) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 32768));
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function unb64u(t) {
+    var s = atob(t.replace(/-/g, '+').replace(/_/g, '/')), b = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
+    return b;
+  }
+  function pack(data) {
+    var json = JSON.stringify(data);
+    if (window.CompressionStream && window.Response && window.Blob)
+      return new Response(new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()
+        .then(function (buf) { return 'z' + b64u(new Uint8Array(buf)); });
+    return Promise.resolve('j' + b64u(new TextEncoder().encode(json)));
+  }
+  function unpack(p) {
+    if (p === '-' || !p) return Promise.resolve({});
+    var bytes = unb64u(p.slice(1));
+    if (p.charAt(0) === 'z')
+      return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text().then(JSON.parse);
+    return Promise.resolve(JSON.parse(new TextDecoder().decode(bytes)));
+  }
+
+  // practice history: both addresses recorded different answers, so counts add up and bests take the higher one
+  var ADD = { plays: 1, answers: 1, correct: 1, ms: 1, caught: 1 };
+  function mergeGame(x, y) {
+    for (var f in y) {
+      if (f === 'skills') {
+        x.skills = x.skills || {};
+        for (var lab in y.skills) { var a = x.skills[lab], b = y.skills[lab]; x.skills[lab] = a ? [a[0] + b[0], a[1] + b[1]] : b; }
+      } else if (typeof y[f] === 'number') x[f] = typeof x[f] !== 'number' ? y[f] : ADD[f] ? x[f] + y[f] : Math.max(x[f], y[f]);
+      else if (!(f in x)) x[f] = y[f];
+    }
+  }
+  function mergeHist(a, b) {
+    if (!a || !a.days) return b;
+    if (!b || !b.days) return a;
+    for (var d in b.days) {
+      if (!a.days[d]) { a.days[d] = b.days[d]; continue; }
+      for (var g in b.days[d]) { if (!a.days[d][g]) a.days[d][g] = b.days[d][g]; else mergeGame(a.days[d][g], b.days[d][g]); }
+    }
+    return a;
+  }
+  function mergeLedger(a, b) {                                    // minutes already sent to the Practice time board, per day
+    if (!a || !a.sent) return b;
+    if (!b || !b.sent) return a;
+    for (var d in b.sent) a.sent[d] = (a.sent[d] || 0) + b.sent[d];
+    a.last = Math.max(a.last || 0, b.last || 0);
+    return a;
+  }
+  function merge(data) {
+    for (var k in data) {
+      if (skip(k)) continue;
+      try {
+        var cur = ls.getItem(k), v = data[k];
+        if (cur === null) ls.setItem(k, v);
+        else if (k.indexOf('mtg_hist_v1:') === 0) ls.setItem(k, JSON.stringify(mergeHist(JSON.parse(cur), JSON.parse(v))));
+        else if (k.indexOf('mtg_time_sync_v1:') === 0) ls.setItem(k, JSON.stringify(mergeLedger(JSON.parse(cur), JSON.parse(v))));
+        // anything else the new address already has stays as it is
+      } catch (e) {}
+    }
+  }
+
+  if (role === 'old') {
+    halt();
+    var data = {}, n = 0;
+    if (ls) for (var i = 0; i < ls.length; i++) { var k = ls.key(i); if (k && !skip(k)) { data[k] = ls.getItem(k); n++; } }
+    var hash = location.hash.replace(/^#/, '');
+    (n ? pack(data) : Promise.resolve('-')).then(function (p) { return p; }, function () { return '-'; }).then(function (p) {
+      location.replace(NEW + page + TAG + p + '.' + encodeURIComponent(hash));
+    });
+    return;
+  }
+
+  // new address
+  if (location.hash.indexOf(TAG) === 0) {
+    halt();
+    var rest = location.hash.slice(TAG.length), dot = rest.indexOf('.');
+    var p = dot < 0 ? rest : rest.slice(0, dot), orig = dot < 0 ? '' : decodeURIComponent(rest.slice(dot + 1));
+    var done = function () {
+      history.replaceState(null, '', page + (orig ? '#' + orig : ''));
+      location.reload();
+    };
+    if (!ls || ls.getItem(FLAG) === 'done') { done(); return; }
+    unpack(p).then(merge).catch(function () {}).then(function () { try { ls.setItem(FLAG, 'done'); } catch (e) {} done(); });
+    return;
+  }
+  if (ls && ls.getItem(FLAG) === null) {                          // first visit in this browser: ask the old address once
+    try { ls.setItem(FLAG, 'asked'); } catch (e) { return; }
+    halt();
+    location.replace(OLD + page + location.hash);
+  }
+})();
+</script>
+<!-- MTG_MOVE end -->
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Assign Practice · Music Theory Games</title>
 <meta name="description" content="Teachers: set today's practice for a class in the Music Theory Games.">
