@@ -2,20 +2,27 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<!-- MTG_MOVE start: carries a browser's saved data from drkeyzzz.github.io to musictheorygames.org. Master copy: shared/mtg-move.snippet.html; install with shared/apply-move.py, never edit the copy in a page. -->
+<!-- MTG_MOVE start: carries a browser's saved data from drkeyzzz.github.io to musictheorygames.org and musictheoryacademy.org. Master copy: shared/mtg-move.snippet.html; install with shared/apply-move.py, never edit the copy in a page. -->
 <script>
-/* Old address (drkeyzzz.github.io): pack everything this browser saved there and forward to the same page on the new address.
-   New address (musictheorygames.org): unpack it once (missing items are added, practice history is combined), then reload clean.
-   The first time a browser opens the new address it hops to the old one once, so students who type the new address keep their data too.
-   The data rides after the # in the link, which browsers never send to any server. Local test: port 8771, 127.0.0.1 = old, localhost = new. */
+/* Old address (drkeyzzz.github.io): pack everything this browser saved there and forward to the same page on musictheorygames.org.
+   musictheorygames.org: unpack it once (missing items are added, practice history is combined), then reload clean. The first time a
+   browser opens it, it hops to the old address once, so students who type the new address keep their data too.
+   musictheoryacademy.org (second address, for schools that block "games"): the first time a browser opens it, it asks
+   musictheorygames.org for its data (which asks the old address first if it never did), then unpacks it the same way.
+   The data rides after the # in the link, which browsers never send to any server.
+   Local test on port 8771: 127.0.0.1 = old, localhost = musictheorygames.org, academy.localhost = musictheoryacademy.org. */
 (function () {
   if (window.top !== window.self) return;                       // pages shown inside another page never move
-  var host = location.hostname, NEW = 'https://musictheorygames.org', OLD = 'https://drkeyzzz' + '.github.io', role = '';
+  var host = location.hostname, NEW = 'https://musictheorygames.org', ACAD = 'https://musictheoryacademy.org', OLD = 'https://drkeyzzz' + '.github.io', role = '';
   if (host === 'drkeyzzz.github.io') role = 'old';
   else if (host === 'musictheorygames.org') role = 'new';
-  else if (location.port === '8771') { NEW = 'http://localhost:8771'; OLD = 'http://127.0.0.1:8771'; role = host === '127.0.0.1' ? 'old' : host === 'localhost' ? 'new' : ''; }
+  else if (host === 'musictheoryacademy.org') role = 'acad';
+  else if (location.port === '8771') {
+    NEW = 'http://localhost:8771'; ACAD = 'http://academy.localhost:8771'; OLD = 'http://127.0.0.1:8771';
+    role = host === '127.0.0.1' ? 'old' : host === 'localhost' ? 'new' : host === 'academy.localhost' ? 'acad' : '';
+  }
   if (!role) return;
-  var FLAG = 'mtg_move_v1', TAG = '#mtgmove=', ls = null;
+  var FLAG = 'mtg_move_v1', TAG = '#mtgmove=', SEND = '#mtgsend=a.', ls = null;   // SEND: musictheoryacademy.org asks for the data
   try { ls = window.localStorage; ls.getItem(FLAG); } catch (e) { ls = null; }
   var page = location.pathname + location.search;
   function halt() { try { window.stop(); } catch (e) {} try { document.documentElement.style.visibility = 'hidden'; } catch (e) {} }
@@ -86,19 +93,27 @@
     }
   }
 
-  if (role === 'old') {
+  function send(to, hash) {                                       // pack this browser's data and carry it to the same page at `to`
     halt();
     var data = {}, n = 0;
     if (ls) for (var i = 0; i < ls.length; i++) { var k = ls.key(i); if (k && !skip(k)) { data[k] = ls.getItem(k); n++; } }
-    var hash = location.hash.replace(/^#/, '');
     (n ? pack(data) : Promise.resolve('-')).then(function (p) { return p; }, function () { return '-'; }).then(function (p) {
-      location.replace(NEW + page + TAG + p + '.' + encodeURIComponent(hash));
+      location.replace(to + page + TAG + p + '.' + encodeURIComponent(hash));
     });
-    return;
   }
+  function reach(origin) {                                        // can this browser load the other address? (school filters block some)
+    return new Promise(function (ok) {
+      var img = new Image(), t = setTimeout(function () { ok(false); }, 4000);
+      img.onload = function () { clearTimeout(t); ok(true); };
+      img.onerror = function () { clearTimeout(t); ok(false); };
+      img.src = origin + '/screenshots/brainwaves.jpg?r=' + Date.now();
+    });
+  }
+  var asked = location.hash.indexOf(SEND) === 0, hash = asked ? decodeURIComponent(location.hash.slice(SEND.length)) : location.hash.replace(/^#/, '');
 
-  // new address
-  if (location.hash.indexOf(TAG) === 0) {
+  if (role === 'old') { send(asked ? ACAD : NEW, hash); return; }
+
+  if (location.hash.indexOf(TAG) === 0) {                         // data arriving (musictheorygames.org or musictheoryacademy.org)
     halt();
     var rest = location.hash.slice(TAG.length), dot = rest.indexOf('.');
     var p = dot < 0 ? rest : rest.slice(0, dot), orig = dot < 0 ? '' : decodeURIComponent(rest.slice(dot + 1));
@@ -110,10 +125,20 @@
     unpack(p).then(merge).catch(function () {}).then(function () { try { ls.setItem(FLAG, 'done'); } catch (e) {} done(); });
     return;
   }
-  if (ls && ls.getItem(FLAG) === null) {                          // first visit in this browser: ask the old address once
+  if (role === 'new' && asked) {                                  // musictheoryacademy.org asks: send ours, or pass the ask to the old address first
+    if (ls && ls.getItem(FLAG) !== null) { send(ACAD, hash); return; }
+    halt();
+    reach(OLD).then(function (ok) { if (ok) location.replace(OLD + page + location.hash); else send(ACAD, hash); });
+    return;
+  }
+  if (ls && ls.getItem(FLAG) === null) {                          // first visit in this browser: ask once
     try { ls.setItem(FLAG, 'asked'); } catch (e) { return; }
     halt();
-    location.replace(OLD + page + location.hash);
+    var from = role === 'acad' ? NEW : OLD;
+    reach(from).then(function (ok) {
+      if (ok) location.replace(role === 'acad' ? NEW + page + SEND + encodeURIComponent(hash) : OLD + page + location.hash);
+      else { try { ls.setItem(FLAG, 'blocked'); } catch (e) {} location.reload(); }   // the other address is blocked here: just open the page
+    });
   }
 })();
 </script>
