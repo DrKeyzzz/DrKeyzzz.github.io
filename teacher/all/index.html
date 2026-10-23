@@ -269,8 +269,7 @@
         <div class="seg" id="views" role="group" aria-label="What to show">
           <button type="button" data-v="progress" aria-pressed="true">Progress</button>
           <button type="button" data-v="scores" aria-pressed="false">Scores</button>
-          <button type="button" data-v="grades" aria-pressed="false">Grades</button>
-          <button type="button" data-v="assign" aria-pressed="false">Assign</button>
+          <button type="button" data-v="grades" aria-pressed="false">Assignments</button>
           <button type="button" data-v="tests" aria-pressed="false">Tests</button>
           <button type="button" data-v="feedback" aria-pressed="false">Feedback</button>
           <button type="button" data-v="messages" aria-pressed="false">Messages<span class="rq" id="msgcount" hidden></span></button>
@@ -298,6 +297,10 @@
       <div id="adminsum" hidden></div>
       <div id="devfix" class="note" hidden style="margin-top:18px"><b>Developer scores:</b> rename every score posted under an old developer name to Maestro. <button class="btn ghost sm" type="button" id="devfixgo">Rename developer scores</button> <span id="devfixmsg"></span></div>
       <div id="newtestbox" hidden><button class="btn ghost sm" type="button" id="tback" style="margin-top:14px">← Back to Tests</button><iframe id="tframe" title="Create a test" style="width:100%;border:0;min-height:700px;margin-top:8px;background:transparent"></iframe></div>
+      <div id="gradebar" class="opts" style="margin-top:14px" hidden>
+        <button class="btn sm" type="button" id="anew">+ New assignment</button>
+        <label class="f" for="aout" title="Points for your grade book, e.g. 9/10. Change it to match your grade book.">Grade out of<input id="aout" type="number" min="1" max="1000" step="1" inputmode="numeric" style="width:84px"></label>
+      </div>
       <div id="gradelist" class="glist" hidden></div>
       <div id="data">
         <p class="count" id="count"></p>
@@ -307,7 +310,7 @@
       <div id="gradelist2" class="glist" hidden></div>
       <div id="msgview" hidden></div>
       <div id="boardview" hidden></div>
-      <div id="assignbox" hidden><iframe id="aframe" title="Assign practice" style="width:100%;border:0;min-height:700px;margin-top:14px;background:transparent"></iframe></div>
+      <div id="assignbox" hidden><button class="btn ghost sm" type="button" id="aback" style="margin-top:14px">← Back to Assignments</button><iframe id="aframe" title="Assign practice" style="width:100%;border:0;min-height:700px;margin-top:14px;background:transparent"></iframe></div>
     </section>
   </div>
   <p class="sr" id="srlive" aria-live="polite"></p>
@@ -458,11 +461,16 @@ function gradeList(c) {
   return all.filter(a => a && Array.isArray(a.tasks) && a.tasks.length && a.start && a.end && !seen.has(aKey(a)) && seen.add(aKey(a)))
     .sort((x, y) => y.start.localeCompare(x.start) || y.end.localeCompare(x.end));
 }
+// Points for the grade book: the grade (percent done, rounded down) out of the assignment's "Grade out of" (10 unless the teacher changes it),
+// kept per assignment in the class doc's grade_out_of map (key start_end).
+const aOutKey = a => a.start + '_' + a.end;
+const aOut = (c, a) => num(c && a && c.grade_out_of && c.grade_out_of[aOutKey(a)]) || 10;
+const ptsOf = (pct, out) => pct == null ? '' : `${Math.floor(Math.min(100, pct) * out / 100)}/${out}`;   // rounded down: full points only when done
 function gradePick() {
   S.gradeList = gradeList(S.classes.find(x => x.code === S.code));
   S.gradeA = S.gradeOpen === '' ? null : S.gradeList.find(a => aKey(a) === S.gradeOpen) || S.gradeList[0] || null;
   COLS.grades = [{ k: 'name', h: 'Student', t: 's' }].concat((S.gradeA ? S.gradeA.tasks : []).map((t, i) => ({ k: 't' + i, h: `${taskName(t)} (goal ${t.goal} ${t.unit === 'minutes' ? 'min' : 'answers'})`, t: 'n', num: 1, f: r => `${r['t' + i] >= t.goal ? '✓ ' : ''}${fmtN(r['t' + i])} / ${t.goal}` })),
-    [{ k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) }, { k: 'grade', h: 'Grade', t: 'n', num: 1, f: r => `<b>${r.grade}%</b>` }, { k: 'status', h: 'Status', t: 's', f: r => r.grade >= 100 ? '<b style="color:#2fbf71">✓ Done</b>' : r.status }, { k: 'dateMs', h: 'Last practiced', t: 'n', f: r => esc(fmtDate(r.dateMs)) }]);
+    [{ k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) }, { k: 'grade', h: 'Grade', t: 'n', num: 1, f: r => `<b>${r.grade}%</b>` }, { k: 'points', h: 'Points', t: 's', num: 1, f: r => gradeCell(r.points) }, { k: 'status', h: 'Status', t: 's', f: r => r.grade >= 100 ? '<b style="color:#2fbf71">✓ Done</b>' : r.status }, { k: 'dateMs', h: 'Last practiced', t: 'n', f: r => esc(fmtDate(r.dateMs)) }]);
 }
 function renderGradeList() {
   const today = ymd(new Date()), open = S.gradeA ? aKey(S.gradeA) : '';
@@ -470,7 +478,7 @@ function renderGradeList() {
     return `<button type="button" class="gi${on ? ' on' : ''}" data-ga="${i}" aria-expanded="${on}"><span class="gar" aria-hidden="true">▸</span><span class="gd">${esc(fmtDay(a.start))}${a.end !== a.start ? ' – ' + esc(fmtDay(a.end)) : ''}</span>`
       + `<span class="gw">${a.tasks.map(t => esc(taskName(t)) + ', ' + t.goal + (t.unit === 'minutes' ? ' min' : ' answers')).join(' · ')}</span><span class="gs ${st[1]}">${st[0]}</span></button>`; };
   const L = S.gradeList || [], at = L.findIndex(a => aKey(a) === open);
-  $('gradelist').innerHTML = L.length ? L.slice(0, at < 0 ? L.length : at + 1).map(item).join('') : '<p class="count">This class has no assignment yet. Make one in Assign.</p>';
+  $('gradelist').innerHTML = L.length ? L.slice(0, at < 0 ? L.length : at + 1).map(item).join('') : '<p class="count">This class has no assignment yet. Click + New assignment to make one.</p>';
   $('gradelist2').innerHTML = at < 0 ? '' : L.slice(at + 1).map((a, j) => item(a, at + 1 + j)).join('');
 }
 async function loadGrades() {
@@ -625,11 +633,11 @@ function visible() {
 function render() {
   const g = G[S.game]; document.documentElement.style.setProperty('--gc', g.color);
   document.querySelectorAll('.gt').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.g === S.game)));
-  document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view)));
+  document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (S.view === 'newtest' && b.dataset.v === 'tests') || (S.view === 'assign' && b.dataset.v === 'grades'))));
   const social = S.view === 'messages' || S.view === 'board';
   $('msgview').hidden = S.view !== 'messages'; $('boardview').hidden = S.view !== 'board'; document.querySelector('footer').hidden = social; $('games').hidden = social; syncHash();
   if (social) {
-    ['upbox', 'adminsum', 'adminacc', 'data', 'gradelist', 'gradelist2', 'assignbox', 'testsbox', 'newtestbox', 'csv'].forEach(id => { $(id).hidden = true; });
+    ['upbox', 'adminsum', 'adminacc', 'data', 'gradebar', 'gradelist', 'gradelist2', 'assignbox', 'testsbox', 'newtestbox', 'csv'].forEach(id => { $(id).hidden = true; });
     $('cls').closest('label').hidden = true; $('rng').closest('label').hidden = true;
     return S.view === 'messages' ? renderMessages() : renderBoard();
   }
@@ -638,10 +646,11 @@ function render() {
   const tpg = ad && !!S.teacher;
   $('upbox').hidden = !ts; $('adminsum').hidden = !ad; $('adminacc').hidden = !ad || tpg; $('devfix').hidden = !ad || tpg || PREVIEW;
   const gv = S.view === 'grades'; if (gv) { gradePick(); renderGradeList(); }
-  $('gradelist').hidden = $('gradelist2').hidden = !gv;
+  $('gradelist').hidden = $('gradelist2').hidden = $('gradebar').hidden = !gv;
+  if (gv) { $('aout').closest('label').hidden = !S.gradeA; if (S.gradeA) $('aout').value = aOut(S.classes.find(x => x.code === S.code), S.gradeA); }
   $('data').hidden = asg || nt || tpg || (gv && !S.gradeA); $('assignbox').hidden = !asg; $('testsbox').hidden = !ts; $('newtestbox').hidden = !nt; $('csv').hidden = asg || nt || tpg || (gv && !S.gradeA);
   $('cls').closest('label').hidden = asg || ad; $('rng').closest('label').hidden = asg || nt || ts;
-  document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (nt && b.dataset.v === 'tests'))));
+  document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (nt && b.dataset.v === 'tests') || (asg && b.dataset.v === 'grades'))));
   if (asg) { showAssign(); return; }
   if (nt) { showNewTest(); return; }
   if (ts) { renderUpcoming(); renderTestsBox(); }
@@ -653,7 +662,7 @@ function render() {
   if (ad) { renderAdminSum(); renderAccess(); }
   const label = { progress: 'practice records', scores: 'scores', feedback: 'notes', tests: 'students with a result', admin: 'teacher and game rows' }[S.view];
   $('count').textContent = S.loading && !rows.length ? '' : S.view === 'tests' ? testSummary(rows) : S.view === 'grades' ? `${rows.length} student${rows.length === 1 ? '' : 's'} practiced for this assignment` : rows.length + ' ' + label + (S.game === 'all' ? ' across all games' : ' in ' + g.name);
-  $('note').textContent = S.view === 'grades' ? 'Grade = how much of each task is done (each capped at 100%), averaged. It counts all practice in that game during the dates, the same number students see on their home page. Students who have not practiced yet do not appear. Earshot Saloon tasks cannot be counted yet. Click any assignment to open or close its grades. Past assignments are kept from now on (the list starts with the assignment each class had when this was added).'
+  $('note').textContent = S.view === 'grades' ? 'Grade = how much of each task is done (each capped at 100%), averaged. Points = that grade out of the assignment\'s "Grade out of" (10 unless you change it), rounded down, for your grade book. It counts all practice in that game during the dates, the same number students see on their home page. Students who have not practiced yet do not appear. Earshot Saloon tasks cannot be counted yet. Click any assignment to open or close its grades. Past assignments are kept from now on (the list starts with the assignment each class had when this was added).'
     : S.view === 'progress' && S.game === 'earshot'
     ? G[S.game].name + ' does not keep daily practice records yet. Open Scores to see its results.'
     : S.view === 'progress' ? 'One row per student per game per day. Accuracy is correct answers out of all answers.'
@@ -670,7 +679,7 @@ async function load() {
   try {
     let rows = [];
     if (S.view === 'admin') rows = await loadAdmin();
-    else if (S.view === 'grades') rows = S.code ? await loadGrades() : [];
+    else if (S.view === 'grades') { rows = S.code ? await loadGrades() : []; const out = aOut(S.classes.find(x => x.code === S.code), S.gradeA); rows = rows.map(r => ({ ...r, points: ptsOf(r.grade, out) })); }
     else if (PREVIEW) {
       SAMPLE = SAMPLE || sample();
       rows = S.view === 'progress' ? SAMPLE.prog : S.view === 'scores' ? SAMPLE.scores : S.view === 'tests' ? SAMPLE.tests : SAMPLE.fbs;
@@ -881,7 +890,7 @@ function upItems() {
   S.classes.forEach(c => {
     const a = c.hub_assignment; if (!a || !Array.isArray(a.tasks) || !a.tasks.length || !a.start || !a.end || a.end < today) return;
     const what = a.tasks.map(t => `${(G[t.game] || {}).name || 'Any game'}${(t.skills && t.skills.length) ? ': ' + t.skills.join(', ') : ''}, ${t.goal} ${t.unit === 'minutes' ? 'min' : 'answers'}`).join(' · ');
-    const it = { kind: 'Assignment', cls: cn(c.code), code: c.code, name: what, view: 'assign', color: '#4ea1ff' };
+    const it = { kind: 'Assignment', cls: cn(c.code), code: c.code, name: what, view: 'grades', color: '#4ea1ff' };
     if (a.start > today) soon.push({ ...it, ms: dayMs(a.start), when: dayText(a.start) + (a.end !== a.start ? ' to ' + dayText(a.end) : ''), sub: 'Starts ' + dayText(a.start) });
     else live.push({ ...it, ms: dayMs(a.end), when: 'Ends ' + dayText(a.end), sub: 'Running now' });
   });
@@ -1555,6 +1564,24 @@ function wire() {
     }
   };
   $('csv').onclick = csv;
+  $('anew').onclick = () => { S.view = 'assign'; msg(''); load(); };
+  $('aback').onclick = () => { S.view = 'grades'; load(); };
+  $('aout').onchange = async () => {
+    const c = S.classes.find(x => x.code === S.code), a = S.gradeA, v = Math.round(+$('aout').value);
+    if (!c || !a || !(v >= 1 && v <= 1000)) { render(); return; }
+    const m = { ...(c.grade_out_of || {}), [aOutKey(a)]: v };
+    try {
+      if (!PREVIEW) await run(({ fs, db }) => fs.updateDoc(fs.doc(db, 'classes', c.code), { grade_out_of: m }));
+      c.grade_out_of = m; S.rows.forEach(r => { r.points = ptsOf(r.grade, v); }); render(); msg(`Points for this assignment are now out of ${v}.`, true);
+    } catch (e) { msg(errText(e)); render(); }
+  };
+  // the New assignment form (an embedded page) says when it saved: show the class's assignments with the new one open
+  addEventListener('message', async e => {
+    if (e.origin !== location.origin || !e.data || e.data.type !== 'mtg-assign-saved') return;
+    await loadClasses(); S.code = e.data.code || S.code; if ($('cls')) $('cls').value = S.code;
+    const a = gradeList(S.classes.find(x => x.code === S.code)).find(x => x.start === e.data.start && x.end === e.data.end);
+    S.gradeOpen = a ? aKey(a) : undefined; S.view = 'grades'; await load(); msg('Assignment saved. Students see it on the home page the next time it loads.', true);
+  });
   $('tsel').onchange = () => { S.testId = $('tsel').value; S.live = ''; delete S.sort.tests; load(); };
   $('tout').onchange = async () => {
     const t = curTest(), v = Math.round(+$('tout').value);

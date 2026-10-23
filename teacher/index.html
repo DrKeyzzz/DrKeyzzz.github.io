@@ -792,6 +792,7 @@ $('form').addEventListener('submit', async e => {
     }
     c.hub_assignment = b.a; pickClass();
     msg(`Saved for ${c.name}. Students see it on the home page the next time it loads.`, true);
+    if (/[?&]embed=1/.test(location.search)) try { parent.postMessage({ type: 'mtg-assign-saved', code: c.code, start: b.a.start, end: b.a.end }, location.origin); } catch {}
   } catch (err) { msg(errText(err, true)); }
   finally { $('save').disabled = false; $('save').textContent = 'Save assignment'; }
 });
