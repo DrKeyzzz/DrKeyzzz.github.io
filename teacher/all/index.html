@@ -861,6 +861,7 @@ async function loadAdmin() {
   const ds = days(), cutoff = ds ? Math.min(...ds.map(dayMs)) : 0;
   return run(async ({ fs, db }) => {
     S.adminTeachers = (await fs.getDocs(fs.collection(db, 'teachers'))).docs.map(d => ({ email: d.id, ...d.data() }));
+    try { S.blocks = (await fs.getDocs(fs.collection(db, 'teacher_blocks'))).docs.map(d => d.id); } catch { S.blocks = []; }
     const classOwner = {}; (await fs.getDocs(fs.collection(db, 'classes'))).forEach(d => { classOwner[d.id] = String(d.data().ownerEmail || '').toLowerCase(); });
     const agg = {}, rowOf = (owner, game) => agg[owner + '|' + game] || (agg[owner + '|' + game] = { email: owner, game, sids: new Set(), dset: new Set(), minutes: 0, attempts: 0, correct: 0, dateMs: 0, det: {} });
     for (const g of GAMES.slice(1)) {
@@ -979,15 +980,18 @@ function renderAccess() {
         <label>School<input type="text" id="at-school" maxlength="80" placeholder="Lincoln Elementary" style="width:200px"></label>
         <button class="btn sm" type="submit">Add teacher</button></form>
         <p class="note" style="margin:6px 0 0">They can sign in to any Teacher dashboard with that Google account right away. No request needed.</p></div>`
-    + `<div><h3>Teachers (${ts.length})</h3><div class="tlist">${ts.length ? ts.map(t => `<div><span><b>${esc(t.name || t.email)}</b> · ${esc(t.email)}${t.school ? ` <small>· ${esc(t.school)}</small>` : ''}</span>${ADMIN_EMAILS.includes(String(t.email).toLowerCase()) ? '' : `<button class="btn ghost sm" type="button" data-rm="${esc(t.email)}">Remove</button>`}</div>`).join('') : '<p class="note">No approved teachers yet.</p>'}</div></div>`;
+    + `<div><h3>Teachers (${ts.length})</h3><div class="tlist">${ts.length ? ts.map(t => `<div><span><b>${esc(t.name || t.email)}</b> · ${esc(t.email)}${t.school ? ` <small>· ${esc(t.school)}</small>` : ''}${t.approved_by === 'self' ? ' <small class="selfjoin" title="Signed up on their own with a school email">· joined on their own</small>' : ''}</span>${ADMIN_EMAILS.includes(String(t.email).toLowerCase()) ? '' : `<button class="btn ghost sm" type="button" data-rm="${esc(t.email)}">Remove</button>`}</div>`).join('') : '<p class="note">No approved teachers yet.</p>'}</div>
+        <p class="note" style="margin:6px 0 0">Teachers with a school email (letters only before the @, ending in k12.xx.us or .edu) join on their own. Removing a teacher also blocks them from joining again on their own.</p></div>`
+    + ((S.blocks || []).length ? `<div><h3>Blocked (${S.blocks.length})</h3><div class="tlist">${S.blocks.map(e => `<div><span>${esc(e)}</span><button class="btn ghost sm" type="button" data-unblock="${esc(e)}">Unblock</button></div>`).join('')}</div></div>` : '');
   box.onclick = async e => {
-    const ok = e.target.closest('[data-ok]'), no = e.target.closest('[data-no]'), rm = e.target.closest('[data-rm]');
+    const ok = e.target.closest('[data-ok]'), no = e.target.closest('[data-no]'), rm = e.target.closest('[data-rm]'), ub = e.target.closest('[data-unblock]');
     try {
       if (ok) {
         const r = reqs[+ok.dataset.ok]; ok.disabled = true;
         if (!PREVIEW) await run(async ({ fs, db }) => { const b = fs.writeBatch(db);
           b.set(fs.doc(db, 'teachers', r.email), { name: String(r.name || '').slice(0, 60), school: String(r.school || '').slice(0, 80), approved_at: fs.serverTimestamp(), approved_by: S.email });
-          b.delete(fs.doc(db, 'teacher_requests', r.email)); await b.commit(); });
+          b.delete(fs.doc(db, 'teacher_requests', r.email)); b.delete(fs.doc(db, 'teacher_blocks', r.email)); await b.commit(); });
+        S.blocks = (S.blocks || []).filter(x => x !== r.email);
         (S.adminTeachers = S.adminTeachers || []).push({ email: r.email, name: r.name, school: r.school });
         S.requests = reqs.filter(x => x !== r); msg(`${r.name || r.email} is now a teacher.`); await checkRequests();
       } else if (no) {
@@ -997,9 +1001,16 @@ function renderAccess() {
         S.requests = reqs.filter(x => x !== r); msg(`Request from ${r.name || r.email} denied.`); await checkRequests();
       } else if (rm) {
         const email = rm.dataset.rm;
-        if (!confirm(`Remove ${email} as a teacher? Their classes and students' data stay, but they can't open the Teacher dashboards until you add them again.`)) return;
-        if (!PREVIEW) await run(({ fs, db }) => fs.deleteDoc(fs.doc(db, 'teachers', email)));
-        S.adminTeachers = (S.adminTeachers || []).filter(t => t.email !== email); msg(`${email} removed.`); renderAccess();
+        if (!confirm(`Remove ${email} as a teacher? Their classes and students' data stay, but they can't open the Teacher dashboards until you add them again, and they can't join again on their own.`)) return;
+        if (!PREVIEW) await run(async ({ fs, db }) => { const b = fs.writeBatch(db);
+          b.delete(fs.doc(db, 'teachers', email)); b.set(fs.doc(db, 'teacher_blocks', email), { at: fs.serverTimestamp(), by: S.email }); await b.commit(); });
+        S.adminTeachers = (S.adminTeachers || []).filter(t => t.email !== email);
+        if (!(S.blocks || []).includes(email)) (S.blocks = S.blocks || []).push(email);
+        msg(`${email} removed and blocked.`); renderAccess();
+      } else if (ub) {
+        const email = ub.dataset.unblock;
+        if (!PREVIEW) await run(({ fs, db }) => fs.deleteDoc(fs.doc(db, 'teacher_blocks', email)));
+        S.blocks = (S.blocks || []).filter(x => x !== email); msg(`${email} unblocked. They can join again with a school email, or ask.`); renderAccess();
       }
     } catch (err) { msg(errText(err)); if (ok) ok.disabled = false; }
   };
@@ -1012,7 +1023,9 @@ function renderAccess() {
       if (!PREVIEW) await run(async ({ fs, db }) => { const b = fs.writeBatch(db);
         b.set(fs.doc(db, 'teachers', email), { name: name.slice(0, 60), school: school.slice(0, 80), approved_at: fs.serverTimestamp(), approved_by: S.email });
         if (S.requests.some(r => r.email === email)) b.delete(fs.doc(db, 'teacher_requests', email));
+        b.delete(fs.doc(db, 'teacher_blocks', email));
         await b.commit(); });
+      S.blocks = (S.blocks || []).filter(x => x !== email);
       (S.adminTeachers = S.adminTeachers || []).push({ email, name, school });
       S.requests = S.requests.filter(r => r.email !== email);
       msg(`${name || email} added as a teacher.`); await checkRequests(); renderAccess();
@@ -1776,14 +1789,50 @@ async function isTeacherEmail(email) {
   if (TEACHER_EMAILS.includes(email) || await adminCheck(email)) return true;
   return run(async ({ fs, db }) => (await fs.getDoc(fs.doc(db, 'teachers', email))).exists());
 }
+// Teachers with a school email (letters only before the @, on a k12.xx.us or .edu domain) join on their own; student
+// addresses have numbers in them. Everyone else asks, and the admin approves in the Admin tab. Same check as schoolEmail() in the rules.
+const schoolEmail = e => /^[a-z._-]+@([a-z0-9-]+[.])*(k12[.][a-z][a-z][.]us|edu)$/.test(e) && !/@.*stu/.test(e);
+async function joinScreen(email, note) {
+  let req = null; try { req = await run(async ({ fs, db }) => { const d = await fs.getDoc(fs.doc(db, 'teacher_requests', email)); return d.exists() ? d.data() : null; }); } catch {}
+  if (req) {
+    gate(`<h2 style="margin:0 0 10px">Request waiting</h2><p>Your request for teacher access (<b>${esc(email)}</b>) is waiting for approval. Sign in again once it's approved.</p>
+      <div class="row"><button class="btn ghost" type="button" id="g-cancel">Cancel request</button><button class="btn ghost" type="button" id="g-out">Sign out</button></div>`);
+    $('g-out').onclick = signOut;
+    $('g-cancel').onclick = async () => { try { await run(({ fs, db }) => fs.deleteDoc(fs.doc(db, 'teacher_requests', email))); joinScreen(email); } catch (e) { msg(errText(e)); } };
+    return;
+  }
+  const self = schoolEmail(email) && note !== 'blocked';
+  gate(`<h2 style="margin:0 0 10px">${self ? 'Welcome, teacher!' : 'Not a teacher account yet'}</h2>
+    <p>${self ? `<b>${esc(email)}</b> is a school email, so you can start right away.` : `<b>${esc(email)}</b> isn't set up as a teacher yet. Ask for teacher access below and you'll be able to sign in once it's approved. Students: ask your teacher for your class code instead.`}</p>
+    <form id="g-join" autocomplete="off" style="display:flex;flex-direction:column;gap:8px;max-width:420px">
+      <label>Your name<input type="text" id="gj-name" maxlength="60" placeholder="e.g. Ms. Rivera"></label>
+      <label>School<input type="text" id="gj-school" maxlength="80"></label>
+      ${self ? '' : '<label>Note (optional)<input type="text" id="gj-note" maxlength="300" placeholder="What you teach, how you heard about it"></label>'}
+      <p class="note" id="gj-err" style="color:#ff8a8a;margin:0"></p>
+      <div class="row"><button class="btn" type="submit">${self ? 'Start using the dashboard' : 'Request teacher access'}</button><button class="btn ghost" type="button" id="g-out">Sign out</button></div>
+    </form>`);
+  $('g-out').onclick = signOut;
+  $('g-join').onsubmit = async e => {
+    e.preventDefault();
+    const name = $('gj-name').value.trim(), school = $('gj-school').value.trim(), note = self ? '' : $('gj-note').value.trim();
+    if (name.length < 2) { $('gj-err').textContent = 'Type your name.'; return; }
+    try {
+      if (self) {
+        await run(({ fs, db }) => fs.setDoc(fs.doc(db, 'teachers', email), { name: name.slice(0, 60), school: school.slice(0, 80), approved_at: fs.serverTimestamp(), approved_by: 'self' }));
+        return signedIn(email);
+      }
+      await run(({ fs, db }) => fs.setDoc(fs.doc(db, 'teacher_requests', email), { email, name, school, note, created_at: fs.serverTimestamp() }));
+      joinScreen(email);
+    } catch (err) {
+      if (self && /permission/i.test(String(err && (err.code || err.message)))) return joinScreen(email, 'blocked');   // blocked by the admin: ask instead
+      $('gj-err').textContent = errText(err);
+    }
+  };
+}
 async function signedIn(email) {
   let ok = false;
   try { ok = await isTeacherEmail(email); } catch (e) { return signInScreen(errText(e)); }
-  if (!ok) {
-    gate(`<h2 style="margin:0 0 10px">Not a teacher account yet</h2><p><b>${esc(email)}</b> isn't set up as a teacher. Open the Teacher dashboard in any of the games and request teacher access, then come back here once it's approved.</p>
-      <div class="row"><button class="btn ghost" type="button" id="g-out">Sign out</button></div>`);
-    $('g-out').onclick = signOut; return;
-  }
+  if (!ok) return joinScreen(email);
   S.email = email; $('who').innerHTML = `Signed in as <b>${esc(email)}</b>`;
   $('views').querySelector('[data-v=admin]').hidden = !ADMIN_EMAILS.includes(email);
   $('gate').hidden = true; $('main').hidden = false;
