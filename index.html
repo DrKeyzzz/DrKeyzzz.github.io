@@ -725,7 +725,7 @@ const PITCH = { brainwaves: 'Train your ears in seven brain areas, from sharp or
 const DAILY_GOAL = 30;
 
 // Brainwaves saves each brain area under its own id; here they count as one game, with the area in front of each skill
-const BW_AREAS = { synapse: 'Sharp or Flat?', intervals: 'Intervals', chords: 'Chord Colors', progressions: 'Progressions', scales: 'Scales and modes', voice: 'Pick a Voice', tuner: 'Tuner' };
+const BW_AREAS = { synapse: 'Sharp or Flat?', intervals: 'Intervals', chords: 'Chord Colors', progressions: 'Progressions', scales: 'Scales and modes', voice: 'Pick a Voice', tuner: 'Tuner', pitch: 'Perfect Pitch' };
 function foldBrainwaves(days) {
   for (const day of Object.values(days)) for (const [id, area] of Object.entries(BW_AREAS)) {
     const x = day[id]; if (!x) continue; delete day[id];

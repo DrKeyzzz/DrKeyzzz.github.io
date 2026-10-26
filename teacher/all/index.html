@@ -488,14 +488,14 @@ const GAMES = [
   { id: 'rhythm',  name: 'The Big Score',  color: '#f5c542', prog: 'progress',         scores: 'rhythm_scores',  attempts: 'slots',   url: '../../../rhythm-trainer/' },
   { id: 'scale',   name: 'Scale Quest',    color: '#3ee8f0', prog: 'scale_progress',   scores: 'scale_scores',   attempts: 'questions', url: '../../../scale-quest/' },
   { id: 'earshot', name: 'Earshot Saloon', color: '#ff9a4a', prog: null,               scores: 'earshot_scores', attempts: null,      url: '../../../earshot-saloon/' },
-  { id: 'brainwaves', name: 'Brainwaves', color: '#7c8cff', prog: 'brainwaves_progress', attempts: 'answers', scores: ['synapse_scores', 'intervals_scores', 'chords_scores', 'progressions_scores', 'scales_scores'], url: '../../../brainwaves/' },
+  { id: 'brainwaves', name: 'Brainwaves', color: '#7c8cff', prog: 'brainwaves_progress', attempts: 'answers', scores: ['synapse_scores', 'intervals_scores', 'chords_scores', 'progressions_scores', 'scales_scores', 'pitch_scores'], url: '../../../brainwaves/' },
   { id: 'listen', name: 'Critical Listening Lab', color: '#ff5fd2', prog: 'listening_progress', scores: 'listening_scores', attempts: 'rounds', url: '../../../critical-listening-lab/' },
 ];
 const G = Object.fromEntries(GAMES.map(g => [g.id, g]));
 G.synapse = { ...G.brainwaves, name: 'Brainwaves' };   // Brainwaves tests are saved under its Sharp or Flat? game
 // Brainwaves keeps one score collection per brain area
-const BW_NAME = { synapse: 'Sharp or Flat?', intervals: 'Intervals', chords: 'Chord Colors', progressions: 'Progressions', scales: 'Scales and modes', voice: 'Pick a Voice', tuner: 'Tuner' };
-const BW_COL = { synapse_scores: 'Sharp or Flat?', intervals_scores: 'Intervals', chords_scores: 'Chord Colors', progressions_scores: 'Progressions', scales_scores: 'Scales and modes' };
+const BW_NAME = { synapse: 'Sharp or Flat?', intervals: 'Intervals', chords: 'Chord Colors', progressions: 'Progressions', scales: 'Scales and modes', voice: 'Pick a Voice', tuner: 'Tuner', pitch: 'Perfect Pitch' };
+const BW_COL = { synapse_scores: 'Sharp or Flat?', intervals_scores: 'Intervals', chords_scores: 'Chord Colors', progressions_scores: 'Progressions', scales_scores: 'Scales and modes', pitch_scores: 'Perfect Pitch' };
 // Critical Listening Lab: an assignment's skills are its games; listening_progress counts rounds per game in rounds_by (no right/wrong per game)
 const CLL_ID = { 'Filter Spotter': 'filter', 'Boost Hunt': 'peak', 'Boost or Cut': 'eq', 'Level Check': 'gain', 'Compressor Ears': 'comp', 'Balance Test': 'pan', 'Reverb Space': 'space', 'Name That Hz': 'tone', 'Beat Recreate': 'beat' };
 const CLL_NAME = Object.fromEntries(Object.entries(CLL_ID).map(([k, v]) => [v, k]));
@@ -575,7 +575,7 @@ function normScore(gid, d, col) {
 // practice records in that game from start to end: answers (or minutes), the same count the student's home page shows.
 // Grade = the average of the tasks, each capped at 100%. Earshot Saloon keeps no practice records yet.
 // A Brainwaves task's skills are brain areas: only answers in those areas count (by_area in brainwaves_progress).
-const BW_AREA_ID = { 'Sharp or Flat?': 'synapse', 'Intervals': 'intervals', 'Chord Colors': 'chords', 'Progressions': 'progressions', 'Scales and modes': 'scales', 'Pick a Voice': 'voice', 'Tuner': 'tuner' };
+const BW_AREA_ID = { 'Sharp or Flat?': 'synapse', 'Intervals': 'intervals', 'Chord Colors': 'chords', 'Progressions': 'progressions', 'Scales and modes': 'scales', 'Pick a Voice': 'voice', 'Tuner': 'tuner', 'Perfect Pitch': 'pitch' };
 const dayList = (a, b) => { const out = []; for (let d = new Date(a + 'T12:00:00'); ymd(d) <= b && out.length < 120; d.setDate(d.getDate() + 1)) out.push(ymd(d)); return out; };
 const taskName = t => { const g = G[t.game], keys = t.game === 'scale' && t.settings && Array.isArray(t.settings.keys) ? t.settings.keys : [], sk = [].concat(t.skills || t.skill || []).filter(Boolean);
   return `${g ? g.name : 'Any game'}${keys.length ? ': ' + keys.join(', ') : sk.length ? ': ' + sk.join(', ') : ''}`; };
@@ -1704,7 +1704,7 @@ function wire() {
     const old = (prompt('Old developer name, exactly as it shows on the boards:') || '').trim(), msg = $('devfixmsg');
     if (!old || old === 'Maestro' || !confirm(`Rename every "${old}" score to Maestro?`)) return;
     const cols = ['rhythm_scores', 'scale_scores', 'degree_scores', 'key_scores', 'nova_scores', 'tidal_scores', 'listening_scores', 'sight_scores',
-      'synapse_scores', 'intervals_scores', 'chords_scores', 'progressions_scores', 'scales_scores', 'earshot_scores'];
+      'synapse_scores', 'intervals_scores', 'chords_scores', 'progressions_scores', 'scales_scores', 'pitch_scores', 'earshot_scores'];
     let n = 0; msg.textContent = 'Working…';
     try {
       for (const col of [...cols, 'genius_scores']) {

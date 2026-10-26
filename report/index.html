@@ -423,7 +423,7 @@ const GAMES = [
   { id: 'rhythm', name: 'The Big Score', acc: '#f5c542', url: 'https://drkeyzzz.github.io/rhythm-trainer/', col: 'rhythm_scores', unit: 'rhythms right', day: '#8a6a00' },
   { id: 'scale', name: 'Scale Quest', acc: '#3ee8f0', url: 'https://drkeyzzz.github.io/scale-quest/', col: 'scale_scores', unit: 'answers right', day: '#0e7490' },
   { id: 'earshot', name: 'Earshot Saloon', acc: '#ff9a4a', url: 'https://drkeyzzz.github.io/earshot-saloon/', col: 'earshot_scores', unit: 'intervals right', day: '#c2410c' },
-  { id: 'brainwaves', name: 'Brainwaves', acc: '#7c8cff', url: 'https://drkeyzzz.github.io/brainwaves/', cols: ['synapse_scores', 'intervals_scores', 'chords_scores', 'progressions_scores', 'scales_scores'], unit: 'answers right', day: '#4451c9' },
+  { id: 'brainwaves', name: 'Brainwaves', acc: '#7c8cff', url: 'https://drkeyzzz.github.io/brainwaves/', cols: ['synapse_scores', 'intervals_scores', 'chords_scores', 'progressions_scores', 'scales_scores', 'pitch_scores'], unit: 'answers right', day: '#4451c9' },
 ];
 // The Day skin is light, so each game's bright color is swapped for a darker shade of it that reads on white.
 const DAYSKIN = document.documentElement.dataset.skin === 'day', GOLD_ACC = DAYSKIN ? '#a15c00' : '#ffc85c';
@@ -432,7 +432,7 @@ const fmtScore = (g, v) => g.id === 'rhythm' ? v + '%' : g.id === 'earshot' ? '$
 
 // ---------- practice saved on this computer (MTG_HIST, written by every game) ----------
 // Brainwaves saves each brain area under its own id; here they count as one game, with the area in front of each skill
-const BW_AREAS = { synapse: 'Sharp or Flat?', intervals: 'Intervals', chords: 'Chord Colors', progressions: 'Progressions', scales: 'Scales and modes', voice: 'Pick a Voice', tuner: 'Tuner' };
+const BW_AREAS = { synapse: 'Sharp or Flat?', intervals: 'Intervals', chords: 'Chord Colors', progressions: 'Progressions', scales: 'Scales and modes', voice: 'Pick a Voice', tuner: 'Tuner', pitch: 'Perfect Pitch' };
 function foldBrainwaves(days) {
   for (const day of Object.values(days)) for (const [id, area] of Object.entries(BW_AREAS)) {
     const x = day[id]; if (!x) continue; delete day[id];
