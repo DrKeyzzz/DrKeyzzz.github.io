@@ -488,7 +488,7 @@ const SKILLS = {
     ['Meters', ['2/4 time', '3/4 time', '4/4 time', '6/8 time', '9/8 time', '12/8 time']],
   ],
   listen: [['Games', ['Filter Spotter', 'Boost Hunt', 'Boost or Cut', 'Level Check', 'Compressor Ears', 'Balance Test', 'Reverb Space', 'Name That Hz', 'Beat Recreate']]],
-  brainwaves: [['Brain areas', ['Sharp or Flat?', 'Intervals', 'Chord Colors', 'Progressions', 'Scales and modes', 'Pick a Voice']]],
+  brainwaves: [['Brain areas', ['Sharp or Flat?', 'Intervals', 'Chord Colors', 'Progressions', 'Scales and modes', 'Pick a Voice', 'Perfect Pitch']]],
   any: [],
 };
 const hasSkill = (g, s) => !s || (SKILLS[g] || []).some(([, l]) => l.includes(s));
@@ -769,7 +769,7 @@ function renderTasks() {
   $('add').hidden = S.tasks.length >= 3;
 }
 // Brainwaves: the first brain area picked as a skill is also where Start opens (while the Brain area setting is still "Any area")
-const BW_AREA_ID = { 'Sharp or Flat?': 'synapse', 'Intervals': 'intervals', 'Chord Colors': 'chords', 'Progressions': 'progressions', 'Scales and modes': 'scales', 'Pick a Voice': 'voice' };
+const BW_AREA_ID = { 'Sharp or Flat?': 'synapse', 'Intervals': 'intervals', 'Chord Colors': 'chords', 'Progressions': 'progressions', 'Scales and modes': 'scales', 'Pick a Voice': 'voice', 'Perfect Pitch': 'pitch' };
 function bwArea(t) { if (t.game === 'brainwaves' && t.settings && !t.settings.area && BW_AREA_ID[skillsOf(t)[0]]) t.settings.area = BW_AREA_ID[skillsOf(t)[0]]; }
 $('tasks').addEventListener('change', e => {
   const row = e.target.closest('.task'), k = e.target.dataset.k; if (!row || !k) return;
