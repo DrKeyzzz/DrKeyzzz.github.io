@@ -7,8 +7,8 @@
 /* Old address (drkeyzzz.github.io): pack everything this browser saved there and forward to the same page on musictheorygames.org.
    musictheorygames.org: unpack it once (missing items are added, practice history is combined), then reload clean. The first time a
    browser opens it, it hops to the old address once, so students who type the new address keep their data too.
-   musictheoryacademy.org (second address, for schools that block "games"): the first time a browser opens it, it asks
-   musictheorygames.org for its data (which asks the old address first if it never did), then unpacks it the same way.
+   musictheoryacademy.org (the main address since 2026-10-26): never leaves on its own. It unpacks data that arrives the same way,
+   but it no longer hops to musictheorygames.org on a first visit (that hop left some students on musictheorygames.org, 2026-10-29).
    The data rides after the # in the link, which browsers never send to any server.
    Local test on port 8771: 127.0.0.1 = old, localhost = musictheorygames.org, academy.localhost = musictheoryacademy.org. */
 (function () {
@@ -131,12 +131,11 @@
     reach(OLD).then(function (ok) { if (ok) location.replace(OLD + page + location.hash); else send(ACAD, hash); });
     return;
   }
-  if (ls && ls.getItem(FLAG) === null) {                          // first visit in this browser: ask once
+  if (role === 'new' && ls && ls.getItem(FLAG) === null) {       // musictheorygames.org, first visit in this browser: ask the old address once
     try { ls.setItem(FLAG, 'asked'); } catch (e) { return; }
     halt();
-    var from = role === 'acad' ? NEW : OLD;
-    reach(from).then(function (ok) {
-      if (ok) location.replace(role === 'acad' ? NEW + page + SEND + encodeURIComponent(hash) : OLD + page + location.hash);
+    reach(OLD).then(function (ok) {
+      if (ok) location.replace(OLD + page + location.hash);
       else { try { ls.setItem(FLAG, 'blocked'); } catch (e) {} location.reload(); }   // the other address is blocked here: just open the page
     });
   }
