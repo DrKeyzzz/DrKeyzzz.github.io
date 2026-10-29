@@ -516,19 +516,22 @@ async function syncScores(p, store) {
     const a = store.games[g.id];
     try {
       const all = [];
-      for (const col of g.cols || [g.col]) {   // Brainwaves has one score collection per brain area
+      // PRIVACY (2026-10-29): scores live inside each class (classes/<code>/<col>), so only the student's own classes are read.
+      // A student without a class has no class copies; their report comes from this computer's practice history.
+      for (const code of codes) for (const col of g.cols || [g.col]) {   // Brainwaves has one score collection per brain area
+        const ccol = fs.collection(db, 'classes', code, col);
         let docs = null;
         if (!noIndex[col]) {
           try {
             docs = [];
             for (let page = 0, from = a.upTo; page < 20; page++) {
-              const snap = await wait(fs.getDocs(fs.query(fs.collection(db, col), fs.where('name', '==', name), fs.where('created_at', '>', fs.Timestamp.fromMillis(from)), fs.orderBy('created_at'), fs.limit(500))));
+              const snap = await wait(fs.getDocs(fs.query(ccol, fs.where('name', '==', name), fs.where('created_at', '>', fs.Timestamp.fromMillis(from)), fs.orderBy('created_at'), fs.limit(500))));
               docs.push(...snap.docs); if (snap.size < 500) break;
               from = snap.docs[snap.size - 1].data().created_at.toMillis();
             }
           } catch (e) { if (e.code !== 'failed-precondition') throw e; noIndex[col] = 1; docs = null; console.warn('[index needed]', e.message); }
         }
-        if (!docs) docs = (await wait(fs.getDocs(fs.query(fs.collection(db, col), fs.where('name', '==', name))))).docs;
+        if (!docs) docs = (await wait(fs.getDocs(fs.query(ccol, fs.where('name', '==', name))))).docs;
         all.push(...docs);
       }
       const rows = all.map(d => { const r = d.data(); return { ...r, at: r.created_at && r.created_at.toMillis ? r.created_at.toMillis() : 0 }; })
@@ -1116,6 +1119,20 @@ boot();
     return l.length ? { code: String(l[0].code), name: String(l[0].name || l[0].code) } : null;
   }
   function docIdOf(p){ var c = activeClass(p); return (c ? c.code : 'none') + '_' + sidOf(p); }
+  // PRIVACY (2026-10-29): a class's times live inside the class (classes/<code>/practice_time/<code>_<sid>), so reading them
+  // needs the code. The World board reads the top level practice_time, which holds only name-only rows: 'none_<sid>' for
+  // students without a class, 'w<8 hex>_<sid>' for students in one (the hex is a scramble of the class code; it only lets
+  // someone check a guessed code, which a class code lookup already allows).
+  function worldIdOf(p){
+    var c = activeClass(p); if (!c) return 'none_' + sidOf(p);
+    var h = 0x811c9dc5, k = 'mtg:' + c.code;
+    for (var i = 0; i < k.length; i++) { h ^= k.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    return 'w' + ('0000000' + h.toString(16)).slice(-8) + '_' + sidOf(p);
+  }
+  function refOf(fs, db, p, world){
+    var c = activeClass(p);
+    return world || !c ? fs.doc(db, COL, worldIdOf(p)) : fs.doc(db, 'classes', c.code, COL, docIdOf(p));
+  }
 
   // ---------- dates (local time) ----------
   function pad(n){ return (n < 10 ? '0' : '') + n; }
@@ -1208,12 +1225,13 @@ boot();
     if (why === 'leave' && !fbReady) return Promise.resolve(false);   // don't start loading Firebase while the page closes
     var L = ledger(sid), now = Date.now();
     if (now - (L.last || 0) < GAP || (L.back && now < L.back)) return Promise.resolve(false);
-    var id = docIdOf(p), cls = activeClass(p);
-    var needRead = !L.doc || L.doc.id !== id || now - (L.doc.t || 0) > DOC_TTL;
+    var id = docIdOf(p), cls = activeClass(p), wid = cls ? worldIdOf(p) : '';
+    var needRead = !L.doc || L.doc.id !== id || now - (L.doc.t || 0) > DOC_TTL || (wid && (!L.wdoc || L.wdoc.id !== wid));
     if (!needRead && !plan(histDays(sid), L, new Date(now)).n) return Promise.resolve(false);
     if (!lock(sid)) return Promise.resolve(false);
     syncing = true;
-    var F, ref, SKIP = { skip: true };
+    var F, ref, wref = null, SKIP = { skip: true };
+    var docState = function(sid2, s){ var d = s.exists() ? s.data() : {}; return { id: sid2, exists: s.exists(), t: Date.now(), total_min: +d.total_min || 0, week: d.week || '', week_min: +d.week_min || 0, day: d.day || '', day_min: +d.day_min || 0 }; };
     // wait a moment, then check the lock is still ours (two tabs grabbing it at once: the last write wins)
     return new Promise(function(ok){ setTimeout(ok, 200 + Math.random() * 300); }).then(function(){
       var l = readJSON(lockKey(sid)); if (!l || l.id !== TAB_ID) throw SKIP;
@@ -1222,38 +1240,50 @@ boot();
       L.last = Date.now(); writeJSON(ledgerKey(sid), L);  // claim this minute for every tab
       return fb();
     }).then(function(f){
-      F = f; fbReady = true; ref = f.fs.doc(f.db, COL, id);
+      F = f; fbReady = true; ref = refOf(f.fs, f.db, p, false); if (wid) wref = refOf(f.fs, f.db, p, true);
       if (!needRead) return L.doc;
-      return wait(f.fs.getDoc(ref)).then(function(s){
-        var d = s.exists() ? s.data() : {};
-        var st = { id: id, exists: s.exists(), t: Date.now(), total_min: +d.total_min || 0, week: d.week || '', week_min: +d.week_min || 0, day: d.day || '', day_min: +d.day_min || 0 };
-        L = ledger(sid); L.doc = st; writeJSON(ledgerKey(sid), L); return st;
+      return Promise.all([wait(f.fs.getDoc(ref)), wref ? wait(f.fs.getDoc(wref)) : null]).then(function(r){
+        var st = docState(id, r[0]);
+        L = ledger(sid); L.doc = st; L.wdoc = r[1] ? docState(wid, r[1]) : null; writeJSON(ledgerKey(sid), L); return st;
       });
     }).then(function(st){
       L = ledger(sid);
       var pl = plan(histDays(sid), L, new Date());
       if (!pl.n) return true;
-      var fs = F.fs, data = { name: nameOf(p), sid: sid, class_code: cls ? cls.code : '', updated_at: fs.serverTimestamp() };
-      if (!st.exists) { data.total_min = pl.n; data.week = pl.week; data.week_min = pl.w; data.day = pl.today; data.day_min = pl.d; }
-      else {
-        data.total_min = fs.increment(pl.n);
-        if (st.week === pl.week) data.week_min = fs.increment(pl.w); else { data.week = pl.week; data.week_min = pl.w; }
-        if (st.day === pl.today) data.day_min = fs.increment(pl.d); else { data.day = pl.today; data.day_min = pl.d; }
-      }
+      var fs = F.fs;
+      var payload = function(st, code){
+        var data = { name: nameOf(p), sid: sid, class_code: code, updated_at: fs.serverTimestamp() };
+        if (!st || !st.exists) { data.total_min = pl.n; data.week = pl.week; data.week_min = pl.w; data.day = pl.today; data.day_min = pl.d; }
+        else {
+          data.total_min = fs.increment(pl.n);
+          if (st.week === pl.week) data.week_min = fs.increment(pl.w); else { data.week = pl.week; data.week_min = pl.w; }
+          if (st.day === pl.today) data.day_min = fs.increment(pl.d); else { data.day = pl.today; data.day_min = pl.d; }
+        }
+        return data;
+      };
+      var batch = fs.writeBatch(F.db), wst = L.wdoc && L.wdoc.id === wid ? L.wdoc : null;
+      batch.set(ref, payload(st, cls ? cls.code : ''), { merge: true });
+      if (wref) batch.set(wref, payload(wst, ''), { merge: true });   // the World board's name-only row
       // mark the minutes as sent BEFORE writing (a write that never leaves a closing page loses minutes, it never doubles them)
       pl.alloc.forEach(function(a){ L.sent[a[0]] = (L.sent[a[0]] || 0) + a[1] * MIN; });
       writeJSON(ledgerKey(sid), L);
       var undo = function(){ var L2 = ledger(sid); pl.alloc.forEach(function(a){ L2.sent[a[0]] = Math.max(0, (L2.sent[a[0]] || 0) - a[1] * MIN); }); return L2; };
-      return wait(fs.setDoc(ref, data, { merge: true })).then(function(){
-        var L2 = ledger(sid), s2 = L2.doc && L2.doc.id === id ? L2.doc : st;
-        s2.exists = true; s2.total_min += pl.n;
+      var bump = function(s2){
+        if (!s2.exists) { s2.exists = true; s2.total_min = 0; s2.week = pl.week; s2.week_min = 0; s2.day = pl.today; s2.day_min = 0; }
+        s2.total_min += pl.n;
         if (s2.week === pl.week) s2.week_min += pl.w; else { s2.week = pl.week; s2.week_min = pl.w; }
         if (s2.day === pl.today) s2.day_min += pl.d; else { s2.day = pl.today; s2.day_min = pl.d; }
-        L2.doc = s2; writeJSON(ledgerKey(sid), L2); return true;
+        return s2;
+      };
+      return wait(batch.commit()).then(function(){
+        var L2 = ledger(sid);
+        L2.doc = bump(L2.doc && L2.doc.id === id ? L2.doc : st);
+        if (wid) L2.wdoc = bump(L2.wdoc && L2.wdoc.id === wid ? L2.wdoc : (wst || { id: wid, exists: false }));
+        writeJSON(ledgerKey(sid), L2); return true;
       }, function(e){
         if (e && e.code === 'mtg-timeout') throw e;    // still queued by Firestore: keep it counted as sent
         var L2 = undo();
-        if (e && e.code === 'permission-denied') { L2.doc = null; L2.back = Date.now() + BACKOFF; }   // stale class or doc: re-read later
+        if (e && e.code === 'permission-denied') { L2.doc = null; L2.wdoc = null; L2.back = Date.now() + BACKOFF; }   // stale class or doc: re-read later
         writeJSON(ledgerKey(sid), L2); throw e;
       });
     }).catch(function(e){ if (e !== SKIP) console.warn('[practice time] sync skipped:', e && (e.code || e.message) || e); return false; })
@@ -1360,8 +1390,9 @@ boot();
     if (c && Date.now() - c.t < BOARD_TTL) return Promise.resolve(c.rows);
     return fb().then(function(f){
       fbReady = true;
-      var fs = f.fs, col = fs.collection(f.db, COL);
-      var q = kind === 'world' ? fs.query(col, fs.orderBy('total_min', 'desc'), fs.limit(10)) : fs.query(col, fs.where('class_code', '==', s.cls.code), fs.limit(60));
+      var fs = f.fs;
+      var q = kind === 'world' ? fs.query(fs.collection(f.db, COL), fs.orderBy('total_min', 'desc'), fs.limit(10))
+        : fs.query(fs.collection(f.db, 'classes', s.cls.code, COL), fs.limit(60));   // the class's own times (needs the code)
       return wait(fs.getDocs(q));
     }).then(function(snap){
       var rows = snap.docs.map(function(d){ var x = d.data(); return { id: d.id, name: String(x.name || ''), total: +x.total_min || 0, week: x.week || '', week_min: +x.week_min || 0 }; });
@@ -1370,7 +1401,8 @@ boot();
   }
   function boardRows(kind, rows, s){
     var wk = weekKey(new Date()), mine = null;
-    rows = rows.map(function(r){ var o = { id: r.id, name: r.name, total: r.total, v: kind === 'week' ? (r.week === wk ? r.week_min : 0) : r.total }; if (r.id === s.id) mine = o; return o; });
+    var myId = kind === 'world' ? worldIdOf(s.p) : s.id;
+    rows = rows.map(function(r){ var o = { id: r.id, name: r.name, total: r.total, v: kind === 'week' ? (r.week === wk ? r.week_min : 0) : r.total }; if (r.id === myId) mine = o; return o; });
     // my own row always shows what this computer knows right now
     var myV = kind === 'week' ? Math.max(s.week, mine ? mine.v : 0) : s.all;
     if (mine) { mine.total = Math.max(mine.total, s.all); mine.v = Math.max(mine.v, myV); mine.me = true; }

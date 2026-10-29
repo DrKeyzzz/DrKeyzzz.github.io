@@ -663,20 +663,33 @@ async function fetchProgress(gid) {
     return out;
   });
 }
-const WORLD = '*';   // the class menu's World choice: top scores from every class and the world boards (Scores only)
+const WORLD = '*';   // the class menu's World choice: the World boards' top runs (Scores only)
+// PRIVACY (2026-10-29): class scores live in classes/<code>/<col>; the World boards in world_scores/<board>/runs, which hold
+// only the student's first name and last initial, the score and a short level text (no class code). Boards per game:
+const WORLD_BOARDS = {
+  scale: ['scale', 'degree', 'key', 'nova'],
+  tidal: ['arcade', 'sprint'].flatMap(m => ['easy', 'medium', 'hard', 'expert', 'custom'].map(d => `tidal_${m}_${d}`)),
+  rhythm: ['beginner', 'beginner16', 'easy', 'hard', 'extreme'].map(l => 'rhythm_' + l),
+  rooftop: ['easy', 'medium', 'hard', 'expert'].map(d => 'sight_' + d),
+  earshot: ['newbie', 'easy', 'medium', 'hard', 'expert'].map(d => 'earshot_' + d),
+  brainwaves: ['synapse', 'intervals', 'chords', 'progressions', 'scales', 'pitch'].map(a => 'brainwaves_' + a),
+  listen: ['filter', 'peak', 'eq', 'gain', 'comp', 'pan', 'space', 'tone', 'beat'].map(x => 'listen_' + x),
+};
 async function fetchScores(gid) {
   const g = G[gid];
   if (S.code === WORLD) return run(async ({ fs, db }) => {
-    const out = [];
-    for (const col of [].concat(g.scores)) (await fs.getDocs(fs.query(fs.collection(db, col), fs.orderBy('score', 'desc'), fs.limit(50)))).forEach(x => {
-      const d = x.data(), r = normScore(gid, d, col); r.id = x.id; r.detail = [r.detail, d.class_code ? 'Class ' + d.class_code : 'No class'].filter(Boolean).join(' · '); out.push(r);
+    const out = [], boards = WORLD_BOARDS[gid] || [], per = boards.length > 4 ? 10 : 50;
+    for (const b of boards) (await fs.getDocs(fs.query(fs.collection(db, 'world_scores', b, 'runs'), fs.orderBy('score', 'desc'), fs.limit(per)))).forEach(x => {
+      const d = x.data();
+      out.push({ game: gid, path: x.ref.path, id: x.id, dev: false, name: d.nick || 'Student', dateMs: toMs(d.created_at), score: num(d.score),
+        acc: d.acc == null ? null : Math.round(num(d.acc)), detail: [b.replace(/_/g, ' '), d.level].filter(Boolean).join(' · ') });
     });
     return out;
   });
   const ds = days(); const cutoff = ds ? new Date(ds[ds.length - 1] + 'T00:00:00').getTime() : 0;
   return run(async ({ fs, db }) => {
     const out = [];
-    for (const col of [].concat(g.scores)) (await fs.getDocs(fs.query(fs.collection(db, col), fs.where('class_code', '==', S.code)))).forEach(x => out.push({ ...normScore(gid, x.data(), col), id: x.id }));
+    for (const col of [].concat(g.scores)) (await fs.getDocs(fs.collection(db, 'classes', S.code, col))).forEach(x => out.push({ ...normScore(gid, x.data(), col), id: x.id, path: x.ref.path }));
     return out.filter(r => !cutoff || r.dateMs >= cutoff);
   });
 }
@@ -879,7 +892,10 @@ async function loadAdmin() {
           if (d.by_area) addDetail(r.det, Object.fromEntries(Object.entries(d.by_area).map(([a, x]) => [BW_NAME[a] || a, x])));
         });
       } else {
-        for (const col of [].concat(g.scores)) (await fs.getDocs(fs.collection(db, col))).forEach(x => {
+        // PRIVACY (2026-10-29): scores live inside each class, so read every class's copies (admin only)
+        for (const code of Object.keys(classOwner)) for (const col of [].concat(g.scores)) (await fs.getDocs(cutoff
+          ? fs.query(fs.collection(db, 'classes', code, col), fs.where('created_at', '>=', fs.Timestamp.fromMillis(cutoff)))
+          : fs.collection(db, 'classes', code, col))).forEach(x => {
           const d = x.data(), ms = toMs(d.created_at), n = num(d.hands ?? d.rounds); if (cutoff && ms < cutoff) return;   // Earshot counts hands, Brainwaves rounds
           const owner = classOwner[d.class_code] || 'unknown', r = rowOf(owner, g.id);
           r.sids.add(d.class_code + '|' + String(d.name).toLowerCase()); r.dset.add(ymd(new Date(ms))); r.attempts += n; r.correct += Math.round(n * num(d.acc) / 100); r.dateMs = Math.max(r.dateMs, ms);
@@ -1730,7 +1746,7 @@ function wire() {
     if (del && S.view === 'scores') {   // a wrong or unfair score: removed for good (scores can't be edited, only deleted)
       const r = S.rows.find(x => x.id === del.dataset.del); if (!r) return;
       if (!confirm(`Delete ${r.name}'s score of ${r.score.toLocaleString()} in ${G[r.game].name}${r.detail ? ' (' + r.detail + ')' : ''}? It comes off the leaderboard for good.`)) return;
-      if (!PREVIEW) try { await run(({ fs, db }) => fs.deleteDoc(fs.doc(db, r.col, r.id))); } catch (er) { return msg(er && er.code === 'permission-denied' ? "You can delete scores from your own classes only." : errText(er)); }
+      if (!PREVIEW) try { await run(({ fs, db }) => fs.deleteDoc(r.path ? fs.doc(db, r.path) : fs.doc(db, r.col, r.id))); } catch (er) { return msg(er && er.code === 'permission-denied' ? "You can delete scores from your own classes only." : errText(er)); }
       S.rows = S.rows.filter(x => x !== r); render(); msg(`Deleted ${r.name}'s score of ${r.score.toLocaleString()}.`, true); return;
     }
     if (del && confirm('Delete this note?')) {
