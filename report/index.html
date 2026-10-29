@@ -1227,7 +1227,9 @@ boot();
     if (now - (L.last || 0) < GAP || (L.back && now < L.back)) return Promise.resolve(false);
     var id = docIdOf(p), cls = activeClass(p), wid = cls ? worldIdOf(p) : '';
     var needRead = !L.doc || L.doc.id !== id || now - (L.doc.t || 0) > DOC_TTL || (wid && (!L.wdoc || L.wdoc.id !== wid));
-    if (!needRead && !plan(histDays(sid), L, new Date(now)).n) return Promise.resolve(false);
+    // nothing to send: read only if this doc was never read (an idle open tab used to re-read it every 5 minutes)
+    var known = L.doc && L.doc.id === id && (!wid || (L.wdoc && L.wdoc.id === wid));
+    if (known && !plan(histDays(sid), L, new Date(now)).n) return Promise.resolve(false);
     if (!lock(sid)) return Promise.resolve(false);
     syncing = true;
     var F, ref, wref = null, SKIP = { skip: true };

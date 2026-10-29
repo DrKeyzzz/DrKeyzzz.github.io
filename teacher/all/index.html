@@ -1688,12 +1688,12 @@ function syncHash() {
   const h = S.view === 'messages' || S.view === 'board' ? '#' + S.view : '';
   if (location.hash !== h && (h || hashView())) history.replaceState(null, '', location.pathname + location.search + h);
 }
-// on sign-in: the two tab counts, then the message count every 2 minutes while the page is visible
+// on sign-in: the two tab counts, then the message count every 10 minutes while the page is visible
 function startSocial() {
   if (startSocial.on) { checkInbox(); checkBoard(); return; } startSocial.on = true;
   if (S.view !== 'messages') checkInbox();
   checkBoard(); loadMe();
-  setInterval(() => { if (!document.hidden) checkInbox(); }, 120000);
+  setInterval(() => { if (!document.hidden) checkInbox(); }, 600000);
 }
 
 // ---------- CSV ----------
