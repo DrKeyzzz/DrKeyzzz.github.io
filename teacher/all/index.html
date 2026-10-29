@@ -576,6 +576,11 @@ function normScore(gid, d, col) {
 // Grade = the average of the tasks, each capped at 100%. Earshot Saloon keeps no practice records yet.
 // A Brainwaves task's skills are brain areas: only answers in those areas count (by_area in brainwaves_progress).
 const BW_AREA_ID = { 'Sharp or Flat?': 'synapse', 'Intervals': 'intervals', 'Chord Colors': 'chords', 'Progressions': 'progressions', 'Scales and modes': 'scales', 'Pick a Voice': 'voice', 'Tuner': 'tuner', 'Perfect Pitch': 'pitch' };
+// Level reached (David, 2026-10-29): for a Brainwaves task, the highest level the student reached in a test run between the
+// assignment's start and end, read from the class's run scores (classes/<code>/<area>_scores, field floor). Areas with levels only.
+const BW_LEVELS = { intervals: 6, chords: 8, progressions: 6, scales: 8, pitch: 9 };
+const lvAreas = t => t.game === 'brainwaves' ? [].concat(t.skills || t.skill || []).map(k => BW_AREA_ID[k]).filter(a => BW_LEVELS[a]) : [];
+const BW_AREA_NAME = Object.fromEntries(Object.entries(BW_AREA_ID).map(([k, v]) => [v, k]));
 const dayList = (a, b) => { const out = []; for (let d = new Date(a + 'T12:00:00'); ymd(d) <= b && out.length < 120; d.setDate(d.getDate() + 1)) out.push(ymd(d)); return out; };
 const taskName = t => { const g = G[t.game], keys = t.game === 'scale' && t.settings && Array.isArray(t.settings.keys) ? t.settings.keys : [], sk = [].concat(t.skills || t.skill || []).filter(Boolean);
   return `${g ? g.name : 'Any game'}${keys.length ? ': ' + keys.join(', ') : sk.length ? ': ' + sk.join(', ') : ''}`; };
@@ -596,7 +601,7 @@ const stab = v => Array.isArray(v) ? '[' + v.map(stab) + ']' : v && typeof v ===
 const aKey = a => [a.start, a.end, stab(a.tasks)].join('|');
 function gradeList(c) {
   const dk = n => ymd(new Date(Date.now() + n * 864e5));
-  const all = PREVIEW ? [{ start: dk(-2), end: dk(0), tasks: [{ game: 'scale', goal: 40, unit: 'answers', settings: { keys: ['F', 'Bb', 'Eb', 'Ab'] } }, { game: 'tidal', goal: 15, unit: 'minutes' }] },
+  const all = PREVIEW ? [{ start: dk(-2), end: dk(0), tasks: [{ game: 'scale', goal: 40, unit: 'answers', settings: { keys: ['F', 'Bb', 'Eb', 'Ab'] } }, { game: 'tidal', goal: 15, unit: 'minutes' }, { game: 'brainwaves', skills: ['Perfect Pitch'], goal: 15, unit: 'minutes' }] },
       { start: dk(-9), end: dk(-3), tasks: [{ game: 'scale', goal: 30, unit: 'answers', settings: { keys: ['C', 'G', 'D'] } }, { game: 'listen', skills: ['Filter Spotter'], goal: 20, unit: 'answers' }] },
       { start: dk(-16), end: dk(-10), tasks: [{ game: 'tidal', goal: 20, unit: 'minutes' }, { game: 'rhythm', goal: 25, unit: 'answers' }] }]
     : [].concat((c && c.hub_assignment) || [], (c && Array.isArray(c.hub_assignments) && c.hub_assignments) || []);
@@ -612,7 +617,8 @@ const ptsOf = (pct, out) => pct == null ? '' : `${Math.floor(Math.min(100, pct) 
 function gradePick() {
   S.gradeList = gradeList(S.classes.find(x => x.code === S.code));
   S.gradeA = S.gradeOpen === '' ? null : S.gradeList.find(a => aKey(a) === S.gradeOpen) || S.gradeList[0] || null;
-  COLS.grades = [{ k: 'name', h: 'Student', t: 's' }].concat((S.gradeA ? S.gradeA.tasks : []).map((t, i) => ({ k: 't' + i, h: `${taskName(t)} (goal ${t.goal} ${t.unit === 'minutes' ? 'min' : 'answers'})`, t: 'n', num: 1, f: r => `${r['t' + i] >= t.goal ? '✓ ' : ''}${fmtN(r['t' + i])} / ${t.goal}` })),
+  COLS.grades = [{ k: 'name', h: 'Student', t: 's' }].concat((S.gradeA ? S.gradeA.tasks : []).flatMap((t, i) => [{ k: 't' + i, h: `${taskName(t)} (goal ${t.goal} ${t.unit === 'minutes' ? 'min' : 'answers'})`, t: 'n', num: 1, f: r => `${r['t' + i] >= t.goal ? '✓ ' : ''}${fmtN(r['t' + i])} / ${t.goal}` }].concat(
+    lvAreas(t).map(a => ({ k: `lv${i}_${a}`, h: `${BW_AREA_NAME[a]}: level reached`, t: 'n', num: 1, f: r => r[`lv${i}_${a}`] ? `Level ${r[`lv${i}_${a}`]} of ${BW_LEVELS[a]}` : '<span style="opacity:.55">no test run</span>' })))),
     [{ k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) }, { k: 'grade', h: 'Grade', t: 'n', num: 1, f: r => `<b>${r.grade}%</b>` }, { k: 'points', h: 'Points', t: 's', num: 1, f: r => gradeCell(r.points) }, { k: 'status', h: 'Status', t: 's', f: r => r.grade >= 100 ? '<b style="color:#2fbf71">✓ Done</b>' : r.status }, { k: 'dateMs', h: 'Last practiced', t: 'n', f: r => esc(fmtDate(r.dateMs)) }]);
 }
 function renderGradeList() {
@@ -639,10 +645,23 @@ async function loadGrades() {
     }
     return out;
   }));
+  const lvA = [...new Set(S.gradeA.tasks.flatMap(lvAreas))], top = {};   // top[area][name in lower case] = highest level reached
+  if (lvA.length && PREVIEW) lvA.forEach(a => { top[a] = {}; recs.forEach(r => { top[a][String(r.name).toLowerCase()] = 1 + (String(r.name).length * 7 + a.length) % BW_LEVELS[a]; }); });
+  else if (lvA.length) Object.assign(top, await run(async ({ fs, db }) => {
+    const out = {}, from = new Date(S.gradeA.start + 'T00:00:00'), to = new Date(new Date(S.gradeA.end + 'T00:00:00').getTime() + 864e5);
+    for (const a of lvA) {
+      out[a] = {};
+      (await fs.getDocs(fs.query(fs.collection(db, 'classes', S.code, a + '_scores'), fs.where('created_at', '>=', from), fs.where('created_at', '<', to)))).forEach(x => {
+        const d = x.data(), k = String(d.name || '').toLowerCase(), f = Math.min(BW_LEVELS[a], num(d.floor)); if (f > (out[a][k] || 0)) out[a][k] = f;
+      });
+    }
+    return out;
+  }));
   const by = {}; recs.forEach(r => { const k = String(r.sid || r.name).toLowerCase(); (by[k] = by[k] || []).push(r); });
   return Object.values(by).map(list => {
     const row = { game: 'all', name: list[0].name, dateMs: Math.max(...list.map(r => r.dateMs || 0)) }; let right = 0, all = 0;
     const parts = S.gradeA.tasks.map((t, i) => { const n = taskCount(t, list); row['t' + i] = n.done; if (n.all) { right += n.right; all += n.all; } return Math.min(1, n.done / Math.max(1, t.goal)); });
+    S.gradeA.tasks.forEach((t, i) => lvAreas(t).forEach(a => { row[`lv${i}_${a}`] = (top[a] || {})[String(row.name).toLowerCase()] || 0; }));
     row.acc = pct(right, all); row.grade = Math.round(100 * parts.reduce((a, b) => a + b, 0) / parts.length);
     row.status = row.grade > 0 ? 'In progress' : 'Not started';
     return row;
