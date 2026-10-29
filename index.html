@@ -933,7 +933,7 @@ async function refreshTests(p) {
   const cs = classesOf(p); if (!cs.length) return;
   try {
     const { fs, db } = await fb();
-    const lists = await wait(Promise.all(cs.map(c => fs.getDocs(fs.query(fs.collection(db, 'tests'), fs.where('class_code', '==', c.code))))));
+    const lists = await wait(Promise.all(cs.map(c => fs.getDocs(fs.query(fs.collection(db, 'tests'), fs.where('class_code', '==', c.code), fs.where('open', '==', true))))));   // open tests only
     const tests = lists.flatMap((l, i) => l.docs.map(d => ({ id: d.id, ...d.data(), className: cs[i].name || cs[i].code }))).filter(t => t.open && TEST_GAMES.includes(t.game) && !(t.closes_at && t.closes_at.seconds * 1000 < Date.now()))
       .sort((a, b) => ((b.created_at && b.created_at.seconds) || 0) - ((a.created_at && a.created_at.seconds) || 0)).slice(0, 5)
       .map(t => ({ id: t.id, name: t.name, game: t.game, grade: t.grade, tries: t.tries, className: t.className, from: t.opens_at ? t.opens_at.seconds * 1000 : 0, to: t.closes_at ? t.closes_at.seconds * 1000 : 0 }));
@@ -1065,8 +1065,10 @@ async function submit(e) {
   render();
 }
 // keep the class names current, the way the games do (a deleted class is dropped; with none left the student stays signed in with no class)
+// at most once every 5 minutes per tab, so going back and forth between games and home costs no reads
 async function refreshClass() {
   const p = getProfile(), cs = savedOf(p); if (!cs.length) return;
+  try { const k = 'mtg_class_check_v1:' + sidOf(p) + ':' + cs.map(c => c.code).join(','); if (Date.now() - (+sessionStorage.getItem(k) || 0) < 300000) return; sessionStorage.setItem(k, String(Date.now())); } catch {}
   try {
     const { fs, db } = await fb(), ds = await wait(Promise.all(cs.map(c => fs.getDoc(fs.doc(db, 'classes', c.code)))));
     saveAssigns(p, cs, ds);
