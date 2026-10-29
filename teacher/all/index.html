@@ -4,11 +4,11 @@
 <meta charset="utf-8">
 <!-- MTG_MOVE start: carries a browser's saved data from drkeyzzz.github.io to musictheorygames.org and musictheoryacademy.org. Master copy: shared/mtg-move.snippet.html; install with shared/apply-move.py, never edit the copy in a page. -->
 <script>
-/* Old address (drkeyzzz.github.io): pack everything this browser saved there and forward to the same page on musictheorygames.org.
-   musictheorygames.org: unpack it once (missing items are added, practice history is combined), then reload clean. The first time a
-   browser opens it, it hops to the old address once, so students who type the new address keep their data too.
-   musictheoryacademy.org (the main address since 2026-10-26): never leaves on its own. It unpacks data that arrives the same way,
-   but it no longer hops to musictheorygames.org on a first visit (that hop left some students on musictheorygames.org, 2026-10-29).
+/* musictheoryacademy.org is the one address (David, 2026-10-29: "all go to academy").
+   Old address (drkeyzzz.github.io) and musictheorygames.org: pack everything this browser saved there and forward to the same
+   page on musictheoryacademy.org (musictheorygames.org first checks the academy loads here; if a school blocks it, the page opens as is).
+   musictheoryacademy.org: never leaves. It unpacks arriving data once per source (missing items are added, practice history is
+   combined), then reloads clean.
    The data rides after the # in the link, which browsers never send to any server.
    Local test on port 8771: 127.0.0.1 = old, localhost = musictheorygames.org, academy.localhost = musictheoryacademy.org. */
 (function () {
@@ -22,11 +22,11 @@
     role = host === '127.0.0.1' ? 'old' : host === 'localhost' ? 'new' : host === 'academy.localhost' ? 'acad' : '';
   }
   if (!role) return;
-  var FLAG = 'mtg_move_v1', TAG = '#mtgmove=', SEND = '#mtgsend=a.', ls = null;   // SEND: musictheoryacademy.org asks for the data
+  var FLAG = 'mtg_move_v1', TAG = '#mtgmove=', SEND = '#mtgsend=a.', ls = null;   // SEND: older academy pages asked for data this way (still read)
   try { ls = window.localStorage; ls.getItem(FLAG); } catch (e) { ls = null; }
   var page = location.pathname + location.search;
   function halt() { try { window.stop(); } catch (e) {} try { document.documentElement.style.visibility = 'hidden'; } catch (e) {} }
-  function skip(k) { return k === FLAG || k.indexOf('mtg_time_lock_v1:') === 0 || k.indexOf('firebase:') === 0; }
+  function skip(k) { return k === FLAG || k === FLAG + '_old' || k.indexOf('mtg_time_lock_v1:') === 0 || k.indexOf('firebase:') === 0; }
 
   function b64u(bytes) {
     var s = '';
@@ -93,12 +93,12 @@
     }
   }
 
-  function send(to, hash) {                                       // pack this browser's data and carry it to the same page at `to`
+  function send(to, hash, src) {                                  // pack this browser's data and carry it to the same page at `to`
     halt();
     var data = {}, n = 0;
     if (ls) for (var i = 0; i < ls.length; i++) { var k = ls.key(i); if (k && !skip(k)) { data[k] = ls.getItem(k); n++; } }
     (n ? pack(data) : Promise.resolve('-')).then(function (p) { return p; }, function () { return '-'; }).then(function (p) {
-      location.replace(to + page + TAG + p + '.' + encodeURIComponent(hash));
+      location.replace(to + page + TAG + (src || '') + p + '.' + encodeURIComponent(hash));
     });
   }
   function reach(origin) {                                        // can this browser load the other address? (school filters block some)
@@ -111,33 +111,33 @@
   }
   var asked = location.hash.indexOf(SEND) === 0, hash = asked ? decodeURIComponent(location.hash.slice(SEND.length)) : location.hash.replace(/^#/, '');
 
-  if (role === 'old') { send(asked ? ACAD : NEW, hash); return; }
+  var STAY = 'mtg_move_stay';                                     // this tab could not reach musictheoryacademy.org: stay where it is
+  var stay = false; try { stay = sessionStorage.getItem(STAY) === '1'; } catch (e) {}
 
-  if (location.hash.indexOf(TAG) === 0) {                         // data arriving (musictheorygames.org or musictheoryacademy.org)
+  if (role === 'old') { send(ACAD, hash, 'o'); return; }          // old links go straight to the academy (marked 'o' so both sources can merge once)
+
+  if (role === 'new') {                                           // musictheorygames.org forwards to the academy with its data (or passes data on)
+    if (stay) return;
+    halt();
+    reach(ACAD).then(function (ok) {
+      if (!ok) { try { sessionStorage.setItem(STAY, '1'); } catch (e) {} location.reload(); return; }   // the academy is blocked here: open this page
+      if (location.hash.indexOf(TAG) === 0) location.replace(ACAD + page + location.hash);
+      else send(ACAD, hash);
+    });
+    return;
+  }
+
+  if (location.hash.indexOf(TAG) === 0) {                         // data arriving at the academy: unpack once per source, then reload clean
     halt();
     var rest = location.hash.slice(TAG.length), dot = rest.indexOf('.');
     var p = dot < 0 ? rest : rest.slice(0, dot), orig = dot < 0 ? '' : decodeURIComponent(rest.slice(dot + 1));
+    var key = FLAG; if (p.charAt(0) === 'o') { key = FLAG + '_old'; p = p.slice(1); }
     var done = function () {
       history.replaceState(null, '', page + (orig ? '#' + orig : ''));
       location.reload();
     };
-    if (!ls || ls.getItem(FLAG) === 'done') { done(); return; }
-    unpack(p).then(merge).catch(function () {}).then(function () { try { ls.setItem(FLAG, 'done'); } catch (e) {} done(); });
-    return;
-  }
-  if (role === 'new' && asked) {                                  // musictheoryacademy.org asks: send ours, or pass the ask to the old address first
-    if (ls && ls.getItem(FLAG) !== null) { send(ACAD, hash); return; }
-    halt();
-    reach(OLD).then(function (ok) { if (ok) location.replace(OLD + page + location.hash); else send(ACAD, hash); });
-    return;
-  }
-  if (role === 'new' && ls && ls.getItem(FLAG) === null) {       // musictheorygames.org, first visit in this browser: ask the old address once
-    try { ls.setItem(FLAG, 'asked'); } catch (e) { return; }
-    halt();
-    reach(OLD).then(function (ok) {
-      if (ok) location.replace(OLD + page + location.hash);
-      else { try { ls.setItem(FLAG, 'blocked'); } catch (e) {} location.reload(); }   // the other address is blocked here: just open the page
-    });
+    if (!ls || ls.getItem(key) === 'done') { done(); return; }
+    unpack(p).then(merge).catch(function () {}).then(function () { try { ls.setItem(key, 'done'); } catch (e) {} done(); });
   }
 })();
 </script>
