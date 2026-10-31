@@ -356,7 +356,7 @@
   @media (max-width: 760px) {
     .genius-ring { margin-top: 24px; padding: 18px 16px 16px; }
     .genius-ring::before { padding: 7px; }
-    .genius { position: static; transform: none; white-space: normal; flex-wrap: wrap; justify-content: center; margin: -40px auto 18px; max-width: 100%; }
+    .genius { position: static; transform: none; white-space: normal; flex-wrap: wrap; justify-content: center; margin: 0 auto 18px; max-width: 100%; }
     .genius .lb { border-left: 0; padding-left: 0; }
   }
   /* Critical Listening Lab: a smaller graffiti banner under the theory games (its own look on purpose) */
@@ -1444,7 +1444,7 @@ render(); refreshClass(); tipIds();
     var s = stats();
     boxes.forEach(function(b){
       if (!s) {
-        b.innerHTML = '<span aria-hidden="true">⏱</span><span>Sign in to track your time</span>';
+        b.innerHTML = '<span aria-hidden="true">⏱</span><span class="mtgtm-full">Sign in to track your time</span><span class="mtgtm-short">Track your time</span>';
         b.setAttribute('aria-label', 'Sign in to track your practice time');
         return;
       }

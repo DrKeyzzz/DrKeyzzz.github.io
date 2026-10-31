@@ -1330,7 +1330,7 @@ boot();
     var s = stats();
     boxes.forEach(function(b){
       if (!s) {
-        b.innerHTML = '<span aria-hidden="true">⏱</span><span>Sign in to track your time</span>';
+        b.innerHTML = '<span aria-hidden="true">⏱</span><span class="mtgtm-full">Sign in to track your time</span><span class="mtgtm-short">Track your time</span>';
         b.setAttribute('aria-label', 'Sign in to track your practice time');
         return;
       }
