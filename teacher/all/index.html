@@ -417,6 +417,7 @@
           <button type="button" data-v="messages" aria-pressed="false">Messages<span class="rq" id="msgcount" hidden></span></button>
           <button type="button" data-v="board" aria-pressed="false">Board<span class="nb" id="boardcount" hidden></span></button>
           <button type="button" data-v="admin" aria-pressed="false" hidden>Admin<span class="rq" id="rqcount" hidden></span></button>
+          <button type="button" data-v="activity" aria-pressed="false" hidden>Activity</button>
         </div>
         <span class="grow"></span>
         <button class="btn ghost sm" type="button" id="csv">Download CSV</button>
@@ -434,6 +435,12 @@
           <button class="btn ghost sm" type="button" id="tdel">Delete test</button>
         </div>
         <p class="note" id="tmeta"></p>
+      </div>
+      <div id="actbox" class="opts" style="margin-top:14px" hidden>
+        <label class="f" for="actwho">Who<select id="actwho"><option value="">Everyone</option><option value="in">Signed in</option><option value="guest">Guests</option></select></label>
+        <label class="f" for="actdev">Device<select id="actdev"><option value="">Any</option><option value="Phone">Phones</option><option value="Tablet">Tablets</option><option value="Computer">Computers</option></select></label>
+        <button class="btn ghost sm" type="button" id="actclean" title="Delete activity records older than 30 days">Clean up (older than 30 days)</button>
+        <span id="actmsg" class="note"></span>
       </div>
       <div id="adminacc" class="access" hidden></div>
       <div id="adminsum" hidden></div>
@@ -492,7 +499,8 @@ const GAMES = [
   { id: 'listen', name: 'Critical Listening Lab', color: '#ff5fd2', prog: 'listening_progress', scores: 'listening_scores', attempts: 'rounds', url: '../../../critical-listening-lab/' },
 ];
 const G = Object.fromEntries(GAMES.map(g => [g.id, g]));
-G.synapse = { ...G.brainwaves, name: 'Brainwaves' };   // Brainwaves tests are saved under its Sharp or Flat? game
+G.synapse = { ...G.brainwaves, name: 'Brainwaves' };
+G.genius = { id: 'genius', name: 'Super Genius', color: '#ffd257' };   // Activity tab only (Super Genius keeps no class records)   // Brainwaves tests are saved under its Sharp or Flat? game
 // Brainwaves keeps one score collection per brain area
 const BW_NAME = { synapse: 'Sharp or Flat?', intervals: 'Intervals', chords: 'Chord Colors', progressions: 'Progressions', scales: 'Scales and modes', voice: 'Pick a Voice', tuner: 'Tuner', pitch: 'Perfect Pitch' };
 const BW_COL = { synapse_scores: 'Sharp or Flat?', intervals_scores: 'Intervals', chords_scores: 'Chord Colors', progressions_scores: 'Progressions', scales_scores: 'Scales and modes', pitch_scores: 'Perfect Pitch' };
@@ -749,7 +757,10 @@ function sample() {
   T.forEach((t, i) => fbs.push({ id: 'f' + i, game: ['tidal', 'rooftop', 'rooftop', 'scale'][i], name: names[i], code: 'PREVW', text: t, dateMs: Date.now() - i * 86400000 * 1.3 }));
   const testList = [{ id: 'T1', class_code: 'PREVW', closes_at: new Date(Date.now() + 2 * 86400000), name: 'Unit 3 scales quiz', game: 'scale', grade: 'acc', tries: 0, open: true }, { id: 'T2', class_code: 'PREVW', opens_at: new Date(Date.now() + 5 * 86400000), name: 'Final scales test', game: 'scale', grade: 'acc', tries: 1, open: false }];
   const tests = names.filter((_, i) => i !== 5).map((n, i) => ({ id: 'r' + i, game: 'scale', name: n, best: 60 + Math.floor(rnd() * 40), unit: '%', acc: 0, tries: 1 + Math.floor(rnd() * 4), dateMs: Date.now() - Math.floor(rnd() * 5) * 86400000 })); tests.forEach(t => { t.acc = t.best; });
-  return { prog, scores, fbs, tests, testList };
+  const devs = ['Phone · iPhone · Safari · 390px', 'Computer · Chromebook · Chrome · 1366px', 'Tablet · iPad · Safari · 820px', 'Computer · Windows · Edge · 1536px', 'Phone · Android · Chrome · 412px'];
+  const gids = ['tidal', 'rooftop', 'rhythm', 'scale', 'earshot', 'brainwaves', 'genius'];
+  const activity = Array.from({ length: 24 }, (_, i) => { const g = rnd() < .3; return { id: 'a' + i, dateMs: Date.now() - Math.round(i * 47 * 60000 * (1 + rnd())), name: g ? 'Guest' : names[i % names.length], guest: g, class_code: g ? '' : 'PREVW', game: gids[Math.floor(rnd() * gids.length)], device: devs[Math.floor(rnd() * devs.length)] }; });
+  return { prog, scores, fbs, tests, testList, activity };
 }
 let SAMPLE = null;
 
@@ -776,6 +787,10 @@ const COLS = {
     { k: 'students', h: 'Students', t: 'n', num: 1 }, { k: 'days', h: 'Days used', t: 'n', num: 1 }, { k: 'minutes', h: 'Minutes', t: 'n', num: 1, f: r => r.minutes == null ? '<span style="color:var(--muted)" title="Earshot Saloon does not record minutes">–</span>' : esc(r.minutes) },
     { k: 'attempts', h: 'Answers', t: 'n', num: 1 }, { k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) }, { k: 'dateMs', h: 'Last used', t: 'n', f: r => esc(fmtDate(r.dateMs)) },
   ],
+  activity: [
+    { k: 'dateMs', h: 'Time', t: 'n', f: r => esc(fmtDate(r.dateMs)) }, { k: 'name', h: 'Who', t: 's', f: r => r.guest ? '<span style="color:var(--muted)">Guest</span>' : esc(r.name) },
+    { k: 'class_code', h: 'Class', t: 's', f: r => r.class_code ? esc(r.class_code) : '<span style="color:var(--muted)">–</span>' }, { k: 'game', h: 'Game', t: 'g' }, { k: 'device', h: 'Device', t: 's' },
+  ],
   feedback: [
     { k: 'dateMs', h: 'Date', t: 'n', f: r => esc(fmtDate(r.dateMs)) }, { k: 'name', h: 'Student', t: 's', f: r => esc(r.name || 'Guest') }, { k: 'game', h: 'Game', t: 'g' },
     { k: 'text', h: 'Feedback', t: 's', cls: 'fbtext' }, { k: 'x', h: '', t: 'x' },
@@ -783,7 +798,7 @@ const COLS = {
 };
 COLS.grades = [{ k: 'name', h: 'Student', t: 's' }];   // filled in by loadGrades from the class's assignment
 const TEST_COLS = COLS.tests;   // one test's results; the All tests overview and grade book swap in their own columns
-const DEFAULT_SORT = { grades: { k: 'name', dir: 1 }, progress: { k: 'dateMs', dir: -1 }, scores: { k: 'score', dir: -1 }, tests: { k: 'best', dir: -1 }, admin: { k: 'minutes', dir: -1 }, feedback: { k: 'dateMs', dir: -1 } };
+const DEFAULT_SORT = { grades: { k: 'name', dir: 1 }, progress: { k: 'dateMs', dir: -1 }, scores: { k: 'score', dir: -1 }, tests: { k: 'best', dir: -1 }, admin: { k: 'minutes', dir: -1 }, activity: { k: 'dateMs', dir: -1 }, feedback: { k: 'dateMs', dir: -1 } };
 function accCell(a) { return a == null ? '<span style="color:var(--muted)">–</span>' : `<span class="${a < 60 ? 'low' : a >= 85 ? 'good' : ''}">${a}%</span>`; }
 function cellText(c, r) {
   if (c.k === 'game') { const g = G[r.game]; return g ? `<span class="dot" style="background:${g.color}"></span>${esc(g.name)}` : esc(r.game); }
@@ -795,6 +810,7 @@ function cellText(c, r) {
 // ---------- render ----------
 function visible() {
   let rows = S.rows.filter(r => S.view === 'grades' || S.game === 'all' || r.game === S.game);
+  if (S.view === 'activity') { const w = $('actwho').value, d = $('actdev').value; rows = rows.filter(r => (!w || (w === 'guest') === r.guest) && (!d || r.device.startsWith(d))); }
   const st = S.sort[S.view] || DEFAULT_SORT[S.view]; const col = COLS[S.view].find(c => c.k === st.k) || COLS[S.view][0];
   const val = r => { const v = r[col.k]; if (col.t === 'g') return G[r.game] ? G[r.game].name : ''; if (col.t === 'n') return v == null ? -Infinity : v; return String(v ?? '').toLowerCase(); };
   rows = rows.slice().sort((a, b) => {
@@ -806,18 +822,19 @@ function visible() {
   return rows;
 }
 function render() {
-  syncLive();
+  syncLive(); syncAct();
   const g = G[S.game]; document.documentElement.style.setProperty('--gc', g.color);
   document.querySelectorAll('.gt').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.g === S.game)));
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (S.view === 'newtest' && b.dataset.v === 'tests') || (S.view === 'assign' && b.dataset.v === 'grades'))));
   const social = S.view === 'messages' || S.view === 'board';
   $('msgview').hidden = S.view !== 'messages'; $('boardview').hidden = S.view !== 'board'; document.querySelector('footer').hidden = social; $('games').hidden = social; syncHash();
   if (social) {
-    ['upbox', 'adminsum', 'adminacc', 'data', 'gradebar', 'gradelist', 'gradelist2', 'assignbox', 'testsbox', 'newtestbox', 'csv'].forEach(id => { $(id).hidden = true; });
+    ['upbox', 'actbox', 'adminsum', 'adminacc', 'data', 'gradebar', 'gradelist', 'gradelist2', 'assignbox', 'testsbox', 'newtestbox', 'csv'].forEach(id => { $(id).hidden = true; });
     $('cls').closest('label').hidden = true; $('rng').closest('label').hidden = true;
     return S.view === 'messages' ? renderMessages() : renderBoard();
   }
-  const asg = S.view === 'assign', nt = S.view === 'newtest', ts = S.view === 'tests', ad = S.view === 'admin';
+  const asg = S.view === 'assign', nt = S.view === 'newtest', ts = S.view === 'tests', ad = S.view === 'admin', av = S.view === 'activity';
+  $('actbox').hidden = !av || PV_TEACHER;
   if (!ad) S.teacher = '';
   const tpg = ad && !!S.teacher;
   $('upbox').hidden = !ts; $('adminsum').hidden = !ad; $('adminacc').hidden = !ad || tpg; $('devfix').hidden = !ad || tpg || PREVIEW;
@@ -825,7 +842,7 @@ function render() {
   $('gradelist').hidden = $('gradelist2').hidden = $('gradebar').hidden = !gv;
   if (gv) { $('aout').closest('label').hidden = !S.gradeA; if (S.gradeA) $('aout').value = aOut(S.classes.find(x => x.code === S.code), S.gradeA); }
   $('data').hidden = asg || nt || tpg || (gv && !S.gradeA); $('assignbox').hidden = !asg; $('testsbox').hidden = !ts; $('newtestbox').hidden = !nt; $('csv').hidden = asg || nt || tpg || (gv && !S.gradeA);
-  $('cls').closest('label').hidden = asg || ad; $('rng').closest('label').hidden = asg || nt || ts;
+  $('cls').closest('label').hidden = asg || ad || av; $('rng').closest('label').hidden = asg || nt || ts;
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (nt && b.dataset.v === 'tests') || (asg && b.dataset.v === 'grades'))));
   if (asg) { showAssign(); return; }
   if (nt) { showNewTest(); return; }
@@ -836,7 +853,7 @@ function render() {
     : `<tr><td class="empty" colspan="${cols.length}">${S.loading ? 'Loading…' : 'Nothing here yet for this class and time.'}</td></tr>`;
   $('tbl').innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
   if (ad) { renderAdminSum(); renderAccess(); }
-  const label = { progress: 'practice records', scores: 'scores', feedback: 'notes', tests: 'students with a result', admin: 'teacher and game rows' }[S.view];
+  const label = { activity: rows.length === 1 ? 'game visit' : 'game visits', progress: 'practice records', scores: 'scores', feedback: 'notes', tests: 'students with a result', admin: 'teacher and game rows' }[S.view];
   $('count').textContent = S.loading && !rows.length ? '' : S.view === 'tests' ? testSummary(rows) : S.view === 'grades' ? `${rows.length} student${rows.length === 1 ? '' : 's'} practiced for this assignment` : rows.length + ' ' + label + (S.game === 'all' ? ' across all games' : ' in ' + g.name);
   $('note').textContent = S.view === 'grades' ? 'Grade = how much of each task is done (each capped at 100%), averaged. Points = that grade out of the assignment\'s "Grade out of" (10 unless you change it), rounded down, for your grade book. It counts all practice in that game during the dates, the same number students see on their home page. Students who have not practiced yet do not appear. Earshot Saloon tasks cannot be counted yet. Click any assignment to open or close its grades. Past assignments are kept from now on (the list starts with the assignment each class had when this was added).'
     : S.view === 'progress' && S.game === 'earshot'
@@ -844,6 +861,7 @@ function render() {
     : S.view === 'progress' ? 'One row per student per game per day. Accuracy is correct answers out of all answers.'
     : S.view === 'scores' && S.code === WORLD ? 'World: the top 50 scores in each game from every class and the world boards, all time (the time range does not apply). Details shows each score\'s class.'
     : S.view === 'tests' ? 'Best score is the highest of all tries. Grade = accuracy of the best try as points out of the test\'s "Grade out of" (20 unless you change it), e.g. 95% of 20 = 19/20. Students who have not started do not appear.'
+    : S.view === 'activity' ? 'One row each time someone opens a game and stays at least 20 seconds (once per game per browser tab). Guests have no name. Device shows phone, tablet or computer, the system, the browser and the window width. Updates live while this tab is open. Records stay until you clean them up; All time shows everything kept.'
     : S.view === 'admin' ? 'Time is student practice time recorded in each teacher\'s classes (not teacher log-ins, and not tests). Earshot Saloon records scores only, so it shows no minutes. What they practice lists the most used levels, keys, scale types, modes and time signatures in the records.' : '';
 }
 async function load() {
@@ -855,6 +873,7 @@ async function load() {
   try {
     let rows = [];
     if (S.view === 'admin') rows = await loadAdmin();
+    else if (S.view === 'activity') rows = PREVIEW ? (SAMPLE = SAMPLE || sample()).activity : act ? act.rows : [];
     else if (S.view === 'grades') { rows = S.code ? await loadGrades() : []; const out = aOut(S.classes.find(x => x.code === S.code), S.gradeA); rows = rows.map(r => ({ ...r, points: ptsOf(r.grade, out) })); }
     else if (PREVIEW) {
       SAMPLE = SAMPLE || sample();
@@ -1195,6 +1214,46 @@ function syncLive() {
   }).catch(() => {});
 }
 document.addEventListener('visibilitychange', syncLive);
+// Activity tab (admin only): a listener on activity/ for the chosen time range (newest 500), so new visits show up as they
+// happen. It runs only while the tab is open and the page is visible; each new visit costs one read.
+let act = null;   // { key, stop, rows }
+function syncAct() {
+  const n = +$('rng').value;
+  const key = S.view === 'activity' && !PREVIEW && amAdmin() && !document.hidden ? String(n) : '';
+  if ((act ? act.key : '') === key) return;
+  if (act) { act.stop(); act = null; }
+  if (!key) return;
+  const me = act = { key, stop: () => {}, rows: [] };
+  run(async ({ fs, db }) => {
+    const base = fs.collection(db, 'activity');
+    const q = n ? fs.query(base, fs.where('at', '>=', fs.Timestamp.fromMillis(Date.now() - n * 864e5)), fs.orderBy('at', 'desc'), fs.limit(500))
+      : fs.query(base, fs.orderBy('at', 'desc'), fs.limit(500));
+    const stop = fs.onSnapshot(q, snap => {
+      if (act !== me) return;
+      me.rows = snap.docs.map(d => { const r = d.data(); return { id: d.id, dateMs: toMs(r.at) || Date.now(), name: r.name || 'Guest', guest: !r.sid, class_code: r.class_code || '', game: r.game || '', device: r.device || '' }; });
+      if (S.view === 'activity') { S.rows = me.rows; render(); }
+    }, e => { if (act === me) { msg(errText(e)); act = null; } });
+    if (act === me) me.stop = stop; else stop();
+  }).catch(e => msg(errText(e)));
+}
+document.addEventListener('visibilitychange', syncAct);
+async function actClean() {
+  if (PREVIEW) { $('actmsg').textContent = 'Preview: nothing to clean up.'; return; }
+  if (!confirm('Delete every activity record older than 30 days? This cannot be undone.')) return;
+  let gone = 0; $('actclean').disabled = true; $('actmsg').textContent = 'Cleaning up…';
+  try {
+    await run(async ({ fs, db }) => {
+      const cut = fs.Timestamp.fromMillis(Date.now() - 30 * 864e5);
+      for (;;) {
+        const snap = await fs.getDocs(fs.query(fs.collection(db, 'activity'), fs.where('at', '<', cut), fs.limit(400)));
+        if (snap.empty) break;
+        const b = fs.writeBatch(db); snap.docs.forEach(d => b.delete(d.ref)); await b.commit(); gone += snap.size;
+      }
+    });
+    $('actmsg').textContent = gone ? `Deleted ${gone} old record${gone === 1 ? '' : 's'}.` : 'Nothing older than 30 days.';
+  } catch (e) { $('actmsg').textContent = errText(e); }
+  $('actclean').disabled = false;
+}
 function renderTestsBox() {
   $('tsel').innerHTML = (S.tests.length ? Object.entries(TEST_MODES).map(([v, h]) => `<option value="${v}">${h}</option>`).join('') : '') + (S.tests.length ? S.tests.map(t => `<option value="${esc(t.id)}">${tstate(t) === 'open' ? '● RUNNING' : tstate(t) === 'scheduled' ? 'UPCOMING' : tstate(t) === 'ended' ? 'ENDED' : 'OFF'} · ${esc(t.name)} ${t.created_at ? '· ' + esc(fmtWhen(t.created_at)) : ''}</option>`).join('') : '<option value="">No tests yet</option>');
   $('tsel').value = S.testId; $('tsel').disabled = !S.tests.length;
@@ -1835,6 +1894,7 @@ function wire() {
     }
   };
   $('csv').onclick = csv;
+  $('actwho').onchange = $('actdev').onchange = render; $('actclean').onclick = actClean;
   $('anew').onclick = () => { S.view = 'assign'; msg(''); load(); };
   $('aback').onclick = () => { S.view = 'grades'; load(); };
   $('aout').onchange = async () => {
@@ -1932,7 +1992,7 @@ async function signedIn(email) {
   try { ok = await isTeacherEmail(email); } catch (e) { return signInScreen(errText(e)); }
   if (!ok) return joinScreen(email);
   S.email = email; $('who').innerHTML = `Signed in as <b>${esc(email)}</b>`;
-  $('views').querySelector('[data-v=admin]').hidden = !ADMIN_EMAILS.includes(email);
+  $('views').querySelector('[data-v=admin]').hidden = $('views').querySelector('[data-v=activity]').hidden = !ADMIN_EMAILS.includes(email);
   $('gate').hidden = true; $('main').hidden = false;
   if (ADMIN_EMAILS.includes(email)) { checkRequests(); setInterval(() => { if (!document.hidden) checkRequests(); }, 120000); }
   if (hashView()) S.view = hashView();
@@ -1965,7 +2025,7 @@ async function start() {
   wire();
   if (PREVIEW) {
     S.email = PV_TEACHER ? 'r.kim@sample' : 'sample@preview';
-    $('gate').hidden = true; $('main').hidden = false; $('who').innerHTML = `Signed in as <b>${S.email}</b>`; $('views').querySelector('[data-v=admin]').hidden = PV_TEACHER;
+    $('gate').hidden = true; $('main').hidden = false; $('who').innerHTML = `Signed in as <b>${S.email}</b>`; $('views').querySelector('[data-v=admin]').hidden = $('views').querySelector('[data-v=activity]').hidden = PV_TEACHER;
     $('main').insertAdjacentHTML('afterbegin', `<div class="pv">Preview with sample ${PV_TEACHER ? 'data, seen by a teacher (Ron Kim)' : 'students'}. Nothing here is real.</div>`); if (!PV_TEACHER) checkRequests();
     if (hashView()) S.view = hashView();
     startSocial();
