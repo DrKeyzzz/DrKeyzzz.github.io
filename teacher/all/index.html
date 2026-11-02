@@ -437,6 +437,7 @@
         <p class="note" id="tmeta"></p>
       </div>
       <div id="actbox" class="opts" style="margin-top:14px" hidden>
+        <label class="f" for="actby">Show<select id="actby"><option value="visit">Each visit</option><option value="player">By player</option></select></label>
         <label class="f" for="actwho">Who<select id="actwho"><option value="">Everyone</option><option value="in">Signed in</option><option value="guest">Guests</option></select></label>
         <label class="f" for="actdev">Device<select id="actdev"><option value="">Any</option><option value="Phone">Phones</option><option value="Tablet">Tablets</option><option value="Computer">Computers</option></select></label>
         <button class="btn ghost sm" type="button" id="actclean" title="Delete activity records older than 30 days">Clean up (older than 30 days)</button>
@@ -759,7 +760,10 @@ function sample() {
   const tests = names.filter((_, i) => i !== 5).map((n, i) => ({ id: 'r' + i, game: 'scale', name: n, best: 60 + Math.floor(rnd() * 40), unit: '%', acc: 0, tries: 1 + Math.floor(rnd() * 4), dateMs: Date.now() - Math.floor(rnd() * 5) * 86400000 })); tests.forEach(t => { t.acc = t.best; });
   const devs = ['Phone · iPhone · Safari · 390px', 'Computer · Chromebook · Chrome · 1366px', 'Tablet · iPad · Safari · 820px', 'Computer · Windows · Edge · 1536px', 'Phone · Android · Chrome · 412px'];
   const gids = ['tidal', 'rooftop', 'rhythm', 'scale', 'earshot', 'brainwaves', 'genius'];
-  const activity = Array.from({ length: 24 }, (_, i) => { const g = rnd() < .3; return { id: 'a' + i, dateMs: Date.now() - Math.round(i * 47 * 60000 * (1 + rnd())), name: g ? 'Guest' : names[i % names.length], guest: g, class_code: g ? '' : 'PREVW', game: gids[Math.floor(rnd() * gids.length)], device: devs[Math.floor(rnd() * devs.length)] }; });
+  const activity = Array.from({ length: 24 }, (_, i) => { const g = rnd() < .3; const dateMs = Date.now() - Math.round(i * 47 * 60000 * (1 + rnd())), page_s = Math.round(60 + rnd() * 1500), answers = Math.round(page_s / (4 + rnd() * 6)), correct = Math.round(answers * (.55 + rnd() * .43)), gid = gids[Math.floor(rnd() * gids.length)];
+    return { id: 'a' + i, dateMs, seenMs: i < 2 ? Date.now() - 60000 : dateMs + page_s * 1000, name: g ? 'Guest' : names[i % names.length], guest: g, class_code: g ? '' : 'PREVW', game: gid, device: devs[Math.floor(rnd() * devs.length)],
+      page_s, play_s: Math.round(page_s * (.5 + rnd() * .4)), answers: gid === 'genius' ? 0 : answers, correct: gid === 'genius' ? 0 : correct, acc: gid === 'genius' || !answers ? null : Math.round(100 * correct / answers),
+      rounds: gid === 'genius' ? 0 : Math.round(rnd() * 5), best: gid === 'genius' ? 0 : Math.round(rnd() * 4000), level: gid === 'genius' || gid === 'rhythm' ? 0 : 1 + Math.floor(rnd() * 8) }; });
   return { prog, scores, fbs, tests, testList, activity };
 }
 let SAMPLE = null;
@@ -787,15 +791,44 @@ const COLS = {
     { k: 'students', h: 'Students', t: 'n', num: 1 }, { k: 'days', h: 'Days used', t: 'n', num: 1 }, { k: 'minutes', h: 'Minutes', t: 'n', num: 1, f: r => r.minutes == null ? '<span style="color:var(--muted)" title="Earshot Saloon does not record minutes">–</span>' : esc(r.minutes) },
     { k: 'attempts', h: 'Answers', t: 'n', num: 1 }, { k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) }, { k: 'dateMs', h: 'Last used', t: 'n', f: r => esc(fmtDate(r.dateMs)) },
   ],
-  activity: [
-    { k: 'dateMs', h: 'Time', t: 'n', f: r => esc(fmtDate(r.dateMs)) }, { k: 'name', h: 'Who', t: 's', f: r => r.guest ? '<span style="color:var(--muted)">Guest</span>' : esc(r.name) },
-    { k: 'class_code', h: 'Class', t: 's', f: r => r.class_code ? esc(r.class_code) : '<span style="color:var(--muted)">–</span>' }, { k: 'game', h: 'Game', t: 'g' }, { k: 'device', h: 'Device', t: 's' },
-  ],
+  activity: [],   // ACT_VISIT_COLS or ACT_PLAYER_COLS, picked in render()
   feedback: [
     { k: 'dateMs', h: 'Date', t: 'n', f: r => esc(fmtDate(r.dateMs)) }, { k: 'name', h: 'Student', t: 's', f: r => esc(r.name || 'Guest') }, { k: 'game', h: 'Game', t: 'g' },
     { k: 'text', h: 'Feedback', t: 's', cls: 'fbtext' }, { k: 'x', h: '', t: 'x' },
   ],
 };
+// Activity tab: one row per visit, or one row per player (totals for the time range)
+const ACT_FAR = { tidal: 'Level', rooftop: 'Level', earshot: 'Town', brainwaves: 'Floor', scale: 'Keys' };
+const actMin = s => s == null ? '<span style="color:var(--muted)">–</span>' : s < 60 ? '&lt;1 min' : `${Math.round(s / 60)} min`;
+const actAns = r => r.answers == null ? '<span style="color:var(--muted)">–</span>' : r.answers ? `${esc(r.answers)} · ${accCell(r.acc)}` : '0';
+const actLive = r => r.seenMs && Date.now() - r.seenMs < 210000;   // updated in the last 3½ minutes (the page sends every 3)
+const ACT_VISIT_COLS = [
+  { k: 'dateMs', h: 'Started', t: 'n', f: r => esc(fmtDate(r.dateMs)) }, { k: 'name', h: 'Who', t: 's', f: r => r.guest ? '<span style="color:var(--muted)">Guest</span>' : esc(r.name) },
+  { k: 'class_code', h: 'Class', t: 's', f: r => r.class_code ? esc(r.class_code) : '<span style="color:var(--muted)">–</span>' }, { k: 'game', h: 'Game', t: 'g' },
+  { k: 'page_s', h: 'On screen', t: 'n', num: 1, f: r => actMin(r.page_s) }, { k: 'play_s', h: 'Playing', t: 'n', num: 1, f: r => actMin(r.play_s) },
+  { k: 'answers', h: 'Answers', t: 'n', num: 1, f: actAns }, { k: 'rounds', h: 'Rounds', t: 'n', num: 1, f: r => r.rounds == null ? '<span style="color:var(--muted)">–</span>' : esc(r.rounds) },
+  { k: 'best', h: 'Best score', t: 'n', num: 1, f: r => r.best ? esc(r.best.toLocaleString()) : '<span style="color:var(--muted)">–</span>' },
+  { k: 'level', h: 'Furthest', t: 'n', num: 1, f: r => r.level && ACT_FAR[r.game] ? esc(ACT_FAR[r.game] + ' ' + r.level) : '<span style="color:var(--muted)">–</span>' },
+  { k: 'seenMs', h: 'Status', t: 'n', f: r => actLive(r) ? '<b style="color:#2fbf71">● Playing now</b>' : r.seenMs ? `<span style="color:var(--muted)">Left ${esc(fmtDate(r.seenMs).split(', ').pop())}</span>` : '' },
+  { k: 'device', h: 'Device', t: 's' },
+];
+const ACT_PLAYER_COLS = [
+  { k: 'name', h: 'Who', t: 's', f: r => r.guest ? '<span style="color:var(--muted)">All guests</span>' : esc(r.name) },
+  { k: 'class_code', h: 'Class', t: 's', f: r => r.class_code ? esc(r.class_code) : '<span style="color:var(--muted)">–</span>' },
+  { k: 'visits', h: 'Visits', t: 'n', num: 1 }, { k: 'page_s', h: 'On screen', t: 'n', num: 1, f: r => actMin(r.page_s) }, { k: 'play_s', h: 'Playing', t: 'n', num: 1, f: r => actMin(r.play_s) },
+  { k: 'answers', h: 'Answers', t: 'n', num: 1, f: actAns }, { k: 'gamesTxt', h: 'Games', t: 's' },
+  { k: 'dateMs', h: 'Last seen', t: 'n', f: r => actLive(r) ? '<b style="color:#2fbf71">● Playing now</b>' : esc(fmtDate(r.dateMs)) },
+];
+function actPlayers(rows) {
+  const by = {};
+  rows.forEach(r => {
+    const k = r.guest ? 'guest' : r.name + '|' + r.class_code;
+    const p = by[k] || (by[k] = { name: r.guest ? 'Guests' : r.name, guest: r.guest, class_code: r.guest ? '' : r.class_code, visits: 0, page_s: 0, play_s: 0, answers: 0, correct: 0, games: new Set(), dateMs: 0, seenMs: 0 });
+    p.visits++; p.page_s += r.page_s || 0; p.play_s += r.play_s || 0; p.answers += r.answers || 0; p.correct += r.correct || 0; p.games.add(r.game);
+    p.dateMs = Math.max(p.dateMs, r.seenMs || r.dateMs); p.seenMs = Math.max(p.seenMs, r.seenMs || 0);
+  });
+  return Object.values(by).map(p => ({ ...p, acc: p.answers ? Math.round(100 * p.correct / p.answers) : null, gamesTxt: [...p.games].map(g => (G[g] || {}).name || g).join(', ') }));
+}
 COLS.grades = [{ k: 'name', h: 'Student', t: 's' }];   // filled in by loadGrades from the class's assignment
 const TEST_COLS = COLS.tests;   // one test's results; the All tests overview and grade book swap in their own columns
 const DEFAULT_SORT = { grades: { k: 'name', dir: 1 }, progress: { k: 'dateMs', dir: -1 }, scores: { k: 'score', dir: -1 }, tests: { k: 'best', dir: -1 }, admin: { k: 'minutes', dir: -1 }, activity: { k: 'dateMs', dir: -1 }, feedback: { k: 'dateMs', dir: -1 } };
@@ -810,7 +843,7 @@ function cellText(c, r) {
 // ---------- render ----------
 function visible() {
   let rows = S.rows.filter(r => S.view === 'grades' || S.game === 'all' || r.game === S.game);
-  if (S.view === 'activity') { const w = $('actwho').value, d = $('actdev').value; rows = rows.filter(r => (!w || (w === 'guest') === r.guest) && (!d || r.device.startsWith(d))); }
+  if (S.view === 'activity') { const w = $('actwho').value, d = $('actdev').value; rows = rows.filter(r => (!w || (w === 'guest') === r.guest) && (!d || r.device.startsWith(d))); if ($('actby').value === 'player') rows = actPlayers(rows); }
   const st = S.sort[S.view] || DEFAULT_SORT[S.view]; const col = COLS[S.view].find(c => c.k === st.k) || COLS[S.view][0];
   const val = r => { const v = r[col.k]; if (col.t === 'g') return G[r.game] ? G[r.game].name : ''; if (col.t === 'n') return v == null ? -Infinity : v; return String(v ?? '').toLowerCase(); };
   rows = rows.slice().sort((a, b) => {
@@ -835,6 +868,7 @@ function render() {
   }
   const asg = S.view === 'assign', nt = S.view === 'newtest', ts = S.view === 'tests', ad = S.view === 'admin', av = S.view === 'activity';
   $('actbox').hidden = !av || PV_TEACHER;
+  if (av) COLS.activity = $('actby').value === 'player' ? ACT_PLAYER_COLS : ACT_VISIT_COLS;
   if (!ad) S.teacher = '';
   const tpg = ad && !!S.teacher;
   $('upbox').hidden = !ts; $('adminsum').hidden = !ad; $('adminacc').hidden = !ad || tpg; $('devfix').hidden = !ad || tpg || PREVIEW;
@@ -853,7 +887,7 @@ function render() {
     : `<tr><td class="empty" colspan="${cols.length}">${S.loading ? 'Loading…' : 'Nothing here yet for this class and time.'}</td></tr>`;
   $('tbl').innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
   if (ad) { renderAdminSum(); renderAccess(); }
-  const label = { activity: rows.length === 1 ? 'game visit' : 'game visits', progress: 'practice records', scores: 'scores', feedback: 'notes', tests: 'students with a result', admin: 'teacher and game rows' }[S.view];
+  const label = { activity: $('actby').value === 'player' ? (rows.length === 1 ? 'player' : 'players') : rows.length === 1 ? 'game visit' : 'game visits', progress: 'practice records', scores: 'scores', feedback: 'notes', tests: 'students with a result', admin: 'teacher and game rows' }[S.view];
   $('count').textContent = S.loading && !rows.length ? '' : S.view === 'tests' ? testSummary(rows) : S.view === 'grades' ? `${rows.length} student${rows.length === 1 ? '' : 's'} practiced for this assignment` : rows.length + ' ' + label + (S.game === 'all' ? ' across all games' : ' in ' + g.name);
   $('note').textContent = S.view === 'grades' ? 'Grade = how much of each task is done (each capped at 100%), averaged. Points = that grade out of the assignment\'s "Grade out of" (10 unless you change it), rounded down, for your grade book. It counts all practice in that game during the dates, the same number students see on their home page. Students who have not practiced yet do not appear. Earshot Saloon tasks cannot be counted yet. Click any assignment to open or close its grades. Past assignments are kept from now on (the list starts with the assignment each class had when this was added).'
     : S.view === 'progress' && S.game === 'earshot'
@@ -861,7 +895,7 @@ function render() {
     : S.view === 'progress' ? 'One row per student per game per day. Accuracy is correct answers out of all answers.'
     : S.view === 'scores' && S.code === WORLD ? 'World: the top 50 scores in each game from every class and the world boards, all time (the time range does not apply). Details shows each score\'s class.'
     : S.view === 'tests' ? 'Best score is the highest of all tries. Grade = accuracy of the best try as points out of the test\'s "Grade out of" (20 unless you change it), e.g. 95% of 20 = 19/20. Students who have not started do not appear.'
-    : S.view === 'activity' ? 'One row each time someone opens a game and stays at least 20 seconds (once per game per browser tab). Guests have no name. Device shows phone, tablet or computer, the system, the browser and the window width. Updates live while this tab is open. Records stay until you clean them up; All time shows everything kept.'
+    : S.view === 'activity' ? 'One row each time someone opens a game and stays at least 20 seconds (once per game per browser tab). On screen = time the game was open and visible; Playing = time spent answering (pauses over 2 minutes don\'t count). Furthest = the highest level, town, floor or number of keys reached. A visit updates every 3 minutes and when the player leaves, so Playing now means seen in the last few minutes. By player adds up each person\'s visits for the time range (all guests share one row). Super Genius shows time only. Visits before Nov 2 have no time or answers. Records stay until you clean them up.'
     : S.view === 'admin' ? 'Time is student practice time recorded in each teacher\'s classes (not teacher log-ins, and not tests). Earshot Saloon records scores only, so it shows no minutes. What they practice lists the most used levels, keys, scale types, modes and time signatures in the records.' : '';
 }
 async function load() {
@@ -1230,7 +1264,10 @@ function syncAct() {
       : fs.query(base, fs.orderBy('at', 'desc'), fs.limit(500));
     const stop = fs.onSnapshot(q, snap => {
       if (act !== me) return;
-      me.rows = snap.docs.map(d => { const r = d.data(); return { id: d.id, dateMs: toMs(r.at) || Date.now(), name: r.name || 'Guest', guest: !r.sid, class_code: r.class_code || '', game: r.game || '', device: r.device || '' }; });
+      me.rows = snap.docs.map(d => { const r = d.data(), has = 'page_s' in r;   // records from before 2026-11-02 have no counters
+        return { id: d.id, dateMs: toMs(r.at) || Date.now(), seenMs: toMs(r.seen), name: r.name || 'Guest', guest: !r.sid, class_code: r.class_code || '', game: r.game || '', device: r.device || '',
+          answers: has ? num(r.answers) : null, correct: num(r.correct), acc: num(r.answers) ? Math.round(100 * num(r.correct) / num(r.answers)) : null,
+          rounds: has ? num(r.rounds) : null, best: num(r.best), level: num(r.level), page_s: has ? num(r.page_s) : null, play_s: has ? num(r.play_s) : null }; });
       if (S.view === 'activity') { S.rows = me.rows; render(); }
     }, e => { if (act === me) { msg(errText(e)); act = null; } });
     if (act === me) me.stop = stop; else stop();
@@ -1894,7 +1931,8 @@ function wire() {
     }
   };
   $('csv').onclick = csv;
-  $('actwho').onchange = $('actdev').onchange = render; $('actclean').onclick = actClean;
+  $('actwho').onchange = $('actdev').onchange = $('actby').onchange = render;
+  setInterval(() => { if (S.view === 'activity' && !document.hidden) render(); }, 60000);   // keeps "Playing now" honest (no reads) $('actclean').onclick = actClean;
   $('anew').onclick = () => { S.view = 'assign'; msg(''); load(); };
   $('aback').onclick = () => { S.view = 'grades'; load(); };
   $('aout').onchange = async () => {
