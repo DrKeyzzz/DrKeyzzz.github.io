@@ -763,7 +763,9 @@ function sample() {
   const activity = Array.from({ length: 24 }, (_, i) => { const g = rnd() < .3; const dateMs = Date.now() - Math.round(i * 47 * 60000 * (1 + rnd())), page_s = Math.round(60 + rnd() * 1500), answers = Math.round(page_s / (4 + rnd() * 6)), correct = Math.round(answers * (.55 + rnd() * .43)), gid = gids[Math.floor(rnd() * gids.length)];
     return { id: 'a' + i, dateMs, seenMs: i < 2 ? Date.now() - 60000 : dateMs + page_s * 1000, name: g ? 'Guest' : names[i % names.length], guest: g, class_code: g ? '' : 'PREVW', game: gid, device: devs[Math.floor(rnd() * devs.length)],
       page_s, play_s: Math.round(page_s * (.5 + rnd() * .4)), answers: gid === 'genius' ? 0 : answers, correct: gid === 'genius' ? 0 : correct, acc: gid === 'genius' || !answers ? null : Math.round(100 * correct / answers),
-      rounds: gid === 'genius' ? 0 : Math.round(rnd() * 5), best: gid === 'genius' ? 0 : Math.round(rnd() * 4000), level: gid === 'genius' || gid === 'rhythm' ? 0 : 1 + Math.floor(rnd() * 8) }; });
+      rounds: gid === 'genius' ? 0 : Math.round(rnd() * 5), best: gid === 'genius' ? 0 : Math.round(rnd() * 4000), level: gid === 'genius' || gid === 'rhythm' ? 0 : 1 + Math.floor(rnd() * 8),
+      parts: gid === 'brainwaves' ? Object.keys(BW_NAME).filter(() => rnd() < .3).slice(0, 3) : [] }; });
+  activity.forEach(r => { r.partsTxt = actParts(r.parts); });
   return { prog, scores, fbs, tests, testList, activity };
 }
 let SAMPLE = null;
@@ -801,10 +803,12 @@ const COLS = {
 const ACT_FAR = { tidal: 'Level', rooftop: 'Level', earshot: 'Town', brainwaves: 'Floor', scale: 'Keys' };
 const actMin = s => s == null ? '<span style="color:var(--muted)">–</span>' : s < 60 ? '&lt;1 min' : `${Math.round(s / 60)} min`;
 const actAns = r => r.answers == null ? '<span style="color:var(--muted)">–</span>' : r.answers ? `${esc(r.answers)} · ${accCell(r.acc)}` : '0';
+const actParts = ids => ids.map(a => BW_NAME[a] || a).join(', ');   // Brainwaves area ids (synapse, intervals, …) to their names
 const actLive = r => r.seenMs && Date.now() - r.seenMs < 210000;   // updated in the last 3½ minutes (the page sends every 3)
 const ACT_VISIT_COLS = [
   { k: 'dateMs', h: 'Started', t: 'n', f: r => esc(fmtDate(r.dateMs)) }, { k: 'name', h: 'Who', t: 's', f: r => r.guest ? '<span style="color:var(--muted)">Guest</span>' : esc(r.name) },
   { k: 'class_code', h: 'Class', t: 's', f: r => r.class_code ? esc(r.class_code) : '<span style="color:var(--muted)">–</span>' }, { k: 'game', h: 'Game', t: 'g' },
+  { k: 'partsTxt', h: 'Areas', t: 's', f: r => r.partsTxt ? esc(r.partsTxt) : '<span style="color:var(--muted)">–</span>' },
   { k: 'page_s', h: 'On screen', t: 'n', num: 1, f: r => actMin(r.page_s) }, { k: 'play_s', h: 'Playing', t: 'n', num: 1, f: r => actMin(r.play_s) },
   { k: 'answers', h: 'Answers', t: 'n', num: 1, f: actAns }, { k: 'rounds', h: 'Rounds', t: 'n', num: 1, f: r => r.rounds == null ? '<span style="color:var(--muted)">–</span>' : esc(r.rounds) },
   { k: 'best', h: 'Best score', t: 'n', num: 1, f: r => r.best ? esc(r.best.toLocaleString()) : '<span style="color:var(--muted)">–</span>' },
@@ -823,11 +827,12 @@ function actPlayers(rows) {
   const by = {};
   rows.forEach(r => {
     const k = r.guest ? 'guest' : r.name + '|' + r.class_code;
-    const p = by[k] || (by[k] = { name: r.guest ? 'Guests' : r.name, guest: r.guest, class_code: r.guest ? '' : r.class_code, visits: 0, page_s: 0, play_s: 0, answers: 0, correct: 0, games: new Set(), dateMs: 0, seenMs: 0 });
+    const p = by[k] || (by[k] = { name: r.guest ? 'Guests' : r.name, guest: r.guest, class_code: r.guest ? '' : r.class_code, visits: 0, page_s: 0, play_s: 0, answers: 0, correct: 0, games: new Set(), parts: {}, dateMs: 0, seenMs: 0 });
     p.visits++; p.page_s += r.page_s || 0; p.play_s += r.play_s || 0; p.answers += r.answers || 0; p.correct += r.correct || 0; p.games.add(r.game);
+    r.parts.forEach(a => { (p.parts[r.game] || (p.parts[r.game] = new Set())).add(a); });
     p.dateMs = Math.max(p.dateMs, r.seenMs || r.dateMs); p.seenMs = Math.max(p.seenMs, r.seenMs || 0);
   });
-  return Object.values(by).map(p => ({ ...p, acc: p.answers ? Math.round(100 * p.correct / p.answers) : null, gamesTxt: [...p.games].map(g => (G[g] || {}).name || g).join(', ') }));
+  return Object.values(by).map(p => ({ ...p, acc: p.answers ? Math.round(100 * p.correct / p.answers) : null, gamesTxt: [...p.games].map(g => ((G[g] || {}).name || g) + (p.parts[g] ? ` (${actParts([...p.parts[g]])})` : '')).join(', ') }));
 }
 COLS.grades = [{ k: 'name', h: 'Student', t: 's' }];   // filled in by loadGrades from the class's assignment
 const TEST_COLS = COLS.tests;   // one test's results; the All tests overview and grade book swap in their own columns
@@ -1265,9 +1270,10 @@ function syncAct() {
     const stop = fs.onSnapshot(q, snap => {
       if (act !== me) return;
       me.rows = snap.docs.map(d => { const r = d.data(), has = 'page_s' in r;   // records from before 2026-11-02 have no counters
-        return { id: d.id, dateMs: toMs(r.at) || Date.now(), seenMs: toMs(r.seen), name: r.name || 'Guest', guest: !r.sid, class_code: r.class_code || '', game: r.game || '', device: r.device || '',
+        return { id: d.id, dateMs: toMs(r.at) || Date.now(), seenMs: toMs(r.seen), name: r.name || 'Guest', guest: !r.sid, class_code: r.class_code || '', game: r.game || '', device: r.device || '', parts: String(r.parts || '').split(',').filter(Boolean),
           answers: has ? num(r.answers) : null, correct: num(r.correct), acc: num(r.answers) ? Math.round(100 * num(r.correct) / num(r.answers)) : null,
           rounds: has ? num(r.rounds) : null, best: num(r.best), level: num(r.level), page_s: has ? num(r.page_s) : null, play_s: has ? num(r.play_s) : null }; });
+      me.rows.forEach(r => { r.partsTxt = actParts(r.parts); });
       if (S.view === 'activity') { S.rows = me.rows; render(); }
     }, e => { if (act === me) { msg(errText(e)); act = null; } });
     if (act === me) me.stop = stop; else stop();
