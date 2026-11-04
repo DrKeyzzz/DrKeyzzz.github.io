@@ -947,6 +947,11 @@ async function loadAdmin() {
     const now = Date.now(), H = 3600000;
     S.adminTeachers = [{ email: 'a.lopez@sample', name: 'Ana Lopez', school: 'Sample High School' }, { email: 'r.kim@sample', name: 'Ron Kim', school: 'Sample High School' }, { email: 'j.shaw@sample', name: 'Jo Shaw', school: 'Middle School' }, { email: 'sample@preview', name: 'Sample Teacher', school: 'Sample High School' }];
     const R = (email, name, game, students, days, minutes, attempts, acc, ago, detail) => ({ email, name, game, students, days, minutes, attempts, correct: Math.round(attempts * acc / 100), acc, dateMs: now - ago * H, detail });
+    const td = ymd(new Date()), wk = ymd(new Date(now + 6 * 864e5)), old = ymd(new Date(now - 20 * 864e5));
+    S.adminClasses = [{ code: 'PREVW', name: 'Period 3 Music Theory', owner: 'sample@preview', created: now - 40 * 864e5, students: 24, dateMs: now - 3 * H, asg: { start: td, end: wk }, tests: 1 },
+      { code: 'PREV2', name: 'Period 5 Chorus', owner: 'sample@preview', created: now - 38 * 864e5, students: 18, dateMs: now - 20 * H, asg: { start: old, end: old }, tests: 0 },
+      { code: 'LOPEZ1', name: 'Band 7', owner: 'a.lopez@sample', created: now - 12 * 864e5, students: 31, dateMs: now - 26 * H, asg: null, tests: 2 },
+      { code: 'KIMGM', name: 'General Music', owner: 'r.kim@sample', created: now - 5 * 864e5, students: 0, dateMs: 0, asg: null, tests: 0 }];
     return [R('sample@preview', 'Sample Teacher', 'scale', 24, 6, 214.5, 3120, 78, 3, 'major, minor, C, G, D'), R('sample@preview', 'Sample Teacher', 'tidal', 18, 4, 96.2, 1400, 71, 20, 'notes, intervals'), R('sample@preview', 'Sample Teacher', 'earshot', 22, 3, null, 140, 64, 30, 'medium, treble'),
       R('a.lopez@sample', 'Ana Lopez', 'rhythm', 31, 5, 141.8, 2210, 82, 26, 'easy, medium, 4/4, 3/4'), R('a.lopez@sample', 'Ana Lopez', 'rooftop', 12, 2, 38.4, 640, 69, 50, 'rhythm, keys, easy'), R('r.kim@sample', 'Ron Kim', 'tidal', 9, 1, 12.0, 180, 66, 140, 'notes')];
   }
@@ -954,7 +959,12 @@ async function loadAdmin() {
   return run(async ({ fs, db }) => {
     S.adminTeachers = (await fs.getDocs(fs.collection(db, 'teachers'))).docs.map(d => ({ email: d.id, ...d.data() }));
     try { S.blocks = (await fs.getDocs(fs.collection(db, 'teacher_blocks'))).docs.map(d => d.id); } catch { S.blocks = []; }
-    const classOwner = {}; (await fs.getDocs(fs.collection(db, 'classes'))).forEach(d => { classOwner[d.id] = String(d.data().ownerEmail || '').toLowerCase(); });
+    const classOwner = {}, cls = {};   // cls: every class for the Every class list (students and last used in the time range)
+    (await fs.getDocs(fs.collection(db, 'classes'))).forEach(d => { const c = d.data(); classOwner[d.id] = String(c.ownerEmail || '').toLowerCase();
+      cls[d.id] = { code: d.id, name: c.name || '', owner: classOwner[d.id], created: toMs(c.created_at), sids: new Set(), dateMs: 0, asg: c.hub_assignment && c.hub_assignment.start ? c.hub_assignment : null, tests: 0 }; });
+    // sid 'johnd' and a score's name 'John D.' count as one student
+    const seen = (code, who, ms) => { const c = cls[code]; if (!c) return; c.sids.add(String(who).toLowerCase().replace(/[^a-z]/g, '')); c.dateMs = Math.max(c.dateMs, ms || 0); };
+    try { (await fs.getDocs(fs.query(fs.collection(db, 'tests'), fs.where('open', '==', true)))).forEach(d => { const t = d.data(); if (cls[t.class_code] && (!t.closes_at || toMs(t.closes_at) > Date.now())) cls[t.class_code].tests++; }); } catch {}
     const agg = {}, rowOf = (owner, game) => agg[owner + '|' + game] || (agg[owner + '|' + game] = { email: owner, game, sids: new Set(), dset: new Set(), minutes: 0, attempts: 0, correct: 0, dateMs: 0, det: {} });
     for (const g of GAMES.slice(1)) {
       if (g.prog) {
@@ -965,6 +975,7 @@ async function loadAdmin() {
           const owner = String(d.owner || classOwner[d.class_code] || 'unknown').toLowerCase(), r = rowOf(owner, g.id);
           r.sids.add(d.class_code + '|' + d.sid); r.dset.add(d.date); r.minutes += num(d.minutes); r.attempts += num(d[g.attempts]); r.correct += num(d.correct);
           r.dateMs = Math.max(r.dateMs, toMs(d.last_at) || toMs(d.updated_at) || Date.parse((d.date || '') + 'T12:00:00') || 0);
+          seen(d.class_code, d.sid, toMs(d.last_at) || toMs(d.updated_at) || Date.parse((d.date || '') + 'T12:00:00') || 0);
           ['levels', 'ts', 'skills', 'types', 'by_key', 'by_game'].forEach(f => addDetail(r.det, d[f]));
           if (d.by_area) addDetail(r.det, Object.fromEntries(Object.entries(d.by_area).map(([a, x]) => [BW_NAME[a] || a, x])));
         });
@@ -976,10 +987,11 @@ async function loadAdmin() {
           const d = x.data(), ms = toMs(d.created_at), n = num(d.hands ?? d.rounds); if (cutoff && ms < cutoff) return;   // Earshot counts hands, Brainwaves rounds
           const owner = classOwner[d.class_code] || 'unknown', r = rowOf(owner, g.id);
           r.sids.add(d.class_code + '|' + String(d.name).toLowerCase()); r.dset.add(ymd(new Date(ms))); r.attempts += n; r.correct += Math.round(n * num(d.acc) / 100); r.dateMs = Math.max(r.dateMs, ms);
-          addDetail(r.det, d.diff); addDetail(r.det, d.clef);
+          seen(code, d.name, ms); addDetail(r.det, d.diff); addDetail(r.det, d.clef);
         });
       }
     }
+    S.adminClasses = Object.values(cls).map(c => ({ ...c, students: c.sids.size, sids: undefined }));
     return Object.values(agg).map(r => ({ email: r.email, game: r.game, students: r.sids.size, days: r.dset.size, minutes: r.game === 'earshot' ? null : Math.round(r.minutes * 10) / 10, attempts: r.attempts, correct: r.correct, acc: pct(r.correct, r.attempts), dateMs: r.dateMs, detail: topOf(r.det) }));
   }).then(rows => { const nm = {}; S.adminTeachers.forEach(t => { nm[String(t.email).toLowerCase()] = t.name; }); return rows.map(r => r.email === 'unknown' ? { ...r, name: 'No class (world leaderboards, or a deleted class)', email: '' } : { ...r, name: nm[r.email] || (ADMIN_EMAILS.includes(r.email) ? 'You' : r.email) }); });
 }
@@ -1047,7 +1059,23 @@ function renderAdminSum() {
   const dots = t => [...t.games].map(g => `<span class="dot" style="background:${G[g].color}" title="${esc(G[g].name)}"></span>`).join('') || '<span style="color:var(--muted)">none</span>';
   $('adminsum').innerHTML = '<h3 style="font:700 15px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px">Every teacher, most active first <span style="text-transform:none;letter-spacing:0;font-weight:400">· click a name to see their classes, assignments and tests</span></h3><div class="tw"><table class="plain"><thead><tr><th>Teacher</th><th>School</th><th class="num">Students</th><th class="num">Minutes</th><th class="num">Answers</th><th style="padding-left:18px">Games used</th><th>Last used</th></tr></thead><tbody>'
     + (list.length ? list.map(t => `<tr${t.email ? ` class="trow" data-teacher="${esc(String(t.email).toLowerCase())}"` : ''}><td>${t.email ? `<button type="button" class="tlink" data-teacher="${esc(String(t.email).toLowerCase())}"><b>${esc(t.name)}</b></button>` : esc(t.name)}${t.email && t.email !== t.name ? `<br><span style="color:var(--muted);font-size:13px">${esc(t.email)}</span>` : ''}</td><td>${esc(t.school)}</td><td class="num">${t.students}</td><td class="num">${Math.round(t.minutes * 10) / 10}</td><td class="num">${t.attempts}</td><td style="padding-left:18px">${dots(t)}</td><td>${t.dateMs ? esc(fmtDate(t.dateMs)) : '<span style="color:var(--muted)">No activity</span>'}</td></tr>`).join('') : '<tr><td class="empty" colspan="7">No teachers yet.</td></tr>')
-    + '</tbody></table></div><h3 style="font:700 15px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:22px 0 0">By teacher and game</h3>';
+    + '</tbody></table></div>' + renderClassList()
+    + '<h3 style="font:700 15px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:22px 0 0">By teacher and game</h3>';
+}
+// Every class any teacher made (added 2026-11-04): newest activity first, then newest made. Click a row for that teacher's page.
+function renderClassList() {
+  const tn = {}; (S.adminTeachers || []).forEach(t => { tn[String(t.email).toLowerCase()] = t; });
+  const today = ymd(new Date()), list = (S.adminClasses || []).slice().sort((a, b) => b.dateMs - a.dateMs || b.created - a.created);
+  const asg = a => !a ? '<span style="color:var(--muted)">None</span>' : a.end < today ? `<span style="color:var(--muted)">Past (ended ${esc(fmtDay(a.end))})</span>`
+    : a.start > today ? `<span class="st">Upcoming</span>` : `<span class="st on">Active</span> <span style="color:var(--muted)">to ${esc(fmtDay(a.end))}</span>`;
+  const row = c => { const t = tn[c.owner] || {}, nm = t.name || (ADMIN_EMAILS.includes(c.owner) ? 'You' : c.owner || 'Unknown');
+    return `<tr${c.owner ? ` class="trow" data-teacher="${esc(c.owner)}"` : ''}><td><b>${esc(c.name || c.code)}</b><br><span style="color:var(--muted);font-size:13px">${esc(c.code)}</span></td>`
+      + `<td>${esc(nm)}${t.school ? `<br><span style="color:var(--muted);font-size:13px">${esc(t.school)}</span>` : ''}</td><td class="num">${c.students}</td>`
+      + `<td>${c.dateMs ? esc(fmtDate(c.dateMs)) : '<span style="color:var(--muted)">No activity</span>'}</td><td>${asg(c.asg)}</td><td class="num">${c.tests || '<span style="color:var(--muted)">0</span>'}</td>`
+      + `<td>${c.created ? esc(new Date(c.created).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })) : ''}</td></tr>`; };
+  return `<h3 style="font:700 15px var(--f-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:22px 0 8px">Every class (${list.length}) <span style="text-transform:none;letter-spacing:0;font-weight:400">· students and last used in the time range · click a class to see its teacher</span></h3>`
+    + '<div class="tw"><table class="plain"><thead><tr><th>Class</th><th>Teacher</th><th class="num">Students</th><th>Last used</th><th>Assignment</th><th class="num">Open tests</th><th>Made</th></tr></thead><tbody>'
+    + (list.length ? list.map(row).join('') : '<tr><td class="empty" colspan="7">No classes yet.</td></tr>') + '</tbody></table></div>';
 }
 // ---------- Teacher access (admin only): add teachers directly, approve or deny requests, remove ----------
 // Firebase rules already let the admin create and delete docs in `teachers` and read/delete `teacher_requests`.
