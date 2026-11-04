@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- MTG_MOVE start: carries a browser's saved data from drkeyzzz.github.io to musictheorygames.org and musictheoryacademy.org. Master copy: shared/mtg-move.snippet.html; install with shared/apply-move.py, never edit the copy in a page. -->
+<script>
+/* musictheoryacademy.org is the one address (David, 2026-10-29: "all go to academy").
+   Old address (drkeyzzz.github.io) and musictheorygames.org: pack everything this browser saved there and forward to the same
+   page on musictheoryacademy.org (musictheorygames.org first checks the academy loads here; if a school blocks it, the page opens as is).
+   musictheoryacademy.org: never leaves. It unpacks arriving data once per source (missing items are added, practice history is
+   combined), then reloads clean.
+   The data rides after the # in the link, which browsers never send to any server.
+   Local test on port 8771: 127.0.0.1 = old, localhost = musictheorygames.org, academy.localhost = musictheoryacademy.org. */
+(function () {
+  if (window.top !== window.self) return;                       // pages shown inside another page never move
+  var host = location.hostname, NEW = 'https://musictheorygames.org', ACAD = 'https://musictheoryacademy.org', OLD = 'https://drkeyzzz' + '.github.io', role = '';
+  if (host === 'drkeyzzz.github.io') role = 'old';
+  else if (host === 'musictheorygames.org') role = 'new';
+  else if (host === 'musictheoryacademy.org') role = 'acad';
+  else if (location.port === '8771') {
+    NEW = 'http://localhost:8771'; ACAD = 'http://academy.localhost:8771'; OLD = 'http://127.0.0.1:8771';
+    role = host === '127.0.0.1' ? 'old' : host === 'localhost' ? 'new' : host === 'academy.localhost' ? 'acad' : '';
+  }
+  if (!role) return;
+  var FLAG = 'mtg_move_v1', TAG = '#mtgmove=', SEND = '#mtgsend=a.', ls = null;   // SEND: older academy pages asked for data this way (still read)
+  try { ls = window.localStorage; ls.getItem(FLAG); } catch (e) { ls = null; }
+  var page = location.pathname + location.search;
+  function halt() { try { window.stop(); } catch (e) {} try { document.documentElement.style.visibility = 'hidden'; } catch (e) {} }
+  function skip(k) { return k === FLAG || k === FLAG + '_old' || k.indexOf('mtg_time_lock_v1:') === 0 || k.indexOf('firebase:') === 0; }
+
+  function b64u(bytes) {
+    var s = '';
+    for (var i = 0; i < bytes.length; i += 32768) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 32768));
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function unb64u(t) {
+    var s = atob(t.replace(/-/g, '+').replace(/_/g, '/')), b = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
+    return b;
+  }
+  function pack(data) {
+    var json = JSON.stringify(data);
+    if (window.CompressionStream && window.Response && window.Blob)
+      return new Response(new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()
+        .then(function (buf) { return 'z' + b64u(new Uint8Array(buf)); });
+    return Promise.resolve('j' + b64u(new TextEncoder().encode(json)));
+  }
+  function unpack(p) {
+    if (p === '-' || !p) return Promise.resolve({});
+    var bytes = unb64u(p.slice(1));
+    if (p.charAt(0) === 'z')
+      return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text().then(JSON.parse);
+    return Promise.resolve(JSON.parse(new TextDecoder().decode(bytes)));
+  }
+
+  // practice history: both addresses recorded different answers, so counts add up and bests take the higher one
+  var ADD = { plays: 1, answers: 1, correct: 1, ms: 1, caught: 1 };
+  function mergeGame(x, y) {
+    for (var f in y) {
+      if (f === 'skills') {
+        x.skills = x.skills || {};
+        for (var lab in y.skills) { var a = x.skills[lab], b = y.skills[lab]; x.skills[lab] = a ? [a[0] + b[0], a[1] + b[1]] : b; }
+      } else if (typeof y[f] === 'number') x[f] = typeof x[f] !== 'number' ? y[f] : ADD[f] ? x[f] + y[f] : Math.max(x[f], y[f]);
+      else if (!(f in x)) x[f] = y[f];
+    }
+  }
+  function mergeHist(a, b) {
+    if (!a || !a.days) return b;
+    if (!b || !b.days) return a;
+    for (var d in b.days) {
+      if (!a.days[d]) { a.days[d] = b.days[d]; continue; }
+      for (var g in b.days[d]) { if (!a.days[d][g]) a.days[d][g] = b.days[d][g]; else mergeGame(a.days[d][g], b.days[d][g]); }
+    }
+    return a;
+  }
+  function mergeLedger(a, b) {                                    // minutes already sent to the Practice time board, per day
+    if (!a || !a.sent) return b;
+    if (!b || !b.sent) return a;
+    for (var d in b.sent) a.sent[d] = (a.sent[d] || 0) + b.sent[d];
+    a.last = Math.max(a.last || 0, b.last || 0);
+    return a;
+  }
+  function merge(data) {
+    for (var k in data) {
+      if (skip(k)) continue;
+      try {
+        var cur = ls.getItem(k), v = data[k];
+        if (cur === null) ls.setItem(k, v);
+        else if (k.indexOf('mtg_hist_v1:') === 0) ls.setItem(k, JSON.stringify(mergeHist(JSON.parse(cur), JSON.parse(v))));
+        else if (k.indexOf('mtg_time_sync_v1:') === 0) ls.setItem(k, JSON.stringify(mergeLedger(JSON.parse(cur), JSON.parse(v))));
+        // anything else the new address already has stays as it is
+      } catch (e) {}
+    }
+  }
+
+  function send(to, hash, src) {                                  // pack this browser's data and carry it to the same page at `to`
+    halt();
+    var data = {}, n = 0;
+    if (ls) for (var i = 0; i < ls.length; i++) { var k = ls.key(i); if (k && !skip(k)) { data[k] = ls.getItem(k); n++; } }
+    (n ? pack(data) : Promise.resolve('-')).then(function (p) { return p; }, function () { return '-'; }).then(function (p) {
+      location.replace(to + page + TAG + (src || '') + p + '.' + encodeURIComponent(hash));
+    });
+  }
+  function reach(origin) {                                        // can this browser load the other address? (school filters block some)
+    return new Promise(function (ok) {
+      var img = new Image(), t = setTimeout(function () { ok(false); }, 4000);
+      img.onload = function () { clearTimeout(t); ok(true); };
+      img.onerror = function () { clearTimeout(t); ok(false); };
+      img.src = origin + '/screenshots/brainwaves.jpg?r=' + Date.now();
+    });
+  }
+  var asked = location.hash.indexOf(SEND) === 0, hash = asked ? decodeURIComponent(location.hash.slice(SEND.length)) : location.hash.replace(/^#/, '');
+
+  var STAY = 'mtg_move_stay';                                     // this tab could not reach musictheoryacademy.org: stay where it is
+  var stay = false; try { stay = sessionStorage.getItem(STAY) === '1'; } catch (e) {}
+
+  if (role === 'old') { send(ACAD, hash, 'o'); return; }          // old links go straight to the academy (marked 'o' so both sources can merge once)
+
+  if (role === 'new') {                                           // musictheorygames.org forwards to the academy with its data (or passes data on)
+    if (stay) return;
+    halt();
+    reach(ACAD).then(function (ok) {
+      if (!ok) { try { sessionStorage.setItem(STAY, '1'); } catch (e) {} location.reload(); return; }   // the academy is blocked here: open this page
+      if (location.hash.indexOf(TAG) === 0) location.replace(ACAD + page + location.hash);
+      else send(ACAD, hash);
+    });
+    return;
+  }
+
+  if (location.hash.indexOf(TAG) === 0) {                         // data arriving at the academy: unpack once per source, then reload clean
+    halt();
+    var rest = location.hash.slice(TAG.length), dot = rest.indexOf('.');
+    var p = dot < 0 ? rest : rest.slice(0, dot), orig = dot < 0 ? '' : decodeURIComponent(rest.slice(dot + 1));
+    var key = FLAG; if (p.charAt(0) === 'o') { key = FLAG + '_old'; p = p.slice(1); }
+    var done = function () {
+      history.replaceState(null, '', page + (orig ? '#' + orig : ''));
+      location.reload();
+    };
+    if (!ls || ls.getItem(key) === 'done') { done(); return; }
+    unpack(p).then(merge).catch(function () {}).then(function () { try { ls.setItem(key, 'done'); } catch (e) {} done(); });
+  }
+})();
+</script>
+<!-- MTG_MOVE end -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy · Music Theory Academy</title>
+<meta name="description" content="What Music Theory Academy collects, who can see it, and how to have it deleted.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* Kept in step with what the site really does: change this page (and its date) before collecting anything new. */
+  :root { --bg: #0d1420; --card: #141d2c; --line: #26324a; --ink: #e9eef6; --muted: #9aa7bb; --gold: #ffc85c; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 17px/1.6 Outfit, system-ui, sans-serif; }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 22px 16px 60px; }
+  a { color: var(--gold); }
+  .home { display: inline-block; font-weight: 600; font-size: 15px; text-decoration: none; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; }
+  .home:hover { color: var(--ink); }
+  h1 { font-size: clamp(30px, 6vw, 42px); line-height: 1.1; margin: 22px 0 6px; }
+  .date { color: var(--muted); margin: 0 0 18px; }
+  .lead { font-size: 19px; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  h2 { font-size: 22px; margin: 34px 0 8px; }
+  ul { padding-left: 22px; }
+  li { margin: 4px 0; }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 16px; }
+  th, td { text-align: left; vertical-align: top; padding: 9px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; }
+  td:first-child { white-space: nowrap; font-weight: 600; }
+  @media (max-width: 520px) { td:first-child { white-space: normal; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<a class="home" href="/">← Music Theory Academy</a>
+
+<h1>Privacy Policy</h1>
+<p class="date">Last updated: November 4, 2026</p>
+
+<p class="lead">Music Theory Academy keeps the least student information it can: a first name, a last initial, a class code,
+the student's results in the games and a simple record of visits. It has no ads, no outside analytics or tracking companies,
+sends nothing to AI services, and never sells or shares student information.</p>
+
+<h2>Who we are</h2>
+<p>Music Theory Academy is a free set of music theory and ear training games with assignments, quizzes and a teacher
+dashboard. It was built and is run by David Milnes, a music teacher, for students in music classes. The site is the same at
+all three of its addresses: musictheoryacademy.org (main), musictheorygames.org, and drkeyzzz.github.io (the original
+address, which now forwards to the others).</p>
+<p>Questions about this policy: <a href="mailto:privacy@musictheoryacademy.org">privacy@musictheoryacademy.org</a>.</p>
+
+<h2>What we collect</h2>
+<p><b>From students.</b> Students do not make an account. To save their work they type:</p>
+<ul><li>a first name</li><li>a last initial</li><li>a class code their teacher gives them</li></ul>
+<p>While they play, the site saves their results under that name and class code: scores, practice time, level progress,
+and assignment and quiz results. If a student uses the optional feedback box, their short note (up to 300 characters) is
+saved too.</p>
+<p><b>Visit log.</b> When someone has a game open for at least 20 seconds, the site saves one short record of that visit: the
+first name and last initial (or "Guest"), the class code, which game and which part of it, the kind of device (for example
+"Phone · iPhone · Safari" and the screen width), when the visit started and ended, how long the game was on screen and
+being played, and how many questions were answered and how far the player got. It does not record the IP address, the
+exact device, location, or anything typed. Only the site administrator can see these records. They are used to find
+problems (for example a game that looks wrong on phones) and to see how the games are used, and they are deleted after
+30 days.</p>
+<p><b>From teachers.</b> Teachers sign in with Google. The site saves their Google email address, their classes and class
+codes, the assignments and quizzes they create, and any messages they send to site support or post on the teacher board.
+A teacher who asks for access also gives their name and school.</p>
+<p><b>What we never collect from students:</b> email addresses, passwords, full last names, birthdays, photos, home
+addresses, phone numbers or location. Students never sign in with Google or any other account.</p>
+<p><b>Microphone.</b> A few ear training activities (singing a note, the tuner) can use the microphone, only after the browser
+asks for permission. The sound is analyzed on the student's own device while they play. It is never recorded, saved or sent
+anywhere.</p>
+
+<h2>How it is used</h2>
+<p>Student information is used only to run the games: to save progress, show leaderboards, let teachers see their students'
+practice, assignments and quiz grades, and (with the visit log) to keep the games working well. It is never sold, rented,
+shared for marketing, or used for ads. No student information is sent to AI services or used to train AI.</p>
+
+<h2>Where it is stored</h2>
+<ul>
+<li><b>Google Firebase (Cloud Firestore).</b> Scores, progress, practice time, quiz results, the visit log, classes and teacher
+accounts are stored in a Firebase database run by Google on behalf of the site. Its security rules control who can read
+each kind of record.</li>
+<li><b>The student's own browser.</b> The name, class code, settings and some progress are also saved in the browser on the
+device the student uses, so they don't have to type them in every time. This stays on that device.</li>
+<li><b>Moving between addresses.</b> When the site moved to its new addresses, a small piece of code copies that saved
+browser information from the old address to the new one, inside the same browser. It travels in the part of the link after
+the # sign, which browsers never send to any server, and only between the site's own three addresses.</li>
+<li><b>Hosting.</b> The pages are served by Cloudflare and GitHub Pages, with a backup copy on Google Firebase Hosting. Some
+fonts and instrument sounds load from Google Fonts and free public sound libraries. Like any website, these services can see
+a visitor's IP address when a page or file loads, but they receive no student names or results.</li>
+</ul>
+
+<h2>Who can see it</h2>
+<table>
+<thead><tr><th>Who</th><th>What they can see</th></tr></thead>
+<tbody>
+<tr><td>The student</td><td>Their own scores, progress and reports</td></tr>
+<tr><td>The student's teacher</td><td>Results, practice, progress, quiz grades and feedback notes for their own classes only</td></tr>
+<tr><td>Other students</td><td>Leaderboards (see below)</td></tr>
+<tr><td>The site administrator (David Milnes)</td><td>Everything, including the visit log, to run and support the site</td></tr>
+</tbody>
+</table>
+<p><b>Leaderboards.</b> Class leaderboards show a first name, last initial and score, and only students in that class can see
+them. The World leaderboards show the top scores from every class with a first name and last initial, and anyone can see
+them.</p>
+
+<h2>Children under 13</h2>
+<p>The site is made for school use, and some students are under 13. It is designed to collect as little as possible from them:
+no email, no account, and only a first name and last initial. When a school or teacher uses the site with students, the
+school acts on behalf of parents in agreeing to this educational use, as the Children's Online Privacy Protection Act (COPPA)
+allows. The site does not ask children for more information than a game needs.</p>
+
+<h2>Deleting information</h2>
+<ul>
+<li>Teachers can delete their students' scores and progress, and whole classes, from the teacher dashboard.</li>
+<li>A parent or student can ask the teacher, or write to <a href="mailto:privacy@musictheoryacademy.org">privacy@musictheoryacademy.org</a>,
+to have a student's information deleted. We will delete it within 30 days.</li>
+<li>A teacher can ask to have their account and all of their classes deleted at any time.</li>
+</ul>
+
+<h2>How long we keep it</h2>
+<p>Visit log records are deleted after 30 days. Student results are kept only as long as they are useful for the class; we
+delete student records at the end of each school year.</p>
+
+<h2>Changes to this policy</h2>
+<p>If this policy changes, the new version will be posted here with a new date. We will not start collecting new kinds of
+student information without updating this policy first.</p>
+
+<h2>Contact</h2>
+<p>David Milnes, Music Theory Academy · <a href="mailto:privacy@musictheoryacademy.org">privacy@musictheoryacademy.org</a></p>
+</div>
+</body>
+</html>

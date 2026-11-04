@@ -1086,6 +1086,7 @@ async function checkRequests() {
     S.requests = PREVIEW ? (S.pvSeeded ? S.requests : (S.pvSeeded = true, [{ email: 'new.teacher@sample', name: 'Pat Rivera', school: 'Lincoln Elementary', note: 'I teach 4th and 5th grade general music.' }]))
       : await run(async ({ fs, db }) => (await fs.getDocs(fs.collection(db, 'teacher_requests'))).docs.map(d => ({ ...d.data(), email: d.id })));
   } catch (e) { console.warn('teacher requests:', e && e.code); }
+  actClean(true);   // admin only (checked above): delete visit records older than 30 days, once a day
   const b = $('views').querySelector('[data-v=admin]'), n = S.requests.length;
   b.classList.toggle('waiting', n > 0);
   $('rqcount').hidden = !n; $('rqcount').textContent = n;
@@ -1308,10 +1309,13 @@ function syncAct() {
   }).catch(e => msg(errText(e)));
 }
 document.addEventListener('visibilitychange', syncAct);
-async function actClean() {
-  if (PREVIEW) { $('actmsg').textContent = 'Preview: nothing to clean up.'; return; }
-  if (!confirm('Delete every activity record older than 30 days? This cannot be undone.')) return;
-  let gone = 0; $('actclean').disabled = true; $('actmsg').textContent = 'Cleaning up…';
+// auto (2026-11-04): the privacy policy promises visit records are deleted after 30 days, so the admin's sign-in runs this
+// quietly once a day (localStorage mtg_actclean_v1 = the day it last ran); the Clean up button still runs it by hand.
+async function actClean(auto) {
+  if (PREVIEW) { if (!auto) $('actmsg').textContent = 'Preview: nothing to clean up.'; return; }
+  if (auto) { try { if (localStorage.getItem('mtg_actclean_v1') === ymd(new Date())) return; } catch {} }
+  else if (!confirm('Delete every activity record older than 30 days? This cannot be undone.')) return;
+  let gone = 0; if (!auto) { $('actclean').disabled = true; $('actmsg').textContent = 'Cleaning up…'; }
   try {
     await run(async ({ fs, db }) => {
       const cut = fs.Timestamp.fromMillis(Date.now() - 30 * 864e5);
@@ -1321,9 +1325,10 @@ async function actClean() {
         const b = fs.writeBatch(db); snap.docs.forEach(d => b.delete(d.ref)); await b.commit(); gone += snap.size;
       }
     });
-    $('actmsg').textContent = gone ? `Deleted ${gone} old record${gone === 1 ? '' : 's'}.` : 'Nothing older than 30 days.';
-  } catch (e) { $('actmsg').textContent = errText(e); }
-  $('actclean').disabled = false;
+    try { localStorage.setItem('mtg_actclean_v1', ymd(new Date())); } catch {}
+    if (!auto) $('actmsg').textContent = gone ? `Deleted ${gone} old record${gone === 1 ? '' : 's'}.` : 'Nothing older than 30 days.';
+  } catch (e) { if (!auto) $('actmsg').textContent = errText(e); else console.warn('activity clean up:', e && e.code); }
+  if (!auto) $('actclean').disabled = false;
 }
 function renderTestsBox() {
   $('tsel').innerHTML = (S.tests.length ? Object.entries(TEST_MODES).map(([v, h]) => `<option value="${v}">${h}</option>`).join('') : '') + (S.tests.length ? S.tests.map(t => `<option value="${esc(t.id)}">${tstate(t) === 'open' ? '● RUNNING' : tstate(t) === 'scheduled' ? 'UPCOMING' : tstate(t) === 'ended' ? 'ENDED' : 'OFF'} · ${esc(t.name)} ${t.created_at ? '· ' + esc(fmtWhen(t.created_at)) : ''}</option>`).join('') : '<option value="">No tests yet</option>');
@@ -1966,7 +1971,8 @@ function wire() {
   };
   $('csv').onclick = csv;
   $('actwho').onchange = $('actdev').onchange = $('actby').onchange = render;
-  setInterval(() => { if (S.view === 'activity' && !document.hidden) render(); }, 60000);   // keeps "Playing now" honest (no reads) $('actclean').onclick = actClean;
+  setInterval(() => { if (S.view === 'activity' && !document.hidden) render(); }, 60000);   // keeps "Playing now" honest (no reads)
+  $('actclean').onclick = () => actClean(false);
   $('anew').onclick = () => { S.view = 'assign'; msg(''); load(); };
   $('aback').onclick = () => { S.view = 'grades'; load(); };
   $('aout').onchange = async () => {
