@@ -229,7 +229,7 @@ changes for students: no game, level or feature is ever locked for anyone who do
 </div>
 <script>
 // Ko-fi page. Until it is filled in the buttons say "Coming soon".
-const KOFI = '';
+const KOFI = 'https://ko-fi.com/musictheoryacademy';
 document.querySelectorAll('[data-kofi]').forEach(a => {
   if (!KOFI) { a.textContent = 'Coming soon'; a.setAttribute('aria-disabled', 'true'); a.removeAttribute('href'); return; }
   a.href = KOFI + (a.dataset.kofi === 'membership' ? '/membership' : ''); a.target = '_blank'; a.rel = 'noopener';
