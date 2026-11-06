@@ -185,6 +185,14 @@
   .iconbtn { font: 600 12px var(--f-ui); letter-spacing: .1em; text-transform: uppercase; text-decoration: none; color: var(--muted); background: var(--card); border: 1px solid var(--card-border); border-radius: 999px; padding: 8px 14px 6px; cursor: pointer; }
   .iconbtn:hover { color: var(--text); border-color: var(--muted); }
   .iconbtn:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
+  .iconbtn.support { display: inline-flex; align-items: center; gap: 7px; color: var(--gold); border-color: color-mix(in srgb, var(--gold) 45%, transparent); }   /* Support page (added 2026-11-06) */
+  .iconbtn.support:hover { color: var(--text); border-color: var(--gold); }
+  .tshort { display: none; }
+  @media (max-width: 480px) {   /* phones: the time box, Support and Teachers fit on one row */
+    .topbar { gap: 6px; }
+    .topbar .iconbtn { letter-spacing: .04em; padding: 8px 10px 6px; }
+    .tfull { display: none; } .tshort { display: inline; }
+  }
   header {
     text-align: center;
     padding: 56px 0 36px;
@@ -502,7 +510,7 @@
 </style>
 </head>
 <body>
-  <nav class="topbar" aria-label="Teachers"><a class="iconbtn" href="teacher/all/">Teacher Dashboard</a></nav>
+  <nav class="topbar" aria-label="Site"><a class="iconbtn support" href="support/"><span aria-hidden="true">☕</span>Support</a><a class="iconbtn" href="teacher/all/"><span class="tfull">Teacher Dashboard</span><span class="tshort">Teachers</span></a></nav>
   <header>
     <h1>Music Theory Academy</h1>
     <div class="staff" aria-hidden="true"></div>
@@ -655,7 +663,7 @@
     <span class="go">Play</span>
   </a>
 
-  <footer>One sign-in works across all six games on this computer. · <a href="privacy/" style="color:inherit">Privacy</a> · <a href="support/" style="color:inherit">Teachers: support the site ☕</a></footer>
+  <footer>One sign-in works across all six games on this computer. · <a href="privacy/" style="color:inherit">Privacy</a> · <a href="support/" style="color:inherit">☕ Support the site</a></footer>
 
 <script>
 (() => {
