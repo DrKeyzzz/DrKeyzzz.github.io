@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- MTG_MOVE start: carries a browser's saved data from drkeyzzz.github.io to musictheorygames.org and musictheoryacademy.org. Master copy: shared/mtg-move.snippet.html; install with shared/apply-move.py, never edit the copy in a page. -->
+<script>
+/* musictheoryacademy.org is the one address (David, 2026-10-29: "all go to academy").
+   Old address (drkeyzzz.github.io) and musictheorygames.org: pack everything this browser saved there and forward to the same
+   page on musictheoryacademy.org (musictheorygames.org first checks the academy loads here; if a school blocks it, the page opens as is).
+   musictheoryacademy.org: never leaves. It unpacks arriving data once per source (missing items are added, practice history is
+   combined), then reloads clean.
+   The data rides after the # in the link, which browsers never send to any server.
+   Local test on port 8771: 127.0.0.1 = old, localhost = musictheorygames.org, academy.localhost = musictheoryacademy.org. */
+(function () {
+  if (window.top !== window.self) return;                       // pages shown inside another page never move
+  var host = location.hostname, NEW = 'https://musictheorygames.org', ACAD = 'https://musictheoryacademy.org', OLD = 'https://drkeyzzz' + '.github.io', role = '';
+  if (host === 'drkeyzzz.github.io') role = 'old';
+  else if (host === 'musictheorygames.org') role = 'new';
+  else if (host === 'musictheoryacademy.org') role = 'acad';
+  else if (location.port === '8771') {
+    NEW = 'http://localhost:8771'; ACAD = 'http://academy.localhost:8771'; OLD = 'http://127.0.0.1:8771';
+    role = host === '127.0.0.1' ? 'old' : host === 'localhost' ? 'new' : host === 'academy.localhost' ? 'acad' : '';
+  }
+  if (!role) return;
+  var FLAG = 'mtg_move_v1', TAG = '#mtgmove=', SEND = '#mtgsend=a.', ls = null;   // SEND: older academy pages asked for data this way (still read)
+  try { ls = window.localStorage; ls.getItem(FLAG); } catch (e) { ls = null; }
+  var page = location.pathname + location.search;
+  function halt() { try { window.stop(); } catch (e) {} try { document.documentElement.style.visibility = 'hidden'; } catch (e) {} }
+  function skip(k) { return k === FLAG || k === FLAG + '_old' || k.indexOf('mtg_time_lock_v1:') === 0 || k.indexOf('firebase:') === 0; }
+
+  function b64u(bytes) {
+    var s = '';
+    for (var i = 0; i < bytes.length; i += 32768) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 32768));
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function unb64u(t) {
+    var s = atob(t.replace(/-/g, '+').replace(/_/g, '/')), b = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
+    return b;
+  }
+  function pack(data) {
+    var json = JSON.stringify(data);
+    if (window.CompressionStream && window.Response && window.Blob)
+      return new Response(new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()
+        .then(function (buf) { return 'z' + b64u(new Uint8Array(buf)); });
+    return Promise.resolve('j' + b64u(new TextEncoder().encode(json)));
+  }
+  function unpack(p) {
+    if (p === '-' || !p) return Promise.resolve({});
+    var bytes = unb64u(p.slice(1));
+    if (p.charAt(0) === 'z')
+      return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text().then(JSON.parse);
+    return Promise.resolve(JSON.parse(new TextDecoder().decode(bytes)));
+  }
+
+  // practice history: both addresses recorded different answers, so counts add up and bests take the higher one
+  var ADD = { plays: 1, answers: 1, correct: 1, ms: 1, caught: 1 };
+  function mergeGame(x, y) {
+    for (var f in y) {
+      if (f === 'skills') {
+        x.skills = x.skills || {};
+        for (var lab in y.skills) { var a = x.skills[lab], b = y.skills[lab]; x.skills[lab] = a ? [a[0] + b[0], a[1] + b[1]] : b; }
+      } else if (typeof y[f] === 'number') x[f] = typeof x[f] !== 'number' ? y[f] : ADD[f] ? x[f] + y[f] : Math.max(x[f], y[f]);
+      else if (!(f in x)) x[f] = y[f];
+    }
+  }
+  function mergeHist(a, b) {
+    if (!a || !a.days) return b;
+    if (!b || !b.days) return a;
+    for (var d in b.days) {
+      if (!a.days[d]) { a.days[d] = b.days[d]; continue; }
+      for (var g in b.days[d]) { if (!a.days[d][g]) a.days[d][g] = b.days[d][g]; else mergeGame(a.days[d][g], b.days[d][g]); }
+    }
+    return a;
+  }
+  function mergeLedger(a, b) {                                    // minutes already sent to the Practice time board, per day
+    if (!a || !a.sent) return b;
+    if (!b || !b.sent) return a;
+    for (var d in b.sent) a.sent[d] = (a.sent[d] || 0) + b.sent[d];
+    a.last = Math.max(a.last || 0, b.last || 0);
+    return a;
+  }
+  function merge(data) {
+    for (var k in data) {
+      if (skip(k)) continue;
+      try {
+        var cur = ls.getItem(k), v = data[k];
+        if (cur === null) ls.setItem(k, v);
+        else if (k.indexOf('mtg_hist_v1:') === 0) ls.setItem(k, JSON.stringify(mergeHist(JSON.parse(cur), JSON.parse(v))));
+        else if (k.indexOf('mtg_time_sync_v1:') === 0) ls.setItem(k, JSON.stringify(mergeLedger(JSON.parse(cur), JSON.parse(v))));
+        // anything else the new address already has stays as it is
+      } catch (e) {}
+    }
+  }
+
+  function send(to, hash, src) {                                  // pack this browser's data and carry it to the same page at `to`
+    halt();
+    var data = {}, n = 0;
+    if (ls) for (var i = 0; i < ls.length; i++) { var k = ls.key(i); if (k && !skip(k)) { data[k] = ls.getItem(k); n++; } }
+    (n ? pack(data) : Promise.resolve('-')).then(function (p) { return p; }, function () { return '-'; }).then(function (p) {
+      location.replace(to + page + TAG + (src || '') + p + '.' + encodeURIComponent(hash));
+    });
+  }
+  function reach(origin) {                                        // can this browser load the other address? (school filters block some)
+    return new Promise(function (ok) {
+      var img = new Image(), t = setTimeout(function () { ok(false); }, 4000);
+      img.onload = function () { clearTimeout(t); ok(true); };
+      img.onerror = function () { clearTimeout(t); ok(false); };
+      img.src = origin + '/screenshots/brainwaves.jpg?r=' + Date.now();
+    });
+  }
+  var asked = location.hash.indexOf(SEND) === 0, hash = asked ? decodeURIComponent(location.hash.slice(SEND.length)) : location.hash.replace(/^#/, '');
+
+  var STAY = 'mtg_move_stay';                                     // this tab could not reach musictheoryacademy.org: stay where it is
+  var stay = false; try { stay = sessionStorage.getItem(STAY) === '1'; } catch (e) {}
+
+  if (role === 'old') { send(ACAD, hash, 'o'); return; }          // old links go straight to the academy (marked 'o' so both sources can merge once)
+
+  if (role === 'new') {                                           // musictheorygames.org forwards to the academy with its data (or passes data on)
+    if (stay) return;
+    halt();
+    reach(ACAD).then(function (ok) {
+      if (!ok) { try { sessionStorage.setItem(STAY, '1'); } catch (e) {} location.reload(); return; }   // the academy is blocked here: open this page
+      if (location.hash.indexOf(TAG) === 0) location.replace(ACAD + page + location.hash);
+      else send(ACAD, hash);
+    });
+    return;
+  }
+
+  if (location.hash.indexOf(TAG) === 0) {                         // data arriving at the academy: unpack once per source, then reload clean
+    halt();
+    var rest = location.hash.slice(TAG.length), dot = rest.indexOf('.');
+    var p = dot < 0 ? rest : rest.slice(0, dot), orig = dot < 0 ? '' : decodeURIComponent(rest.slice(dot + 1));
+    var key = FLAG; if (p.charAt(0) === 'o') { key = FLAG + '_old'; p = p.slice(1); }
+    var done = function () {
+      history.replaceState(null, '', page + (orig ? '#' + orig : ''));
+      location.reload();
+    };
+    if (!ls || ls.getItem(key) === 'done') { done(); return; }
+    unpack(p).then(merge).catch(function () {}).then(function () { try { ls.setItem(key, 'done'); } catch (e) {} done(); });
+  }
+})();
+</script>
+<!-- MTG_MOVE end -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Support · Music Theory Academy</title>
+<meta name="description" content="Music Theory Academy is free for every student and teacher. Here is how to help keep it that way.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* Support page (added 2026-11-06). Ways to give are links to Ko-fi (KOFI below) and an email for school sponsors.
+     Nothing here is collected by the site; the payment happens on Ko-fi. */
+  :root { --bg: #0d1420; --card: #141d2c; --line: #26324a; --ink: #e9eef6; --muted: #9aa7bb; --gold: #ffc85c; --mint: #7be0c3; }
+  html, body { margin: 0; }
+  body { background: var(--bg); color: var(--ink); font: 17px/1.6 Outfit, system-ui, sans-serif; }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 22px 16px 60px; }
+  a { color: var(--gold); }
+  .home { display: inline-block; font-weight: 600; font-size: 15px; text-decoration: none; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; }
+  .home:hover { color: var(--ink); }
+  h1 { font-size: clamp(30px, 6vw, 44px); line-height: 1.1; margin: 22px 0 10px; }
+  .lead { font-size: 19px; color: var(--ink); max-width: 680px; margin: 0 0 26px; }
+  .lead b { color: var(--mint); }
+  .ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+  .way { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; display: flex; flex-direction: column; }
+  .way .ic { font-size: 30px; line-height: 1; }
+  .way h2 { font-size: 21px; margin: 10px 0 2px; }
+  .way .price { color: var(--gold); font-weight: 700; margin: 0 0 8px; }
+  .way p { margin: 0 0 10px; color: var(--muted); font-size: 16px; }
+  .way ul { margin: 0 0 14px; padding-left: 20px; color: var(--muted); font-size: 16px; }
+  .way .go { margin-top: auto; display: block; text-align: center; font-weight: 700; text-decoration: none; color: #0b1220; background: var(--gold); border-radius: 12px; padding: 11px 14px; min-height: 22px; }
+  .way .go.alt { background: transparent; color: var(--gold); border: 2px solid var(--gold); }
+  .way .go[aria-disabled="true"] { background: var(--line); color: var(--muted); border-color: var(--line); pointer-events: none; }
+  h3 { font-size: 20px; margin: 38px 0 8px; }
+  .note { color: var(--muted); }
+  .thanks { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 18px; color: var(--muted); }
+  .foot { margin-top: 40px; font-size: 14px; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<a class="home" href="/">← Music Theory Academy</a>
+
+<h1>Keep music theory free</h1>
+<p class="lead">Every game here is <b>free for every student and teacher</b>, with no ads and no selling of anyone's data, and it
+will stay that way. It's built and run by a music teacher. If it helps your classes, you can help cover the hosting, the
+database and the time it takes to build new games.</p>
+
+<div class="ways">
+  <div class="way">
+    <div class="ic">☕</div>
+    <h2>Buy a coffee</h2>
+    <p class="price">One time, from $3</p>
+    <p>A quick thank you. Every tip goes straight to running the site.</p>
+    <a class="go" data-kofi href="#">Leave a tip</a>
+  </div>
+  <div class="way">
+    <div class="ic">🎵</div>
+    <h2>Monthly supporter</h2>
+    <p class="price">$3 a month</p>
+    <ul>
+      <li>Vote on the next game or feature</li>
+      <li>Your name on the thank-you list below</li>
+      <li>Cancel any time</li>
+    </ul>
+    <a class="go" data-kofi="membership" href="#">Become a supporter</a>
+  </div>
+  <div class="way">
+    <div class="ic">🏫</div>
+    <h2>School sponsor</h2>
+    <p class="price">$100 a year, by invoice</p>
+    <ul>
+      <li>For a school or music department budget</li>
+      <li>Your school's name on the thank-you list</li>
+      <li>We send an invoice and a W-9</li>
+    </ul>
+    <a class="go alt" href="mailto:support@musictheoryacademy.org?subject=School%20sponsor">Ask for an invoice</a>
+  </div>
+</div>
+
+<h3>Where the money goes</h3>
+<p class="note">The database that saves scores and classes, the web addresses, and time to build and fix games. Nothing
+changes for students: no game, level or feature is ever locked for anyone who doesn't pay.</p>
+
+<h3>Thank you</h3>
+<div class="thanks" id="thanks">Be the first supporter to see your name here.</div>
+
+<p class="foot"><a href="/privacy/" style="color:inherit">Privacy</a> · Payments are handled by Ko-fi; this site never sees card details.</p>
+</div>
+<script>
+// Ko-fi page. Until it is filled in the buttons say "Coming soon".
+const KOFI = '';
+document.querySelectorAll('[data-kofi]').forEach(a => {
+  if (!KOFI) { a.textContent = 'Coming soon'; a.setAttribute('aria-disabled', 'true'); a.removeAttribute('href'); return; }
+  a.href = KOFI + (a.dataset.kofi === 'membership' ? '/membership' : ''); a.target = '_blank'; a.rel = 'noopener';
+});
+</script>
+</body>
+</html>
