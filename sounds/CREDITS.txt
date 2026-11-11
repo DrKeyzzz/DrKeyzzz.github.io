@@ -1,0 +1,5 @@
+Instrument recordings used by the games (copies hosted on this site, so the games make no outside requests)
+
+salamander/   Salamander Grand Piano by Alexander Holm, CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/), via the Tone.js audio collection
+instruments/  tonejs-instruments by Nicholaus P. Brosowsky (cello, violin, flute, organ, acoustic guitar, nylon guitar, electric bass), CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/)
+vibes/        Vibraphone from the Versilian Community Sample Library (VCSL), CC0
