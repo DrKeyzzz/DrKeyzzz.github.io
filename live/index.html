@@ -356,8 +356,8 @@ app.addEventListener('keydown', e => { if (e.target.id === 'ans' && e.key === 'E
 let wasOpen = null;
 db.watchDoc('bc_live/' + code, d => {
   const before = S.live; S.live = d; S.loaded = true;
-  if (d && d.q && (!before || before.round !== d.round)) { try { navigator.vibrate && navigator.vibrate(60); } catch {} }
-  wasOpen = d && d.open; draw();
+  if (d && d.q && S.seen && (!before || before.round !== d.round)) { try { navigator.vibrate && navigator.vibrate(60); } catch {} }
+  wasOpen = d && d.open; S.seen = true; draw();   // buzz the phone only for a NEW question, not on page load
 }, e => { S.loaded = true; S.err = ERR(e); draw(); });
 setInterval(() => { const L = S.live; if (!L || !L.ends_at) return; const s = left(L), el = $('cd'); if (el) el.textContent = clock(s); if (s === 0 && L.open && draw.locked !== L.round) { draw.locked = L.round; draw(); } }, 500);
 draw();
