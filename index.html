@@ -950,6 +950,24 @@ async function refreshTests(p) {
     renderHub(p);
   } catch {}
 }
+// ---------- Live Class (added 2026-11-12): a "Live now" card while the active class has an open question. One read of bc_live/<code> per page load, no listener. ----------
+let liveNow = null;
+async function refreshLive(p) {
+  const c = classesOf(p)[0]; if (!c) return;
+  try {
+    const { fs, db } = await fb();
+    const s = await wait(fs.getDoc(fs.doc(db, 'bc_live', c.code)));
+    const d = s.exists() ? s.data() : null;
+    liveNow = d && d.q && d.open ? { q: String(d.q), className: c.name || c.code } : null;
+    if (liveNow) renderHub(p);
+  } catch {}
+}
+function liveCards() {
+  if (!liveNow) return [];
+  return [`<article class="q tq must" style="--accent:#7be0c3"><p class="qk"><i></i>Live now · ${esc(liveNow.className)}</p>
+    <b class="qn">${esc(liveNow.q.length > 90 ? liveNow.q.slice(0, 88) + '…' : liveNow.q)}</b><p class="qt">Your teacher is asking the class. Only your teacher sees your answer.</p>
+    <a class="go" href="live/" data-tip="Opens Live Class">Answer now</a></article>`];
+}
 function testCards(p) {
   const d = load(TESTS_KEY(p)); if (!d || !Array.isArray(d.tests)) return [];
   return d.tests.filter(t => GAME[t.game] && !(t.to && t.to < Date.now())).map(t => {
@@ -1006,7 +1024,7 @@ function renderHub(p) {
     $('hi-last').textContent = `Last played: ${lastG.name} · ${ago(lastAt)}`;
   }
   // today's quests: the teacher's assignment first, then the two weakest skills in any game (at least 4 answers and below 85%, lowest first), then the daily goal
-  const cards = [...testCards(p), ...teacherCards(p, days)];
+  const cards = [...liveCards(), ...testCards(p), ...teacherCards(p, days)];
   if (!played.length) cards.push(playCard('tidal', 'Start here'));
   else {
     const weak = GAMES.flatMap(g => Object.entries(T[g.id].skills).map(([lab, [r, n]]) => ({ g, lab, n, a: pct(r, n) })))
@@ -1079,7 +1097,7 @@ async function refreshClass() {
   try {
     const { fs, db } = await fb(), ds = await wait(Promise.all(cs.map(c => fs.getDoc(fs.doc(db, 'classes', c.code)))));
     saveAssigns(p, cs, ds);
-    refreshTests(p);
+    refreshTests(p); refreshLive(p);
     setProfile(withClasses(p, cs.flatMap((c, i) => ds[i].exists() ? [{ code: c.code, name: ds[i].data().name, owner: ds[i].data().ownerEmail || '' }] : [])));
     render();
   } catch {}

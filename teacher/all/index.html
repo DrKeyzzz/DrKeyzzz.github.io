@@ -414,6 +414,7 @@
           <button type="button" data-v="scores" aria-pressed="false">Scores</button>
           <button type="button" data-v="grades" aria-pressed="false">Assignments</button>
           <button type="button" data-v="tests" aria-pressed="false">Tests</button>
+          <button type="button" data-v="live" aria-pressed="false" title="Ask the class questions live (Live Class)">Live</button>
           <button type="button" data-v="feedback" aria-pressed="false">Feedback</button>
           <button type="button" data-v="messages" aria-pressed="false">Messages<span class="rq" id="msgcount" hidden></span></button>
           <button type="button" data-v="board" aria-pressed="false">Board<span class="nb" id="boardcount" hidden></span></button>
@@ -463,6 +464,7 @@
       <div id="gradelist2" class="glist" hidden></div>
       <div id="msgview" hidden></div>
       <div id="boardview" hidden></div>
+      <div id="liveview" hidden><iframe id="lframe" title="Live Class" style="width:100%;border:0;min-height:760px;margin-top:6px;background:transparent"></iframe></div>
       <div id="assignbox" hidden><button class="btn ghost sm" type="button" id="aback" style="margin-top:14px">← Back to Assignments</button><iframe id="aframe" title="Assign practice" style="width:100%;border:0;min-height:700px;margin-top:14px;background:transparent"></iframe></div>
     </section>
   </div>
@@ -915,12 +917,12 @@ function render() {
   const g = G[S.game]; document.documentElement.style.setProperty('--gc', g.color);
   document.querySelectorAll('.gt').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.g === S.game)));
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (S.view === 'newtest' && b.dataset.v === 'tests') || (S.view === 'assign' && b.dataset.v === 'grades'))));
-  const social = S.view === 'messages' || S.view === 'board';
-  $('msgview').hidden = S.view !== 'messages'; $('boardview').hidden = S.view !== 'board'; document.querySelector('footer').hidden = social; $('games').hidden = social; syncHash();
+  const social = S.view === 'messages' || S.view === 'board' || S.view === 'live';
+  $('msgview').hidden = S.view !== 'messages'; $('boardview').hidden = S.view !== 'board'; $('liveview').hidden = S.view !== 'live'; document.querySelector('footer').hidden = social; $('games').hidden = social; syncHash();
   if (social) {
     ['upbox', 'actbox', 'adminsum', 'adminacc', 'data', 'gradebar', 'gradelist', 'gradelist2', 'assignbox', 'testsbox', 'newtestbox', 'csv'].forEach(id => { $(id).hidden = true; });
     $('cls').closest('label').hidden = true; $('rng').closest('label').hidden = true;
-    return S.view === 'messages' ? renderMessages() : renderBoard();
+    return S.view === 'live' ? showLive() : S.view === 'messages' ? renderMessages() : renderBoard();
   }
   const asg = S.view === 'assign', nt = S.view === 'newtest', ts = S.view === 'tests', ad = S.view === 'admin', av = S.view === 'activity';
   $('actbox').hidden = !av || PV_TEACHER;
@@ -956,6 +958,7 @@ function render() {
 }
 async function load() {
   if (S.view === 'assign' || S.view === 'newtest') { render(); return; }
+  if (S.view === 'live') { msg(''); render(); return; }
   if (S.view === 'messages' || S.view === 'board') { msg(''); render(); return S.view === 'messages' ? openMessages() : openBoard(); }
   if (S.code === WORLD && !['scores', 'admin'].includes(S.view)) { S.code = S.lastCode || (S.classes[0] || {}).code || ''; $('cls').value = S.code; }
   msg(''); S.rows = []; S.loading++; render();
@@ -1416,6 +1419,14 @@ async function resetStudent() {
 }
 
 // ---------- Assign: the Assign Practice page, shown inside the dashboard ----------
+// Live Class (added 2026-11-12): the teacher console from live/teach/, shown in a frame. It has its own class picker.
+function showLive() {
+  const f = $('lframe'), code = S.code && S.code !== WORLD ? S.code : ((S.classes[0] || {}).code || '');
+  const src = '../../live/teach/?embed=1' + (code ? '&code=' + encodeURIComponent(code) : '') + (PREVIEW ? '&preview=1' : '');
+  if (f.dataset.src === src) return;
+  f.dataset.src = src; f.src = src;
+  f.onload = () => { try { const d = f.contentDocument; const fit = () => { f.style.height = (d.documentElement.scrollHeight + 10) + 'px'; }; fit(); new ResizeObserver(fit).observe(d.body); } catch (e) {} };
+}
 function showAssign() {
   const f = $('aframe');
   if (!f.getAttribute('src')) {
@@ -1888,9 +1899,9 @@ function wireSocial() {
   $('boardview').addEventListener('click', boardClick);
   addEventListener('hashchange', () => { const v = hashView(); if (v && S.email && S.view !== v) { S.view = v; load(); } });
 }
-const hashView = () => { const v = location.hash.slice(1); return v === 'messages' || v === 'board' ? v : ''; };
+const hashView = () => { const v = location.hash.slice(1); return v === 'messages' || v === 'board' || v === 'live' ? v : ''; };
 function syncHash() {
-  const h = S.view === 'messages' || S.view === 'board' ? '#' + S.view : '';
+  const h = S.view === 'messages' || S.view === 'board' || S.view === 'live' ? '#' + S.view : '';
   if (location.hash !== h && (h || hashView())) history.replaceState(null, '', location.pathname + location.search + h);
 }
 // on sign-in: the two tab counts, then the message count every 10 minutes while the page is visible

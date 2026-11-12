@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- MTG_MOVE start: carries a browser's saved data from drkeyzzz.github.io to musictheorygames.org and musictheoryacademy.org. Master copy: shared/mtg-move.snippet.html; install with shared/apply-move.py, never edit the copy in a page. -->
+<script>
+/* musictheoryacademy.org is the one address (David, 2026-10-29: "all go to academy").
+   Old address (drkeyzzz.github.io) and musictheorygames.org: pack everything this browser saved there and forward to the same
+   page on musictheoryacademy.org (musictheorygames.org first checks the academy loads here; if a school blocks it, the page opens as is).
+   musictheoryacademy.org: never leaves. It unpacks arriving data once per source (missing items are added, practice history is
+   combined), then reloads clean.
+   The data rides after the # in the link, which browsers never send to any server.
+   Local test on port 8771: 127.0.0.1 = old, localhost = musictheorygames.org, academy.localhost = musictheoryacademy.org. */
+(function () {
+  if (window.top !== window.self) return;                       // pages shown inside another page never move
+  var host = location.hostname, NEW = 'https://musictheorygames.org', ACAD = 'https://musictheoryacademy.org', OLD = 'https://drkeyzzz' + '.github.io', role = '';
+  if (host === 'drkeyzzz.github.io') role = 'old';
+  else if (host === 'musictheorygames.org') role = 'new';
+  else if (host === 'musictheoryacademy.org') role = 'acad';
+  else if (location.port === '8771') {
+    NEW = 'http://localhost:8771'; ACAD = 'http://academy.localhost:8771'; OLD = 'http://127.0.0.1:8771';
+    role = host === '127.0.0.1' ? 'old' : host === 'localhost' ? 'new' : host === 'academy.localhost' ? 'acad' : '';
+  }
+  if (!role) return;
+  var FLAG = 'mtg_move_v1', TAG = '#mtgmove=', SEND = '#mtgsend=a.', ls = null;   // SEND: older academy pages asked for data this way (still read)
+  try { ls = window.localStorage; ls.getItem(FLAG); } catch (e) { ls = null; }
+  var page = location.pathname + location.search;
+  function halt() { try { window.stop(); } catch (e) {} try { document.documentElement.style.visibility = 'hidden'; } catch (e) {} }
+  function skip(k) { return k === FLAG || k === FLAG + '_old' || k.indexOf('mtg_time_lock_v1:') === 0 || k.indexOf('firebase:') === 0; }
+
+  function b64u(bytes) {
+    var s = '';
+    for (var i = 0; i < bytes.length; i += 32768) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 32768));
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function unb64u(t) {
+    var s = atob(t.replace(/-/g, '+').replace(/_/g, '/')), b = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
+    return b;
+  }
+  function pack(data) {
+    var json = JSON.stringify(data);
+    if (window.CompressionStream && window.Response && window.Blob)
+      return new Response(new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()
+        .then(function (buf) { return 'z' + b64u(new Uint8Array(buf)); });
+    return Promise.resolve('j' + b64u(new TextEncoder().encode(json)));
+  }
+  function unpack(p) {
+    if (p === '-' || !p) return Promise.resolve({});
+    var bytes = unb64u(p.slice(1));
+    if (p.charAt(0) === 'z')
+      return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text().then(JSON.parse);
+    return Promise.resolve(JSON.parse(new TextDecoder().decode(bytes)));
+  }
+
+  // practice history: both addresses recorded different answers, so counts add up and bests take the higher one
+  var ADD = { plays: 1, answers: 1, correct: 1, ms: 1, caught: 1 };
+  function mergeGame(x, y) {
+    for (var f in y) {
+      if (f === 'skills') {
+        x.skills = x.skills || {};
+        for (var lab in y.skills) { var a = x.skills[lab], b = y.skills[lab]; x.skills[lab] = a ? [a[0] + b[0], a[1] + b[1]] : b; }
+      } else if (typeof y[f] === 'number') x[f] = typeof x[f] !== 'number' ? y[f] : ADD[f] ? x[f] + y[f] : Math.max(x[f], y[f]);
+      else if (!(f in x)) x[f] = y[f];
+    }
+  }
+  function mergeHist(a, b) {
+    if (!a || !a.days) return b;
+    if (!b || !b.days) return a;
+    for (var d in b.days) {
+      if (!a.days[d]) { a.days[d] = b.days[d]; continue; }
+      for (var g in b.days[d]) { if (!a.days[d][g]) a.days[d][g] = b.days[d][g]; else mergeGame(a.days[d][g], b.days[d][g]); }
+    }
+    return a;
+  }
+  function mergeLedger(a, b) {                                    // minutes already sent to the Practice time board, per day
+    if (!a || !a.sent) return b;
+    if (!b || !b.sent) return a;
+    for (var d in b.sent) a.sent[d] = (a.sent[d] || 0) + b.sent[d];
+    a.last = Math.max(a.last || 0, b.last || 0);
+    return a;
+  }
+  function merge(data) {
+    for (var k in data) {
+      if (skip(k)) continue;
+      try {
+        var cur = ls.getItem(k), v = data[k];
+        if (cur === null) ls.setItem(k, v);
+        else if (k.indexOf('mtg_hist_v1:') === 0) ls.setItem(k, JSON.stringify(mergeHist(JSON.parse(cur), JSON.parse(v))));
+        else if (k.indexOf('mtg_time_sync_v1:') === 0) ls.setItem(k, JSON.stringify(mergeLedger(JSON.parse(cur), JSON.parse(v))));
+        // anything else the new address already has stays as it is
+      } catch (e) {}
+    }
+  }
+
+  function send(to, hash, src) {                                  // pack this browser's data and carry it to the same page at `to`
+    halt();
+    var data = {}, n = 0;
+    if (ls) for (var i = 0; i < ls.length; i++) { var k = ls.key(i); if (k && !skip(k)) { data[k] = ls.getItem(k); n++; } }
+    (n ? pack(data) : Promise.resolve('-')).then(function (p) { return p; }, function () { return '-'; }).then(function (p) {
+      location.replace(to + page + TAG + (src || '') + p + '.' + encodeURIComponent(hash));
+    });
+  }
+  function reach(origin) {                                        // can this browser load the other address? (school filters block some)
+    return new Promise(function (ok) {
+      var img = new Image(), t = setTimeout(function () { ok(false); }, 4000);
+      img.onload = function () { clearTimeout(t); ok(true); };
+      img.onerror = function () { clearTimeout(t); ok(false); };
+      img.src = origin + '/screenshots/brainwaves.jpg?r=' + Date.now();
+    });
+  }
+  var asked = location.hash.indexOf(SEND) === 0, hash = asked ? decodeURIComponent(location.hash.slice(SEND.length)) : location.hash.replace(/^#/, '');
+
+  var STAY = 'mtg_move_stay';                                     // this tab could not reach musictheoryacademy.org: stay where it is
+  var stay = false; try { stay = sessionStorage.getItem(STAY) === '1'; } catch (e) {}
+
+  if (role === 'old') { send(ACAD, hash, 'o'); return; }          // old links go straight to the academy (marked 'o' so both sources can merge once)
+
+  if (role === 'new') {                                           // musictheorygames.org forwards to the academy with its data (or passes data on)
+    if (stay) return;
+    halt();
+    reach(ACAD).then(function (ok) {
+      if (!ok) { try { sessionStorage.setItem(STAY, '1'); } catch (e) {} location.reload(); return; }   // the academy is blocked here: open this page
+      if (location.hash.indexOf(TAG) === 0) location.replace(ACAD + page + location.hash);
+      else send(ACAD, hash);
+    });
+    return;
+  }
+
+  if (location.hash.indexOf(TAG) === 0) {                         // data arriving at the academy: unpack once per source, then reload clean
+    halt();
+    var rest = location.hash.slice(TAG.length), dot = rest.indexOf('.');
+    var p = dot < 0 ? rest : rest.slice(0, dot), orig = dot < 0 ? '' : decodeURIComponent(rest.slice(dot + 1));
+    var key = FLAG; if (p.charAt(0) === 'o') { key = FLAG + '_old'; p = p.slice(1); }
+    var done = function () {
+      history.replaceState(null, '', page + (orig ? '#' + orig : ''));
+      location.reload();
+    };
+    if (!ls || ls.getItem(key) === 'done') { done(); return; }
+    unpack(p).then(merge).catch(function () {}).then(function () { try { ls.setItem(key, 'done'); } catch (e) {} done(); });
+  }
+})();
+</script>
+<!-- MTG_MOVE end -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Class · Music Theory Academy</title>
+<meta name="description" content="Answer your teacher's questions live in class. Only your teacher sees your answers.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="live.css">
+<!-- Live Class, student page and ?screen=1 projector (added 2026-11-12). Shared code: live-core.js; teacher console: teach/. -->
+</head>
+<body>
+<div id="app"></div>
+<p class="toast" id="toast" role="status"></p>
+<script src="live-core.js"></script>
+<script>
+(() => {
+const { PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, NOW, db, results, latest, left, clock, ERR } = LC;
+const $ = id => document.getElementById(id);
+const app = $('app');
+const SCREEN = Q.get('screen') === '1';
+const HOME = '../';
+
+// ---------- the signed-in student (shared sign-in, MULTI-CLASS.md) ----------
+const PROFILE_KEY = 'rdt_profile_v1', GUEST_KEY = 'music_guest';
+const isGuest = () => { try { return sessionStorage.getItem(GUEST_KEY) === '1'; } catch { return false; } };
+function getProfile() {
+  if (PREVIEW) return { first: 'sam', init: 'R', icon: '🎷', classCode: 'PREVW', className: 'Period 3 Music Theory', classOwner: 'sample@preview', classes: [{ code: 'PREVW', name: 'Period 3 Music Theory', owner: 'sample@preview' }] };
+  if (isGuest()) return null;
+  try { const p = JSON.parse(localStorage.getItem(PROFILE_KEY) || 'null'); return p && p.first && p.init ? p : null; } catch { return null; }
+}
+function setProfile(p) { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); sessionStorage.removeItem(GUEST_KEY); } catch {} }
+// Every class this student is in, main class first (max 3); [] when not in a class.
+function classesOf(p) {
+  if (!p) return [];
+  const list = Array.isArray(p.classes) && p.classes.length ? p.classes
+    : (p.classCode ? [{ code: p.classCode, name: p.className || p.classCode, owner: p.classOwner || '' }] : []);
+  return list.filter(c => c && c.code).slice(0, 3);
+}
+/* MTG_CLASSSWITCH: a student can save up to 3 classes (p.saved) but only ONE is active (p.classes = [active]); scores, practice and tests count for the active class */
+const savedOf = p => { if (!p) return []; const l = Array.isArray(p.saved) && p.saved.length ? p.saved : classesOf(p); return l.filter(c => c && c.code).slice(0, 3); };
+function switchClass(code) { const p = getProfile(), s = savedOf(p), c = s.find(x => x.code === code); if (!p || !c || PREVIEW) return; setProfile({ ...p, classCode: c.code, className: c.name || c.code, classOwner: c.owner || '', classes: [c], saved: s }); location.reload(); }
+/* /MTG_CLASSSWITCH */
+const sidOf = p => (p.first + p.init).toLowerCase().replace(/[^a-z]/g, '').slice(0, 16);
+const nameOf = p => { const f = String(p.first); return (f.charAt(0).toUpperCase() + f.slice(1) + ' ' + p.init + '.').slice(0, 24); };
+
+let toastT = 0;
+const toast = t => { $('toast').textContent = t; clearTimeout(toastT); toastT = setTimeout(() => { $('toast').textContent = ''; }, 2600); };
+
+// =====================================================================================
+// Projector (?screen=1&code=XXXX): the question, results (when this browser is the class's teacher), spotlight, join code
+// =====================================================================================
+if (SCREEN) {
+  const p = getProfile();
+  const code = String(Q.get('code') || (p && p.classCode) || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const P = { live: null, ans: [], reacts: [], teacher: PREVIEW ? 'sample@preview' : '', offA: null, offR: null, round: '' };
+  document.title = 'Projector · Live Class';
+  const correctOf = () => { try { const t = JSON.parse(localStorage.getItem('mtg_live_teach_v1:' + code) || 'null'); return t && P.live && t.round === P.live.round ? t.correct || '' : ''; } catch { return ''; } };
+  const draw = () => {
+    const L = P.live;
+    if (!code) { app.innerHTML = '<main class="proj"><h1>Open the projector from the Live tab of your dashboard.</h1></main>'; return; }
+    if (!L || !L.q) { app.innerHTML = `<main class="proj"><span class="label">Live Class</span><h1>Join at <span class="joincode">musictheoryacademy.org/live</span></h1><p class="muted" style="font-size:24px">Sign in on the home page with class code <b class="joincode">${esc(code)}</b>. Waiting for the first question…</p></main>`; return; }
+    const A = latest(P.ans), s = left(L);
+    const spot = (L.spot || []).map((x, i) => { const rx = P.reacts.filter(r => r.to === i);
+      return `<div class="spotcard"><span class="label" style="color:var(--gold)">★ Spotlight${x.n ? '' : ' · a classmate'}</span>${x.n ? `<div style="font-size:26px;font-weight:700">${esc(x.a || '')} ${esc(x.n)}</div>` : ''}
+      <p class="txt">${esc(x.t)}</p><div class="row" style="font-size:28px;gap:18px">${REACTS.map(e => { const c = rx.filter(r => r.e === e).length; return c ? `<span>${e} <span class="mono">${c}</span></span>` : ''; }).join('')}</div></div>`; }).join('');
+    const res = P.teacher ? results(L, A, { big: true, correct: L.open ? '' : correctOf() })
+      : '<p class="muted">Results show here when this computer is signed in to your teacher dashboard.</p>';
+    app.innerHTML = `<main class="proj">
+      <div class="row between"><span class="label" style="font-size:16px">${esc(TYPES[L.type] || '')}</span>${s != null ? `<span class="ptimer mono" id="cd">${clock(s)}</span>` : L.open ? '<span class="chip ok" style="font-size:18px">Answers open</span>' : '<span class="chip no" style="font-size:18px">Locked</span>'}</div>
+      <h1>${esc(L.q)}</h1>
+      ${L.type === 'mc' ? `<div class="row" style="font-size:24px;gap:14px">${(L.opts || []).map((o, i) => `<span class="chip" style="font-size:22px;padding:6px 16px">${'ABCDEF'[i]}. ${esc(o)}</span>`).join('')}</div>` : ''}
+      <div class="projmain"><section class="card">${res}</section>${spot ? `<section class="stack">${spot}</section>` : `<section class="card stack" style="justify-content:center;align-items:center;text-align:center"><span class="big" style="font-size:90px">${P.teacher ? A.length : '–'}</span><span class="muted" style="font-size:24px">answers in</span></section>`}</div>
+      <footer class="card row between" style="font-size:22px"><span>Join: <b>musictheoryacademy.org/live</b> · class code <b class="joincode mono">${esc(code)}</b></span><span class="muted">Only your teacher sees your answers.</span></footer></main>`;
+  };
+  const watchRound = () => {
+    const r = P.live && P.live.round || '';
+    if (r === P.round) return; P.round = r;
+    if (P.offR) P.offR(); P.offR = null; P.reacts = [];
+    if (P.offA) P.offA(); P.offA = null; P.ans = [];
+    if (!r) return;
+    db.watchCol(`bc_live/${code}/reacts`, { round: r }, l => { P.reacts = l; draw(); }).then(f => { P.offR = f; });
+    if (P.teacher) db.watchCol('bc_answers', { class_code: code, owner: P.teacher, round: r }, l => { P.ans = l; draw(); }).then(f => { P.offA = f; });
+  };
+  if (code) db.watchDoc('bc_live/' + code, d => { P.live = d; watchRound(); draw(); }, e => { app.innerHTML = `<main class="proj"><h1>${esc(ERR(e))}</h1></main>`; });
+  if (!PREVIEW && code) LC.fbAuth().then(({ am, auth }) => am.onAuthStateChanged(auth, u => { P.teacher = u && u.email ? String(u.email).toLowerCase() : ''; P.round = '__'; watchRound(); draw(); })).catch(() => {});
+  window.addEventListener('storage', e => { if (e.key === 'mtg_live_teach_v1:' + code) draw(); });
+  setInterval(() => { const el = $('cd'); if (el && P.live) el.textContent = clock(left(P.live)); }, 500);
+  draw();
+  return;
+}
+
+// =====================================================================================
+// Student page
+// =====================================================================================
+const p = getProfile();
+const shell = inner => `<div class="wrap"><nav class="top"><a class="pill" href="${HOME}">← Music Theory Academy</a><a class="pill" href="${HOME}report/">My Report</a><span class="grow"></span>${PREVIEW ? '<span class="chip gold">Preview: pretend class, saved only in this browser</span>' : ''}</nav>${inner}
+  <p class="dim small" style="margin:0">Live Class · <a href="/privacy/" style="color:inherit">Privacy</a></p></div>`;
+if (!p) { app.innerHTML = shell(`<section class="card stack"><h1>Live Class</h1><p>Sign in on the home page first, with your class code. Then come back here.</p><p><a class="btn pri" href="${HOME}">Go to the home page</a></p></section>`); return; }
+if (!p.classCode || !p.classOwner) { app.innerHTML = shell(`<section class="card stack"><h1>Live Class</h1><p>Live Class needs your class code. On the home page, open your name and add your teacher's class code.</p><p><a class="btn pri" href="${HOME}">Go to the home page</a></p></section>`); return; }
+
+const code = p.classCode, sid = sidOf(p), name = nameOf(p);
+const LK = 'mtg_bc_v1:' + sid;
+const loadMe = () => { try { const o = JSON.parse(localStorage.getItem(LK) || 'null'); if (o && /^[a-z0-9]{20}$/.test(o.key)) return o; } catch {} return { key: LC.newKey(), lost: false, conf: 3, hist: [], react: null }; };
+const ME = loadMe();
+const saveMe = () => { try { localStorage.setItem(LK, JSON.stringify(ME)); } catch {} };
+saveMe();
+const S = { live: null, draft: '', draftRound: '', busy: false, err: '', loaded: false };
+const base = () => ({ class_code: code, owner: p.classOwner, sid, name });
+
+function pulse() {
+  return db.set('bc_pulse/' + ME.key, { ...base(), lost: !!ME.lost, conf: ME.conf | 0 || 3, at: NOW }).catch(e => { S.err = ERR(e); draw(); });
+}
+pulse();   // tells the teacher you have joined
+
+function mineFor(round) { return ME.hist.find(h => h.round === round && h.code === code); }
+
+function questionCard() {
+  const L = S.live;
+  if (!S.loaded) return '<section class="card"><p class="muted empty">Connecting…</p></section>';
+  if (!L || !L.q) return `<section class="card stack"><span class="label">${esc(p.className || code)}</span><h2>Waiting for your teacher's question…</h2><p class="muted empty">Keep this page open. The question appears here by itself.</p></section>`;
+  const mine = mineFor(L.round), s = left(L), closed = !L.open || s === 0;
+  if (S.draftRound !== L.round) { S.draftRound = L.round; S.draft = mine && (L.type === 'text' || L.type === 'num' || L.type === 'word') ? mine.text : ''; }
+  let input = '';
+  if (closed) input = '<p class="locked">🔒 Answers are locked for this question.</p>';
+  else if (L.type === 'mc' || L.type === 'yn' || L.type === 'emoji') {
+    const opts = L.type === 'mc' ? (L.opts || []) : L.type === 'yn' ? ['Yes', 'No'] : EMOJIS;
+    input = `<div class="opts ${L.type === 'emoji' ? 'emopick' : ''}">${opts.map(o => `<button type="button" class="opt ${mine && mine.text === o ? 'on' : ''}" data-pick="${esc(o)}" ${S.busy ? 'disabled' : ''}>${esc(o)}</button>`).join('')}</div>`;
+  } else if (L.type === 'text') {
+    input = `<textarea id="ans" maxlength="280" rows="3" placeholder="Type your answer…">${esc(S.draft)}</textarea><div class="row between"><span class="muted mono small" id="cnt">${S.draft.length}/280</span><button type="button" class="btn pri" data-send ${S.busy ? 'disabled' : ''}>${mine ? 'Update answer' : 'Send answer'}</button></div>`;
+  } else {
+    input = `<div class="row" style="flex-wrap:nowrap"><input id="ans" type="${L.type === 'num' ? 'number' : 'text'}" ${L.type === 'num' ? 'inputmode="decimal" step="any"' : 'maxlength="24" autocapitalize="off"'} value="${esc(S.draft)}" placeholder="${L.type === 'num' ? 'Type a number' : 'One word'}"><button type="button" class="btn pri" data-send ${S.busy ? 'disabled' : ''}>${mine ? 'Update' : 'Send'}</button></div>`;
+  }
+  return `<section class="card stack qhead"><div class="row between"><span class="label">${esc(TYPES[L.type] || '')}</span>${s != null ? `<span class="chip gold">⏱ <span class="mono" id="cd">${clock(s)}</span></span>` : ''}</div>
+    <h2>${esc(L.q)}</h2>${input}${mine ? `<p class="sent">✓ Sent: “${esc(mine.text)}”</p>` : ''}
+    <p class="dim small" style="margin:0">Only your teacher sees your answer.</p></section>`;
+}
+function spotCard() {
+  const L = S.live; if (!L || !L.spot || !L.spot.length) return '';
+  const my = ME.react && ME.react.round === L.round ? ME.react : null;
+  return L.spot.map((x, i) => `<section class="spotcard"><div class="row between"><span class="label" style="color:var(--gold)">★ Spotlight</span><span>${x.n ? `${esc(x.a || '')} <b>${esc(x.n)}</b>` : '<span class="muted">A classmate</span>'}</span></div>
+    <p class="txt">${esc(x.t)}</p><div class="reacts">${REACTS.map(e => `<button type="button" class="${my && my.to === i && my.e === e ? 'on' : ''}" data-react="${e}" data-to="${i}" aria-label="React ${e}">${e}</button>`).join('')}</div></section>`).join('');
+}
+function histCard() {
+  const L = S.live;
+  const H = ME.hist.filter(h => h.code === code && (!L || h.round !== L.round)).slice(-8).reverse();
+  return `<section class="card stack"><h3>My answers</h3>${H.length ? `<ul class="hist">${H.map(h => `<li><div class="q">${esc(h.q)}</div><div>${esc(h.text)}</div></li>`).join('')}</ul>` : '<p class="muted empty small">Your past answers show up here (on this device).</p>'}</section>`;
+}
+function helpCard() {
+  const saved = savedOf(p);
+  return `<section class="card stack">
+    <div class="row between"><b>${esc(p.icon || '')} ${esc(name)}</b>${saved.length > 1 ? `<select id="cls" aria-label="Class" style="width:auto">${saved.map(c => `<option value="${esc(c.code)}" ${c.code === code ? 'selected' : ''}>${esc(c.name || c.code)}</option>`).join('')}</select>` : `<span class="muted small">${esc(p.className || code)}</span>`}</div>
+    <button type="button" class="btn lost ${ME.lost ? 'on' : ''}" id="lost" aria-pressed="${!!ME.lost}">${ME.lost ? '😵 I\'m lost (tap to undo)' : '🙋 I\'m lost'}</button>
+    <label class="f" for="conf">How sure do you feel? <b class="mono" style="color:var(--ink)" id="confv">${ME.conf} / 5</b><input type="range" id="conf" min="1" max="5" value="${ME.conf}"></label>
+    <p class="dim small" style="margin:0">Only your teacher sees these.</p></section>
+  <section class="card stack"><h3>Ask your teacher privately</h3><textarea id="pq" maxlength="280" rows="3" placeholder="Nobody else will see this."></textarea><button type="button" class="btn" id="sendpq">Send privately</button></section>`;
+}
+function draw() {
+  const a = document.activeElement, keep = a && a.id ? { id: a.id, s: a.selectionStart, e: a.selectionEnd } : null;
+  const pq = $('pq') ? $('pq').value : '';
+  app.innerHTML = shell(`<h1 style="font-size:clamp(26px,5vw,36px)">Live Class</h1><p class="msg" role="alert">${esc(S.err)}</p>
+    <div class="cols"><div class="stack">${questionCard()}${spotCard()}${histCard()}</div><aside class="stack">${helpCard()}</aside></div>`);
+  if ($('pq')) $('pq').value = pq;
+  if (keep && $(keep.id)) { const el = $(keep.id); el.focus(); try { if (keep.s != null) el.setSelectionRange(keep.s, keep.e); } catch {} }
+}
+
+async function send(text) {
+  const L = S.live; text = String(text).trim().slice(0, 280);
+  if (!L || !L.open || left(L) === 0 || !text || S.busy) return;
+  if (L.type === 'num' && isNaN(Number(text))) { toast('Type a number.'); return; }
+  if (L.type === 'word') text = text.split(/\s+/)[0].slice(0, 24);
+  const mine = mineFor(L.round);
+  if (mine && mine.text === text) { toast('Already sent.'); return; }
+  S.busy = true; S.err = ''; draw();
+  const d = { round: L.round, ...base(), key: ME.key, type: L.type, text, at: NOW };
+  if (LC.flagged(text)) d.flag = true;
+  if (typeof p.icon === 'string' && p.icon) d.avatar = p.icon.slice(0, 20);
+  try {
+    await db.add('bc_answers', d);
+    ME.hist = ME.hist.filter(h => !(h.round === L.round && h.code === code)).concat({ round: L.round, code, q: L.q, text, at: Date.now() }).slice(-60);
+    saveMe(); toast(mine ? 'Answer updated.' : 'Sent!');
+  } catch (e) { S.err = ERR(e); }
+  S.busy = false; draw();
+}
+
+app.addEventListener('click', async e => {
+  const t = e.target.closest('button'); if (!t) return;
+  if (t.dataset.pick != null) return send(t.dataset.pick);
+  if (t.hasAttribute('data-send')) return send($('ans') ? $('ans').value : '');
+  if (t.dataset.react) {
+    const L = S.live; if (!L) return;
+    const to = Number(t.dataset.to), e2 = t.dataset.react;
+    ME.react = { round: L.round, to, e: e2 }; saveMe(); draw();
+    db.set(`bc_live/${code}/reacts/${L.round}_${sid}`, { round: L.round, to, e: e2, at: NOW }).catch(er => { S.err = ERR(er); draw(); });
+    return;
+  }
+  if (t.id === 'lost') { ME.lost = !ME.lost; saveMe(); draw(); pulse(); return; }
+  if (t.id === 'sendpq') {
+    const v = $('pq').value.trim().slice(0, 280); if (!v) return;
+    t.disabled = true;
+    try { await db.add('bc_private', { ...base(), key: ME.key, text: v, at: NOW }); $('pq').value = ''; toast('Sent to your teacher only.'); }
+    catch (er) { S.err = ERR(er); draw(); }
+    t.disabled = false;
+  }
+});
+let confT = 0;
+app.addEventListener('input', e => {
+  if (e.target.id === 'ans') { S.draft = e.target.value; const c = $('cnt'); if (c) c.textContent = S.draft.length + '/280'; }
+  if (e.target.id === 'conf') { ME.conf = Number(e.target.value) || 3; saveMe(); $('confv').textContent = ME.conf + ' / 5'; clearTimeout(confT); confT = setTimeout(pulse, 900); }
+});
+app.addEventListener('change', e => { if (e.target.id === 'cls') switchClass(e.target.value); });
+app.addEventListener('keydown', e => { if (e.target.id === 'ans' && e.key === 'Enter' && (e.target.tagName === 'INPUT' || e.metaKey || e.ctrlKey)) { e.preventDefault(); send(e.target.value); } });
+
+let wasOpen = null;
+db.watchDoc('bc_live/' + code, d => {
+  const before = S.live; S.live = d; S.loaded = true;
+  if (d && d.q && (!before || before.round !== d.round)) { try { navigator.vibrate && navigator.vibrate(60); } catch {} }
+  wasOpen = d && d.open; draw();
+}, e => { S.loaded = true; S.err = ERR(e); draw(); });
+setInterval(() => { const L = S.live; if (!L || !L.ends_at) return; const s = left(L), el = $('cd'); if (el) el.textContent = clock(s); if (s === 0 && L.open && draw.locked !== L.round) { draw.locked = L.round; draw(); } }, 500);
+draw();
+})();
+</script>
+</body>
+</html>

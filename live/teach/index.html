@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<!-- MTG_MOVE start: carries a browser's saved data from drkeyzzz.github.io to musictheorygames.org and musictheoryacademy.org. Master copy: shared/mtg-move.snippet.html; install with shared/apply-move.py, never edit the copy in a page. -->
+<script>
+/* musictheoryacademy.org is the one address (David, 2026-10-29: "all go to academy").
+   Old address (drkeyzzz.github.io) and musictheorygames.org: pack everything this browser saved there and forward to the same
+   page on musictheoryacademy.org (musictheorygames.org first checks the academy loads here; if a school blocks it, the page opens as is).
+   musictheoryacademy.org: never leaves. It unpacks arriving data once per source (missing items are added, practice history is
+   combined), then reloads clean.
+   The data rides after the # in the link, which browsers never send to any server.
+   Local test on port 8771: 127.0.0.1 = old, localhost = musictheorygames.org, academy.localhost = musictheoryacademy.org. */
+(function () {
+  if (window.top !== window.self) return;                       // pages shown inside another page never move
+  var host = location.hostname, NEW = 'https://musictheorygames.org', ACAD = 'https://musictheoryacademy.org', OLD = 'https://drkeyzzz' + '.github.io', role = '';
+  if (host === 'drkeyzzz.github.io') role = 'old';
+  else if (host === 'musictheorygames.org') role = 'new';
+  else if (host === 'musictheoryacademy.org') role = 'acad';
+  else if (location.port === '8771') {
+    NEW = 'http://localhost:8771'; ACAD = 'http://academy.localhost:8771'; OLD = 'http://127.0.0.1:8771';
+    role = host === '127.0.0.1' ? 'old' : host === 'localhost' ? 'new' : host === 'academy.localhost' ? 'acad' : '';
+  }
+  if (!role) return;
+  var FLAG = 'mtg_move_v1', TAG = '#mtgmove=', SEND = '#mtgsend=a.', ls = null;   // SEND: older academy pages asked for data this way (still read)
+  try { ls = window.localStorage; ls.getItem(FLAG); } catch (e) { ls = null; }
+  var page = location.pathname + location.search;
+  function halt() { try { window.stop(); } catch (e) {} try { document.documentElement.style.visibility = 'hidden'; } catch (e) {} }
+  function skip(k) { return k === FLAG || k === FLAG + '_old' || k.indexOf('mtg_time_lock_v1:') === 0 || k.indexOf('firebase:') === 0; }
+
+  function b64u(bytes) {
+    var s = '';
+    for (var i = 0; i < bytes.length; i += 32768) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 32768));
+    return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  function unb64u(t) {
+    var s = atob(t.replace(/-/g, '+').replace(/_/g, '/')), b = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
+    return b;
+  }
+  function pack(data) {
+    var json = JSON.stringify(data);
+    if (window.CompressionStream && window.Response && window.Blob)
+      return new Response(new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()
+        .then(function (buf) { return 'z' + b64u(new Uint8Array(buf)); });
+    return Promise.resolve('j' + b64u(new TextEncoder().encode(json)));
+  }
+  function unpack(p) {
+    if (p === '-' || !p) return Promise.resolve({});
+    var bytes = unb64u(p.slice(1));
+    if (p.charAt(0) === 'z')
+      return new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'))).text().then(JSON.parse);
+    return Promise.resolve(JSON.parse(new TextDecoder().decode(bytes)));
+  }
+
+  // practice history: both addresses recorded different answers, so counts add up and bests take the higher one
+  var ADD = { plays: 1, answers: 1, correct: 1, ms: 1, caught: 1 };
+  function mergeGame(x, y) {
+    for (var f in y) {
+      if (f === 'skills') {
+        x.skills = x.skills || {};
+        for (var lab in y.skills) { var a = x.skills[lab], b = y.skills[lab]; x.skills[lab] = a ? [a[0] + b[0], a[1] + b[1]] : b; }
+      } else if (typeof y[f] === 'number') x[f] = typeof x[f] !== 'number' ? y[f] : ADD[f] ? x[f] + y[f] : Math.max(x[f], y[f]);
+      else if (!(f in x)) x[f] = y[f];
+    }
+  }
+  function mergeHist(a, b) {
+    if (!a || !a.days) return b;
+    if (!b || !b.days) return a;
+    for (var d in b.days) {
+      if (!a.days[d]) { a.days[d] = b.days[d]; continue; }
+      for (var g in b.days[d]) { if (!a.days[d][g]) a.days[d][g] = b.days[d][g]; else mergeGame(a.days[d][g], b.days[d][g]); }
+    }
+    return a;
+  }
+  function mergeLedger(a, b) {                                    // minutes already sent to the Practice time board, per day
+    if (!a || !a.sent) return b;
+    if (!b || !b.sent) return a;
+    for (var d in b.sent) a.sent[d] = (a.sent[d] || 0) + b.sent[d];
+    a.last = Math.max(a.last || 0, b.last || 0);
+    return a;
+  }
+  function merge(data) {
+    for (var k in data) {
+      if (skip(k)) continue;
+      try {
+        var cur = ls.getItem(k), v = data[k];
+        if (cur === null) ls.setItem(k, v);
+        else if (k.indexOf('mtg_hist_v1:') === 0) ls.setItem(k, JSON.stringify(mergeHist(JSON.parse(cur), JSON.parse(v))));
+        else if (k.indexOf('mtg_time_sync_v1:') === 0) ls.setItem(k, JSON.stringify(mergeLedger(JSON.parse(cur), JSON.parse(v))));
+        // anything else the new address already has stays as it is
+      } catch (e) {}
+    }
+  }
+
+  function send(to, hash, src) {                                  // pack this browser's data and carry it to the same page at `to`
+    halt();
+    var data = {}, n = 0;
+    if (ls) for (var i = 0; i < ls.length; i++) { var k = ls.key(i); if (k && !skip(k)) { data[k] = ls.getItem(k); n++; } }
+    (n ? pack(data) : Promise.resolve('-')).then(function (p) { return p; }, function () { return '-'; }).then(function (p) {
+      location.replace(to + page + TAG + (src || '') + p + '.' + encodeURIComponent(hash));
+    });
+  }
+  function reach(origin) {                                        // can this browser load the other address? (school filters block some)
+    return new Promise(function (ok) {
+      var img = new Image(), t = setTimeout(function () { ok(false); }, 4000);
+      img.onload = function () { clearTimeout(t); ok(true); };
+      img.onerror = function () { clearTimeout(t); ok(false); };
+      img.src = origin + '/screenshots/brainwaves.jpg?r=' + Date.now();
+    });
+  }
+  var asked = location.hash.indexOf(SEND) === 0, hash = asked ? decodeURIComponent(location.hash.slice(SEND.length)) : location.hash.replace(/^#/, '');
+
+  var STAY = 'mtg_move_stay';                                     // this tab could not reach musictheoryacademy.org: stay where it is
+  var stay = false; try { stay = sessionStorage.getItem(STAY) === '1'; } catch (e) {}
+
+  if (role === 'old') { send(ACAD, hash, 'o'); return; }          // old links go straight to the academy (marked 'o' so both sources can merge once)
+
+  if (role === 'new') {                                           // musictheorygames.org forwards to the academy with its data (or passes data on)
+    if (stay) return;
+    halt();
+    reach(ACAD).then(function (ok) {
+      if (!ok) { try { sessionStorage.setItem(STAY, '1'); } catch (e) {} location.reload(); return; }   // the academy is blocked here: open this page
+      if (location.hash.indexOf(TAG) === 0) location.replace(ACAD + page + location.hash);
+      else send(ACAD, hash);
+    });
+    return;
+  }
+
+  if (location.hash.indexOf(TAG) === 0) {                         // data arriving at the academy: unpack once per source, then reload clean
+    halt();
+    var rest = location.hash.slice(TAG.length), dot = rest.indexOf('.');
+    var p = dot < 0 ? rest : rest.slice(0, dot), orig = dot < 0 ? '' : decodeURIComponent(rest.slice(dot + 1));
+    var key = FLAG; if (p.charAt(0) === 'o') { key = FLAG + '_old'; p = p.slice(1); }
+    var done = function () {
+      history.replaceState(null, '', page + (orig ? '#' + orig : ''));
+      location.reload();
+    };
+    if (!ls || ls.getItem(key) === 'done') { done(); return; }
+    unpack(p).then(merge).catch(function () {}).then(function () { try { ls.setItem(key, 'done'); } catch (e) {} done(); });
+  }
+})();
+</script>
+<!-- MTG_MOVE end -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Class · Teacher</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../live.css">
+<!-- Live Class teacher console (added 2026-11-12). Shown inside the All games dashboard's Live tab (?embed=1&code=XXXX),
+     or on its own. ?preview=1 = a pretend class kept in this browser; open ../?preview=1 in another tab to be a student. -->
+<style>
+  body.embed { background: transparent; }
+  body.embed .wrap { padding: 0 0 30px; max-width: none; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<p class="toast" id="toast" role="status"></p>
+<script src="../live-core.js"></script>
+<script>
+(() => {
+const { PREVIEW, Q, esc, TYPES, EMOJIS, BANK, NOW, at, db, results, latest, left, clock, ERR } = LC;
+const $ = id => document.getElementById(id);
+const app = $('app');
+const EMBED = Q.get('embed') === '1';
+if (EMBED) document.body.classList.add('embed');
+let toastT = 0;
+const toast = t => { $('toast').textContent = t; clearTimeout(toastT); toastT = setTimeout(() => { $('toast').textContent = ''; }, 2600); };
+const ago = ms => { const s = Math.round((Date.now() - (ms || Date.now())) / 1000); return s < 60 ? 'just now' : s < 3600 ? Math.round(s / 60) + ' min ago' : Math.round(s / 3600) + ' h ago'; };
+
+const S = { email: '', classes: [], code: '', live: null, ans: [], pulses: [], priv: [], err: '', confirm: '', sort: 'new', offs: [], offA: null, round: '',
+  comp: { type: 'mc', q: '', opts: ['', '', '', ''], correct: '', timer: 0, skills: [] } };
+const TK = () => 'mtg_live_teach_v1:' + S.code;    // the correct answer stays on this computer (the projector reads it)
+const correct = () => { try { const t = JSON.parse(localStorage.getItem(TK()) || 'null'); return t && S.live && t.round === S.live.round ? t.correct || '' : ''; } catch { return ''; } };
+const livePath = () => 'bc_live/' + S.code;
+
+// ---------- sign-in and classes ----------
+async function start() {
+  if (PREVIEW) { S.email = 'sample@preview'; S.classes = [{ code: 'PREVW', name: 'Period 3 Music Theory' }, { code: 'PREV2', name: 'Period 5 Chorus' }]; return pick(); }
+  app.innerHTML = shell('<section class="card"><p class="muted empty">Loading…</p></section>');
+  try {
+    const { am, auth } = await LC.fbAuth();
+    am.onAuthStateChanged(auth, async u => {
+      if (!u) { app.innerHTML = shell(`<section class="card stack"><h2>Live Class</h2><p>Sign in with the Google account you use for your class.</p><p><button class="btn pri" id="signin" type="button">Sign in with Google</button></p></section>`); return; }
+      S.email = String(u.email || '').toLowerCase();
+      const { fs, db: fdb } = await LC.fbAuth();
+      const snap = await fs.getDocs(fs.query(fs.collection(fdb, 'classes'), fs.where('ownerEmail', '==', S.email)));
+      S.classes = snap.docs.map(d => ({ code: d.id, name: d.data().name || d.id })).sort((a, b) => a.name.localeCompare(b.name));
+      pick();
+    });
+  } catch (e) { app.innerHTML = shell(`<section class="card"><p class="msg">${esc(ERR(e))}</p></section>`); }
+}
+function pick() {
+  const want = String(Q.get('code') || '').toUpperCase();
+  const code = (S.classes.find(c => c.code === want) || S.classes[0] || {}).code || '';
+  if (!code) { app.innerHTML = shell('<section class="card stack"><h2>Live Class</h2><p>You have no classes yet. Make one on the Teachers page, then come back.</p></section>'); return; }
+  openClass(code);
+}
+function openClass(code) {
+  S.offs.forEach(f => f && f()); S.offs = []; if (S.offA) S.offA(); S.offA = null;
+  S.code = code; S.live = null; S.ans = []; S.pulses = []; S.priv = []; S.round = ''; S.err = '';
+  const fail = e => { S.err = ERR(e); draw(); };
+  db.watchDoc(livePath(), d => { S.live = d; watchAnswers(); draw(); }, fail).then(f => S.offs.push(f));
+  db.watchCol('bc_pulse', { class_code: code, owner: S.email }, l => { S.pulses = l; draw(); }, fail).then(f => S.offs.push(f));
+  db.watchCol('bc_private', { class_code: code, owner: S.email }, l => { S.priv = l; draw(); }, fail).then(f => S.offs.push(f));
+  draw();
+}
+function watchAnswers() {
+  const r = S.live && S.live.round || '';
+  if (r === S.round) return;
+  S.round = r; if (S.offA) S.offA(); S.offA = null; S.ans = [];
+  if (r) db.watchCol('bc_answers', { class_code: S.code, owner: S.email, round: r }, l => { S.ans = l; draw(); }, e => { S.err = ERR(e); draw(); }).then(f => { S.offA = f; });
+}
+
+// ---------- drawing ----------
+function shell(inner) {
+  return `<div class="wrap">${EMBED ? '' : `<nav class="top"><a class="pill" href="../../teacher/all/">← All games dashboard</a><span class="grow"></span>${PREVIEW ? '<span class="chip gold">Preview: pretend class</span>' : ''}${S.email && !PREVIEW ? `<span class="muted small">${esc(S.email)}</span>` : ''}</nav>`}${inner}</div>`;
+}
+const recent = () => S.pulses.filter(x => Date.now() - (x.at || 0) < 3 * 3600e3);
+function headCard() {
+  const scr = `../?screen=1&code=${encodeURIComponent(S.code)}${PREVIEW ? '&preview=1' : ''}`;
+  return `<section class="card row between">
+    <div class="row">${S.classes.length > 1 ? `<label class="f" for="cls" style="flex-direction:row;align-items:center;gap:8px">Class <select id="cls" style="width:auto">${S.classes.map(c => `<option value="${esc(c.code)}" ${c.code === S.code ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>` : `<b>${esc((S.classes[0] || {}).name || S.code)}</b>`}
+      <span class="muted small">Students open <b>musictheoryacademy.org/live</b> signed in with code <b class="mono">${esc(S.code)}</b> · ${recent().length} joined</span></div>
+    <div class="row"><a class="btn" href="${scr}" target="_blank" rel="noopener">📽 Open projector</a>${PREVIEW ? `<a class="btn" href="../?preview=1" target="_blank" rel="noopener">👀 Student view</a>` : ''}</div></section>`;
+}
+function roundCard() {
+  const L = S.live, A = latest(S.ans), n = recent().length, s = left(L);
+  return `<section class="card stack qhead">
+    <div class="row between"><span class="label">${esc(TYPES[L.type] || '')}</span><div class="row">${s != null ? `<span class="chip gold">⏱ <span class="mono" id="cd">${clock(s)}</span></span>` : ''}<span class="chip ${L.open ? 'ok' : 'no'}">${L.open ? 'Open' : 'Locked'}</span></div></div>
+    <h2>${esc(L.q)}</h2>
+    ${L.type === 'mc' ? `<div class="row">${(L.opts || []).map((o, i) => `<span class="chip">${'ABCDEF'[i]}. ${esc(o)}</span>`).join('')}</div>` : ''}
+    <div class="row"><b class="mono">${A.length}${n ? ' of ' + Math.max(n, A.length) : ''}</b><span class="muted">answered</span><div class="meter" style="flex:1;min-width:120px"><i style="width:${n ? Math.min(100, 100 * A.length / Math.max(n, A.length)) : 0}%"></i></div></div>
+    <div class="row">
+      <button class="btn" type="button" data-act="lock">${L.open ? '🔒 Lock answers' : '🔓 Unlock answers'}</button>
+      <button class="btn" type="button" data-act="timer" data-v="30">⏱ 30s</button><button class="btn" type="button" data-act="timer" data-v="60">1 min</button><button class="btn" type="button" data-act="timer" data-v="120">2 min</button>
+      ${(L.spot || []).length ? '<button class="btn" type="button" data-act="spotClear">Clear spotlight</button>' : ''}
+      <button class="btn" type="button" data-act="csv">Download CSV</button>
+      ${S.confirm === 'end' ? '<button class="btn warn" type="button" data-act="end">End and clear the screen?</button>' : '<button class="btn warn" type="button" data-act="confirm" data-v="end">End question</button>'}
+      ${PREVIEW ? '<button class="btn" type="button" data-act="sim">🤖 Pretend students answer</button>' : ''}
+    </div></section>`;
+}
+function resultsCard() {
+  const c = correct();
+  return `<section class="card stack"><div class="row between"><h3>Live results</h3>${c ? `<span class="muted small">Correct answer: <b>${esc(c)}</b> (shown on the projector once you lock)</span>` : ''}</div>${results(S.live, latest(S.ans), { correct: c, hint: true })}</section>`;
+}
+function answersCard() {
+  const L = S.live, A = latest(S.ans), spot = L.spot || [];
+  const isSpot = a => spot.some(x => x.id === a.id);
+  const by = { new: (a, b) => (b.at || 0) - (a.at || 0), name: (a, b) => a.name.localeCompare(b.name) };
+  A.sort(by[S.sort]);
+  return `<section class="card stack">
+    <div class="row between"><h3>Answers <span class="muted small">(only you can see these)</span></h3>
+      <label class="row muted small" style="gap:6px">Sort <select id="sort" style="width:auto">${[['new', 'Newest'], ['name', 'Name']].map(([v, l]) => `<option value="${v}" ${S.sort === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
+    ${A.length ? `<div class="grid">${A.map(a => { const sp = isSpot(a);
+      return `<article class="ans ${sp ? 'spot' : ''}"><header><span style="font-size:22px">${esc(a.avatar || '🙂')}</span><div style="min-width:0;flex:1"><b>${esc(a.name)}</b><span class="t">${ago(a.at)}</span></div>${a.flag ? '<span class="chip flag">Check</span>' : ''}${sp ? '<span class="chip gold">★</span>' : ''}</header>
+      <p class="txt">${esc(a.text)}</p>
+      <footer>${sp ? '' : `<button class="btn sm" type="button" data-act="spot" data-id="${esc(a.id)}">★ Spotlight</button><button class="btn sm" type="button" data-act="spot" data-id="${esc(a.id)}" data-anon="1">★ No name</button>${spot.length === 1 ? `<button class="btn sm" type="button" data-act="spot" data-id="${esc(a.id)}" data-add="1">+ Compare</button>` : ''}`}
+        ${S.confirm === 'del:' + a.sid ? `<button class="btn sm warn" type="button" data-act="del" data-sid="${esc(a.sid)}">Delete?</button>` : `<button class="btn sm" type="button" data-act="confirm" data-v="del:${esc(a.sid)}" aria-label="Delete answer">🗑</button>`}</footer></article>`; }).join('')}</div>` : '<p class="muted empty">No answers yet.</p>'}
+  </section>`;
+}
+function pulseCard() {
+  const P = recent(), lost = P.filter(x => x.lost), avg = P.length ? P.reduce((t, x) => t + (x.conf || 3), 0) / P.length : 0;
+  const got = new Set(S.ans.map(a => a.sid)), un = S.live && S.live.q ? P.filter(x => !got.has(x.sid)) : [];
+  return `<section class="card stack"><h3>Class pulse</h3>
+    <div><div class="row between"><span class="label">"I'm lost"</span><b class="mono">${lost.length} of ${P.length}</b></div><div class="meter rose" style="margin-top:6px"><i style="width:${P.length ? 100 * lost.length / P.length : 0}%"></i></div>
+      ${lost.length ? `<div class="namechips" style="margin-top:8px">${lost.map(x => `<span class="chip no">${esc(x.name)}</span>`).join('')}</div>` : ''}</div>
+    <div><div class="row between"><span class="label">Confidence</span><b class="mono">${P.length ? avg.toFixed(1) : '–'} / 5</b></div><div class="meter vio" style="margin-top:6px"><i style="width:${avg * 20}%"></i></div></div>
+    ${S.live && S.live.q ? `<div><span class="label">Not answered yet</span><div class="namechips" style="margin-top:6px">${un.length ? un.map(x => `<span class="chip">${esc(x.name)}</span>`).join('') : P.length ? '<span class="chip ok">Everyone is in</span>' : '<span class="muted small">Nobody has joined yet.</span>'}</div></div>` : ''}
+    <p class="dim small" style="margin:0">Students who opened Live Class in the last 3 hours.</p></section>`;
+}
+function inboxCard() {
+  const L = S.priv.slice().sort((a, b) => (!!a.done - !!b.done) || (b.at || 0) - (a.at || 0)).slice(0, 30);
+  const open = L.filter(x => !x.done).length;
+  return `<section class="card stack"><h3>Private questions ${open ? `<span class="chip no">${open} new</span>` : ''}</h3>
+    ${L.length ? L.map(x => `<div class="ans" style="${x.done ? 'opacity:.55' : ''}"><header><b style="flex:1">${esc(x.name)}</b><span class="t">${ago(x.at)}</span></header><p class="txt" style="font-size:15px">${esc(x.text)}</p>
+      <footer>${x.done ? '<span class="chip ok">Done</span>' : `<button class="btn sm" type="button" data-act="done" data-id="${esc(x.id)}">✓ Done</button>`}<button class="btn sm" type="button" data-act="pdel" data-id="${esc(x.id)}" aria-label="Delete">🗑</button></footer></div>`).join('') : '<p class="muted empty small">Questions students send privately show up here.</p>'}</section>`;
+}
+function composerCard() {
+  const c = S.comp;
+  const corr = c.type === 'mc' ? `<label class="f" for="c-correct">Correct answer (optional)<select id="c-correct"><option value="">None</option>${c.opts.filter(Boolean).map(o => `<option ${c.correct === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>`
+    : c.type === 'yn' ? `<label class="f" for="c-correct">Correct answer (optional)<select id="c-correct"><option value="">None</option><option ${c.correct === 'Yes' ? 'selected' : ''}>Yes</option><option ${c.correct === 'No' ? 'selected' : ''}>No</option></select></label>`
+    : c.type === 'num' ? `<label class="f" for="c-correct">Correct answer (optional)<input type="number" step="any" id="c-correct" value="${esc(c.correct)}"></label>` : '';
+  return `<section class="card stack">
+    <div class="row between"><h3>${S.live && S.live.q ? 'Next question' : 'Ask a question'}</h3>
+      <select id="bank" style="width:auto;max-width:200px" aria-label="Load a starter question"><option value="">Starter questions…</option>${BANK.map((b, i) => `<option value="${i}">${esc(b.q.slice(0, 44))}${b.q.length > 44 ? '…' : ''}</option>`).join('')}</select></div>
+    <label class="f" for="c-type">Type<select id="c-type">${Object.entries(TYPES).map(([k, v]) => `<option value="${k}" ${c.type === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+    <label class="f" for="c-q">Question<textarea id="c-q" maxlength="200" placeholder="Ask your class something…">${esc(c.q)}</textarea></label>
+    ${c.type === 'mc' ? `<div class="optgrid">${c.opts.map((o, i) => `<input type="text" id="c-o${i}" data-i="${i}" maxlength="60" value="${esc(o)}" placeholder="Option ${'ABCDEF'[i]}" aria-label="Option ${'ABCDEF'[i]}">`).join('')}</div>${c.opts.length < 6 ? '<button class="btn sm" type="button" data-act="addopt" style="align-self:flex-start">+ Option</button>' : ''}` : ''}
+    ${c.type === 'emoji' ? `<p class="muted small" style="margin:0">Students pick ${EMOJIS.join(' ')}</p>` : ''}
+    ${corr}
+    <label class="f" for="c-timer">Timer<select id="c-timer"><option value="0">No timer</option>${[30, 60, 120, 300].map(t => `<option value="${t}" ${+c.timer === t ? 'selected' : ''}>${t < 60 ? t + ' seconds' : t / 60 + ' minute' + (t > 60 ? 's' : '')}</option>`).join('')}</select></label>
+    <button class="btn pri" type="button" data-act="post">Post question</button>
+    <p class="dim small" style="margin:0">Posting replaces the current question on every screen.</p></section>`;
+}
+function draw() {
+  if (!S.code) return;
+  const a = document.activeElement, keep = a && a.id ? { id: a.id, s: a.selectionStart, e: a.selectionEnd } : null;
+  const L = S.live && S.live.q ? S.live : null;
+  app.innerHTML = shell(`${headCard()}<p class="msg" role="alert">${esc(S.err)}</p>
+    <div class="cols"><div class="stack">${L ? roundCard() + resultsCard() + answersCard() : '<section class="card"><p class="muted empty">No question on the screen. Ask one on the right, or pick a starter question.</p></section>'}</div>
+    <aside class="stack">${composerCard()}${pulseCard()}${inboxCard()}</aside></div>`);
+  if (keep && $(keep.id)) { const el = $(keep.id); el.focus(); try { if (keep.s != null) el.setSelectionRange(keep.s, keep.e); } catch {} }
+  if (EMBED) try { parent.postMessage({ mtgLiveHeight: document.documentElement.scrollHeight }, location.origin); } catch {}
+}
+
+// ---------- actions ----------
+const upd = d => db.update(livePath(), { ...d, updated_at: NOW }).catch(e => { S.err = ERR(e); draw(); });
+async function post() {
+  const c = S.comp, q = c.q.trim().slice(0, 200);
+  if (!q) { toast('Type a question first.'); $('c-q') && $('c-q').focus(); return; }
+  const opts = c.opts.map(o => o.trim().slice(0, 60)).filter(Boolean);
+  if (c.type === 'mc' && opts.length < 2) { toast('Add at least two options.'); return; }
+  const round = LC.roundId();
+  const d = { round, q, type: c.type, skills: (c.skills || []).slice(0, 20), open: true, ends_at: c.timer ? at(Date.now() + c.timer * 1000) : null, spot: [], updated_at: NOW };
+  if (c.type === 'mc') d.opts = opts;
+  try {
+    await db.set(livePath(), d);
+    try { localStorage.setItem(TK(), JSON.stringify({ round, correct: c.type === 'mc' && !opts.includes(c.correct) ? '' : String(c.correct || '') })); } catch {}
+    S.comp = { type: c.type, q: '', opts: c.type === 'mc' ? ['', '', '', ''] : c.opts, correct: '', timer: c.timer, skills: [] };
+    S.err = ''; S.confirm = ''; toast('Posted.'); draw();
+  } catch (e) { S.err = ERR(e); draw(); }
+}
+async function delAnswers(sid) {
+  const ids = S.ans.filter(a => a.sid === sid).map(a => a.id);
+  const sp = (S.live.spot || []).filter(x => !ids.includes(x.id));
+  try { await Promise.all(ids.map(id => db.del('bc_answers/' + id))); if (sp.length !== (S.live.spot || []).length) await upd({ spot: sp }); } catch (e) { S.err = ERR(e); }
+  S.confirm = ''; draw();
+}
+function csv() {
+  const L = S.live, rows = [['Question', L.q], [], ['Student', 'Answer', 'Time']].concat(latest(S.ans).map(a => [a.name, a.text, new Date(a.at || Date.now()).toLocaleString()]));
+  const t = rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+  const u = URL.createObjectURL(new Blob([t], { type: 'text/csv' })), x = document.createElement('a');
+  x.href = u; x.download = `live-class-${S.code}-${new Date().toISOString().slice(0, 10)}.csv`; x.click(); setTimeout(() => URL.revokeObjectURL(u), 1000);
+}
+// Preview only: pretend students join and answer
+const FAKE = ['Ava M.', 'Ben T.', 'Chloe R.', 'Dev P.', 'Ella S.', 'Finn O.', 'Gia L.', 'Hugo K.', 'Isla W.', 'Jay B.', 'Kai N.', 'Lena D.', 'Milo F.', 'Nora H.', 'Owen C.', 'Pia G.', 'Quinn A.', 'Rosa V.'];
+const FICON = ['🎸', '🎹', '🥁', '🎺', '🎻', '🎷', '🪗', '🎤'];
+async function simulate() {
+  const L = S.live; if (!L || !L.open) { toast('Unlock answers first.'); return; }
+  const c = correct(), done = new Set(S.ans.map(a => a.sid));
+  for (const [i, n] of FAKE.entries()) {
+    const sid = n.toLowerCase().replace(/[^a-z]/g, '');
+    await db.set('bc_pulse/fake' + String(i).padStart(16, '0'), { class_code: S.code, owner: S.email, sid, name: n, lost: Math.random() < .15, conf: 1 + Math.floor(Math.random() * 5), at: NOW });
+    if (done.has(sid) || Math.random() < .15) continue;
+    const right = Math.random() < .7;
+    const opts = L.type === 'mc' ? L.opts : L.type === 'yn' ? ['Yes', 'No'] : null;
+    const text = opts ? (right && c ? c : opts[Math.floor(Math.random() * opts.length)])
+      : L.type === 'num' ? String(c && right ? c : Math.floor(Math.random() * 9) + 1)
+      : L.type === 'emoji' ? EMOJIS[Math.floor(Math.random() * 5)]
+      : L.type === 'word' ? ['dark', 'sad', 'moody', 'calm', 'spooky', 'sad', 'dark', 'mysterious'][Math.floor(Math.random() * 8)]
+      : ['It gets louder little by little', 'Louder', 'The middle note is a half step lower', 'Count up five letter names', 'Not sure, maybe the sound changes'][Math.floor(Math.random() * 5)];
+    await db.add('bc_answers', { round: L.round, class_code: S.code, owner: S.email, sid, name: n, key: 'fake' + String(i).padStart(16, '0'), type: L.type, text, avatar: FICON[i % 8], at: at(Date.now() - Math.floor(Math.random() * 40000)) });
+  }
+  if (Math.random() < .7) await db.add('bc_private', { class_code: S.code, owner: S.email, sid: 'gial', name: 'Gia L.', key: 'fake0000000000000006', text: 'Can you go over how to count the half steps again?', at: NOW });
+}
+
+app.addEventListener('click', async e => {
+  const t = e.target.closest('button'); if (!t) return;
+  if (t.id === 'signin') { try { const { am, auth } = await LC.fbAuth(); await am.signInWithPopup(auth, new am.GoogleAuthProvider()); } catch (er) { toast(ERR(er)); } return; }
+  const act = t.dataset.act, L = S.live; if (!act) return;
+  if (act !== 'confirm' && act !== 'del' && act !== 'end') S.confirm = '';
+  if (act === 'confirm') { S.confirm = S.confirm === t.dataset.v ? '' : t.dataset.v; draw(); return; }
+  if (act === 'post') return post();
+  if (act === 'addopt') { S.comp.opts.push(''); draw(); return; }
+  if (!L) return;
+  if (act === 'lock') return upd(L.open ? { open: false, ends_at: null } : { open: true, ends_at: null });
+  if (act === 'timer') return upd({ open: true, ends_at: at(Date.now() + Number(t.dataset.v) * 1000) });
+  if (act === 'spotClear') return upd({ spot: [] });
+  if (act === 'spot') {
+    const a = S.ans.find(x => x.id === t.dataset.id); if (!a) return;
+    const item = t.dataset.anon ? { id: a.id, n: '', t: a.text } : { id: a.id, n: a.name, a: a.avatar || '', t: a.text };
+    return upd({ spot: t.dataset.add ? [...(L.spot || []).slice(0, 1), { ...item, n: (L.spot[0] && !L.spot[0].n) ? '' : item.n }] : [item] });
+  }
+  if (act === 'del') return delAnswers(t.dataset.sid);
+  if (act === 'end') { S.confirm = ''; return db.del(livePath()).catch(er => { S.err = ERR(er); draw(); }); }
+  if (act === 'csv') return csv();
+  if (act === 'sim') return simulate();
+  if (act === 'done') return db.update('bc_private/' + t.dataset.id, { done: true }).catch(er => { S.err = ERR(er); draw(); });
+  if (act === 'pdel') return db.del('bc_private/' + t.dataset.id).catch(er => { S.err = ERR(er); draw(); });
+});
+app.addEventListener('input', e => {
+  const id = e.target.id, c = S.comp;
+  if (id === 'c-q') c.q = e.target.value;
+  else if (/^c-o\d$/.test(id)) { c.opts[+e.target.dataset.i] = e.target.value; }
+  else if (id === 'c-correct' && c.type === 'num') c.correct = e.target.value;
+});
+app.addEventListener('change', e => {
+  const id = e.target.id, c = S.comp, v = e.target.value;
+  if (id === 'cls') { const u = new URL(location.href); u.searchParams.set('code', v); history.replaceState(null, '', u); openClass(v); return; }
+  if (id === 'sort') { S.sort = v; draw(); return; }
+  if (id === 'c-type') { c.type = v; c.correct = ''; draw(); return; }
+  if (id === 'c-timer') { c.timer = Number(v) || 0; return; }
+  if (id === 'c-correct') { c.correct = v; return; }
+  if (/^c-o\d$/.test(id)) { draw(); return; }   // refresh the correct-answer list
+  if (id === 'bank' && v !== '') { const b = BANK[+v]; S.comp = { type: b.type, q: b.q, opts: b.opts ? b.opts.slice() : ['', '', '', ''], correct: b.correct || '', timer: c.timer, skills: (b.skills || []).slice() }; draw(); }
+});
+// the timer: count down, and lock the answers when it runs out (this page does it, so keep it open during class)
+setInterval(() => {
+  const L = S.live; if (!L || !L.q || !L.ends_at) return;
+  const s = left(L), el = $('cd'); if (el) el.textContent = clock(s);
+  if (s === 0 && L.open && start.locking !== L.round) { start.locking = L.round; upd({ open: false }); }
+}, 500);
+start();
+})();
+</script>
+</body>
+</html>
