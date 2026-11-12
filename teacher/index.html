@@ -355,6 +355,7 @@
 
     <form class="card" id="form" novalidate aria-labelledby="a-head">
       <h2 id="a-head">New assignment</h2>
+      <p id="ended-note" hidden>Grades saved when this assignment ended will stay as recorded.</p>
       <fieldset class="asgonly">
         <legend>When</legend>
         <div class="opts">
@@ -387,7 +388,7 @@
       </fieldset>
       <div class="row actions">
         <button class="btn" type="submit" id="save">Save assignment</button>
-        <button class="btn ghost asgonly" type="button" id="clear" hidden>Clear assignment</button>
+        <a class="btn ghost asgonly" href="./all/#grades" id="manage" hidden>Manage assignments</a>
       </div>
       <p class="msg" id="msg" role="status"></p>
     </form>
@@ -432,7 +433,7 @@ const wait = p => Promise.race([p, new Promise((_, bad) => setTimeout(() => bad(
 async function run(fn) { const f = await fbAuth(); return wait(fn(f)); }
 function errText(e, saving) {
   const c = e && e.code;
-  if (c === 'permission-denied') return saving ? "Saving isn't allowed yet. The Firebase rules need the hub_assignment update." : "That isn't allowed. Sign in with the Google account that owns this class.";
+  if (c === 'permission-denied') return saving ? "Saving isn't allowed. Check that you're signed in with the account that owns this class." : "That isn't allowed. Sign in with the Google account that owns this class.";
   if (c === 'auth/popup-closed-by-user' || c === 'auth/cancelled-popup-request') return 'Sign-in was cancelled.';
   if (c === 'auth/popup-blocked') return 'Your browser blocked the sign-in window. Allow pop-ups for this site and try again.';
   if (c === 'auth/unauthorized-domain') return 'Add this website to Firebase → Authentication → Settings → Authorized domains.';
@@ -658,7 +659,10 @@ function syncSets(row) {
 const TESTMODE = document.documentElement.classList.contains('testmode');
 const EDIT = TESTMODE ? (new URLSearchParams(location.search).get('edit') || '') : '';   // ?test=1&edit=<testId>: change a test that already exists
 const TEST_GAMES = ['scale','tidal','rooftop','rhythm','earshot','synapse'];   // games that have a test hook (the home page's TEST_GAMES must match)
-const S = { email: '', classes: [], code: '', when: 'today', tasks: [newTask()] };
+const APARAMS = new URLSearchParams(location.search);
+const assignKey = a => a.id || legacyKey(a);
+const legacyKey = a => { const stable = v => Array.isArray(v) ? '[' + v.map(stable) + ']' : v && typeof v === 'object' ? '{' + Object.keys(v).sort().map(k => k + ':' + stable(v[k])) + '}' : JSON.stringify(v); return [a.start, a.end, stable(a.tasks)].join('|'); };
+const S = { email: '', classes: [], code: APARAMS.get('code') || '', when: 'today', tasks: [newTask()] };
 const cls = () => S.classes.find(c => c.code === S.code);
 function msg(text, ok) { const e = $('msg'); e.textContent = text || ''; e.className = 'msg' + (ok ? ' ok' : ''); }
 
@@ -710,13 +714,14 @@ async function loadClasses() {
     S.classes = await run(async ({ fs, db }) => (await fs.getDocs(fs.query(fs.collection(db, 'classes'), fs.where('ownerEmail', '==', S.email)))).docs
       .map(d => ({ code: d.id, ...d.data() })).sort((a, b) => String(a.name).localeCompare(String(b.name))));
   } catch (e) { S.classes = []; $('classes').innerHTML = `<li class="msg" role="alert">${esc(errText(e))}</li>`; }
-  if (!S.classes.some(c => c.code === S.code)) S.code = S.classes.length ? S.classes[0].code : '';
+  if (!S.classes.some(c => c.code === S.code)) S.code = APARAMS.has('code') && !TESTMODE ? '' : (S.classes[0] || {}).code || '';
   $('cls').innerHTML = S.classes.length ? S.classes.map(c => `<option value="${esc(c.code)}">${esc(c.name)} · ${esc(c.code)}</option>`).join('') : '<option value="">No classes yet</option>';
   $('cls').value = S.code;
-  $('cls').disabled = !S.classes.length;
-  $('form').hidden = !S.classes.length;
+  $('cls').disabled = !S.classes.length || (!TESTMODE && APARAMS.has('code'));
+  $('form').hidden = !cls();
   if (!S.classes.length && !$('classes').querySelector('.msg')) $('classes').innerHTML = '<li>You have no classes yet. Create one in any game\'s Teacher dashboard (Classes tab).</li>';
   pickClass();
+  if (!TESTMODE && APARAMS.has('code') && !cls()) $('classes').innerHTML = '<li class="msg">The selected class is unavailable.</li>';
 }
 function renderClasses() {
   if (!S.classes.length) return;
@@ -728,28 +733,39 @@ function renderClasses() {
 }
 // the form starts from the class's current assignment (if it hasn't ended), otherwise from the defaults
 function pickClass() {
-  const c = cls(), a = !TESTMODE && c && c.hub_assignment, today = dayKey();
+  const c = cls(), today = dayKey();
+  const requested = APARAMS.get('assignment');
+  const candidates = c ? [c.hub_assignment, ...(c.hub_assignments || [])].filter(Boolean) : [];
+  const a = !TESTMODE && (requested ? candidates.find(x => assignKey(x) === requested) : APARAMS.has('new') ? null : c && c.hub_assignment?.end >= today ? c.hub_assignment : null);
+  S.originalAssignment = a || null;
+  if (!TESTMODE) {
+    $('a-head').textContent = requested || a ? 'Edit assignment' : 'New assignment';
+    $('ended-note').hidden = !a?.ended_ms;
+  }
   if (EDIT && !S.editStarted) { S.editStarted = true; loadEdit(); }
   if (TESTMODE) { if (!S.testInit) { S.testInit = true; S.tasks = [{ ...newTask(), game: 'scale', settings: setsFrom('scale'), open: true }]; } renderTasks(); renderClasses(); return; }
-  if (a && DATE_RE.test(a.start) && DATE_RE.test(a.end) && a.end >= today && Array.isArray(a.tasks) && a.tasks.length) {
+  if (a && DATE_RE.test(a.start) && DATE_RE.test(a.end) && Array.isArray(a.tasks) && a.tasks.length) {
     S.tasks = a.tasks.slice(0, 3).map(t => { const game = GNAME[t.game] ? t.game : 'any';
       return { game, skills: skillsOf(t).filter(x => hasSkill(t.game, x)).slice(0, 12), goal: t.goal, unit: t.unit === 'minutes' ? 'minutes' : 'answers', settings: setsFrom(game, t.settings), open: false }; });
     S.when = a.start === today && a.end === today ? 'today' : a.start === today && a.end === addDays(6) ? 'week' : 'custom';
     $('d-start').value = a.start; $('d-end').value = a.end;
   } else {
     S.tasks = [newTask()]; S.when = 'today';
-    $('d-start').value = today; $('d-end').value = addDays(6);
+    $('d-start').value = today; $('d-end').value = today;
   }
   document.querySelector(`input[name="when"][value="${S.when}"]`).checked = true;
-  $('clear').hidden = !(c && c.hub_assignment);
+  $('manage').hidden = APARAMS.has('embed') || !a;
+  $('save').disabled = !!requested && !a;
+  if (requested && !a) msg('This assignment is unavailable. Return to Assignments and reload the class.');
   renderWhen(); renderTasks(); renderClasses();
+  S.initialTasks = a ? S.tasks.map(t => JSON.stringify({ ...t, open: false })) : [];
 }
 
 // ---------- the form ----------
 function renderWhen() {
   $('week-label').textContent = `This week (through ${toDate(addDays(6)).toLocaleDateString(undefined, { weekday: 'short' })})`;
   $('dates').hidden = S.when !== 'custom';
-  $('d-start').min = $('d-end').min = dayKey();
+  $('d-start').removeAttribute('min'); $('d-end').removeAttribute('min');
 }
 const skillOptions = (g, chosen) => `<option value="">${chosen.length ? 'Add another skill…' : 'Any practice'}</option>` + (SKILLS[g] || []).map(([grp, list]) => {
   const l = list.filter(s => !chosen.includes(s)); return l.length ? `<optgroup label="${esc(grp)}">${l.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('')}</optgroup>` : '';
@@ -818,7 +834,8 @@ $('add').addEventListener('click', () => {
   S.tasks.push(newTask()); renderTasks();
   const rows = $('tasks').querySelectorAll('.task'); rows[rows.length - 1].querySelector('select').focus();
 });
-document.querySelectorAll('input[name="when"]').forEach(r => r.addEventListener('change', () => { S.when = r.value; renderWhen(); msg(''); }));
+document.querySelectorAll('input[name="when"]').forEach(r => r.addEventListener('change', () => { S.when = r.value; if (r.value !== 'custom') { $('d-start').value = dayKey(); $('d-end').value = r.value === 'week' ? addDays(6) : dayKey(); } renderWhen(); msg(''); }));
+['d-start', 'd-end'].forEach(id => $(id).addEventListener('change', () => { S.when = 'custom'; document.querySelector('input[name="when"][value="custom"]').checked = true; if (id === 'd-start' && $('d-end').value < $('d-start').value) $('d-end').value = $('d-start').value; msg(''); }));
 $('cls').addEventListener('change', e => { S.code = e.target.value; msg(''); pickClass(); });
 
 // the one field the home page reads: classes/<code>.hub_assignment
@@ -830,11 +847,15 @@ function build() {
     start = $('d-start').value; end = $('d-end').value;
     if (!DATE_RE.test(start) || !DATE_RE.test(end)) return { err: 'Pick a start date and an end date.', focus: DATE_RE.test(start) ? 'd-end' : 'd-start' };
     if (end < start) return { err: 'The end date is before the start date.', focus: 'd-end' };
-    if (end < today) return { err: 'Those dates are already over. Pick an end date of today or later.', focus: 'd-end' };
+    if (end < today && !S.originalAssignment) return { err: 'Those dates are already over. Pick an end date of today or later.', focus: 'd-end' };
     if ((toDate(end) - toDate(start)) / 864e5 > 60) return { err: 'Keep an assignment to 60 days or less.', focus: 'd-end' };
   }
   const tasks = [];
   for (const [i, t] of S.tasks.entries()) {
+    if (S.initialTasks?.[i] === JSON.stringify({ ...t, open: false })) {
+      tasks.push(S.originalAssignment.tasks[i]);
+      continue;
+    }
     const goal = Number(t.goal);
     if (!Number.isInteger(goal) || goal < 1 || goal > 500) return { err: `Task ${i + 1}: the goal must be a whole number from 1 to 500.`, focus: null, row: i };
     const bad = SPECS[t.game] && setsErr(t.game, t.settings);
@@ -907,6 +928,7 @@ $('form').addEventListener('submit', async e => {
   e.preventDefault();
   const c = cls(); if (!c) return;
   if (TESTMODE) return saveTest(c);
+  if ($('save').disabled || (APARAMS.has('assignment') && !S.originalAssignment)) return;
   const b = build();
   if (b.err) {
     msg(b.err);
@@ -916,35 +938,46 @@ $('form').addEventListener('submit', async e => {
     return;
   }
   $('save').disabled = true; $('save').textContent = 'Saving…'; msg('');
-  const stab = v => Array.isArray(v) ? '[' + v.map(stab) + ']' : v && typeof v === 'object' ? '{' + Object.keys(v).sort().map(k => k + ':' + stab(v[k])) + '}' : JSON.stringify(v);   // same text whatever order Firestore returns map keys in
-  // hub_assignments keeps every assignment (newest first, up to 40) for the dashboard's Grades list. Saving over the
-  // current one with the same start date is an edit and replaces it there; any other current one stays in the list.
-  const plain = a => ({ start: a.start, end: a.end, tasks: a.tasks }), key = a => [a.start, a.end, stab(a.tasks)].join('|');
-  const cur = c.hub_assignment && Array.isArray(c.hub_assignment.tasks) && c.hub_assignment.tasks.length ? plain(c.hub_assignment) : null;
-  const seen = new Set(), hist = [{ ...b.a, set_ms: Date.now() }, ...(cur && cur.start !== b.a.start ? [cur] : []), ...(Array.isArray(c.hub_assignments) ? c.hub_assignments : [])]
-    .filter((a, i) => a && a.start && Array.isArray(a.tasks) && !(i && cur && cur.start === b.a.start && key(a) === key(cur)) && !seen.has(key(a)) && seen.add(key(a)))
-    .sort((x, y) => y.start.localeCompare(x.start)).slice(0, 40);
+  const original = S.originalAssignment;
+  const id = original?.id || crypto.randomUUID();
+  const now = Date.now();
   try {
-    try { await run(({ fs, db }) => fs.updateDoc(fs.doc(db, 'classes', c.code), { hub_assignment: { ...b.a, set_at: fs.serverTimestamp() }, hub_assignments: hist })); c.hub_assignments = hist; }
-    catch (err) {   // Firebase rules without hub_assignments yet: save the assignment alone, as before
-      if (!err || err.code !== 'permission-denied') throw err;
-      await run(({ fs, db }) => fs.updateDoc(fs.doc(db, 'classes', c.code), { hub_assignment: { ...b.a, set_at: fs.serverTimestamp() } }));
-    }
-    c.hub_assignment = b.a; pickClass();
-    msg(`Saved for ${c.name}. Students see it on the home page the next time it loads.`, true);
-    if (/[?&]embed=1/.test(location.search)) try { parent.postMessage({ type: 'mtg-assign-saved', code: c.code, start: b.a.start, end: b.a.end }, location.origin); } catch {}
+    const { fs, db } = await fbAuth();
+    const patch = await fs.runTransaction(db, async tx => {
+      const ref = fs.doc(db, 'classes', c.code);
+      const fresh = (await tx.get(ref)).data();
+      if (!fresh) throw new Error('This class is unavailable.');
+      const current = fresh.hub_assignment;
+      const history = fresh.hub_assignments || [];
+      const matches = a => a && original && assignKey(a) === assignKey(original);
+      const selected = matches(current) ? current : history.find(matches);
+      if (original && (!selected || selected.set_ms !== original.set_ms || selected.ended_ms !== original.ended_ms)) {
+        throw new Error('This assignment changed. Reopen it before saving.');
+      }
+      const active = !original || matches(current);
+      const next = { ...selected, ...b.a, id, set_ms: now };
+      const seen = new Set();
+      const keep = [next, current, ...history].filter((a, i) => a && Array.isArray(a.tasks)
+        && !(i && matches(a)) && !seen.has(assignKey(a)) && seen.add(assignKey(a)));
+      const gradeOut = { ...fresh.grade_out_of };
+      if (original && !original.id) gradeOut[id] = gradeOut[original.start + '_' + original.end] ?? 10;
+      for (const old of keep.slice(40)) {
+        if (old.id) delete gradeOut[old.id];
+        if (old.ended_ms && old.id) tx.delete(fs.doc(db, 'classes', c.code, 'assignment_grades', old.id));
+      }
+      const patch = { hub_assignments: keep.slice(0, 40), grade_out_of: gradeOut,
+        ...(active ? { hub_assignment: { ...next, set_at: fs.serverTimestamp() } } : {}) };
+      tx.update(ref, patch);
+      if (active) patch.hub_assignment = next;
+      return patch;
+    });
+    Object.assign(c, patch);
+    if (APARAMS.has('assignment')) APARAMS.set('assignment', id);
+    APARAMS.delete('new'); pickClass();
+    msg(`Saved for ${c.name}.`, true);
+    if (APARAMS.get('embed') === '1') parent.postMessage({ type: 'mtg-assign-saved', code: c.code, id }, location.origin);
   } catch (err) { msg(errText(err, true)); }
   finally { $('save').disabled = false; $('save').textContent = 'Save assignment'; }
-});
-$('clear').addEventListener('click', async () => {
-  const c = cls(); if (!c) return;
-  if (!confirm(`Clear the assignment for ${c.name}?`)) return;
-  $('clear').disabled = true; msg('');
-  try {
-    await run(({ fs, db }) => fs.updateDoc(fs.doc(db, 'classes', c.code), { hub_assignment: null }));
-    c.hub_assignment = null; pickClass(); msg(`Cleared the assignment for ${c.name}.`, true);
-  } catch (err) { msg(errText(err, true)); }
-  finally { $('clear').disabled = false; }
 });
 $('signout').addEventListener('click', signOut);
 if (TESTMODE) {
