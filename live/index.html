@@ -237,8 +237,8 @@ if (SCREEN) {
 // =====================================================================================
 const p = getProfile();
 const shell = inner => `<div class="wrap"><nav class="top"><a class="pill" href="${HOME}">← Music Theory Academy</a><a class="pill" href="${HOME}report/">My Report</a><span class="grow"></span>${PREVIEW ? '<span class="chip gold">Preview: pretend class, saved only in this browser</span>' : ''}</nav>${inner}
-  <p class="dim small" style="margin:0">Live Class · <a href="/privacy/" style="color:inherit">Privacy</a></p></div>`;
-if (!p) { app.innerHTML = shell(`<section class="card stack"><h1>Live Class</h1><p>Sign in on the home page first, with your class code. Then come back here.</p><p><a class="btn pri" href="${HOME}">Go to the home page</a></p></section>`); return; }
+  <p class="dim small" style="margin:0">Live Class · <a href="/privacy/" style="color:inherit">Privacy</a> · <a href="teach/" style="color:inherit">Teachers: run Live Class</a></p></div>`;
+if (!p) { app.innerHTML = shell(`<section class="card stack"><h1>Live Class</h1><p>Sign in on the home page first, with your class code. Then come back here.</p><p><a class="btn pri" href="${HOME}">Go to the home page</a></p><p class="muted small" style="margin:0">Are you the teacher? <a href="teach/">Run Live Class here</a>.</p></section>`); return; }
 if (!p.classCode || !p.classOwner) { app.innerHTML = shell(`<section class="card stack"><h1>Live Class</h1><p>Live Class needs your class code. On the home page, open your name and add your teacher's class code.</p><p><a class="btn pri" href="${HOME}">Go to the home page</a></p></section>`); return; }
 
 const code = p.classCode, sid = sidOf(p), name = nameOf(p);

@@ -187,6 +187,8 @@
   .iconbtn:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
   .iconbtn.support { display: inline-flex; align-items: center; gap: 7px; color: var(--gold); border-color: color-mix(in srgb, var(--gold) 45%, transparent); }   /* Support page (added 2026-11-06) */
   .iconbtn.support:hover { color: var(--text); border-color: var(--gold); }
+  .iconbtn.live { display: inline-flex; align-items: center; gap: 7px; color: #7be0c3; border-color: color-mix(in srgb, #7be0c3 45%, transparent); }   /* Live Class (added 2026-11-12) */
+  .iconbtn.live:hover { color: var(--text); border-color: #7be0c3; }
   .tshort { display: none; }
   @media (max-width: 480px) {   /* phones: the time box, Support and Teachers fit on one row */
     .topbar { gap: 6px; }
@@ -510,7 +512,7 @@
 </style>
 </head>
 <body>
-  <nav class="topbar" aria-label="Site"><a class="iconbtn support" href="support/"><span aria-hidden="true">☕</span>Support</a><a class="iconbtn" href="teacher/all/"><span class="tfull">Teacher Dashboard</span><span class="tshort">Teachers</span></a></nav>
+  <nav class="topbar" aria-label="Site"><a class="iconbtn live" href="live/" title="Answer your teacher's questions live in class"><span aria-hidden="true">●</span>Live<span class="tfull"> Class</span></a><a class="iconbtn support" href="support/"><span aria-hidden="true">☕</span>Support</a><a class="iconbtn" href="teacher/all/"><span class="tfull">Teacher Dashboard</span><span class="tshort">Teachers</span></a></nav>
   <header>
     <h1>Music Theory Academy</h1>
     <div class="staff" aria-hidden="true"></div>
