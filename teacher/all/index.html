@@ -414,7 +414,7 @@
           <button type="button" data-v="scores" aria-pressed="false">Scores</button>
           <button type="button" data-v="grades" aria-pressed="false">Assignments</button>
           <button type="button" data-v="tests" aria-pressed="false">Tests</button>
-          <button type="button" data-v="live" aria-pressed="false" title="Ask the class questions live (Live Class)">Live</button>
+          <button type="button" data-v="live" aria-pressed="false" hidden title="Ask the class questions live (Live Class)">Live</button>
           <button type="button" data-v="feedback" aria-pressed="false">Feedback</button>
           <button type="button" data-v="messages" aria-pressed="false">Messages<span class="rq" id="msgcount" hidden></span></button>
           <button type="button" data-v="board" aria-pressed="false">Board<span class="nb" id="boardcount" hidden></span></button>
@@ -2134,6 +2134,7 @@ async function signedIn(email) {
   if (!ok) return joinScreen(email);
   S.email = email; $('who').innerHTML = `Signed in as <b>${esc(email)}</b>`;
   $('views').querySelector('[data-v=admin]').hidden = $('views').querySelector('[data-v=activity]').hidden = !ADMIN_EMAILS.includes(email);
+  $('views').querySelector('[data-v=live]').hidden = !ADMIN_EMAILS.includes(email);   // Live Class: your classes first (BACKCHANNEL-PLAN.md, question 3); remove this line to show it to every teacher
   $('gate').hidden = true; $('main').hidden = false;
   if (ADMIN_EMAILS.includes(email)) { checkRequests(); setInterval(() => { if (!document.hidden) checkRequests(); }, 120000); }
   if (hashView()) S.view = hashView();
@@ -2166,7 +2167,7 @@ async function start() {
   wire();
   if (PREVIEW) {
     S.email = PV_TEACHER ? 'r.kim@sample' : 'sample@preview';
-    $('gate').hidden = true; $('main').hidden = false; $('who').innerHTML = `Signed in as <b>${S.email}</b>`; $('views').querySelector('[data-v=admin]').hidden = $('views').querySelector('[data-v=activity]').hidden = PV_TEACHER;
+    $('gate').hidden = true; $('main').hidden = false; $('who').innerHTML = `Signed in as <b>${S.email}</b>`; $('views').querySelector('[data-v=admin]').hidden = $('views').querySelector('[data-v=activity]').hidden = PV_TEACHER; $('views').querySelector('[data-v=live]').hidden = PV_TEACHER;
     $('main').insertAdjacentHTML('afterbegin', `<div class="pv">Preview with sample ${PV_TEACHER ? 'data, seen by a teacher (Ron Kim)' : 'students'}. Nothing here is real.</div>`); if (!PV_TEACHER) checkRequests();
     if (hashView()) S.view = hashView();
     startSocial();
