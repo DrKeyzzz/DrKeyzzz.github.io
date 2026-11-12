@@ -205,8 +205,15 @@
   select { font: 600 16px var(--f-ui); color: var(--text); background: var(--bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 10px 12px 8px; min-width: 190px; letter-spacing: 0; text-transform: none; }
   select:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
   .seg { display: inline-flex; border: 1px solid var(--card-border); border-radius: 999px; overflow: hidden; }
+  #views { flex-wrap: wrap; max-width: 100%; border-radius: 22px; background: var(--bg); }   /* the tab row wraps instead of cutting off the last tab (2026-11-12) */
+  #views button { border-radius: 999px; }
   .seg button { font: 700 14px var(--f-ui); letter-spacing: .06em; text-transform: uppercase; background: var(--bg); color: var(--muted); border: 0; padding: 11px 18px 9px; cursor: pointer; }
   .seg button[aria-pressed="true"] { background: var(--gc); color: #10131a; }
+  /* Tab bar (2026-11-12): 10 tabs no longer fit one pill on laptops ("Activity" was cut off). Tighter tabs share the width;
+     if they still don't fit they wrap to a second row (class .wrapped squares the corners). Never cut off, never scrolls. */
+  #views { display: flex; flex-wrap: wrap; max-width: 100%; }
+  #views button { flex: 1 1 auto; padding: 11px 12px 9px; letter-spacing: .04em; white-space: nowrap; }
+  #views.wrapped { border-radius: 14px; }
   /* Admin tab pulses (admin only) while teacher requests are waiting */
   .seg button.waiting { position: relative; color: #10131a; background: #ffb547; animation: adminpulse 1.4s ease-in-out infinite; }
   .seg button.waiting .rq { display: inline-block; min-width: 18px; margin-left: 6px; padding: 1px 5px 0; border-radius: 999px; background: #c0392b; color: #fff; font-size: 12px; letter-spacing: 0; }
@@ -357,7 +364,7 @@
   .bd-more { justify-self: center; }
   @media (max-width: 720px) {
     #views { display: grid; grid-template-columns: repeat(3, 1fr); border-radius: 14px; background: var(--bg); width: 100%; }
-    #views button { padding: 11px 6px 9px; white-space: nowrap; }
+    #views button { padding: 11px 4px 9px; white-space: nowrap; font-size: 12px; letter-spacing: .02em; }   /* phones: Assignments / Messages fit a third */
     .mx { grid-template-columns: 1fr; height: auto; }
     .mx.show-thread .mx-list, .mx:not(.show-thread) .mx-thread { display: none; }
     .mx-list ul { max-height: 70vh; }
@@ -1364,6 +1371,8 @@ function syncAct() {
   }).catch(e => msg(errText(e)));
 }
 document.addEventListener('visibilitychange', syncAct);
+// Tab bar: square the corners when the tabs wrap to two rows (see #views in the CSS)
+new ResizeObserver(() => { const v = $('views'), b = v.querySelector('button:not([hidden])'); v.classList.toggle('wrapped', !!b && v.offsetHeight > b.offsetHeight * 1.5); }).observe($('views'));
 // auto (2026-11-04): the privacy policy promises visit records are deleted after 30 days, so the admin's sign-in runs this
 // quietly once a day (localStorage mtg_actclean_v1 = the day it last ran); the Clean up button still runs it by hand.
 async function actClean(auto) {
