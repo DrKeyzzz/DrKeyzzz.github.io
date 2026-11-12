@@ -200,6 +200,7 @@
 
   /* options */
   .opts { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; }
+  #actbox select { width: auto; min-width: 0; }   /* Activity: four pickers + Clean up stay on one row */
   label.f { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); min-width: 0; }
   select { font: 600 16px var(--f-ui); color: var(--text); background: var(--bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 10px 12px 8px; min-width: 190px; letter-spacing: 0; text-transform: none; }
   select:focus { outline: 2px solid var(--gold); outline-offset: 1px; }
@@ -437,7 +438,8 @@
         <p class="note" id="tmeta"></p>
       </div>
       <div id="actbox" class="opts" style="margin-top:14px" hidden>
-        <label class="f" for="actby">Show<select id="actby"><option value="visit">Each visit</option><option value="player">By player</option></select></label>
+        <label class="f" for="actby">Show<select id="actby"><option value="visit">Each visit</option><option value="player">By player</option><option value="teacher">By teacher</option></select></label>
+        <label class="f" for="actteach">Teacher<select id="actteach"><option value="">Any teacher</option></select></label>
         <label class="f" for="actwho">Who<select id="actwho"><option value="">Everyone</option><option value="in">Signed in</option><option value="guest">Guests</option></select></label>
         <label class="f" for="actdev">Device<select id="actdev"><option value="">Any</option><option value="Phone">Phones</option><option value="Tablet">Tablets</option><option value="Computer">Computers</option></select></label>
         <button class="btn ghost sm" type="button" id="actclean" title="Delete activity records older than 30 days">Clean up (older than 30 days)</button>
@@ -761,11 +763,13 @@ function sample() {
   const devs = ['Phone · iPhone · Safari · 390px', 'Computer · Chromebook · Chrome · 1366px', 'Tablet · iPad · Safari · 820px', 'Computer · Windows · Edge · 1536px', 'Phone · Android · Chrome · 412px'];
   const gids = ['tidal', 'rooftop', 'rhythm', 'scale', 'earshot', 'brainwaves', 'genius'];
   const activity = Array.from({ length: 24 }, (_, i) => { const g = rnd() < .3; const dateMs = Date.now() - Math.round(i * 47 * 60000 * (1 + rnd())), page_s = Math.round(60 + rnd() * 1500), answers = Math.round(page_s / (4 + rnd() * 6)), correct = Math.round(answers * (.55 + rnd() * .43)), gid = gids[Math.floor(rnd() * gids.length)];
-    return { id: 'a' + i, dateMs, seenMs: i < 2 ? Date.now() - 60000 : dateMs + page_s * 1000, name: g ? 'Guest' : names[i % names.length], guest: g, class_code: g ? '' : 'PREVW', game: gid, device: devs[Math.floor(rnd() * devs.length)],
+    return { id: 'a' + i, dateMs, seenMs: i < 2 ? Date.now() - 60000 : dateMs + page_s * 1000, name: g ? 'Guest' : names[i % names.length], guest: g, class_code: g ? '' : ['PREVW', 'PREVW', 'PREV2', 'LOPEZ1', 'KIMGM'][i % 5], game: gid, device: devs[Math.floor(rnd() * devs.length)],
       page_s, play_s: Math.round(page_s * (.5 + rnd() * .4)), answers: gid === 'genius' ? 0 : answers, correct: gid === 'genius' ? 0 : correct, acc: gid === 'genius' || !answers ? null : Math.round(100 * correct / answers),
       rounds: gid === 'genius' ? 0 : Math.round(rnd() * 5), best: gid === 'genius' ? 0 : Math.round(rnd() * 4000), level: gid === 'genius' || gid === 'rhythm' ? 0 : 1 + Math.floor(rnd() * 8),
       parts: gid === 'brainwaves' ? Object.keys(BW_NAME).filter(() => rnd() < .3).slice(0, 3) : [] }; });
   activity.forEach(r => { r.partsTxt = actParts(r.parts); });
+  ACT_CLS = { PREVW: { cls: 'Period 3 Music Theory', email: 'sample@preview', teacher: 'You' }, PREV2: { cls: 'Period 5 Chorus', email: 'sample@preview', teacher: 'You' },
+    LOPEZ1: { cls: 'Band 7', email: 'a.lopez@sample', teacher: 'Ana Lopez' }, KIMGM: { cls: 'General Music', email: 'r.kim@sample', teacher: 'Ron Kim' } };
   return { prog, scores, fbs, tests, testList, activity };
 }
 let SAMPLE = null;
@@ -807,7 +811,7 @@ const actParts = ids => ids.map(a => BW_NAME[a] || a).join(', ');   // Brainwave
 const actLive = r => r.seenMs && Date.now() - r.seenMs < 210000;   // updated in the last 3½ minutes (the page sends every 3)
 const ACT_VISIT_COLS = [
   { k: 'dateMs', h: 'Started', t: 'n', f: r => esc(fmtDate(r.dateMs)) }, { k: 'name', h: 'Who', t: 's', f: r => r.guest ? '<span style="color:var(--muted)">Guest</span>' : esc(r.name) },
-  { k: 'class_code', h: 'Class', t: 's', f: r => r.class_code ? esc(r.class_code) : '<span style="color:var(--muted)">–</span>' }, { k: 'game', h: 'Game', t: 'g' },
+  { k: 'teacher', h: 'Teacher · class', t: 's', f: actTC }, { k: 'game', h: 'Game', t: 'g' },
   { k: 'partsTxt', h: 'Areas', t: 's', f: r => r.partsTxt ? esc(r.partsTxt) : '<span style="color:var(--muted)">–</span>' },
   { k: 'page_s', h: 'On screen', t: 'n', num: 1, f: r => actMin(r.page_s) }, { k: 'play_s', h: 'Playing', t: 'n', num: 1, f: r => actMin(r.play_s) },
   { k: 'answers', h: 'Answers', t: 'n', num: 1, f: actAns }, { k: 'rounds', h: 'Rounds', t: 'n', num: 1, f: r => r.rounds == null ? '<span style="color:var(--muted)">–</span>' : esc(r.rounds) },
@@ -816,9 +820,54 @@ const ACT_VISIT_COLS = [
   { k: 'seenMs', h: 'Status', t: 'n', f: r => actLive(r) ? '<b style="color:#2fbf71">● Playing now</b>' : r.seenMs ? `<span style="color:var(--muted)">Left ${esc(fmtDate(r.seenMs).split(', ').pop())}</span>` : '' },
   { k: 'device', h: 'Device', t: 's' },
 ];
+// Teacher column (added 2026-11-12): each visit's class code -> its class name and the teacher who owns it
+let ACT_CLS = null;   // { code: { cls, teacher, email } }, read once (classes + teachers) when the admin opens Activity
+async function actLoadCls(fs, db) {
+  if (ACT_CLS) return;
+  const nm = {}, out = {};
+  (await fs.getDocs(fs.collection(db, 'teachers'))).forEach(d => { nm[d.id.toLowerCase()] = d.data().name || ''; });
+  (await fs.getDocs(fs.collection(db, 'classes'))).forEach(d => { const c = d.data(), e = String(c.ownerEmail || '').toLowerCase();
+    out[d.id] = { cls: c.name || d.id, email: e, teacher: nm[e] || (ADMIN_EMAILS.includes(e) ? 'You' : e || 'Unknown') }; });
+  ACT_CLS = out;
+}
+function actWho(r) {   // fills r.teacher, r.temail, r.clsName from the class code
+  const c = r.class_code && ACT_CLS && ACT_CLS[r.class_code];
+  r.teacher = c ? c.teacher : r.class_code ? 'Unknown class' : ''; r.temail = c ? c.email : r.class_code ? '?' : ''; r.clsName = c ? c.cls : r.class_code;
+}
+function actTC(r) {   // declared as a function so the column lists above can use it
+  return r.class_code ? `<b>${esc(r.teacher)}</b><br><span style="color:var(--muted);font-size:13px">${esc(r.clsName)}</span>`
+    : `<span style="color:var(--muted)">${r.guest ? 'Guest' : 'No class'}</span>`;
+}
+const ACT_TEACHER_COLS = [
+  { k: 'teacher', h: 'Teacher', t: 's', f: r => r.temail ? `<b>${esc(r.teacher)}</b>` : `<span style="color:var(--muted)">${esc(r.teacher)}</span>` },
+  { k: 'nclasses', h: 'Classes', t: 's', f: r => r.clsTxt ? esc(r.clsTxt) : '<span style="color:var(--muted)">–</span>' },
+  { k: 'players', h: 'Players', t: 'n', num: 1, f: r => r.players == null ? '<span style="color:var(--muted)">–</span>' : esc(r.players) }, { k: 'visits', h: 'Visits', t: 'n', num: 1 },
+  { k: 'page_s', h: 'On screen', t: 'n', num: 1, f: r => actMin(r.page_s) }, { k: 'play_s', h: 'Playing', t: 'n', num: 1, f: r => actMin(r.play_s) },
+  { k: 'answers', h: 'Answers', t: 'n', num: 1, f: actAns }, { k: 'gamesTxt', h: 'Games', t: 's' },
+  { k: 'dateMs', h: 'Last used', t: 'n', f: r => r.live ? '<b style="color:#2fbf71">● Playing now</b>' : esc(fmtDate(r.dateMs)) },
+];
+function actTeachers(rows) {   // one row per teacher; guests and students with no class get their own rows
+  const by = {};
+  rows.forEach(r => {
+    const k = r.temail || (r.guest ? '~guest' : '~none');
+    const t = by[k] || (by[k] = { teacher: r.temail ? r.teacher : r.guest ? 'Guests' : 'Signed in, no class', temail: r.temail, cls: new Set(), who: new Set(), visits: 0, page_s: 0, play_s: 0, answers: 0, correct: 0, games: new Set(), dateMs: 0, live: false });
+    if (r.clsName) t.cls.add(r.clsName); t.who.add(r.guest ? r.id : r.name + '|' + r.class_code);
+    t.visits++; t.page_s += r.page_s || 0; t.play_s += r.play_s || 0; t.answers += r.answers || 0; t.correct += r.correct || 0; t.games.add(r.game);
+    t.dateMs = Math.max(t.dateMs, r.seenMs || r.dateMs); t.live = t.live || actLive(r);
+  });
+  return Object.values(by).map(t => ({ ...t, players: t.teacher === 'Guests' ? null : t.who.size, nclasses: t.cls.size, clsTxt: [...t.cls].join(', '),
+    acc: t.answers ? Math.round(100 * t.correct / t.answers) : null, gamesTxt: [...t.games].map(g => (G[g] || {}).name || g).join(', ') }));
+}
+function actTeachOpts(rows) {   // the Teacher filter lists the teachers in the current time range
+  const sel = $('actteach'), v = sel.value, seen = {};
+  rows.forEach(r => { if (r.temail) seen[r.temail] = r.teacher; });
+  const list = Object.entries(seen).sort((a, b) => a[1].localeCompare(b[1]));
+  sel.innerHTML = '<option value="">Any teacher</option>' + list.map(([e, n]) => `<option value="${esc(e)}">${esc(n)}</option>`).join('') + '<option value="~none">No class / guests</option>';
+  sel.value = v && (v === '~none' || seen[v]) ? v : '';
+}
 const ACT_PLAYER_COLS = [
   { k: 'name', h: 'Who', t: 's', f: r => r.guest ? '<span style="color:var(--muted)">All guests</span>' : esc(r.name) },
-  { k: 'class_code', h: 'Class', t: 's', f: r => r.class_code ? esc(r.class_code) : '<span style="color:var(--muted)">–</span>' },
+  { k: 'teacher', h: 'Teacher · class', t: 's', f: actTC },
   { k: 'visits', h: 'Visits', t: 'n', num: 1 }, { k: 'page_s', h: 'On screen', t: 'n', num: 1, f: r => actMin(r.page_s) }, { k: 'play_s', h: 'Playing', t: 'n', num: 1, f: r => actMin(r.play_s) },
   { k: 'answers', h: 'Answers', t: 'n', num: 1, f: actAns }, { k: 'gamesTxt', h: 'Games', t: 's' },
   { k: 'dateMs', h: 'Last seen', t: 'n', f: r => actLive(r) ? '<b style="color:#2fbf71">● Playing now</b>' : esc(fmtDate(r.dateMs)) },
@@ -827,7 +876,7 @@ function actPlayers(rows) {
   const by = {};
   rows.forEach(r => {
     const k = r.guest ? 'guest' : r.name + '|' + r.class_code;
-    const p = by[k] || (by[k] = { name: r.guest ? 'Guests' : r.name, guest: r.guest, class_code: r.guest ? '' : r.class_code, visits: 0, page_s: 0, play_s: 0, answers: 0, correct: 0, games: new Set(), parts: {}, dateMs: 0, seenMs: 0 });
+    const p = by[k] || (by[k] = { name: r.guest ? 'Guests' : r.name, guest: r.guest, class_code: r.guest ? '' : r.class_code, teacher: r.teacher, temail: r.temail, clsName: r.clsName, visits: 0, page_s: 0, play_s: 0, answers: 0, correct: 0, games: new Set(), parts: {}, dateMs: 0, seenMs: 0 });
     p.visits++; p.page_s += r.page_s || 0; p.play_s += r.play_s || 0; p.answers += r.answers || 0; p.correct += r.correct || 0; p.games.add(r.game);
     r.parts.forEach(a => { (p.parts[r.game] || (p.parts[r.game] = new Set())).add(a); });
     p.dateMs = Math.max(p.dateMs, r.seenMs || r.dateMs); p.seenMs = Math.max(p.seenMs, r.seenMs || 0);
@@ -848,7 +897,9 @@ function cellText(c, r) {
 // ---------- render ----------
 function visible() {
   let rows = S.rows.filter(r => S.view === 'grades' || S.game === 'all' || r.game === S.game);
-  if (S.view === 'activity') { const w = $('actwho').value, d = $('actdev').value; rows = rows.filter(r => (!w || (w === 'guest') === r.guest) && (!d || r.device.startsWith(d))); if ($('actby').value === 'player') rows = actPlayers(rows); }
+  if (S.view === 'activity') { rows.forEach(actWho); actTeachOpts(rows); const w = $('actwho').value, d = $('actdev').value, t = $('actteach').value, by = $('actby').value;
+    rows = rows.filter(r => (!w || (w === 'guest') === r.guest) && (!d || r.device.startsWith(d)) && (!t || (t === '~none' ? !r.temail : r.temail === t)));
+    if (by === 'player') rows = actPlayers(rows); else if (by === 'teacher') rows = actTeachers(rows); }
   const st = S.sort[S.view] || DEFAULT_SORT[S.view]; const col = COLS[S.view].find(c => c.k === st.k) || COLS[S.view][0];
   const val = r => { const v = r[col.k]; if (col.t === 'g') return G[r.game] ? G[r.game].name : ''; if (col.t === 'n') return v == null ? -Infinity : v; return String(v ?? '').toLowerCase(); };
   rows = rows.slice().sort((a, b) => {
@@ -873,7 +924,7 @@ function render() {
   }
   const asg = S.view === 'assign', nt = S.view === 'newtest', ts = S.view === 'tests', ad = S.view === 'admin', av = S.view === 'activity';
   $('actbox').hidden = !av || PV_TEACHER;
-  if (av) COLS.activity = $('actby').value === 'player' ? ACT_PLAYER_COLS : ACT_VISIT_COLS;
+  if (av) COLS.activity = { player: ACT_PLAYER_COLS, teacher: ACT_TEACHER_COLS }[$('actby').value] || ACT_VISIT_COLS;
   if (!ad) S.teacher = '';
   const tpg = ad && !!S.teacher;
   $('upbox').hidden = !ts; $('adminsum').hidden = !ad; $('adminacc').hidden = !ad || tpg; $('devfix').hidden = !ad || tpg || PREVIEW;
@@ -892,7 +943,7 @@ function render() {
     : `<tr><td class="empty" colspan="${cols.length}">${S.loading ? 'Loading…' : 'Nothing here yet for this class and time.'}</td></tr>`;
   $('tbl').innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
   if (ad) { renderAdminSum(); renderAccess(); }
-  const label = { activity: $('actby').value === 'player' ? (rows.length === 1 ? 'player' : 'players') : rows.length === 1 ? 'game visit' : 'game visits', progress: 'practice records', scores: 'scores', feedback: 'notes', tests: 'students with a result', admin: 'teacher and game rows' }[S.view];
+  const label = { activity: $('actby').value === 'player' ? (rows.length === 1 ? 'player' : 'players') : $('actby').value === 'teacher' ? (rows.length === 1 ? 'teacher row' : 'teacher rows') : rows.length === 1 ? 'game visit' : 'game visits', progress: 'practice records', scores: 'scores', feedback: 'notes', tests: 'students with a result', admin: 'teacher and game rows' }[S.view];
   $('count').textContent = S.loading && !rows.length ? '' : S.view === 'tests' ? testSummary(rows) : S.view === 'grades' ? `${rows.length} student${rows.length === 1 ? '' : 's'} practiced for this assignment` : rows.length + ' ' + label + (S.game === 'all' ? ' across all games' : ' in ' + g.name);
   $('note').textContent = S.view === 'grades' ? 'Grade = how much of each task is done (each capped at 100%), averaged. Points = that grade out of the assignment\'s "Grade out of" (10 unless you change it), rounded down, for your grade book. It counts all practice in that game during the dates, the same number students see on their home page. Students who have not practiced yet do not appear. Earshot Saloon tasks cannot be counted yet. Click any assignment to open or close its grades. Past assignments are kept from now on (the list starts with the assignment each class had when this was added).'
     : S.view === 'progress' && S.game === 'earshot'
@@ -900,7 +951,7 @@ function render() {
     : S.view === 'progress' ? 'One row per student per game per day. Accuracy is correct answers out of all answers.'
     : S.view === 'scores' && S.code === WORLD ? 'World: the top 50 scores in each game from every class and the world boards, all time (the time range does not apply). Details shows each score\'s class.'
     : S.view === 'tests' ? 'Best score is the highest of all tries. Grade = accuracy of the best try as points out of the test\'s "Grade out of" (20 unless you change it), e.g. 95% of 20 = 19/20. Students who have not started do not appear.'
-    : S.view === 'activity' ? 'One row each time someone opens a game and stays at least 20 seconds (once per game per browser tab). On screen = time the game was open and visible; Playing = time spent answering (pauses over 2 minutes don\'t count). Furthest = the highest level, town, floor or number of keys reached. A visit updates every 3 minutes and when the player leaves, so Playing now means seen in the last few minutes. By player adds up each person\'s visits for the time range (all guests share one row). Super Genius shows time only. Visits before Nov 2 have no time or answers. Records stay until you clean them up.'
+    : S.view === 'activity' ? 'One row each time someone opens a game and stays at least 20 seconds (once per game per browser tab). Teacher = who owns the class the student had picked. By teacher adds up every visit from each teacher\'s classes. On screen = time the game was open and visible; Playing = time spent answering (pauses over 2 minutes don\'t count). Furthest = the highest level, town, floor or number of keys reached. A visit updates every 3 minutes and when the player leaves, so Playing now means seen in the last few minutes. By player adds up each person\'s visits for the time range (all guests share one row). Super Genius shows time only. Visits before Nov 2 have no time or answers. Records stay until you clean them up.'
     : S.view === 'admin' ? 'Time is student practice time recorded in each teacher\'s classes (not teacher log-ins, and not tests). Earshot Saloon records scores only, so it shows no minutes. What they practice lists the most used levels, keys, scale types, modes and time signatures in the records.' : '';
 }
 async function load() {
@@ -1293,6 +1344,7 @@ function syncAct() {
   if (!key) return;
   const me = act = { key, stop: () => {}, rows: [] };
   run(async ({ fs, db }) => {
+    try { await actLoadCls(fs, db); } catch (e) { ACT_CLS = ACT_CLS || {}; }   // Teacher column; the visits still show if this fails
     const base = fs.collection(db, 'activity');
     const q = n ? fs.query(base, fs.where('at', '>=', fs.Timestamp.fromMillis(Date.now() - n * 864e5)), fs.orderBy('at', 'desc'), fs.limit(500))
       : fs.query(base, fs.orderBy('at', 'desc'), fs.limit(500));
@@ -1970,7 +2022,7 @@ function wire() {
     }
   };
   $('csv').onclick = csv;
-  $('actwho').onchange = $('actdev').onchange = $('actby').onchange = render;
+  $('actwho').onchange = $('actdev').onchange = $('actby').onchange = $('actteach').onchange = render;
   setInterval(() => { if (S.view === 'activity' && !document.hidden) render(); }, 60000);   // keeps "Playing now" honest (no reads)
   $('actclean').onclick = () => actClean(false);
   $('anew').onclick = () => { S.view = 'assign'; msg(''); load(); };
