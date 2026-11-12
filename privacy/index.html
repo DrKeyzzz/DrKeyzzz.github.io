@@ -175,10 +175,10 @@
 <a class="home" href="/">← Music Theory Academy</a>
 
 <h1>Privacy Policy</h1>
-<p class="date">Last updated: November 4, 2026</p>
+<p class="date">Last updated: November 12, 2026</p>
 
 <p class="lead">Music Theory Academy keeps the least student information it can: a first name, a last initial, a class code,
-the student's results in the games and a simple record of visits. It has no ads, no outside analytics or tracking companies,
+the student's results in the games, their answers to their teacher's in-class questions and a simple record of visits. It has no ads, no outside analytics or tracking companies,
 sends nothing to AI services, and never sells or shares student information.</p>
 
 <h2>Who we are</h2>
@@ -194,6 +194,17 @@ built, now only forwards visitors here.</p>
 <p>While they play, the site saves their results under that name and class code: scores, practice time, level progress,
 and assignment and quiz results. If a student uses the optional feedback box, their short note (up to 300 characters) is
 saved too.</p>
+<p><b>Live Class.</b> When a teacher runs a Live Class lesson, students answer the teacher's questions on their own device: a short
+typed answer (up to 280 characters), a choice, a number or an emoji. During the lesson a student can also tap "I'm lost", rate how
+confident they feel from 1 to 5, send a private question to their teacher (up to 280 characters), and react to an answer the
+teacher shows to the class with an emoji. The site saves these with the student's first name, last initial and class code, along
+with the teacher's marks (right, partly right, not yet). A simple word check runs on the student's device and only marks a rude
+answer for the teacher to look at; nothing is sent anywhere else. Students should not type personal information in their answers.</p>
+<p><b>Report cards.</b> A teacher can make a report card for each student from their marked Live Class answers: how they are
+doing in each skill, a short tip, links to games on this site that practise it, and an optional comment from the teacher. To keep
+each report card private, the student's browser makes a random code the first time they open Live Class and keeps it on that
+device. The report card is saved under that code, so only that device can open it. The code is not linked to anything outside
+this site.</p>
 <p><b>Visit log.</b> When someone has a game open for at least 20 seconds, the site saves one short record of that visit: the
 first name and last initial (or "Guest"), the class code, which game and which part of it, the kind of device (for example
 "Phone · iPhone · Safari" and the screen width), when the visit started and ended, how long the game was on screen and
@@ -217,8 +228,8 @@ shared for marketing, or used for ads. No student information is sent to AI serv
 
 <h2>Where it is stored</h2>
 <ul>
-<li><b>Google Firebase (Cloud Firestore).</b> Scores, progress, practice time, quiz results, the visit log, classes and teacher
-accounts are stored in a Firebase database run by Google on behalf of the site. Its security rules control who can read
+<li><b>Google Firebase (Cloud Firestore).</b> Scores, progress, practice time, quiz results, Live Class answers and report cards,
+the visit log, classes and teacher accounts are stored in a Firebase database run by Google on behalf of the site. Its security rules control who can read
 each kind of record.</li>
 <li><b>The student's own browser.</b> The name, class code, settings and some progress are also saved in the browser on the
 device the student uses, so they don't have to type them in every time. This stays on that device.</li>
@@ -234,9 +245,9 @@ a visitor's IP address when a page or file loads, but they receive no student na
 <table>
 <thead><tr><th>Who</th><th>What they can see</th></tr></thead>
 <tbody>
-<tr><td>The student</td><td>Their own scores, progress and reports</td></tr>
-<tr><td>The student's teacher</td><td>Results, practice, progress, quiz grades and feedback notes for their own classes only</td></tr>
-<tr><td>Other students</td><td>Leaderboards (see below)</td></tr>
+<tr><td>The student</td><td>Their own scores, progress, reports, Live Class answers and report cards</td></tr>
+<tr><td>The student's teacher</td><td>Results, practice, progress, quiz grades, feedback notes, Live Class answers, "I'm lost" and confidence taps, and private questions, for their own classes only</td></tr>
+<tr><td>Other students</td><td>Leaderboards (see below). In Live Class, classmates never see each other's answers, except one answer the teacher chooses to show to the class, with or without the student's name</td></tr>
 <tr><td>The site administrator (David Milnes)</td><td>Everything, including the visit log, to run and support the site</td></tr>
 </tbody>
 </table>
@@ -259,7 +270,8 @@ to have a student's information deleted. We will delete it within 30 days.</li>
 </ul>
 
 <h2>How long we keep it</h2>
-<p>Visit log records are deleted after 30 days. Student results are kept only as long as they are useful for the class; we
+<p>Visit log records are deleted after 30 days. Live Class answers, "I'm lost" and confidence taps, private questions and
+reactions are deleted after 90 days. Report cards and other student results are kept only as long as they are useful for the class; we
 delete student records at the end of each school year.</p>
 
 <h2>Changes to this policy</h2>
