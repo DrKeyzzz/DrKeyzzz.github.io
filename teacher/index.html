@@ -218,6 +218,12 @@
   .classes { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
   .classes li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 10px 12px; border-radius: 12px; background: var(--bg); border: 1px solid var(--card-border); }
   .classes li.on { border-color: var(--gold); }
+  .classes li[role="button"] { cursor: pointer; }   /* tap a class to assign to it (2026-11-15) */
+  .classes li[role="button"]:hover { border-color: var(--muted); }
+  .classes li[role="button"].on:hover { border-color: var(--gold); }
+  .classes li[role="button"]:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .classes .sel { margin-left: auto; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
+  .pick-hint { margin: 2px 0 0; color: var(--muted); font-size: 15px; }
   .classes .cn { font-weight: 700; }
   .classes .cc { font-size: 13px; letter-spacing: .08em; color: var(--muted); }
   .classes .ca { flex-basis: 100%; color: var(--muted); font-size: 15px; }
@@ -349,7 +355,8 @@
 
     <section class="card" aria-labelledby="c-head">
       <h2 id="c-head">Class</h2>
-      <label class="f" for="cls">Assign to<select id="cls"></select></label>
+      <p class="pick-hint" id="pick-hint">Tap a class to give it an assignment.</p>
+      <label class="f" for="cls" id="cls-label">Assign to<select id="cls"></select></label>
       <ul class="classes" id="classes" aria-label="Your classes and their current assignments"></ul>
     </section>
 
@@ -662,8 +669,12 @@ const TEST_GAMES = ['scale','tidal','rooftop','rhythm','earshot','synapse'];   /
 const APARAMS = new URLSearchParams(location.search);
 const assignKey = a => a.id || legacyKey(a);
 const legacyKey = a => { const stable = v => Array.isArray(v) ? '[' + v.map(stable) + ']' : v && typeof v === 'object' ? '{' + Object.keys(v).sort().map(k => k + ':' + stable(v[k])) + '}' : JSON.stringify(v); return [a.start, a.end, stable(a.tasks)].join('|'); };
-const S = { email: '', classes: [], code: APARAMS.get('code') || '', when: 'today', tasks: [newTask()] };
+// + New assignment starts with no class picked: the teacher taps one
+const S = { email: '', classes: [], code: APARAMS.has('new') && !TESTMODE ? '' : APARAMS.get('code') || '', when: 'today', tasks: [newTask()] };
 const cls = () => S.classes.find(c => c.code === S.code);
+// Classes are picked by tapping their card (2026-11-15). Not while one saved assignment is open for editing, and the
+// test maker keeps its own Class menu.
+const canPick = () => !TESTMODE && !APARAMS.has('assignment') && S.classes.length > 1;
 function msg(text, ok) { const e = $('msg'); e.textContent = text || ''; e.className = 'msg' + (ok ? ' ok' : ''); }
 
 // ---------- sign in ----------
@@ -715,9 +726,13 @@ async function loadClasses() {
       .map(d => ({ code: d.id, ...d.data() })).sort((a, b) => String(a.name).localeCompare(String(b.name))));
   } catch (e) { S.classes = []; $('classes').innerHTML = `<li class="msg" role="alert">${esc(errText(e))}</li>`; }
   if (!S.classes.some(c => c.code === S.code)) S.code = APARAMS.has('code') && !TESTMODE ? '' : (S.classes[0] || {}).code || '';
+  if (!S.code && APARAMS.has('new') && S.classes.length === 1) S.code = S.classes[0].code;   // only one class: nothing to pick
   $('cls').innerHTML = S.classes.length ? S.classes.map(c => `<option value="${esc(c.code)}">${esc(c.name)} · ${esc(c.code)}</option>`).join('') : '<option value="">No classes yet</option>';
   $('cls').value = S.code;
   $('cls').disabled = !S.classes.length || (!TESTMODE && APARAMS.has('code'));
+  $('cls-label').hidden = !TESTMODE;   // assignments pick a class from the cards below
+  $('pick-hint').hidden = !canPick();
+  $('pick-hint').textContent = cls() ? 'Tap a different class to switch.' : 'Tap a class to give it an assignment.';
   $('form').hidden = !cls();
   if (!S.classes.length && !$('classes').querySelector('.msg')) $('classes').innerHTML = '<li>You have no classes yet. Create one in any game\'s Teacher dashboard (Classes tab).</li>';
   pickClass();
@@ -728,7 +743,8 @@ function renderClasses() {
   $('classes').innerHTML = S.classes.map(c => {
     const a = c.hub_assignment;
     const what = a && a.tasks && a.tasks.length ? `<b>${esc(whenText(a))}</b> · ${a.tasks.map(t => esc(taskText(t))).join(' · ')}` : 'No assignment';
-    return `<li class="${c.code === S.code ? 'on' : ''}"><span class="cn">${esc(c.name)}</span><span class="cc">${esc(c.code)}</span><span class="ca">${what}</span></li>`;
+    const on = c.code === S.code, pick = canPick() ? ` role="button" tabindex="0" data-code="${esc(c.code)}" aria-pressed="${on}"` : '';
+    return `<li class="${on ? 'on' : ''}"${pick}><span class="cn">${esc(c.name)}</span><span class="cc">${esc(c.code)}</span>${on ? '<span class="sel">Assigning</span>' : ''}<span class="ca">${what}</span></li>`;
   }).join('');
 }
 // the form starts from the class's current assignment (if it hasn't ended), otherwise from the defaults
@@ -739,7 +755,7 @@ function pickClass() {
   const a = !TESTMODE && (requested ? candidates.find(x => assignKey(x) === requested) : APARAMS.has('new') ? null : c && c.hub_assignment?.end >= today ? c.hub_assignment : null);
   S.originalAssignment = a || null;
   if (!TESTMODE) {
-    $('a-head').textContent = requested || a ? 'Edit assignment' : 'New assignment';
+    $('a-head').textContent = (requested || a ? 'Edit assignment' : 'New assignment') + (c ? ` for ${c.name}` : '');
     $('ended-note').hidden = !a?.ended_ms;
   }
   if (EDIT && !S.editStarted) { S.editStarted = true; loadEdit(); }
@@ -837,6 +853,14 @@ $('add').addEventListener('click', () => {
 document.querySelectorAll('input[name="when"]').forEach(r => r.addEventListener('change', () => { S.when = r.value; if (r.value !== 'custom') { $('d-start').value = dayKey(); $('d-end').value = r.value === 'week' ? addDays(6) : dayKey(); } renderWhen(); msg(''); }));
 ['d-start', 'd-end'].forEach(id => $(id).addEventListener('change', () => { S.when = 'custom'; document.querySelector('input[name="when"][value="custom"]').checked = true; if (id === 'd-start' && $('d-end').value < $('d-start').value) $('d-end').value = $('d-start').value; msg(''); }));
 $('cls').addEventListener('change', e => { S.code = e.target.value; msg(''); pickClass(); });
+function choose(code) {
+  if (!canPick() || !code || code === S.code) return;
+  S.code = code; $('cls').value = code; msg(''); $('form').hidden = false; pickClass();
+  $('pick-hint').textContent = 'Tap a different class to switch.';
+  $('form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+$('classes').addEventListener('click', e => { const li = e.target.closest('li[data-code]'); if (li) choose(li.dataset.code); });
+$('classes').addEventListener('keydown', e => { const li = e.target.closest('li[data-code]'); if (li && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); choose(li.dataset.code); } });
 
 // the one field the home page reads: classes/<code>.hub_assignment
 function build() {
