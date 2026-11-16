@@ -2459,7 +2459,8 @@ async function signedIn(email) {
   try { ok = await isTeacherEmail(email); } catch (e) { return signInScreen(errText(e)); }
   if (!ok) return joinScreen(email);
   S.email = email; $('who').innerHTML = `Signed in as <b>${esc(email)}</b>`;
-  $('views').querySelector('[data-v=admin]').hidden = $('views').querySelector('[data-v=feedback]').hidden = !ADMIN_EMAILS.includes(email);   // Feedback: admin only (2026-11-16) $('views').querySelector('[data-v=activity]').hidden = false;   // Activity: every teacher (their own classes), the admin sees everyone (2026-11-16)
+  $('views').querySelector('[data-v=admin]').hidden = $('views').querySelector('[data-v=feedback]').hidden = !ADMIN_EMAILS.includes(email);   // Feedback: admin only (2026-11-16)
+  $('views').querySelector('[data-v=activity]').hidden = false;   // Activity: every teacher (their own classes), the admin sees everyone (2026-11-16)
   $('views').querySelector('[data-v=students]').hidden = false;   // Messages from students (2026-11-16)
   $('views').querySelector('[data-v=live]').hidden = false;   // Live questioning: every teacher (David, 2026-11-16; was admin only while he tried it first)
   $('gate').hidden = true; $('main').hidden = false;
