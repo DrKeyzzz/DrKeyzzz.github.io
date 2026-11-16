@@ -285,8 +285,7 @@ function composerCard() {
     : c.type === 'yn' ? `<label class="f" for="c-correct">Correct answer (optional)<select id="c-correct"><option value="">None</option><option ${c.correct === 'Yes' ? 'selected' : ''}>Yes</option><option ${c.correct === 'No' ? 'selected' : ''}>No</option></select></label>`
     : c.type === 'num' ? `<label class="f" for="c-correct">Correct answer (optional)<input type="number" step="any" id="c-correct" value="${esc(c.correct)}"></label>` : '';
   return `<section class="card stack">
-    <div class="row between"><h3>${S.live && S.live.q ? 'Next question' : 'Ask a question'}</h3>
-      <select id="bank" style="width:auto;max-width:200px" aria-label="Load a starter question"><option value="">Starter questions…</option>${BANK.map((b, i) => `<option value="${i}">${esc(b.q.slice(0, 44))}${b.q.length > 44 ? '…' : ''}</option>`).join('')}</select></div>
+    <div class="row between"><h3>${S.live && S.live.q ? 'Next question' : 'Ask a question'}</h3></div>
     <label class="f" for="c-type">Type<select id="c-type">${Object.entries(TYPES).map(([k, v]) => `<option value="${k}" ${c.type === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
     <label class="f" for="c-q">Question<textarea id="c-q" maxlength="200" placeholder="Ask your class something…">${esc(c.q)}</textarea></label>
     ${c.type === 'mc' ? `<div class="optgrid">${c.opts.map((o, i) => `<input type="text" id="c-o${i}" data-i="${i}" maxlength="60" value="${esc(o)}" placeholder="Option ${'ABCDEF'[i]}" aria-label="Option ${'ABCDEF'[i]}">`).join('')}</div>${c.opts.length < 6 ? '<button class="btn sm" type="button" data-act="addopt" style="align-self:flex-start">+ Option</button>' : ''}` : ''}
@@ -301,7 +300,7 @@ function draw() {
   const a = document.activeElement, keep = a && a.id ? { id: a.id, s: a.selectionStart, e: a.selectionEnd } : null;
   const L = S.live && S.live.q ? S.live : null;
   app.innerHTML = shell(`${headCard()}<p class="msg" role="alert">${esc(S.err)}</p>
-    <div class="cols"><div class="stack">${L ? roundCard() + resultsCard() + answersCard() : '<section class="card"><p class="muted empty">No question on the screen. Ask one on the right, or pick a starter question.</p></section>'}</div>
+    <div class="cols"><div class="stack">${L ? roundCard() + resultsCard() + answersCard() : '<section class="card"><p class="muted empty">No question on the screen. Ask one on the right.</p></section>'}</div>
     <aside class="stack">${composerCard()}${pulseCard()}${inboxCard()}</aside></div>`);
   if (keep && $(keep.id)) { const el = $(keep.id); el.focus(); try { if (keep.s != null) el.setSelectionRange(keep.s, keep.e); } catch {} }
   if (EMBED) try { parent.postMessage({ mtgLiveHeight: document.documentElement.scrollHeight }, location.origin); } catch {}
