@@ -831,7 +831,21 @@ const BADGES = {
     { tiers: [2, 3, 4, 5], m: X => X.tried },
   ],
 };
-const RANKS = [[0, 'Rookie Listener'], [250, 'Beat Keeper'], [700, 'Note Reader'], [1500, 'Rhythm Rider'], [2800, 'Scale Climber'], [4600, 'Harmony Hero'], [7000, 'Theory Wizard'], [10500, 'Virtuoso'], [15000, 'Maestro'], [21000, 'Superior Music Theory Master']];
+// One ladder for the avatar, the home page and My Report (avatar step 4a, 2026-11-16; spec section 2b): longer climbs, and ranks 8-10
+// also need games mastered (mtg_mastery_v1:<sid>, filled in by the games). Nobody goes down: mtg_rank_best_v1:<sid> keeps the best rank
+// seen, starting from the old ladder's rank. The XP is saved (mtg_xp_v1:<sid>) so every game's avatar shows the same rank.
+const RANKS = [[0, 'Rookie Listener'], [200, 'Beat Keeper'], [600, 'Note Reader'], [1400, 'Rhythm Rider'], [2800, 'Scale Climber'], [5000, 'Harmony Hero'], [8500, 'Theory Wizard'], [14000, 'Virtuoso'], [22000, 'Maestro'], [35000, 'Superior Music Theory Master']];
+const RANK_GATES = { 7: 1, 8: 3, 9: 7 }, OLD_RANK_XP = [250, 700, 1500, 2800, 4600, 7000, 10500, 15000, 21000];
+function settleRank(xp, p) {
+  const sid = (p.first + p.init).toLowerCase().replace(/[^a-z]/g, '').slice(0, 16);
+  const get = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } }, set = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+  const m = ((get('mtg_mastery_v1:' + sid) || {}).games || []).length;
+  let r = 0; while (r + 1 < RANKS.length && xp >= RANKS[r + 1][0] && (!RANK_GATES[r + 1] || m >= RANK_GATES[r + 1])) r++;
+  let best = +get('mtg_rank_best_v1:' + sid) || 0;
+  if (!get('mtg_rank_moved_v1:' + sid)) { let o = 0; while (o < OLD_RANK_XP.length && xp >= OLD_RANK_XP[o]) o++; best = Math.max(best, o); set('mtg_rank_moved_v1:' + sid, 1); }
+  best = Math.max(best, r); set('mtg_rank_best_v1:' + sid, best); set('mtg_xp_v1:' + sid, { xp, extra: 0, at: Date.now() });
+  return best;
+}
 const rankOf = xp => { let i = 0; while (i + 1 < RANKS.length && xp >= RANKS[i + 1][0]) i++; return i; };
 // the all-games numbers (streak, right answers, minutes, games tried) and the days with any practice
 function allStats(days, A) {
@@ -856,7 +870,7 @@ function standing(p, days, T) {
   // current streak: days in a row ending today or yesterday
   let streak = 0; const start = active.has(dayKey()) ? 0 : 1;
   while (active.has(daysAgo(start + streak))) streak++;
-  return { xp, rank: rankOf(xp), streak };
+  return { xp, rank: settleRank(xp, p), streak };
 }
 const ago = ms => { const m = Math.round((Date.now() - ms) / 60000); return m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} hr ago` : m < 2880 ? 'yesterday' : `${Math.floor(m / 1440)} days ago`; };
 // one short line per game card, from what that game saves

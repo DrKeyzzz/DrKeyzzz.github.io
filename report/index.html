@@ -624,7 +624,26 @@ const BADGES = {
       left: (v, g) => ['Play 2 different games', 'Play 3 different games', 'Play 4 different games', 'Play each of the six games on 3 different days', 'Play each of the six games on 7 different days'][g - 1] },
   ],
 };
-const RANKS = [[0, 'Rookie Listener'], [250, 'Beat Keeper'], [700, 'Note Reader'], [1500, 'Rhythm Rider'], [2800, 'Scale Climber'], [4600, 'Harmony Hero'], [7000, 'Theory Wizard'], [10500, 'Virtuoso'], [15000, 'Maestro'], [21000, 'Superior Music Theory Master']];
+// One ladder for the avatar, the home page and My Report (avatar step 4a, 2026-11-16; spec section 2b): longer climbs, and ranks 8-10
+// also need games mastered (mtg_mastery_v1:<sid>, filled in by the games). Nobody goes down: mtg_rank_best_v1:<sid> keeps the best rank
+// seen, starting from the old ladder's rank. The XP is saved (mtg_xp_v1:<sid>) so every game's avatar shows the same rank.
+const RANKS = [[0, 'Rookie Listener'], [200, 'Beat Keeper'], [600, 'Note Reader'], [1400, 'Rhythm Rider'], [2800, 'Scale Climber'], [5000, 'Harmony Hero'], [8500, 'Theory Wizard'], [14000, 'Virtuoso'], [22000, 'Maestro'], [35000, 'Superior Music Theory Master']];
+const RANK_GATES = { 7: 1, 8: 3, 9: 7 }, OLD_RANK_XP = [250, 700, 1500, 2800, 4600, 7000, 10500, 15000, 21000];
+// "1,200 XP to Virtuoso", or what else the next rank needs (games mastered) once the XP is there
+function nextRankText(rank, xp) {
+  const n = RANKS[rank + 1], g = RANK_GATES[rank + 1], what = g === 7 ? 'every game' : g === 1 ? '1 game' : g + ' games';
+  return xp < n[0] ? `${fmt(n[0] - xp)} XP to ${n[1]}` + (g ? `, and master ${what}` : '') : `Master ${what} to become ${n[1]}`;
+}
+function settleRank(xp, p) {
+  const sid = (p.first + p.init).toLowerCase().replace(/[^a-z]/g, '').slice(0, 16);
+  const get = k => { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch { return null; } }, set = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
+  const m = ((get('mtg_mastery_v1:' + sid) || {}).games || []).length;
+  let r = 0; while (r + 1 < RANKS.length && xp >= RANKS[r + 1][0] && (!RANK_GATES[r + 1] || m >= RANK_GATES[r + 1])) r++;
+  let best = +get('mtg_rank_best_v1:' + sid) || 0;
+  if (!get('mtg_rank_moved_v1:' + sid)) { let o = 0; while (o < OLD_RANK_XP.length && xp >= OLD_RANK_XP[o]) o++; best = Math.max(best, o); set('mtg_rank_moved_v1:' + sid, 1); }
+  best = Math.max(best, r); set('mtg_rank_best_v1:' + sid, best); set('mtg_xp_v1:' + sid, { xp, extra: 0, at: Date.now() });
+  return best;
+}
 const rankOf = xp => { let i = 0; while (i + 1 < RANKS.length && xp >= RANKS[i + 1][0]) i++; return i; };
 
 // the day each badge level was first reached in the practice history (walking the days in order)
@@ -865,7 +884,7 @@ function allPanel(ctx) {
     ${geniusBox(ctx.sid)}
     <div class="trophies">
       <div class="trophy best"><span class="k">Music rank</span><span class="v" style="font-size:22px">${esc(RANKS[rank][1])}</span><span class="n">Rank ${rank + 1} of ${RANKS.length}</span></div>
-      <div class="trophy"><span class="k">Total XP</span><span class="v">${fmt(xp)}</span><span class="n">${rank + 1 < RANKS.length ? `${fmt(RANKS[rank + 1][0] - xp)} to ${esc(RANKS[rank + 1][1])}` : 'Top rank! 👑'}</span></div>
+      <div class="trophy"><span class="k">Total XP</span><span class="v">${fmt(xp)}</span><span class="n">${rank + 1 < RANKS.length ? esc(nextRankText(rank, xp)) : 'Top rank! 👑'}</span></div>
       <div class="trophy"><span class="k">Badges</span><span class="v">${earned.length} / ${everything.length}</span><span class="n">${everything.filter(b => !b.def.special && b.tier >= 3).length} Gold or better</span></div>
       <div class="trophy"><span class="k">Right answers</span><span class="v">${fmt(X.correct)}</span><span class="n">${fmt(X.minutes)} minutes practiced</span></div>
     </div>
@@ -969,7 +988,7 @@ async function boot() {
     // current streak: days in a row ending today or yesterday
     let streak = 0; const start = active.has(today) ? 0 : 1;
     while (active.has(daysAgo(start + streak))) streak++;
-    return { perGame, all, X, active, xp, rank: rankOf(xp), T, A, days, streak };
+    return { perGame, all, X, active, xp, rank: settleRank(xp, p), T, A, days, streak };
   };
   // ---------- the Tests tab: each test your teacher made for your classes, with your best score and tries ----------
   const toMs = v => !v ? 0 : typeof v.toMillis === 'function' ? v.toMillis() : typeof v.seconds === 'number' ? v.seconds * 1000 : Number(v) || 0;
@@ -1018,7 +1037,7 @@ async function boot() {
     const { xp, rank } = ctx, lo = RANKS[rank][0], hi = rank + 1 < RANKS.length ? RANKS[rank + 1][0] : null;
     $('p-level').innerHTML = `<span class="ranktag">RANK ${rank + 1} · ${esc(RANKS[rank][1].toUpperCase())}</span>`;
     $('p-xp').style.width = (hi ? Math.round(100 * (xp - lo) / (hi - lo)) : 100) + '%';
-    $('p-xptext').textContent = hi ? `${fmt(hi - xp)} XP to ${RANKS[rank + 1][1]}` : 'Top rank reached! 👑';
+    $('p-xptext').textContent = hi ? nextRankText(rank, xp) : 'Top rank reached! 👑';
     const n = ctx.streak;
     $('p-streak').textContent = `${n} day${n === 1 ? '' : 's'}`;
     // celebrate what's new since the last visit
@@ -1242,6 +1261,13 @@ boot();
 .mav-tryrow:empty{display:none}
 .mav-try{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:10px 12px;border-radius:12px;background:#22294d;border:1px solid #ffc85c55;font-size:14px}
 .mav-need{color:#ffd166;font-weight:700}
+.mav-rk{position:absolute;right:1px;top:1px;min-width:14px;height:14px;border-radius:7px;font:900 9px/14px system-ui,sans-serif;color:#141a30;text-align:center;padding:0 2px}
+.mav-rnow{margin:8px 0 0;font-size:16px}
+.mav-ladder{list-style:none;margin:8px 0;padding:0;display:flex;flex-direction:column;gap:4px}
+.mav-ladder li{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:10px;background:#1d2547;font-size:13.5px;opacity:.65}
+.mav-ladder li.done{opacity:.9}.mav-ladder li.on{opacity:1;outline:2px solid #ffc85c}
+.mav-ladder li span:last-child{margin-left:auto;color:#a8b3d6;font-size:12.5px}
+.mav-dot{width:12px;height:12px;border-radius:50%;flex:none}
 .mav-acts{display:flex;justify-content:flex-end;gap:10px;padding-top:12px}
 .mav-btn{font:inherit;font-weight:700;border-radius:12px;padding:10px 18px;min-height:44px;cursor:pointer;border:2px solid transparent;background:#ffc85c;color:#1a1405}
 .mav-btn.ghost{background:transparent;color:#eef1fb;border-color:#34407a}
@@ -1259,6 +1285,8 @@ boot();
    a test +50), shown in the builder and as a small pop; sent to the same doc as increments at most once a minute and when the page hides.
    Step 3 (2026-11-16): the Store (tabs Look, Skins, Clothes, Hats, Gear, Moves, Backdrops, Pets); try an item on, buy it with coins or points;
    owned items (W.owned, 'slot:id', <= 300) saved with the wallet and sent as the list 'owned'; spending goes online as a negative increment.
+   Step 4a (2026-11-16): ranks (see the ranks section); corner frame color + number, platform color and step dots, a Rank tab in the Store;
+   Maestro Baton opens at rank 9 and the Golden Wreath at rank 10.
    Later steps: ranks, avatars on boards and reports, a class setting to turn avatars off. */
 (function(){
   var me = document.currentScript, MOUNT = (me && me.getAttribute('data-mount')) || '.mtg-home';
@@ -1316,7 +1344,12 @@ boot();
 function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Math.max(0, Math.min(255, Math.round(((n >> s) & 255) * f))); return '#' + [16, 8, 0].map(s => c(s).toString(16).padStart(2, '0')).join(''); }
 
   // rank shows later (build step 4); for now every avatar stands on the plain Rookie platform
-  function platform(r) { return `<g class="plat"><ellipse class="plat-glow" cx="50" cy="111" rx="31" ry="7" fill="#7d88a8" opacity=".2"/><ellipse cx="50" cy="111" rx="24" ry="4.4" fill="#7d88a8" fill-opacity=".22" stroke="#7d88a8" stroke-width="1.4"/></g>`; }
+  function platform(r) {   // the glowing platform: color = rank tier, dots = step I, II, III inside the rank, sparkles at the top rank
+    var c = tier(r), n = r ? stepOf(r) + 1 : 0, dots = '', sparkle = '';
+    for (var i = 0; i < n; i++) dots += '<circle cx="' + (50 + (i - (n - 1) / 2) * 6) + '" cy="114.2" r="1.2" fill="' + c + '"/>';
+    if (r >= 9) sparkle = [[26, 106], [74, 107], [50, 117]].map(function(q){ var x = q[0], y = q[1]; return '<path d="M' + x + ' ' + (y - 3) + ' L' + (x + .8) + ' ' + (y - .8) + ' L' + (x + 3) + ' ' + y + ' L' + (x + .8) + ' ' + (y + .8) + ' L' + x + ' ' + (y + 3) + ' L' + (x - .8) + ' ' + (y + .8) + ' L' + (x - 3) + ' ' + y + ' L' + (x - .8) + ' ' + (y - .8) + 'Z" fill="#fff"/>'; }).join('');
+    return '<g class="plat"><ellipse class="plat-glow" cx="50" cy="111" rx="31" ry="7" fill="' + c + '" opacity="' + (r ? .5 : .2) + '"/><ellipse cx="50" cy="111" rx="24" ry="4.4" fill="' + c + '" fill-opacity=".22" stroke="' + c + '" stroke-width="1.4"/>' + dots + sparkle + '</g>';
+  }
 
   // the drawing: one small SVG built from layers (shoulder, elbow, hip and knee joints)
   function avatar(L, o = {}) {
@@ -1516,11 +1549,34 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   } catch(e){} }
   if (!look) { look = randomLook(); fresh = !!P; }   // guests: a random avatar for this visit, never saved
   function wearOwned(L){   // a paid item that isn't in this student's owned list goes back to the free default
-    ITEMS.forEach(function(it){ if (L[it.slot] === it.id && !it.free && W.owned.indexOf(it.slot + ':' + it.id) < 0) L[it.slot] = DEF[it.slot]; });
+    ITEMS.forEach(function(it){ var k = it.slot + ':' + it.id; if (L[it.slot] === it.id && !it.free && W.owned.indexOf(k) < 0 && !(k === 'gear:baton' && rankNow() >= 8) && !(k === 'bg:wreath' && rankNow() >= 9)) L[it.slot] = DEF[it.slot]; });
     if (!ITEMS.some(function(it){ return it.slot === 'top' && it.id === L.top; })) L.top = DEF.top;
     return L;
   }
   look = wearOwned(look);
+
+  // ---------- ranks (build step 4a): one ladder for the avatar, the home page and My Report ----------
+  // XP = what the home page / My Report last worked out (localStorage mtg_xp_v1:<sid> = { xp, extra }) + 'extra' that games add as
+  // students play (2 a right answer, 25 a finished run; the home page folds it back in next time it opens). Ranks 8-10 also need
+  // games mastered (mtg_mastery_v1:<sid>, build step 4b). Nobody goes down: mtg_rank_best_v1:<sid> keeps the best rank seen.
+  var RANKS = [[0, 'Rookie Listener'], [200, 'Beat Keeper'], [600, 'Note Reader'], [1400, 'Rhythm Rider'], [2800, 'Scale Climber'], [5000, 'Harmony Hero'],
+    [8500, 'Theory Wizard'], [14000, 'Virtuoso'], [22000, 'Maestro'], [35000, 'Superior Music Theory Master']];
+  var GATES = { 7: 1, 8: 3, 9: 7 };   // rank index -> games mastered (7 = every game)
+  var XPK = 'mtg_xp_v1:' + SID, BESTK = 'mtg_rank_best_v1:' + SID, MASTK = 'mtg_mastery_v1:' + SID;
+  function lsGet(k){ try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch(e){ return null; } }
+  function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+  function xpNow(){ var x = P && lsGet(XPK); return x ? Math.max(0, (+x.xp || 0) + (+x.extra || 0)) : 0; }
+  function addXP(n){ if (!P || !n) return; var x = lsGet(XPK) || { xp: 0, extra: 0 }; x.extra = (+x.extra || 0) + n; lsSet(XPK, x); }
+  function mastered(){ var m = P && lsGet(MASTK); return m && Array.isArray(m.games) ? m.games.length : 0; }
+  function ladderRank(xp, m){ var r = 0; while (r + 1 < RANKS.length && xp >= RANKS[r + 1][0] && (!GATES[r + 1] || m >= GATES[r + 1])) r++; return r; }
+  function rankNow(){
+    if (!P) return 0;
+    var r = ladderRank(xpNow() - (W.encXP || 0), mastered()), b = W.encores ? 0 : (+lsGet(BESTK) || 0);   // after an Encore only the new climb counts
+    if (r > b && !W.encores) lsSet(BESTK, r);
+    return Math.max(r, b);
+  }
+  function stepOf(r){ if (r >= 9) return 2; var x = xpNow() - (W.encXP || 0), lo = RANKS[r][0], hi = RANKS[r + 1][0]; return Math.max(0, Math.min(2, Math.floor(3 * (x - lo) / (hi - lo)))); }
+  var tier = function(r){ return r === 0 ? '#7d88a8' : r <= 3 ? '#d08a4a' : r <= 6 ? '#d9e1f0' : r <= 8 ? '#f5c542' : '#7af0ff'; };   // Rookie, Bronze, Silver, Gold, Diamond
 
   var FS = 'https://firestore.googleapis.com/v1/projects/rhythm-trainer-fc313/databases/(default)/documents/', FKEY = 'AIzaSyDU9vbCWJ4yWuD8bAX984DmQF4dvo13BHs';
   var LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && !/[?&]avatar=1\b/.test(location.search);
@@ -1583,7 +1639,10 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     return true;
   }
   function drawAll(){
-    corner.innerHTML = avatar(look, { crop: 1, label: 'Your avatar' });
+    var r = rankNow(), c = tier(r);
+    corner.innerHTML = avatar(look, { crop: 1, label: 'Your avatar' }) + (P ? '<span class="mav-rk" style="background:' + c + '">' + (r + 1) + '</span>' : '');
+    corner.style.borderColor = c; corner.style.boxShadow = r >= 7 ? '0 0 10px ' + c : '';
+    corner.title = P ? 'Rank ' + (r + 1) + ': ' + RANKS[r][1] + '. Click to change your avatar or open the Store' : corner.title;
     corner.dataset.idle = look.idle;
     if (dlg && dlg.open) { drawBig(); drawWallet(); }
   }
@@ -1627,6 +1686,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       var coins = Math.floor(playMs / 60000); playMs -= coins * 60000;
       var pts = 0;
       if (d.ok) { streak++; pts = lvl + (streak % 5 === 0 ? 5 : 0); } else streak = 0;
+      if (d.ok) addXP(2);
       runPts += pts;
       earn(pts, coins);
       if (coins && P) pop('+' + coins + ' 🪙', '#ffd166');
@@ -1635,6 +1695,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       var r = d.r || {}, L = Math.round(+r.level || 0);
       if (L > 0) lvl = Math.max(1, Math.min(9, L));
       var bonus = 10 * lvl + (/[?&]test=/.test(location.search) ? 50 : 0);
+      var r0 = rankNow(); addXP(25); var r1 = rankNow();
+      if (r1 > r0) { setTimeout(function(){ pop('🎉 ' + RANKS[r1][1] + '!', '#ffd166'); drawAll(); }, 900); }
       earn(bonus, 0);
       if (P) pop('+' + (runPts + bonus) + ' ★', '#7be0c3');
       runPts = 0;
@@ -1645,8 +1707,9 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   // Look = the free face, hair and colors. The other tabs sell items: everyday ones for coins (c), dream ones for points (p).
   // Items with "lock" are earned by mastering a game (build step 4); until then they show the lock and how to get them.
   var key = function(it){ return it.slot + ':' + it.id; };
-  var owns = function(it){ return !!it.free || W.owned.indexOf(key(it)) >= 0; };
-  var TABS = [['look', 'Look'], ['outfit', 'Skins'], ['clothes', 'Clothes'], ['hat', 'Hats'], ['gear', 'Gear'], ['moves', 'Moves'], ['bg', 'Backdrops'], ['pet', 'Pets']];
+  var RANK_ITEMS = { 'gear:baton': 8, 'bg:wreath': 9 };   // rank index that unlocks them
+  var owns = function(it){ var k = key(it); return !!it.free || W.owned.indexOf(k) >= 0 || (RANK_ITEMS[k] != null && rankNow() >= RANK_ITEMS[k]); };
+  var TABS = [['look', 'Look'], ['outfit', 'Skins'], ['clothes', 'Clothes'], ['hat', 'Hats'], ['gear', 'Gear'], ['moves', 'Moves'], ['bg', 'Backdrops'], ['pet', 'Pets'], ['rank', 'Rank']];
   var MOVE_SLOTS = [['idle', 'Standing still'], ['happy', 'Right answer'], ['aww', 'Missed one (never sad)'], ['dance', 'End of a run']];
   var LOOKROWS = [
     ['Skin', 'skin', 'swatch', SKIN], ['Face', 'face'], ['Eyes', 'eyes'], ['Brows', 'brows'], ['Nose', 'nose'], ['Mouth', 'mouth'],
@@ -1656,7 +1719,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   var dlg = null, draft = null, tab = 'look', trying = null, note = '';
   function drawWallet(){ var c = dlg.querySelector('.mav-c'), p = dlg.querySelector('.mav-p'); if (c) c.textContent = W.coins.toLocaleString(); if (p) p.textContent = W.points.toLocaleString(); }
   function shown(){ var L = Object.assign({}, draft); if (trying) L[trying.slot] = trying.id; return L; }
-  function drawBig(){ var L = shown(), big = dlg.querySelector('.mav-big'); big.innerHTML = avatar(L, { label: 'Your avatar' }); big.dataset.idle = L.idle; }
+  function drawBig(){ var L = shown(), big = dlg.querySelector('.mav-big'); big.innerHTML = avatar(L, { label: 'Your avatar', rank: rankNow() }); big.dataset.idle = L.idle; }
   function play(move){ var big = dlg.querySelector('.mav-big'); delete big.dataset.act; void big.offsetWidth; big.dataset.act = move; setTimeout(function(){ delete big.dataset.act; }, LEN[move] || 1000); }
   function rowsHtml(rows){
     return rows.map(function(r){
@@ -1676,6 +1739,14 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   function itemsOf(slot){ return ITEMS.filter(function(it){ return it.slot === slot; }); }
   function tabHtml(){
     if (tab === 'look') return rowsHtml(LOOKROWS);
+    if (tab === 'rank') {
+      if (!P) return '<p class="mav-sub">Sign in to climb the ranks. Every right answer and finished run counts.</p>';
+      var r = rankNow(), x = xpNow() - (W.encXP || 0), m = mastered();
+      var next = r + 1 < RANKS.length ? RANKS[r + 1] : null;
+      var head = '<p class="mav-rnow">Rank ' + (r + 1) + ' of 10 · <b>' + RANKS[r][1] + ' ' + ['I', 'II', 'III'][stepOf(r)] + '</b> · ' + x.toLocaleString() + ' XP</p>'
+        + (next ? '<p class="mav-sub">' + (x < next[0] ? (next[0] - x).toLocaleString() + ' XP to ' + next[1] : '') + (GATES[r + 1] && m < GATES[r + 1] ? (x < next[0] ? ' and ' : 'Next: ') + 'master ' + (GATES[r + 1] === 7 ? 'every game' : GATES[r + 1] + (GATES[r + 1] === 1 ? ' game' : ' games')) + ' (you have ' + m + ')' : '') + '</p>' : '<p class="mav-sub">Top rank! 👑</p>');
+      return head + '<ol class="mav-ladder">' + RANKS.map(function(k, i){ return '<li class="' + (i === r ? 'on' : i < r ? 'done' : '') + '"><span class="mav-dot" style="background:' + tier(i) + '"></span><b>' + k[1] + '</b><span>' + k[0].toLocaleString() + ' XP' + (GATES[i] ? ' + master ' + (GATES[i] === 7 ? 'every game' : GATES[i] + (GATES[i] === 1 ? ' game' : ' games')) : '') + '</span></li>'; }).join('') + '</ol>';
+    }
     var html = '';
     if (tab === 'clothes') html = '<div class="mav-grid">' + itemsOf('top').map(card).join('') + '</div>' + rowsHtml(CLOTHROWS);
     else if (tab === 'moves') html = MOVE_SLOTS.map(function(m){ return '<div class="mav-sec">' + m[1] + '</div><div class="mav-grid">' + itemsOf(m[0]).map(card).join('') + '</div>'; }).join('');
