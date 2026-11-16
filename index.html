@@ -534,6 +534,7 @@
       </div>
       <div class="row">
         <a class="report" href="report/" data-tip="See your badges, scores and progress in every game"><span aria-hidden="true">🏆</span> My Report</a>
+        <span id="mtg-msg-slot" data-btn="ghost"></span>
         <button class="ghost" type="button" id="who-class-btn" data-tip="See or change your class codes">My classes</button>
         <button class="ghost" type="button" id="who-switch" data-tip="Sign in as a different student on this computer">Not you? Switch student</button>
       </div>
@@ -1062,6 +1063,7 @@ function render(focus) {
   const p = getProfile();
   $('who-in').hidden = !p; $('who-out').hidden = !!p;
   $('who').setAttribute('aria-label', p ? 'Your games' : 'Sign in');
+  if (window.MTGMsgBoot) MTGMsgBoot();   // Message my teacher (msg/student-msg.js): shows when the class has messages on
   renderHub(p);
   if (p) {
     $('who-name').textContent = displayName(p);
@@ -1881,5 +1883,6 @@ render(); refreshClass(); tipIds();
   document.addEventListener('visibilitychange', () => { const was = on; on = !document.hidden; if (on && !was) { last = 0; requestAnimationFrame(frame); } });
 })();
 </script>
+<script src="msg/student-msg.js" defer></script>
 </body>
 </html>
