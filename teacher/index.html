@@ -736,7 +736,7 @@ async function loadClasses() {
   $('form').hidden = !cls();
   if (!S.classes.length && !$('classes').querySelector('.msg')) $('classes').innerHTML = '<li>You have no classes yet. Create one in any game\'s Teacher dashboard (Classes tab).</li>';
   pickClass();
-  if (!TESTMODE && APARAMS.has('code') && !cls()) $('classes').innerHTML = '<li class="msg">The selected class is unavailable.</li>';
+  if (!TESTMODE && APARAMS.has('code') && !APARAMS.has('new') && !cls()) $('classes').innerHTML = '<li class="msg">The selected class is unavailable.</li>';   // + New assignment starts unpicked on purpose
 }
 function renderClasses() {
   if (!S.classes.length) return;
