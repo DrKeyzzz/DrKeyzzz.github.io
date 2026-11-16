@@ -224,6 +224,7 @@
   #views button.adm::after { content: 'Admin only'; position: absolute; top: -8px; left: 50%; transform: translateX(-50%); padding: 1px 6px 0; border-radius: 999px; background: var(--bg); color: var(--gold); font-size: 9px; letter-spacing: .1em; white-space: nowrap; }
   .vtip { position: absolute; z-index: 50; max-width: 260px; padding: 8px 11px 7px; border-radius: 10px; background: #0b111c; border: 1px solid var(--gc); color: var(--text); font: 600 13px/1.35 var(--f-ui); box-shadow: 0 8px 24px rgba(0,0,0,.45); pointer-events: none; }
   .vtip b { display: block; margin-top: 4px; color: var(--gold); font-weight: 700; }
+  .smbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin: 14px 0 0; }
   .bdswitch { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
   .bdswitch button { font: 700 14px var(--f-ui); color: var(--text); background: var(--bg); border: 1px solid #33445f; border-radius: 999px; padding: 9px 16px 7px; cursor: pointer; }
   .bdswitch button[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: #10131a; }
@@ -445,7 +446,7 @@
           <button type="button" data-v="grades" data-tip="Make, edit and grade practice assignments for your classes" aria-pressed="false"><span class="ti" aria-hidden="true">📋</span><span class="tl">Assignments</span></button>
           <button type="button" data-v="tests" data-tip="Create tests, open or close them, and see every student's result" aria-pressed="false"><span class="ti" aria-hidden="true">📝</span><span class="tl">Tests</span></button>
           <button type="button" data-v="live" data-tip="Ask your class questions live; answers show up on your screen as students reply" aria-pressed="false" hidden><span class="ti" aria-hidden="true">📡</span><span class="tl">Live questioning</span></button>
-          <button type="button" data-v="messages" hidden data-tip="Messages between you and your students (coming soon)" aria-pressed="false"><span class="ti" aria-hidden="true">✉️</span><span class="tl">Messages</span><span class="rq" id="msgcount" hidden></span></button>
+          <button type="button" data-v="students" hidden data-tip="Messages from your students: read and reply (you turn it on for each class)" aria-pressed="false"><span class="ti" aria-hidden="true">✉️</span><span class="tl">Messages</span><span class="rq" id="smcount" hidden></span><span id="msgcount" hidden></span></button>
           <button type="button" data-v="board" data-tip="Teacher Board: share ideas with every teacher, plus your private chat with Music Theory Academy support" aria-pressed="false"><span class="ti" aria-hidden="true">📌</span><span class="tl">Board</span><span class="nb" id="boardcount" hidden></span></button>
           <button type="button" data-v="activity" data-tip="Who is playing right now and lately: visits from your students" aria-pressed="false" hidden><span class="ti" aria-hidden="true">👀</span><span class="tl">Activity</span></button>
           <button type="button" data-v="feedback" data-tip="Every note students and guests send from the Feedback button in the games (only you see this)" aria-pressed="false" hidden class="adm"><span class="ti" aria-hidden="true">💬</span><span class="tl">Feedback</span></button>
@@ -497,6 +498,7 @@
       <div id="gradelist2" class="glist" hidden></div>
       <div class="bdswitch" id="bdswitch" role="group" aria-label="Board sections" hidden></div>
       <div id="msgview" hidden></div>
+      <div id="smview" hidden></div>
       <div id="boardview" hidden></div>
       <div id="liveview" hidden><iframe id="lframe" title="Live Class" style="width:100%;border:0;min-height:760px;margin-top:6px;background:transparent"></iframe></div>
       <div id="assignbox" hidden><button class="btn ghost sm" type="button" id="aback" style="margin-top:14px">← Back to Assignments</button><iframe id="aframe" title="Assign practice" style="width:100%;border:0;min-height:700px;margin-top:14px;background:transparent"></iframe></div>
@@ -1000,11 +1002,12 @@ function render() {
   const g = G[S.game]; document.documentElement.style.setProperty('--gc', g.color);
   document.querySelectorAll('.gt').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.g === S.game)));
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (S.view === 'messages' && b.dataset.v === 'board') || (S.view === 'newtest' && b.dataset.v === 'tests') || (S.view === 'assign' && b.dataset.v === 'grades'))));
-  const social = S.view === 'messages' || S.view === 'board' || S.view === 'live'; bdSwitch();
+  const social = S.view === 'messages' || S.view === 'board' || S.view === 'live' || S.view === 'students'; bdSwitch(); $('smview').hidden = S.view !== 'students';
   $('msgview').hidden = S.view !== 'messages'; $('boardview').hidden = S.view !== 'board'; $('liveview').hidden = S.view !== 'live'; document.querySelector('footer').hidden = social; $('games').hidden = social; syncHash();
   if (social) {
     ['upbox', 'actbox', 'adminsum', 'adminacc', 'data', 'gradebar', 'gradelist', 'gradelist2', 'assignbox', 'testsbox', 'newtestbox', 'csv'].forEach(id => { $(id).hidden = true; });
     $('cls').closest('label').hidden = true; $('rng').closest('label').hidden = true;
+    if (S.view === 'students') { $('cls').closest('label').hidden = false; return renderSm(); }
     return S.view === 'live' ? showLive() : S.view === 'messages' ? renderMessages() : renderBoard();
   }
   const asg = S.view === 'assign', nt = S.view === 'newtest', ts = S.view === 'tests', ad = S.view === 'admin', av = S.view === 'activity';
@@ -1046,6 +1049,7 @@ function render() {
 async function load() {
   if (S.view === 'assign' || S.view === 'newtest') { ++load.n; render(); return; }
   if (S.view === 'live') { msg(''); render(); return; }
+  if (S.view === 'students') { msg(''); render(); return openSm(); }
   if (S.view === 'messages' || S.view === 'board') { msg(''); render(); return S.view === 'messages' ? openMessages() : openBoard(); }
   if (S.code === WORLD && !['scores', 'admin'].includes(S.view)) { S.code = S.lastCode || (S.classes[0] || {}).code || ''; $('cls').value = S.code; }
   msg(''); S.rows = []; S.loading++; render();
@@ -1906,6 +1910,125 @@ function renderMessages() {
   if (mx.reveal && !mx.loading) { mx.reveal = false; const t = box.querySelector('.mx-thread:not(.mx-empty)') || box.querySelector('.mx'); if (t) t.scrollIntoView({ block: 'nearest' }); }
 }
 
+// ---------- Messages from students (2026-11-16; spec hub/docs/student-messages-spec.md) ----------
+// sm_threads/<device key>_<class code> = { class_code, owner, sid, name, last_at, last_from, last_text, unread_teacher, unread_student }
+// + msgs/<id> = { from 'student'|'teacher', text, at }. classes/<code>.sm_on turns it on per class, sm_blocked = sids that may not write.
+// Teachers only reply. Reads: the thread list once when the tab opens (at most once a minute) and on sign-in; one conversation when opened.
+const SM = { threads: [], open: '', msgs: [], loading: false, at: 0, busy: false };
+let SMS = null;   // ?preview=1: sample conversations kept in memory
+function smSample() {
+  const now = Date.now(), H = 36e5, me = PV_TEACHER ? 'r.kim@sample' : 'sample@preview';
+  const T = (id, code, name, last_from, last_text, h, un) => ({ id, class_code: code, owner: me, sid: name.toLowerCase().replace(/[^a-z]/g, ''), name, last_at: now - h * H, last_from, last_text, unread_teacher: un, unread_student: 0 });
+  return { threads: [T('k1_PREVW', 'PREVW', 'Aaliyah R.', 'student', 'Oh that makes sense now, thanks!', 2, 1), T('k2_PREVW', 'PREVW', 'Marcus T.', 'student', 'Is the test on Friday open book?', 26, 0), T('k3_PREV2', 'PREV2', 'Sofia L.', 'teacher', 'Great job!', 50, 0)],
+    msgs: {
+      k1_PREVW: [{ id: 'a', from: 'student', text: "I don't get why F major has a B flat.", at: now - 30 * H }, { id: 'b', from: 'teacher', text: "Count the steps: F G A, then the 4th note is a half step above A. That's B♭! Try Scale Quest's Key signatures, level 3.", at: now - 20 * H }, { id: 'c', from: 'student', text: 'Oh that makes sense now, thanks!', at: now - 2 * H }],
+      k2_PREVW: [{ id: 'd', from: 'student', text: 'Is the test on Friday open book?', at: now - 26 * H }],
+      k3_PREV2: [{ id: 'e', from: 'student', text: 'I finished the assignment early 🙂', at: now - 52 * H }, { id: 'f', from: 'teacher', text: 'Great job!', at: now - 50 * H }] } };
+}
+const smMine = t => t.owner === S.email;
+async function smLoad() {
+  if (PREVIEW) { SMS = SMS || smSample(); SM.threads = SMS.threads; SM.at = Date.now(); return; }
+  SM.threads = await run(async ({ fs, db }) => {
+    const base = fs.collection(db, 'sm_threads');
+    const q = amAdmin() ? fs.query(base, fs.orderBy('last_at', 'desc'), fs.limit(300)) : fs.query(base, fs.where('owner', '==', S.email));
+    return (await fs.getDocs(q)).docs.map(d => ({ id: d.id, ...d.data(), last_at: toMs(d.data().last_at) }));
+  });
+  SM.at = Date.now();
+}
+function smBadge() {
+  const n = SM.threads.filter(smMine).reduce((a, t) => a + (+t.unread_teacher || 0), 0), c = $('smcount'), b = $('views').querySelector('[data-v=students]');
+  c.hidden = !n; c.textContent = n > 99 ? '99+' : String(n); b.classList.toggle('waiting', n > 0);
+  b.dataset.note = n ? `${n} unread message${n > 1 ? 's' : ''} from students` : '';
+}
+async function smRefresh() { try { await smLoad(); smBadge(); } catch (e) { console.warn('student messages:', e && e.code); } }
+async function openSm() {
+  if (!SM.at || Date.now() - SM.at > 60000) { SM.loading = true; renderSm(); try { await smLoad(); } catch (e) { msg(errText(e)); } SM.loading = false; }
+  smBadge(); renderSm();
+}
+async function smOpenThread(id) {
+  const t = SM.threads.find(x => x.id === id); if (!t) return;
+  SM.open = id; SM.msgs = []; SM.loading = true; renderSm();
+  try {
+    if (PREVIEW) SM.msgs = (SMS.msgs[id] || []).slice();
+    else SM.msgs = await run(async ({ fs, db }) => (await fs.getDocs(fs.query(fs.collection(db, 'sm_threads', id, 'msgs'), fs.orderBy('at')))).docs.map(d => ({ id: d.id, ...d.data(), at: toMs(d.data().at) })));
+    if (t.unread_teacher && smMine(t)) {   // mark read (only the class's own teacher, so the admin looking in doesn't clear it)
+      if (!PREVIEW) await run(({ fs, db }) => fs.updateDoc(fs.doc(db, 'sm_threads', id), { unread_teacher: 0 }));
+      t.unread_teacher = 0; smBadge();
+    }
+  } catch (e) { msg(errText(e)); }
+  SM.loading = false; renderSm(); const l = $('sm-log'); if (l) l.scrollTop = l.scrollHeight;
+}
+function renderSm() {
+  const box = $('smview'); if (S.view !== 'students') return;
+  const admin = amAdmin(), c = S.classes.find(x => x.code === S.code), cname = code => (S.classes.find(x => x.code === code) || {}).name || code;
+  const list = SM.threads.filter(t => admin || t.class_code === S.code).sort((a, b) => b.last_at - a.last_at);
+  const blocked = c && Array.isArray(c.sm_blocked) ? c.sm_blocked : [];
+  const bar = c ? `<div class="smbar"><label class="ck"><input type="checkbox" id="smon"${c.sm_on ? ' checked' : ''}> Students in <b>${esc(c.name)}</b> can message me</label>`
+    + (blocked.length ? `<span class="note">Blocked: ${blocked.map(sid => `${esc(sid)} <button type="button" class="lnk" data-smunblock="${esc(sid)}">Unblock</button>`).join(' · ')}</span>` : '') + '</div>'
+    : '<p class="note">Make a class first.</p>';
+  const t = SM.threads.find(x => x.id === SM.open);
+  const items = list.length ? list.map(x => `<li><button type="button" class="mx-item${x.id === SM.open ? ' on' : ''}${x.unread_teacher && smMine(x) ? ' unread' : ''}" data-smopen="${esc(x.id)}">`
+      + `<span class="mx-n"><b>${esc(x.name)}</b>${x.unread_teacher && smMine(x) ? `<span class="rq">${x.unread_teacher}</span>` : ''}</span><time>${esc(shortWhen(x.last_at))}</time>`
+      + `<span class="mx-s">${esc(cname(x.class_code))}${admin && !smMine(x) ? ' · ' + esc(x.owner) : ''}</span><span class="mx-p">${x.last_from === 'teacher' ? 'You: ' : ''}${esc(x.last_text || '')}</span></button></li>`).join('')
+    : `<li class="note" style="padding:12px">${SM.loading ? 'Loading…' : c && c.sm_on ? 'No messages yet. Students see "Message my teacher" on their home page.' : 'Turn on "Students can message me" above. Then students in that class see "Message my teacher" on their home page.'}</li>`;
+  const tc = t && S.classes.find(x => x.code === t.class_code), canReply = t && (smMine(t) || admin), isBlocked = !!(t && tc && Array.isArray(tc.sm_blocked) && tc.sm_blocked.includes(t.sid));
+  const log = SM.loading ? '<p class="mx-none">Loading…</p>' : SM.msgs.map(m => `<div class="bub ${m.from === 'teacher' ? 'me' : 'them'}"><p>${esc(m.text)}</p><span class="bt"><time>${esc(fmtDate(m.at))}</time>`
+      + (canReply ? `<button type="button" class="bx" data-smdel="${esc(m.id)}" aria-label="Delete this message">✕</button>` : '') + '</span></div>').join('') || '<p class="mx-none">No messages.</p>';
+  const right = !t ? '<section class="mx-thread mx-empty"><p>Pick a student to read and reply.</p></section>'
+    : `<section class="mx-thread"><div class="mx-head"><button class="btn ghost sm mx-back" type="button" data-smback="1">← Back</button><h3>${esc(t.name)}</h3><small>${esc(cname(t.class_code))}</small><span class="grow"></span>`
+      + (smMine(t) ? `<button type="button" class="btn ghost sm" data-smblock="${esc(t.sid)}">${isBlocked ? 'Unblock' : 'Block from messaging'}</button>` : '') + `</div>`
+      + `<div class="mx-log" id="sm-log" tabindex="0">${log}</div>`
+      + (canReply ? `<div class="reply"><textarea id="sm-text" maxlength="300" placeholder="Reply to ${esc(t.name)}…" aria-label="Reply"></textarea><div class="reply-bar"><span class="hint">Only ${esc(t.name)}'s device and you can read this · 300 characters</span><button class="btn sm" type="button" data-smsend="1">Send</button></div></div>` : '')
+      + '</section>';
+  box.innerHTML = `${bar}<div class="mx${t ? ' show-thread' : ''}"><aside class="mx-list" aria-label="Students"><div class="mx-top"><h3>Students</h3></div><ul>${items}</ul></aside>${right}</div>`;
+}
+async function smClass(code, patch) {
+  const c = S.classes.find(x => x.code === code); if (!c) return;
+  try { if (!PREVIEW) await run(({ fs, db }) => fs.updateDoc(fs.doc(db, 'classes', c.code), patch)); Object.assign(c, patch); } catch (e) { msg(errText(e)); }
+  renderSm();
+}
+function smWire() {
+  $('smview').addEventListener('change', e => { if (e.target.id === 'smon') smClass(S.code, { sm_on: e.target.checked }); });
+  $('smview').addEventListener('click', async e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.smopen) return smOpenThread(b.dataset.smopen);
+    if (b.dataset.smback) { SM.open = ''; return renderSm(); }
+    const t = SM.threads.find(x => x.id === SM.open);
+    if (b.dataset.smunblock || b.dataset.smblock) {
+      const sid = b.dataset.smunblock || b.dataset.smblock, code = b.dataset.smunblock ? S.code : t && t.class_code, c = S.classes.find(x => x.code === code); if (!c) return;
+      const cur = Array.isArray(c.sm_blocked) ? c.sm_blocked : [], on = cur.includes(sid);
+      if (!on && !confirm(`Stop ${t ? t.name : sid} from sending you messages? You can unblock them later.`)) return;
+      return smClass(code, { sm_blocked: on ? cur.filter(x => x !== sid) : [...cur, sid].slice(-200) });
+    }
+    if (b.dataset.smdel && t) {
+      if (!confirm('Delete this message? It disappears for the student too.')) return;
+      try {
+        if (PREVIEW) SMS.msgs[t.id] = SMS.msgs[t.id].filter(m => m.id !== b.dataset.smdel);
+        else await run(({ fs, db }) => fs.deleteDoc(fs.doc(db, 'sm_threads', t.id, 'msgs', b.dataset.smdel)));
+        SM.msgs = SM.msgs.filter(m => m.id !== b.dataset.smdel); renderSm();
+      } catch (er) { msg(errText(er)); }
+      return;
+    }
+    if (b.dataset.smsend && t) {
+      const text = $('sm-text').value.trim().slice(0, 300); if (!text || SM.busy) return;
+      SM.busy = true; b.disabled = true;
+      try {
+        if (PREVIEW) SMS.msgs[t.id].push({ id: 'p' + Date.now(), from: 'teacher', text, at: Date.now() });
+        else await run(({ fs, db }) => {
+          const w = fs.writeBatch(db);
+          w.set(fs.doc(fs.collection(db, 'sm_threads', t.id, 'msgs')), { from: 'teacher', text, at: fs.serverTimestamp() });
+          w.update(fs.doc(db, 'sm_threads', t.id), { last_at: fs.serverTimestamp(), last_from: 'teacher', last_text: text.slice(0, 120), unread_student: fs.increment(1), unread_teacher: 0 });
+          return w.commit();
+        });
+        Object.assign(t, { last_at: Date.now(), last_from: 'teacher', last_text: text.slice(0, 120), unread_teacher: 0 });
+        if (!PREVIEW) SM.msgs.push({ id: 'n' + Date.now(), from: 'teacher', text, at: Date.now() }); else SM.msgs = SMS.msgs[t.id].slice();
+        renderSm(); const l = $('sm-log'); if (l) l.scrollTop = l.scrollHeight;
+      } catch (er) { msg(errText(er)); }
+      SM.busy = false;
+    }
+  });
+}
+
 // ----- Teacher Board -----
 const seenKey = () => 'mtg_board_seen_v1:' + S.email;
 function boardSeen() { try { const v = +localStorage.getItem(seenKey()); if (v) return v; } catch (e) {} return Date.now() - 7 * 86400000; }   // first visit: the last week counts as new
@@ -2031,13 +2154,14 @@ function wireSocial() {
   $('boardview').addEventListener('click', boardClick);
   addEventListener('hashchange', () => { const v = hashView(); if (v && S.email && S.view !== v) { S.view = v; load(); } });
 }
-const hashView = () => { const v = location.hash.slice(1); return ['messages', 'board', 'live', 'grades'].includes(v) ? v : ''; };
+const hashView = () => { const v = location.hash.slice(1); return ['messages', 'board', 'live', 'grades', 'students'].includes(v) ? v : ''; };
 function syncHash() {
-  const h = S.view === 'messages' || S.view === 'board' || S.view === 'live' ? '#' + S.view : '';
+  const h = S.view === 'messages' || S.view === 'board' || S.view === 'live' || S.view === 'students' ? '#' + S.view : '';
   if (location.hash !== h && (h || hashView())) history.replaceState(null, '', location.pathname + location.search + h);
 }
 // on sign-in: the two tab counts, then the message count every 10 minutes while the page is visible
 function startSocial() {
+  smRefresh();
   if (startSocial.on) { checkInbox(); checkBoard(); return; } startSocial.on = true;
   if (S.view !== 'messages') checkInbox();
   checkBoard(); loadMe();
@@ -2205,6 +2329,7 @@ function wire() {
     const t = e.target.closest('[data-teacher]'); if (t) openTeacher(t.dataset.teacher);
   };
   $('views').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.view = b.dataset.v; vtipHide(); load(); };
+  smWire();
   $('bdswitch').onclick = e => { const b = e.target.closest('[data-go]'); if (!b || S.view === b.dataset.go) return; S.view = b.dataset.go; load(); };
   // hover pop-ups on the tiles (2026-11-16): a small bubble under the tile after a short rest; none on touch screens
   $('views').addEventListener('pointerover', e => { const b = e.target.closest('button[data-tip]'); if (!b || e.pointerType === 'touch') return; clearTimeout(vtip.t); vtip.t = setTimeout(() => vtipShow(b), 350); });
@@ -2326,6 +2451,7 @@ async function signedIn(email) {
   if (!ok) return joinScreen(email);
   S.email = email; $('who').innerHTML = `Signed in as <b>${esc(email)}</b>`;
   $('views').querySelector('[data-v=admin]').hidden = $('views').querySelector('[data-v=feedback]').hidden = !ADMIN_EMAILS.includes(email);   // Feedback: admin only (2026-11-16) $('views').querySelector('[data-v=activity]').hidden = false;   // Activity: every teacher (their own classes), the admin sees everyone (2026-11-16)
+  $('views').querySelector('[data-v=students]').hidden = false;   // Messages from students (2026-11-16)
   $('views').querySelector('[data-v=live]').hidden = false;   // Live questioning: every teacher (David, 2026-11-16; was admin only while he tried it first)
   $('gate').hidden = true; $('main').hidden = false;
   if (ADMIN_EMAILS.includes(email)) { checkRequests(); setInterval(() => { if (!document.hidden) checkRequests(); }, 120000); }
@@ -2359,7 +2485,7 @@ async function start() {
   wire();
   if (PREVIEW) {
     S.email = PV_TEACHER ? 'r.kim@sample' : 'sample@preview';
-    $('gate').hidden = true; $('main').hidden = false; $('who').innerHTML = `Signed in as <b>${S.email}</b>`; $('views').querySelector('[data-v=admin]').hidden = $('views').querySelector('[data-v=feedback]').hidden = PV_TEACHER; $('views').querySelector('[data-v=activity]').hidden = false; $('views').querySelector('[data-v=live]').hidden = false;
+    $('gate').hidden = true; $('main').hidden = false; $('who').innerHTML = `Signed in as <b>${S.email}</b>`; $('views').querySelector('[data-v=admin]').hidden = $('views').querySelector('[data-v=feedback]').hidden = PV_TEACHER; $('views').querySelector('[data-v=activity]').hidden = false; $('views').querySelector('[data-v=live]').hidden = false; $('views').querySelector('[data-v=students]').hidden = false;
     $('main').insertAdjacentHTML('afterbegin', `<div class="pv">Preview with sample ${PV_TEACHER ? 'data, seen by a teacher (Ron Kim)' : 'students'}. Nothing here is real.</div>`); if (!PV_TEACHER) checkRequests();
     if (hashView()) S.view = hashView();
     startSocial();
