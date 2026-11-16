@@ -438,9 +438,9 @@
           <button type="button" data-v="scores" aria-pressed="false"><span class="ti" aria-hidden="true">🏆</span><span class="tl">Scores</span></button>
           <button type="button" data-v="grades" aria-pressed="false"><span class="ti" aria-hidden="true">📋</span><span class="tl">Assignments</span></button>
           <button type="button" data-v="tests" aria-pressed="false"><span class="ti" aria-hidden="true">📝</span><span class="tl">Tests</span></button>
-          <button type="button" data-v="feedback" aria-pressed="false"><span class="ti" aria-hidden="true">💬</span><span class="tl">Feedback</span></button>
           <button type="button" data-v="messages" aria-pressed="false"><span class="ti" aria-hidden="true">✉️</span><span class="tl">Messages</span><span class="rq" id="msgcount" hidden></span></button>
           <button type="button" data-v="board" aria-pressed="false"><span class="ti" aria-hidden="true">📌</span><span class="tl">Board</span><span class="nb" id="boardcount" hidden></span></button>
+          <button type="button" data-v="feedback" aria-pressed="false" hidden class="adm" title="Notes students and guests send from the Feedback button in every game"><span class="ti" aria-hidden="true">💬</span><span class="tl">Feedback</span></button>
           <button type="button" data-v="live" aria-pressed="false" hidden title="Ask the class questions live (Live Class)" class="adm"><span class="ti" aria-hidden="true">📡</span><span class="tl">Live questioning</span></button>
           <button type="button" data-v="admin" aria-pressed="false" hidden class="adm"><span class="ti" aria-hidden="true">🛡️</span><span class="tl">Admin</span><span class="rq" id="rqcount" hidden></span></button>
           <button type="button" data-v="activity" aria-pressed="false" hidden title="Who is playing: visits from your students"><span class="ti" aria-hidden="true">👀</span><span class="tl">Activity</span></button>
@@ -803,7 +803,8 @@ async function fetchScores(gid) {
 async function fetchFeedback() {
   const ds = days(); const cutoff = ds ? new Date(ds[ds.length - 1] + 'T00:00:00').getTime() : 0;
   return run(async ({ fs, db }) => {
-    const snap = await fs.getDocs(fs.query(fs.collection(db, 'game_feedback'), fs.where('owner', '==', S.email)));
+    // admin only (David, 2026-11-16): every note from every game, class or guest, newest first; teachers no longer read them
+    const snap = await fs.getDocs(fs.query(fs.collection(db, 'game_feedback'), fs.orderBy('created_at', 'desc'), fs.limit(500)));
     const out = [];
     snap.forEach(x => { const d = x.data(); out.push({ id: x.id, game: FB_NAME[d.game] || d.game || '', name: d.name || '', code: d.class_code || '', text: d.text || '', dateMs: toMs(d.created_at) }); });
     return out.filter(r => !cutoff || r.dateMs >= cutoff);
@@ -1012,7 +1013,7 @@ function render() {
   $('gradelist').hidden = $('gradelist2').hidden = $('gradebar').hidden = !gv;
   if (gv) { $('aout').closest('label').hidden = !S.gradeA; if (S.gradeA) $('aout').value = aOut(S.classes.find(x => x.code === S.code), S.gradeA); }
   $('data').hidden = asg || nt || tpg || (gv && !S.gradeA); $('assignbox').hidden = !asg; $('testsbox').hidden = !ts; $('newtestbox').hidden = !nt; $('csv').hidden = asg || nt || tpg || (gv && !S.gradeA);
-  $('cls').closest('label').hidden = asg || ad || av; $('rng').closest('label').hidden = asg || nt || ts;
+  $('cls').closest('label').hidden = asg || ad || av || S.view === 'feedback'; $('rng').closest('label').hidden = asg || nt || ts;
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (nt && b.dataset.v === 'tests') || (asg && b.dataset.v === 'grades'))));
   if (asg) { showAssign(); return; }
   if (nt) { showNewTest(); return; }
@@ -1059,7 +1060,7 @@ async function load() {
     } else if (S.view === 'tests') {
       await loadUpcoming().catch(() => {}); await loadTests(); rows = await loadTestRows();
     } else if (S.view === 'feedback') {
-      rows = (await fetchFeedback()).filter(r => !S.code || r.code === S.code);
+      rows = await fetchFeedback();   // every class and guest (no class filter)
     } else if (S.code) {
       const ids = (S.game === 'all' ? GAMES.slice(1) : [G[S.game]]).map(x => x.id);
       const parts = await Promise.all(ids.map(id => (S.view === 'progress' ? fetchProgress(id) : fetchScores(id)).catch(e => { msg(G[id].name + ': ' + errText(e)); return []; })));
@@ -2292,7 +2293,7 @@ async function signedIn(email) {
   try { ok = await isTeacherEmail(email); } catch (e) { return signInScreen(errText(e)); }
   if (!ok) return joinScreen(email);
   S.email = email; $('who').innerHTML = `Signed in as <b>${esc(email)}</b>`;
-  $('views').querySelector('[data-v=admin]').hidden = !ADMIN_EMAILS.includes(email); $('views').querySelector('[data-v=activity]').hidden = false;   // Activity: every teacher (their own classes), the admin sees everyone (2026-11-16)
+  $('views').querySelector('[data-v=admin]').hidden = $('views').querySelector('[data-v=feedback]').hidden = !ADMIN_EMAILS.includes(email);   // Feedback: admin only (2026-11-16) $('views').querySelector('[data-v=activity]').hidden = false;   // Activity: every teacher (their own classes), the admin sees everyone (2026-11-16)
   $('views').querySelector('[data-v=live]').hidden = !ADMIN_EMAILS.includes(email);   // Live Class: your classes first (BACKCHANNEL-PLAN.md, question 3); remove this line to show it to every teacher
   $('gate').hidden = true; $('main').hidden = false;
   if (ADMIN_EMAILS.includes(email)) { checkRequests(); setInterval(() => { if (!document.hidden) checkRequests(); }, 120000); }
@@ -2326,7 +2327,7 @@ async function start() {
   wire();
   if (PREVIEW) {
     S.email = PV_TEACHER ? 'r.kim@sample' : 'sample@preview';
-    $('gate').hidden = true; $('main').hidden = false; $('who').innerHTML = `Signed in as <b>${S.email}</b>`; $('views').querySelector('[data-v=admin]').hidden = PV_TEACHER; $('views').querySelector('[data-v=activity]').hidden = false; $('views').querySelector('[data-v=live]').hidden = PV_TEACHER;
+    $('gate').hidden = true; $('main').hidden = false; $('who').innerHTML = `Signed in as <b>${S.email}</b>`; $('views').querySelector('[data-v=admin]').hidden = $('views').querySelector('[data-v=feedback]').hidden = PV_TEACHER; $('views').querySelector('[data-v=activity]').hidden = false; $('views').querySelector('[data-v=live]').hidden = PV_TEACHER;
     $('main').insertAdjacentHTML('afterbegin', `<div class="pv">Preview with sample ${PV_TEACHER ? 'data, seen by a teacher (Ron Kim)' : 'students'}. Nothing here is real.</div>`); if (!PV_TEACHER) checkRequests();
     if (hashView()) S.view = hashView();
     startSocial();
