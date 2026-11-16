@@ -606,7 +606,8 @@ const lvAreas = t => t.game === 'brainwaves' ? [].concat(t.skills || t.skill || 
 const BW_AREA_NAME = Object.fromEntries(Object.entries(BW_AREA_ID).map(([k, v]) => [v, k]));
 const dayList = (a, b) => { const out = []; for (let d = new Date(a + 'T12:00:00'); ymd(d) <= b && out.length < 120; d.setDate(d.getDate() + 1)) out.push(ymd(d)); return out; };
 const taskName = t => { const g = G[t.game], keys = t.game === 'scale' && t.settings && Array.isArray(t.settings.keys) ? t.settings.keys : [], sk = [].concat(t.skills || t.skill || []).filter(Boolean);
-  return `${g ? g.name : 'Any game'}${keys.length ? ': ' + keys.join(', ') : sk.length ? ': ' + sk.join(', ') : ''}`; };
+  const ksl = t.game === 'scale' && t.settings && t.settings.ksLevel >= 1 ? t.settings.ksLevel : 0;   // Scale Quest key signature ladder
+  return `${g ? g.name : 'Any game'}${ksl ? ': Key signatures, level ' + ksl : keys.length ? ': ' + keys.join(', ') : sk.length ? ': ' + sk.join(', ') : ''}`; };
 function taskCount(t, recs) {   // recs: one student's practice records in the date range
   const mine = recs.filter(r => t.game === 'any' || r.game === t.game);
   if (t.unit === 'minutes') return { done: Math.round(mine.reduce((a, r) => a + r.minutes, 0)), right: null, all: null };
