@@ -438,12 +438,12 @@
           <button type="button" data-v="scores" aria-pressed="false"><span class="ti" aria-hidden="true">🏆</span><span class="tl">Scores</span></button>
           <button type="button" data-v="grades" aria-pressed="false"><span class="ti" aria-hidden="true">📋</span><span class="tl">Assignments</span></button>
           <button type="button" data-v="tests" aria-pressed="false"><span class="ti" aria-hidden="true">📝</span><span class="tl">Tests</span></button>
+          <button type="button" data-v="live" aria-pressed="false" hidden title="Ask the class questions live (Live Class)"><span class="ti" aria-hidden="true">📡</span><span class="tl">Live questioning</span></button>
           <button type="button" data-v="messages" aria-pressed="false"><span class="ti" aria-hidden="true">✉️</span><span class="tl">Messages</span><span class="rq" id="msgcount" hidden></span></button>
           <button type="button" data-v="board" aria-pressed="false"><span class="ti" aria-hidden="true">📌</span><span class="tl">Board</span><span class="nb" id="boardcount" hidden></span></button>
-          <button type="button" data-v="feedback" aria-pressed="false" hidden class="adm" title="Notes students and guests send from the Feedback button in every game"><span class="ti" aria-hidden="true">💬</span><span class="tl">Feedback</span></button>
-          <button type="button" data-v="live" aria-pressed="false" hidden title="Ask the class questions live (Live Class)" class="adm"><span class="ti" aria-hidden="true">📡</span><span class="tl">Live questioning</span></button>
-          <button type="button" data-v="admin" aria-pressed="false" hidden class="adm"><span class="ti" aria-hidden="true">🛡️</span><span class="tl">Admin</span><span class="rq" id="rqcount" hidden></span></button>
           <button type="button" data-v="activity" aria-pressed="false" hidden title="Who is playing: visits from your students"><span class="ti" aria-hidden="true">👀</span><span class="tl">Activity</span></button>
+          <button type="button" data-v="feedback" aria-pressed="false" hidden class="adm" title="Notes students and guests send from the Feedback button in every game"><span class="ti" aria-hidden="true">💬</span><span class="tl">Feedback</span></button>
+          <button type="button" data-v="admin" aria-pressed="false" hidden class="adm"><span class="ti" aria-hidden="true">🛡️</span><span class="tl">Admin</span><span class="rq" id="rqcount" hidden></span></button>
         </div>
         <span class="grow"></span>
         <button class="btn ghost sm" type="button" id="csv">Download CSV</button>
@@ -2294,7 +2294,7 @@ async function signedIn(email) {
   if (!ok) return joinScreen(email);
   S.email = email; $('who').innerHTML = `Signed in as <b>${esc(email)}</b>`;
   $('views').querySelector('[data-v=admin]').hidden = $('views').querySelector('[data-v=feedback]').hidden = !ADMIN_EMAILS.includes(email);   // Feedback: admin only (2026-11-16) $('views').querySelector('[data-v=activity]').hidden = false;   // Activity: every teacher (their own classes), the admin sees everyone (2026-11-16)
-  $('views').querySelector('[data-v=live]').hidden = !ADMIN_EMAILS.includes(email);   // Live Class: your classes first (BACKCHANNEL-PLAN.md, question 3); remove this line to show it to every teacher
+  $('views').querySelector('[data-v=live]').hidden = false;   // Live questioning: every teacher (David, 2026-11-16; was admin only while he tried it first)
   $('gate').hidden = true; $('main').hidden = false;
   if (ADMIN_EMAILS.includes(email)) { checkRequests(); setInterval(() => { if (!document.hidden) checkRequests(); }, 120000); }
   if (hashView()) S.view = hashView();
@@ -2327,7 +2327,7 @@ async function start() {
   wire();
   if (PREVIEW) {
     S.email = PV_TEACHER ? 'r.kim@sample' : 'sample@preview';
-    $('gate').hidden = true; $('main').hidden = false; $('who').innerHTML = `Signed in as <b>${S.email}</b>`; $('views').querySelector('[data-v=admin]').hidden = $('views').querySelector('[data-v=feedback]').hidden = PV_TEACHER; $('views').querySelector('[data-v=activity]').hidden = false; $('views').querySelector('[data-v=live]').hidden = PV_TEACHER;
+    $('gate').hidden = true; $('main').hidden = false; $('who').innerHTML = `Signed in as <b>${S.email}</b>`; $('views').querySelector('[data-v=admin]').hidden = $('views').querySelector('[data-v=feedback]').hidden = PV_TEACHER; $('views').querySelector('[data-v=activity]').hidden = false; $('views').querySelector('[data-v=live]').hidden = false;
     $('main').insertAdjacentHTML('afterbegin', `<div class="pv">Preview with sample ${PV_TEACHER ? 'data, seen by a teacher (Ron Kim)' : 'students'}. Nothing here is real.</div>`); if (!PV_TEACHER) checkRequests();
     if (hashView()) S.view = hashView();
     startSocial();
