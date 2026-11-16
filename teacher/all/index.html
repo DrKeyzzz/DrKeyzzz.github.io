@@ -598,7 +598,7 @@ function normScore(gid, d, col) {
   return o;
 }
 // ---------- Grades: how far each student got on the class's assignment (for the grade book) ----------
-// A class keeps one assignment (classes/<code>.hub_assignment: start, end, up to 3 tasks). Each task counts the student's
+// A class can hold several assignments (classes/<code>.hub_assignments with q: 1, plus hub_assignment; see liveAssigns), each start, end, up to 3 tasks. Each task counts the student's
 // practice records in that game from start to end: answers (or minutes), the same count the student's home page shows.
 // Grade = the average of the tasks, each capped at 100%. Earshot Saloon keeps no practice records yet.
 // A Brainwaves task's skills are brain areas: only answers in those areas count (by_area in brainwaves_progress).
@@ -646,6 +646,13 @@ function taskCount(t, recs) {   // recs: one student's practice records in the d
 // assignment as a row with an arrow; the open one shows its table. S.gradeOpen = the open one's key ('' = all closed, unset = newest).
 const stab = v => Array.isArray(v) ? '[' + v.map(stab) + ']' : v && typeof v === 'object' ? '{' + Object.keys(v).sort().map(k => k + ':' + stab(v[k])) + '}' : JSON.stringify(v);   // same text whatever order Firestore returns map keys in
 const aKey = a => a.id || [a.start, a.end, stab(a.tasks)].join('|');
+// Queue (2026-11-15, David): a class can hold several assignments at once; same helpers as teacher/index.html. Live = not ended,
+// not over, and either the main one (hub_assignment) or saved since the queue (q: 1). hub_assignment = running with the soonest
+// end, else the soonest upcoming.
+const liveAssigns = (c, today, key = aKey) => { const m = c && c.hub_assignment, seen = new Set();
+  return [].concat(m || [], (c && Array.isArray(c.hub_assignments) && c.hub_assignments) || []).filter(a => a && Array.isArray(a.tasks) && a.tasks.length && a.start && a.end
+    && !a.ended_ms && a.end >= today && (a === m || a.q) && !seen.has(key(a)) && seen.add(key(a))).sort((x, y) => x.start.localeCompare(y.start) || x.end.localeCompare(y.end)); };
+const mainOf = (L, today) => L.filter(a => a.start <= today).sort((x, y) => x.end.localeCompare(y.end))[0] || L[0] || null;
 function gradeList(c) {
   const dk = n => ymd(new Date(Date.now() + n * 864e5));
   const all = PREVIEW ? [{ start: dk(-2), end: dk(0), tasks: [{ game: 'scale', goal: 40, unit: 'answers', settings: { keys: ['F', 'Bb', 'Eb', 'Ab'] } }, { game: 'tidal', goal: 15, unit: 'minutes' }, { game: 'brainwaves', skills: ['Perfect Pitch'], goal: 15, unit: 'minutes' }] },
@@ -671,14 +678,14 @@ function gradePick() {
 const PREVIEW_NOLINK = a => !previewBtns(a);
 function renderGradeList() {
   const today = ymd(new Date()), open = S.gradeA ? aKey(S.gradeA) : '';
-  const item = (a, i) => { const on = aKey(a) === open, st = a.ended_ms || !current || aKey(current) !== aKey(a) || a.end < today ? ['Ended', 'end'] : a.start > today ? ['Upcoming', 'up'] : ['Now', 'now'];
+  const item = (a, i) => { const on = aKey(a) === open, st = !live.has(aKey(a)) ? ['Ended', 'end'] : a.start > today ? ['Upcoming', 'up'] : ['Now', 'now'];
     return `<button type="button" class="gi${on ? ' on' : ''}" data-ga="${i}" aria-expanded="${on}"><span class="gar" aria-hidden="true">▸</span><span class="gd">${esc(fmtDay(a.start))}${a.end !== a.start ? ' – ' + esc(fmtDay(a.end)) : ''}</span>`
       + `<span class="gw">${a.tasks.map(t => esc(taskName(t)) + ', ' + t.goal + (t.unit === 'minutes' ? ' min' : ' answers')).join(' · ')}</span><span class="gs ${st[1]}">${st[0]}</span></button>`; };
   $('aedit').disabled = $('adelete').disabled = PREVIEW || !S.gradeA || !!S.assignmentBusy;
   $('anew').disabled = PREVIEW || !S.code || !!S.assignmentBusy;
   $('aout').disabled = !!S.assignmentBusy;
-  const current = (S.classes.find(c => c.code === S.code) || {}).hub_assignment;
-  $('aend').disabled = PREVIEW || !!S.assignmentBusy || !S.gradeA || !current || aKey(current) !== open || !!current.ended_ms || current.end < today;
+  const cc = S.classes.find(c => c.code === S.code), live = new Set(PREVIEW ? (S.gradeList || []).filter(a => a.end >= today).map(aKey) : liveAssigns(cc, today).map(aKey));
+  $('aend').disabled = PREVIEW || !!S.assignmentBusy || !S.gradeA || !live.has(open);
   const L = S.gradeList || [], at = L.findIndex(a => aKey(a) === open);
   $('gradelist').innerHTML = L.length ? L.slice(0, at < 0 ? L.length : at + 1).map((a, i) => item(a, i) + (i === at && !PREVIEW_NOLINK(a) ? `<div class="gprev">Try it as a student:${previewBtns(a)}</div>` : '')).join('') : '<p class="count">This class has no assignment yet. Click + New assignment to make one.</p>';
   $('gradelist2').innerHTML = at < 0 ? '' : L.slice(at + 1).map((a, j) => item(a, at + 1 + j)).join('');
@@ -1140,12 +1147,12 @@ function renderTeacherPage() {
   const games = rows.slice().sort((a, b) => (b.minutes || 0) - (a.minutes || 0) || b.attempts - a.attempts).map(r => `<tr><td><span class="dot" style="background:${G[r.game].color}"></span>${esc(G[r.game].name)}</td><td class="num">${r.students}</td><td class="num">${r.days}</td><td class="num">${r.minutes == null ? '—' : Math.round(r.minutes * 10) / 10}</td><td class="num">${r.attempts}</td><td class="num">${r.acc == null ? '—' : r.acc + '%'}</td><td class="wrap">${esc(r.detail || '')}</td><td>${r.dateMs ? esc(fmtDate(r.dateMs)) : ''}</td></tr>`).join('');
   const asg = [];
   (tp.classes || []).forEach(c => {
-    const a = c.hub_assignment;
-    if (a && Array.isArray(a.tasks)) {
+    const LA = liveAssigns(c, today);
+    (LA.length ? LA : [c.hub_assignment]).forEach(a => { if (a && Array.isArray(a.tasks)) {
       const st = a.start > today ? ['Upcoming', ''] : a.end < today ? ['Past', ''] : ['Active', ' on'];
       const what = a.tasks.map(t => `${GNAMES[t.game] || t.game}${[].concat(t.skills || t.skill || []).filter(Boolean).length ? ': ' + [].concat(t.skills || t.skill).filter(Boolean).join(', ') : ''} · ${t.goal} ${t.unit === 'minutes' ? 'min' : 'answers'}${t.settings ? ' (' + setsText(t.settings) + ')' : ''}`).join('<br>');
       asg.push({ key: (st[0] === 'Active' ? 0 : st[0] === 'Upcoming' ? 1 : 2) + a.end, html: `<tr><td>${esc(cname(c.code))}</td><td class="wrap">${what.split('<br>').map(esc).join('<br>')}</td><td>${esc(fmtDay(a.start))} – ${esc(fmtDay(a.end))}</td><td><span class="st${st[1]}">${st[0]}</span></td></tr>` });
-    }
+    } });
     Object.entries(OLD_ASSIGN).forEach(([k, gname]) => { const v = c[k]; if (v && typeof v === 'object' && Object.keys(v).length) asg.push({ key: '3', html: `<tr><td>${esc(cname(c.code))}</td><td class="wrap">${esc(gname)} (set inside the game) · ${esc(setsText(v).slice(0, 160))}</td><td></td><td><span class="st">In game</span></td></tr>` }); });
   });
   asg.sort((a, b) => String(a.key).localeCompare(String(b.key)));
@@ -1279,13 +1286,12 @@ async function loadUpcoming() {
 }
 function upItems() {
   const today = ymd(new Date()), now = Date.now(), cn = code => (S.classes.find(c => c.code === code) || {}).name || code, soon = [], live = [];
-  S.classes.forEach(c => {
-    const a = c.hub_assignment; if (!a || !Array.isArray(a.tasks) || !a.tasks.length || !a.start || !a.end || a.end < today) return;
+  S.classes.forEach(c => liveAssigns(c, today).forEach(a => {
     const what = a.tasks.map(t => `${(G[t.game] || {}).name || 'Any game'}${(t.skills && t.skills.length) ? ': ' + t.skills.join(', ') : ''}, ${t.goal} ${t.unit === 'minutes' ? 'min' : 'answers'}`).join(' · ');
     const it = { kind: 'Assignment', cls: cn(c.code), code: c.code, name: what, view: 'grades', color: '#4ea1ff', asg: a };
     if (a.start > today) soon.push({ ...it, ms: dayMs(a.start), when: dayText(a.start) + (a.end !== a.start ? ' to ' + dayText(a.end) : ''), sub: 'Starts ' + dayText(a.start) });
     else live.push({ ...it, ms: dayMs(a.end), when: 'Ends ' + dayText(a.end), sub: 'Running now' });
-  });
+  }));
   (S.upTests || []).forEach(t => {
     const st = tstate(t), gm = G[t.game] || { name: t.game, color: '#ff5d6c' };
     const it = { kind: 'Test', cls: cn(t.class_code), code: t.class_code, name: `${t.name} (${gm.name})`, view: 'tests', testId: t.id, color: '#ff5d6c' };
@@ -2013,16 +2019,16 @@ async function changeAssignment(action) {
       const fresh = (await tx.get(ref)).data();
       const current = fresh?.hub_assignment;
       const history = fresh?.hub_assignments || [];
-      const active = matches(current);
-      const selected = active ? current : history.find(matches);
-      if (!selected || selected.set_ms !== a.set_ms || selected.ended_ms !== a.ended_ms || (ending && !active)) {
+      const today = ymd(new Date()), liveBefore = liveAssigns(fresh, today);
+      const selected = matches(current) ? current : history.find(matches);
+      if (!selected || selected.set_ms !== a.set_ms || selected.ended_ms !== a.ended_ms || (ending && !liveBefore.some(matches))) {
         throw new Error('This assignment changed. Reload the class and try again.');
       }
       const out = { ...fresh.grade_out_of };
       const changes = { grade_out_of: out };
       if (ending || deleting) {
-        const remaining = history.filter(x => !matches(x));
-        if (active) changes.hub_assignment = null;
+        const liveKeys = new Set(liveBefore.map(aKey));
+        const remaining = history.filter(x => !matches(x)).map(x => !x.q && liveKeys.has(aKey(x)) ? { ...x, q: 1 } : x);   // the others keep running
         if (ending) {
           const ended = { ...selected, id, ended_ms: endedMs };
           remaining.unshift(ended);
@@ -2033,6 +2039,7 @@ async function changeAssignment(action) {
           if (selected.ended_ms) tx.delete(fs.doc(db, 'classes', c.code, 'assignment_grades', selected.id));
         }
         changes.hub_assignments = remaining;
+        changes.hub_assignment = mainOf(liveAssigns({ hub_assignments: remaining }, today), today);   // the next one in line (or none)
       } else {
         out[aOutKey(selected)] = points;
       }
@@ -2287,7 +2294,7 @@ async function start() {
     $('main').insertAdjacentHTML('afterbegin', `<div class="pv">Preview with sample ${PV_TEACHER ? 'data, seen by a teacher (Ron Kim)' : 'students'}. Nothing here is real.</div>`); if (!PV_TEACHER) checkRequests();
     if (hashView()) S.view = hashView();
     startSocial();
-    { const dk = n => ymd(new Date(Date.now() + n * 86400000)); S.classes = [{ code: 'PREVW', name: 'Period 3 Music Theory', hub_assignment: { start: dk(3), end: dk(9), tasks: [{ game: 'scale', skills: ['Major scales'], goal: 15, unit: 'minutes' }] } }, { code: 'PREV2', name: 'Period 5 Band', hub_assignment: { start: dk(-2), end: dk(4), tasks: [{ game: 'tidal', goal: 60, unit: 'answers' }] } }]; }
+    { const dk = n => ymd(new Date(Date.now() + n * 86400000)); S.classes = [{ code: 'PREVW', name: 'Period 3 Music Theory', hub_assignment: { start: dk(3), end: dk(9), tasks: [{ game: 'scale', skills: ['Major scales'], goal: 15, unit: 'minutes' }] }, hub_assignments: [{ q: 1, start: dk(10), end: dk(16), tasks: [{ game: 'scale', goal: 20, unit: 'answers', settings: { ksLevel: 2 } }, { game: 'tidal', goal: 10, unit: 'minutes' }] }] }, { code: 'PREV2', name: 'Period 5 Band', hub_assignment: { start: dk(-2), end: dk(4), tasks: [{ game: 'tidal', goal: 60, unit: 'answers' }] } }]; }
      return fillClasses();
   }
   try {
