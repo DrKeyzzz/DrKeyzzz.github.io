@@ -1230,6 +1230,18 @@ boot();
 .mav-ch.on{border-color:#ffc85c;background:#3a3420;color:#ffe3a1}
 .mav-sw{width:26px;height:26px;border-radius:50%;border:2px solid #34407a;cursor:pointer;padding:0}
 .mav-sw.on{border-color:#ffc85c;box-shadow:0 0 0 2px #141a30,0 0 0 4px #ffc85c}
+.mav-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 6px}
+.mav-tab{font:inherit;font-size:13px;font-weight:700;color:#c8d0ee;background:transparent;border:1.5px solid #34407a;border-radius:999px;padding:5px 12px;cursor:pointer}
+.mav-tab.on{background:#ffc85c;color:#1a1405;border-color:#ffc85c}
+.mav-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;padding:6px 0}
+.mav-item{font:inherit;color:#eef1fb;background:#1d2547;border:1.5px solid #34407a;border-radius:14px;padding:8px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;min-height:92px}
+.mav-item.on{border-color:#3ccf9a;background:#173a37}.mav-item.try{border-color:#ffc85c}.mav-item.locked{opacity:.75}
+.mav-ic{font-size:26px;line-height:1.1}.mav-in{font-size:12.5px;font-weight:700;text-align:center;line-height:1.2}
+.mav-tag{font-size:11.5px;font-weight:800;color:#a8b3d6}.mav-tag.on{color:#3ccf9a}.mav-tag.price{color:#ffd166}.mav-tag.lock{color:#a8b3d6}
+.mav-sec{font-weight:800;font-size:13px;letter-spacing:.04em;color:#c8d0ee;margin:8px 0 0}
+.mav-tryrow:empty{display:none}
+.mav-try{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:10px 12px;border-radius:12px;background:#22294d;border:1px solid #ffc85c55;font-size:14px}
+.mav-need{color:#ffd166;font-weight:700}
 .mav-acts{display:flex;justify-content:flex-end;gap:10px;padding-top:12px}
 .mav-btn{font:inherit;font-weight:700;border-radius:12px;padding:10px 18px;min-height:44px;cursor:pointer;border:2px solid transparent;background:#ffc85c;color:#1a1405}
 .mav-btn.ghost{background:transparent;color:#eef1fb;border-color:#34407a}
@@ -1245,7 +1257,9 @@ boot();
    random avatar for the visit, never saved. On localhost nothing is sent unless the address has ?avatar=1.
    Step 2 (2026-11-16): coins (1 per minute of play, 60 a day) and points (right answer = level 1-9, +5 every 5 in a row, a run = 10 x level,
    a test +50), shown in the builder and as a small pop; sent to the same doc as increments at most once a minute and when the page hides.
-   Later steps: the Store, ranks, avatars on boards and reports, a class setting to turn avatars off. */
+   Step 3 (2026-11-16): the Store (tabs Look, Skins, Clothes, Hats, Gear, Moves, Backdrops, Pets); try an item on, buy it with coins or points;
+   owned items (W.owned, 'slot:id', <= 300) saved with the wallet and sent as the list 'owned'; spending goes online as a negative increment.
+   Later steps: ranks, avatars on boards and reports, a class setting to turn avatars off. */
 (function(){
   var me = document.currentScript, MOUNT = (me && me.getAttribute('data-mount')) || '.mtg-home';
   if (window.MTGAvatar) return;
@@ -1265,6 +1279,39 @@ boot();
     glasses:[['none','None'],['round','Round'],['square','Square'],['shades','Shades']],
   };
 
+  // store items (from the approved preview): free = everyone has it, c = coins, p = points, lock = earned by mastery (step 4)
+  const ITEMS = [
+    // tops
+    {id:'hoodie',slot:'top',name:'Hoodie',ic:'🧥',free:1},{id:'tee',slot:'top',name:'Tee',ic:'👕',free:1},{id:'jacket',slot:'top',name:'Jacket',ic:'🧥',free:1},
+    {id:'varsity',slot:'top',name:'Varsity jacket',ic:'🎽',c:60},{id:'band',slot:'top',name:'Band uniform',ic:'🎖️',c:140},
+    {id:'goldpiano',slot:'top',name:'Gold Piano Jacket',ic:'🎹',lock:'Get ★ on all 15 major keys in Scale Quest'},
+    {id:'detective',slot:'top',name:'Detective Coat',ic:'🕵️',lock:'Finish a Big Score challenge on Extreme'},
+    // hats
+    {id:'none',slot:'hat',name:'No hat',ic:'🚫',free:1},{id:'beanie',slot:'hat',name:'Beanie',ic:'🧢',c:25},{id:'cap',slot:'hat',name:'Cap',ic:'🧢',c:30},
+    {id:'phones',slot:'hat',name:'Headphones',ic:'🎧',c:45},{id:'tophat',slot:'hat',name:'Top hat',ic:'🎩',p:300},{id:'crown',slot:'hat',name:'Crown',ic:'👑',p:1500},
+    {id:'captain',slot:'hat',name:"Captain's Hat",ic:'⚓',lock:'Reach the top level in Tidal Tones'},
+    // gear
+    {id:'none',slot:'gear',name:'Empty hands',ic:'🚫',free:1},{id:'mic',slot:'gear',name:'Mic',ic:'🎤',c:40},{id:'sticks',slot:'gear',name:'Drumsticks',ic:'🥁',c:50},
+    {id:'trumpet',slot:'gear',name:'Trumpet',ic:'🎺',c:150},{id:'guitar',slot:'gear',name:'Guitar',ic:'🎸',p:500},{id:'keytar',slot:'gear',name:'Keytar',ic:'🎹',p:900},
+    {id:'baton',slot:'gear',name:'Maestro Baton',ic:'🪄',lock:'Reach rank 9: Maestro'},
+    // moves
+    {id:'bounce',slot:'idle',name:'Bounce',ic:'⬆️',free:1},{id:'sway',slot:'idle',name:'Sway',ic:'〰️',c:40},{id:'headbob',slot:'idle',name:'Head bob',ic:'🎶',c:80},
+    {id:'hop',slot:'happy',name:'Hop',ic:'🙌',free:1},{id:'fistpump',slot:'happy',name:'Fist pump',ic:'✊',c:30},{id:'spin',slot:'happy',name:'Spin',ic:'🌀',p:250},
+    {id:'shrug',slot:'aww',name:'Shrug',ic:'🤷',free:1},{id:'scratch',slot:'aww',name:'Head scratch',ic:'🤔',c:30},{id:'facepalm',slot:'aww',name:'Facepalm',ic:'🤦',c:60},
+    {id:'groove',slot:'dance',name:'Groove',ic:'🕺',free:1},{id:'wave',slot:'dance',name:'Big Wave',ic:'👋',free:1},{id:'robot',slot:'dance',name:'Robot',ic:'🤖',p:400},
+    {id:'disco',slot:'dance',name:'Disco Point',ic:'🪩',p:700},{id:'spinout',slot:'dance',name:'Spin Out',ic:'💫',p:1200},
+    // backdrops
+    {id:'none',slot:'bg',name:'Plain',ic:'⬜',free:1},{id:'staff',slot:'bg',name:'Staff lines',ic:'🎼',c:40},{id:'stage',slot:'bg',name:'Stage lights',ic:'💡',c:70},
+    {id:'sunset',slot:'bg',name:'Sunset',ic:'🌅',c:90},{id:'galaxy',slot:'bg',name:'Galaxy',ic:'🌌',p:900},{id:'wreath',slot:'bg',name:'Golden Wreath',ic:'🏅',lock:'Reach rank 10: Superior Music Theory Master'},
+    // pets
+    {id:'none',slot:'pet',name:'No pet',ic:'🚫',free:1},{id:'note',slot:'pet',name:'Note Buddy',ic:'🎵',c:60},{id:'cat',slot:'pet',name:'Cat',ic:'🐱',c:120},
+    {id:'owl',slot:'pet',name:'Owl',ic:'🦉',p:300},{id:'robo',slot:'pet',name:'Robo Pal',ic:'🤖',p:2500},
+    // skins: full costumes over your look
+    {id:'none',slot:'outfit',name:'My own clothes',ic:'👕',free:1},{id:'dj',slot:'outfit',name:'DJ',ic:'🎧',c:120},{id:'pirate',slot:'outfit',name:'Pirate',ic:'🏴‍☠️',c:150},
+    {id:'rockstar',slot:'outfit',name:'Rock Star',ic:'🤘',c:200},{id:'hero',slot:'outfit',name:'Super Hero',ic:'⚡',p:600},{id:'astronaut',slot:'outfit',name:'Astronaut',ic:'🚀',p:900},
+    {id:'robot',slot:'outfit',name:'Robot',ic:'🤖',p:1500},{id:'wizard',slot:'outfit',name:'Wizard',ic:'🧙',p:2000},
+    {id:'step',slot:'idle',name:'Side step',ic:'👟',c:100},{id:'kick',slot:'happy',name:'Kick',ic:'🦵',c:45},{id:'kickstep',slot:'dance',name:'Kick Step',ic:'🦶',p:800},
+  ];
   let uid = 0;
 function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Math.max(0, Math.min(255, Math.round(((n >> s) & 255) * f))); return '#' + [16, 8, 0].map(s => c(s).toString(16).padStart(2, '0')).join(''); }
 
@@ -1462,12 +1509,18 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   var P = who(), SID = P ? sidOf(P) : '', DOC = P ? (activeCode(P) || 'none') + '_' + SID : '', KEY = 'mtg_avatar_v1:' + SID;
   var today = function(){ var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
   // W = the wallet (build step 2): coins for playing (1 per active minute, 60 a day), points for doing well
-  var look = null, fresh = false, W = { coins: 0, points: 0, day: today(), dayCoins: 0 };
+  var look = null, fresh = false, W = { coins: 0, points: 0, day: today(), dayCoins: 0, owned: [] };
   if (P) { try { var raw = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (raw && raw.look) look = clean(raw.look);
-    if (raw && raw.w) W = { coins: Math.max(0, +raw.w.coins || 0), points: Math.max(0, +raw.w.points || 0), day: String(raw.w.day || today()), dayCoins: Math.max(0, +raw.w.dayCoins || 0) };
+    if (raw && raw.w) W = { coins: Math.max(0, +raw.w.coins || 0), points: Math.max(0, +raw.w.points || 0), day: String(raw.w.day || today()), dayCoins: Math.max(0, +raw.w.dayCoins || 0), owned: Array.isArray(raw.w.owned) ? raw.w.owned.filter(function(k){ return typeof k === 'string' && k.length <= 40; }).slice(0, 300) : [] };
   } catch(e){} }
   if (!look) { look = randomLook(); fresh = !!P; }   // guests: a random avatar for this visit, never saved
+  function wearOwned(L){   // a paid item that isn't in this student's owned list goes back to the free default
+    ITEMS.forEach(function(it){ if (L[it.slot] === it.id && !it.free && W.owned.indexOf(it.slot + ':' + it.id) < 0) L[it.slot] = DEF[it.slot]; });
+    if (!ITEMS.some(function(it){ return it.slot === 'top' && it.id === L.top; })) L.top = DEF.top;
+    return L;
+  }
+  look = wearOwned(look);
 
   var FS = 'https://firestore.googleapis.com/v1/projects/rhythm-trainer-fc313/databases/(default)/documents/', FKEY = 'AIzaSyDU9vbCWJ4yWuD8bAX984DmQF4dvo13BHs';
   var LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && !/[?&]avatar=1\b/.test(location.search);
@@ -1481,11 +1534,12 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   function sendNow(){
     clearTimeout(sendT); sendT = 0;
     if (!P || LOCAL || (!dCoins && !dPoints && !lookDirty)) return;
-    var c = Math.min(dCoins, 30), p = Math.min(dPoints, 600);   // the rules allow at most this much per write; the rest goes next time
+    var c = Math.min(dCoins, 30), p = Math.min(dPoints, 600);   // spending (negative) goes in one piece   // the rules allow at most this much per write; the rest goes next time
     var tf = [{ fieldPath: 'updated_at', setToServerValue: 'REQUEST_TIME' }];
     if (c) tf.push({ fieldPath: 'coins', increment: { integerValue: String(c) } });
     if (p) tf.push({ fieldPath: 'points', increment: { integerValue: String(p) } });
-    var fields = { look: { mapValue: { fields: toFields(look) } }, sid: { stringValue: SID }, coin_day: { stringValue: W.day }, coins_today: { integerValue: String(Math.min(60, W.dayCoins)) } };
+    var fields = { look: { mapValue: { fields: toFields(look) } }, sid: { stringValue: SID }, coin_day: { stringValue: W.day }, coins_today: { integerValue: String(Math.min(60, W.dayCoins)) },
+      owned: { arrayValue: { values: W.owned.slice(0, 300).map(function(k){ return { stringValue: k }; }) } } };
     dCoins -= c; dPoints -= p; lookDirty = false; lastSend = Date.now();
     try {
       fetch(FS.replace(/\/$/, '') + ':commit?key=' + FKEY, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' },
@@ -1507,8 +1561,10 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       var f = d && d.fields; if (!f) { if (fresh) { lookDirty = true; sendSoon(5000); } return; }
       var lf = f.look && f.look.mapValue && f.look.mapValue.fields;
       if (lf && fresh) look = clean(fromFields(lf));
+      look = wearOwned(look);
       var sc = f.coins ? +f.coins.integerValue : 0, sp = f.points ? +f.points.integerValue : 0;
       W.coins = Math.max(W.coins, sc + dCoins); W.points = Math.max(W.points, sp + dPoints);   // online total + what this tab still has to send
+      ((f.owned && f.owned.arrayValue && f.owned.arrayValue.values) || []).forEach(function(v){ if (v.stringValue && W.owned.indexOf(v.stringValue) < 0 && W.owned.length < 300) W.owned.push(v.stringValue); });   // items bought on another computer
       if (f.coin_day && f.coin_day.stringValue === W.day) W.dayCoins = Math.max(W.dayCoins, +f.coins_today.integerValue || 0);
       saveLocal(); drawAll();
     }).catch(function(){}); } catch(e){}
@@ -1585,45 +1641,105 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     }
   });
 
-  // ---------- the builder: tap the corner avatar ----------
-  var dlg = null, draft = null;
-  var ROWS = [
+  // ---------- the Store (build step 3): tap the corner avatar ----------
+  // Look = the free face, hair and colors. The other tabs sell items: everyday ones for coins (c), dream ones for points (p).
+  // Items with "lock" are earned by mastering a game (build step 4); until then they show the lock and how to get them.
+  var key = function(it){ return it.slot + ':' + it.id; };
+  var owns = function(it){ return !!it.free || W.owned.indexOf(key(it)) >= 0; };
+  var TABS = [['look', 'Look'], ['outfit', 'Skins'], ['clothes', 'Clothes'], ['hat', 'Hats'], ['gear', 'Gear'], ['moves', 'Moves'], ['bg', 'Backdrops'], ['pet', 'Pets']];
+  var MOVE_SLOTS = [['idle', 'Standing still'], ['happy', 'Right answer'], ['aww', 'Missed one (never sad)'], ['dance', 'End of a run']];
+  var LOOKROWS = [
     ['Skin', 'skin', 'swatch', SKIN], ['Face', 'face'], ['Eyes', 'eyes'], ['Brows', 'brows'], ['Nose', 'nose'], ['Mouth', 'mouth'],
     ['Hair', 'hair'], ['Hair color', 'hairC', 'swatch', HAIRC], ['Head covering', 'cover'], ['Glasses', 'glasses'],
-    ['Top', 'top', 'list', TOPS], ['Top color', 'topC', 'swatch', TOPC], ['Pants', 'pantC', 'swatch', PANTC],
   ];
+  var CLOTHROWS = [['Top color', 'topC', 'swatch', TOPC], ['Pants', 'pantC', 'swatch', PANTC]];
+  var dlg = null, draft = null, tab = 'look', trying = null, note = '';
   function drawWallet(){ var c = dlg.querySelector('.mav-c'), p = dlg.querySelector('.mav-p'); if (c) c.textContent = W.coins.toLocaleString(); if (p) p.textContent = W.points.toLocaleString(); }
-  function drawBig(){ dlg.querySelector('.mav-big').innerHTML = avatar(draft, { label: 'Your avatar' }); dlg.querySelector('.mav-big').dataset.idle = draft.idle; }
-  function rowsHtml(){
-    return ROWS.map(function(r){
+  function shown(){ var L = Object.assign({}, draft); if (trying) L[trying.slot] = trying.id; return L; }
+  function drawBig(){ var L = shown(), big = dlg.querySelector('.mav-big'); big.innerHTML = avatar(L, { label: 'Your avatar' }); big.dataset.idle = L.idle; }
+  function play(move){ var big = dlg.querySelector('.mav-big'); delete big.dataset.act; void big.offsetWidth; big.dataset.act = move; setTimeout(function(){ delete big.dataset.act; }, LEN[move] || 1000); }
+  function rowsHtml(rows){
+    return rows.map(function(r){
       var label = r[0], k = r[1], kind = r[2], list = r[3], opts;
       if (kind === 'swatch') opts = list.map(function(c, i){ return '<button type="button" class="mav-sw' + (draft[k] === i ? ' on' : '') + '" data-k="' + k + '" data-v="' + i + '" style="background:' + c + '" aria-label="' + label + ' ' + (i + 1) + '" aria-pressed="' + (draft[k] === i) + '"></button>'; }).join('');
       else opts = (list || LOOK[k]).map(function(o){ return '<button type="button" class="mav-ch' + (draft[k] === o[0] ? ' on' : '') + '" data-k="' + k + '" data-v="' + o[0] + '" aria-pressed="' + (draft[k] === o[0]) + '">' + o[1] + '</button>'; }).join('');
       return '<div class="mav-row"><div class="mav-lab">' + label + '</div><div class="mav-opts">' + opts + '</div></div>';
     }).join('');
   }
+  function price(it){ return it.c ? it.c + ' 🪙' : it.p ? it.p.toLocaleString() + ' ★' : ''; }
+  function card(it){
+    var on = draft[it.slot] === it.id, have = owns(it), t = trying && key(trying) === key(it);
+    var tag = on ? '<span class="mav-tag on">Wearing</span>' : have ? '<span class="mav-tag">Yours</span>' : it.lock ? '<span class="mav-tag lock">🔒</span>' : '<span class="mav-tag price">' + price(it) + '</span>';
+    return '<button type="button" class="mav-item' + (on ? ' on' : '') + (t ? ' try' : '') + (it.lock && !have ? ' locked' : '') + '" data-item="' + key(it) + '" title="' + (it.lock && !have ? 'How to get it: ' + it.lock : it.name) + '">'
+      + '<span class="mav-ic" aria-hidden="true">' + it.ic + '</span><span class="mav-in">' + it.name + '</span>' + tag + '</button>';
+  }
+  function itemsOf(slot){ return ITEMS.filter(function(it){ return it.slot === slot; }); }
+  function tabHtml(){
+    if (tab === 'look') return rowsHtml(LOOKROWS);
+    var html = '';
+    if (tab === 'clothes') html = '<div class="mav-grid">' + itemsOf('top').map(card).join('') + '</div>' + rowsHtml(CLOTHROWS);
+    else if (tab === 'moves') html = MOVE_SLOTS.map(function(m){ return '<div class="mav-sec">' + m[1] + '</div><div class="mav-grid">' + itemsOf(m[0]).map(card).join('') + '</div>'; }).join('');
+    else html = '<div class="mav-grid">' + itemsOf(tab).map(card).join('') + '</div>';
+    return html;
+  }
+  function tryHtml(){
+    if (note) return '<div class="mav-try"><span>' + note + '</span></div>';
+    if (!trying || owns(trying)) return '';
+    var it = trying;
+    if (it.lock) return '<div class="mav-try"><b>' + it.ic + ' ' + it.name + '</b> is earned, not bought: ' + it.lock + '.</div>';
+    if (!P) return '<div class="mav-try"><b>' + it.ic + ' ' + it.name + '</b> · ' + price(it) + '. Sign in to earn coins and points and buy it.</div>';
+    var have = it.c ? W.coins : W.points, need = (it.c || it.p) - have;
+    return '<div class="mav-try"><span><b>' + it.ic + ' ' + it.name + '</b> · ' + price(it) + '</span>'
+      + (need > 0 ? '<span class="mav-need">You need ' + need.toLocaleString() + (it.c ? ' more coins. Keep playing!' : ' more points. Keep going!') + '</span>'
+        : '<button type="button" class="mav-btn" data-do="buy">Buy for ' + price(it) + '</button>') + '</div>';
+  }
+  function render(){
+    dlg.querySelector('.mav-tabs').innerHTML = TABS.map(function(t){ return '<button type="button" class="mav-tab' + (t[0] === tab ? ' on' : '') + '" data-tab="' + t[0] + '" aria-pressed="' + (t[0] === tab) + '">' + t[1] + '</button>'; }).join('');
+    dlg.querySelector('.mav-rows').innerHTML = tabHtml();
+    dlg.querySelector('.mav-tryrow').innerHTML = tryHtml();
+    drawBig(); drawWallet();
+  }
+  function buy(it){
+    var cost = it.c || it.p, pot = it.c ? 'coins' : 'points';
+    if (!P || it.lock || owns(it) || !cost || W[pot] < cost) return;
+    W[pot] -= cost; if (it.c) dCoins -= cost; else dPoints -= cost;
+    W.owned.push(key(it)); draft[it.slot] = it.id; trying = null;
+    look[it.slot] = it.id;   // a new item goes on right away (and stays on after Cancel)
+    lookDirty = true; saveLocal(); drawAll(); clearTimeout(sendT); sendT = setTimeout(sendNow, 3000);
+    note = '🎉 <b>' + it.name + '</b> is yours!'; render(); play(look.happy); note = '';
+  }
   function openBuilder(){
     if (!dlg) {
-      dlg = document.createElement('dialog'); dlg.className = 'mav-dlg'; dlg.setAttribute('aria-label', 'Make your avatar');
+      dlg = document.createElement('dialog'); dlg.className = 'mav-dlg'; dlg.setAttribute('aria-label', 'Your avatar and the Store');
       document.body.appendChild(dlg);
       dlg.addEventListener('click', function(e){
         var b = e.target.closest('button'); if (!b) { if (e.target === dlg) dlg.close(); return; }
-        if (b.dataset.k) { var k = b.dataset.k; draft[k] = typeof DEF[k] === 'number' ? +b.dataset.v : b.dataset.v; dlg.querySelector('.mav-rows').innerHTML = rowsHtml(); drawBig(); return; }
-        if (b.dataset.do === 'random') { var keep = { idle: draft.idle, happy: draft.happy, aww: draft.aww, dance: draft.dance }; draft = Object.assign(randomLook(), keep); dlg.querySelector('.mav-rows').innerHTML = rowsHtml(); drawBig(); return; }
-        if (b.dataset.do === 'try') { var big = dlg.querySelector('.mav-big'), m = pick([draft.happy, draft.aww, draft.dance]); delete big.dataset.act; void big.offsetWidth; big.dataset.act = m; setTimeout(function(){ delete big.dataset.act; }, LEN[m] || 1000); return; }
-        if (b.dataset.do === 'save') { look = clean(draft); saveLocal(); sendOnline(); drawAll(); dlg.close(); act(look.happy); return; }
+        if (b.dataset.tab) { tab = b.dataset.tab; trying = null; render(); return; }
+        if (b.dataset.k) { var k = b.dataset.k; draft[k] = typeof DEF[k] === 'number' ? +b.dataset.v : b.dataset.v; render(); return; }
+        if (b.dataset.item) {
+          var it = ITEMS.filter(function(x){ return key(x) === b.dataset.item; })[0]; if (!it) return;
+          if (owns(it)) { draft[it.slot] = it.id; trying = null; } else trying = it;   // not yours yet: try it on
+          render();
+          if (/^(idle|happy|aww|dance)$/.test(it.slot) && it.slot !== 'idle') play(it.id);
+          return;
+        }
+        if (b.dataset.do === 'buy') { if (trying) buy(trying); return; }
+        if (b.dataset.do === 'random') { var keep = {}; Object.keys(DEF).forEach(function(k){ if (!/^(skin|face|eyes|brows|nose|mouth|hair|hairC|cover|glasses|topC|pantC)$/.test(k)) keep[k] = draft[k]; }); draft = Object.assign(randomLook(), keep); trying = null; render(); return; }
+        if (b.dataset.do === 'try') { play(pick([draft.happy, draft.aww, draft.dance])); return; }
+        if (b.dataset.do === 'save') { look = wearOwned(clean(draft)); saveLocal(); sendOnline(); drawAll(); dlg.close(); act(look.happy); return; }
         if (b.dataset.do === 'close') dlg.close();
       });
     }
-    draft = Object.assign({}, look);
+    draft = Object.assign({}, look); trying = null; note = '';
     dlg.innerHTML = '<div class="mav-wrap"><div class="mav-left"><div class="mav-big av"></div>'
-      + '<button type="button" class="mav-btn ghost" data-do="try">▶ Try a move</button><button type="button" class="mav-btn ghost" data-do="random">🎲 Random</button></div>'
-      + '<div class="mav-right"><h2>Make your avatar</h2>'
-      + (P ? '<div class="mav-wallet"><span title="Coins: 1 for every minute you play, up to 60 a day">🪙 <b class="mav-c"></b> coins</span><span title="Points: right answers and finished runs; harder levels pay more">★ <b class="mav-p"></b> points</span><span class="mav-soon">The Store opens soon</span></div>' : '')
-      + (P ? '<p class="mav-sub">It shows in every game and reacts when you play.</p>' : '<p class="mav-sub">Guest avatar: <b>sign in to keep it</b>. It goes away when you close this page.</p>')
-      + '<div class="mav-rows">' + rowsHtml() + '</div>'
+      + '<button type="button" class="mav-btn ghost" data-do="try">▶ Try a move</button><button type="button" class="mav-btn ghost" data-do="random">🎲 Random look</button></div>'
+      + '<div class="mav-right"><h2>Your avatar</h2>'
+      + (P ? '<div class="mav-wallet"><span title="Coins: 1 for every minute you play, up to 60 a day">🪙 <b class="mav-c"></b> coins</span><span title="Points: right answers and finished runs; harder levels pay more">★ <b class="mav-p"></b> points</span></div>'
+           : '<p class="mav-sub">Guest avatar: <b>sign in to keep it</b> and to earn coins and points for the Store.</p>')
+      + '<div class="mav-tabs" role="toolbar" aria-label="Store sections"></div>'
+      + '<div class="mav-rows"></div><div class="mav-tryrow" aria-live="polite"></div>'
       + '<div class="mav-acts"><button type="button" class="mav-btn ghost" data-do="close">Cancel</button><button type="button" class="mav-btn" data-do="save">Save</button></div></div></div>';
-    drawBig(); drawWallet();
+    render();
     if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
   }
   corner.addEventListener('click', openBuilder);
