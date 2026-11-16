@@ -767,7 +767,8 @@ function pickClass() {
     S.when = a.start === today && a.end === today ? 'today' : a.start === today && a.end === addDays(6) ? 'week' : 'custom';
     $('d-start').value = a.start; $('d-end').value = a.end;
   } else {
-    S.tasks = [newTask()]; S.when = 'today';
+    const g0 = APARAMS.get('game');   // ?game=scale etc.: a game's dashboard opens the page with that game picked
+    S.tasks = [GNAME[g0] && g0 !== 'synapse' ? { ...newTask(), game: g0, settings: setsFrom(g0), open: true } : newTask()]; S.when = 'today';
     $('d-start').value = today; $('d-end').value = today;
   }
   document.querySelector(`input[name="when"][value="${S.when}"]`).checked = true;
