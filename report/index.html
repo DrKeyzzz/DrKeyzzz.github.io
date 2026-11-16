@@ -1256,7 +1256,7 @@ boot();
 .mav-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;padding:6px 0}
 .mav-item{font:inherit;color:#eef1fb;background:#1d2547;border:1.5px solid #34407a;border-radius:14px;padding:8px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;min-height:92px}
 .mav-item.on{border-color:#3ccf9a;background:#173a37}.mav-item.try{border-color:#ffc85c}.mav-item.locked{opacity:.75}
-.mav-ic{font-size:26px;line-height:1.1}.mav-in{font-size:12.5px;font-weight:700;text-align:center;line-height:1.2}
+.mav-ic{font-size:26px;line-height:1.1}.mav-ic img{width:34px;height:34px;display:block}.mav-in{font-size:12.5px;font-weight:700;text-align:center;line-height:1.2}
 .mav-tag{font-size:11.5px;font-weight:800;color:#a8b3d6}.mav-tag.on{color:#3ccf9a}.mav-tag.price{color:#ffd166}.mav-tag.lock{color:#a8b3d6}
 .mav-sec{font-weight:800;font-size:13px;letter-spacing:.04em;color:#c8d0ee;margin:8px 0 0}
 .mav-tryrow:empty{display:none}
@@ -1324,6 +1324,9 @@ boot();
   };
 
   // store items (from the approved preview): free = everyone has it, c = coins, p = points, lock = earned by mastery (step 4)
+  // real instrument pictures (Microsoft Fluent Emoji 3D, MIT; hosted in the hub: hub/avatar/instruments, credits there). Added 2026-11-16.
+  const ART = (location.port === '8770' ? '/hub' : '') + '/avatar/instruments/';
+  const pic = (f, w, x, y) => `<image href="${ART}${f}.png" x="${x - w / 2}" y="${y - w / 2}" width="${w}" height="${w}"/>`;
   const ITEMS = [
     // tops
     {id:'hoodie',slot:'top',name:'Hoodie',ic:'🧥',free:1},{id:'tee',slot:'top',name:'Tee',ic:'👕',free:1},{id:'jacket',slot:'top',name:'Jacket',ic:'🧥',free:1},
@@ -1335,10 +1338,16 @@ boot();
     {id:'phones',slot:'hat',name:'Headphones',ic:'🎧',c:45},{id:'tophat',slot:'hat',name:'Top hat',ic:'🎩',p:300},{id:'crown',slot:'hat',name:'Crown',ic:'👑',p:1500},
     {id:'captain',slot:'hat',name:"Captain's Hat",ic:'⚓',lock:'Reach the top level in Tidal Tones'},
     // gear
-    {id:'none',slot:'gear',name:'Empty hands',ic:'🚫',free:1},{id:'mic',slot:'gear',name:'Mic',ic:'🎤',c:40},{id:'sticks',slot:'gear',name:'Drumsticks',ic:'🥁',c:50},
-    {id:'guitar',slot:'gear',name:'Guitar',ic:'🎸',p:500},{id:'keytar',slot:'gear',name:'Keytar',ic:'🎹',p:900},
-    // Band, orchestra and choir instruments are out of the Store until real art is ready (David, 2026-11-16: the hand-drawn ones
-    // weren't good enough). Their old drawings stay in GR, unused.
+    {id:'none',slot:'gear',name:'Empty hands',ic:'🚫',free:1},{id:'mic',slot:'gear',name:'Mic',ic:'🎤',art:'microphone',c:40},{id:'sticks',slot:'gear',name:'Drumsticks',ic:'🥁',c:50},
+    {id:'guitar',slot:'gear',name:'Guitar',ic:'🎸',art:'guitar',p:500},{id:'keytar',slot:'gear',name:'Keytar',ic:'🎹',p:900},
+    // Real instrument pictures (Fluent Emoji 3D, David 2026-11-16 'go with your picks'). Still to come (David makes them in ChatGPT):
+    // trombone, tuba, French horn, clarinet, concert flute, viola, cello, string bass, snare. Their old hand drawings stay in GR, unused.
+    {id:'trumpet',slot:'gear',name:'Trumpet',ic:'🎺',art:'trumpet',c:120},{id:'sax',slot:'gear',name:'Alto Sax',ic:'🎷',art:'saxophone',c:140},
+    {id:'violin',slot:'gear',name:'Violin',ic:'🎻',art:'violin',c:120},{id:'woodflute',slot:'gear',name:'Wood Flute',ic:'🪈',art:'flute',c:80},
+    {id:'mdrum',slot:'gear',name:'Marching Drum',ic:'🥁',art:'drum',c:110},{id:'handdrum',slot:'gear',name:'Hand Drum',ic:'🪘',art:'long_drum',c:90},
+    {id:'banjo',slot:'gear',name:'Banjo',ic:'🪕',art:'banjo',c:120},{id:'accordion',slot:'gear',name:'Accordion',ic:'🪗',art:'accordion',c:150},
+    {id:'maracas',slot:'gear',name:'Maracas',ic:'🪇',art:'maracas',c:60},{id:'keyboard',slot:'gear',name:'Keyboard',ic:'🎹',art:'musical_keyboard',c:130},
+    {id:'studiomic',slot:'gear',name:'Studio Mic',ic:'🎙️',art:'studio_microphone',c:90},{id:'sheet',slot:'gear',name:'Sheet Music',ic:'🎼',art:'musical_score',c:60},
     {id:'baton',slot:'gear',name:'Maestro Baton',ic:'🪄',lock:'Reach rank 9: Maestro'},
     // moves
     {id:'bounce',slot:'idle',name:'Bounce',ic:'⬆️',free:1},{id:'sway',slot:'idle',name:'Sway',ic:'〰️',c:40},{id:'headbob',slot:'idle',name:'Head bob',ic:'🎶',c:80},
@@ -1497,18 +1506,21 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       headX = `<path d="M29 28 L55 -10 L71 28Z" fill="#5b3cc4"/><ellipse cx="50" cy="28" rx="24" ry="4" fill="#4a2fa8"/>` + star(52, 8, 2.6, '#f5c542') + star(45, 20, 1.8, '#f5c542'); }
     const GR = {
       none: '',
-      mic: `<rect x="68" y="86" width="3.2" height="10" rx="1.4" fill="#333"/><circle cx="69.5" cy="85" r="3.8" fill="#9aa0aa"/>`,
+      woodflute: pic('flute', 48, 74, 84), banjo: pic('banjo', 48, 76, 86), accordion: pic('accordion', 42, 74, 90), maracas: pic('maracas', 34, 74, 86),
+      studiomic: pic('studio_microphone', 31, 72, 84), sheet: pic('musical_score', 34, 74, 86),
+      mdrum: { hand: '', side: pic('drum', 38, 84, 98) }, handdrum: { hand: '', side: pic('long_drum', 36, 85, 101) }, keyboard: { hand: '', side: pic('musical_keyboard', 48, 84, 100) },   // stand beside the avatar
+      mic: pic('microphone', 28, 72, 84),
       sticks: `<path d="M67 86 L60 101 M72 86 L77 101" stroke="#d9a54b" stroke-width="2" stroke-linecap="round"/>`,
-      trumpet: `<g stroke="#b8860b" stroke-width=".5"><rect x="57.5" y="85.3" width="3" height="1.6" rx=".6" fill="#dfe5ee"/><rect x="60" y="85" width="26" height="2.3" rx="1" fill="#f5c542"/><path d="M71 87.3 H83 A3 3 0 0 1 83 93.3 H71 A3 3 0 0 1 71 87.3Z" fill="none" stroke="#f5c542" stroke-width="2"/><rect x="72.6" y="79.6" width="2.2" height="5.6" fill="#f5c542"/><rect x="76" y="79.6" width="2.2" height="5.6" fill="#f5c542"/><rect x="79.4" y="79.6" width="2.2" height="5.6" fill="#f5c542"/><circle cx="73.7" cy="79.2" r="1.4" fill="#fff3b0"/><circle cx="77.1" cy="79.2" r="1.4" fill="#fff3b0"/><circle cx="80.5" cy="79.2" r="1.4" fill="#fff3b0"/><path d="M85 84.6 L95.5 79 Q97.6 86.3 95.5 93.6 L85 88Z" fill="#f5c542"/></g>`,
-      guitar: `<g transform="rotate(-35 70 88)"><rect x="68.6" y="62" width="2.8" height="22" fill="#5a3a1e"/><ellipse cx="70" cy="90" rx="7" ry="6" fill="#e85d2f"/><ellipse cx="70" cy="97" rx="8.5" ry="7" fill="#e85d2f"/><circle cx="70" cy="93" r="2" fill="#2b1608"/></g>`,
+      trumpet: pic('trumpet', 42, 76, 84),
+      guitar: pic('guitar', 50, 76, 86),
       keytar: `<g transform="rotate(-22 70 90)"><rect x="55" y="84" width="31" height="10" rx="3" fill="#9b6bff" stroke="#6a3fd0" stroke-width=".7"/><rect x="58" y="85.8" width="22" height="6.4" rx=".8" fill="#fff"/>` + [60.6, 63.4, 69, 71.8, 74.6].map(x => `<rect x="${x}" y="85.8" width="1.6" height="3.8" fill="#1f2230"/>`).join('') + [61.1, 64.2, 67.3, 70.4, 73.5, 76.6].map(x => `<path d="M${x + 1.4} 89.6 V92.2" stroke="#c9cfdb" stroke-width=".4"/>`).join('') + `<rect x="85.5" y="86.6" width="13" height="4.8" rx="1.6" fill="#2b2f3a"/><circle cx="82.5" cy="86.6" r=".9" fill="#ffd166"/><circle cx="82.5" cy="91" r=".9" fill="#3ccf9a"/></g>`,
       flute: `<g transform="rotate(-24 76 88)"><rect x="52" y="86.2" width="46" height="2.6" rx="1.3" fill="#dfe5ee" stroke="#7d879b" stroke-width=".5"/><ellipse cx="57" cy="85.9" rx="2" ry="1" fill="#7d879b"/>` + [66, 70, 74, 79, 83, 87, 91].map(x => `<circle cx="${x}" cy="87.5" r="1" fill="#7d879b"/>`).join('') + `</g>`,
       clarinet: `<rect x="68.9" y="57" width="2.2" height="5" rx=".8" fill="#2b2f3a"/><rect x="68.4" y="61.5" width="3.2" height="37" rx="1.2" fill="#1f2230"/><path d="M68.2 97.5 H71.8 L74.6 105 H65.4Z" fill="#1f2230"/><rect x="68" y="66" width="4" height="1" fill="#dfe5ee"/>` + [72, 77, 82, 88, 93].map(y => `<rect x="67.6" y="${y}" width="4.8" height=".9" fill="#dfe5ee"/><circle cx="72.2" cy="${y + 2}" r=".8" fill="#dfe5ee"/>`).join(''),
-      sax: `<path d="M63 62.5 Q71 59 72 67 L72 95 Q72 104.5 80 104.5 Q86.5 104.5 86.5 98 L86.5 93" fill="none" stroke="#f5c542" stroke-width="5.2" stroke-linecap="round"/><ellipse cx="86.5" cy="91.4" rx="4.6" ry="2.2" fill="#b8860b"/><rect x="60.6" y="61.6" width="3.4" height="2.2" rx=".8" fill="#1f2230"/>` + [71, 77, 83, 89].map(y => `<circle cx="72" cy="${y}" r="1.4" fill="#fff3b0" stroke="#b8860b" stroke-width=".4"/>`).join(''),
+      sax: pic('saxophone', 48, 76, 88),
       trombone: `<g fill="#f5c542" stroke="#b8860b" stroke-width=".4"><rect x="62" y="84.4" width="36" height="1.8" rx=".9"/><rect x="62" y="89.2" width="36" height="1.8" rx=".9"/><rect x="74" y="74" width="1.8" height="11"/><path d="M74.9 74.5 L88 69 Q90.5 75.5 88 82 L74.9 77.5Z"/></g><path d="M97.8 84.9 A2.6 2.6 0 0 1 97.8 90.6" fill="none" stroke="#f5c542" stroke-width="1.8"/>`,   // bell up front beside the slide
       horn: `<g fill="none" stroke="#f5c542"><circle cx="80" cy="89" r="8.2" stroke-width="2.6"/><circle cx="80" cy="89" r="4.6" stroke-width="1.7"/><path d="M71.5 89 H64" stroke-width="1.6"/></g><path d="M84.5 94.5 L95 101.5 Q98 95 94 90.5Z" fill="#f5c542" stroke="#b8860b" stroke-width=".5"/>` + [76.5, 79.5, 82.5].map(x => `<rect x="${x}" y="81.4" width="2" height="3.6" fill="#f5c542" stroke="#b8860b" stroke-width=".4"/>`).join(''),
       choir: `<g transform="rotate(-8 72 88)"><rect x="61" y="79.5" width="22" height="15" rx="1.6" fill="#1f2230"/><rect x="63" y="81.3" width="18" height="11.4" fill="#fff"/>` + [83.2, 85.4, 87.6, 89.8].map(y => `<path d="M64 ${y} H80" stroke="#9aa3b5" stroke-width=".4"/>`).join('') + [[67, 87.2], [71, 86.1], [75, 85], [78.5, 88.3]].map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="1.1" ry=".8" fill="#1f2230"/><path d="M${x + 1} ${y} V${y - 3.4}" stroke="#1f2230" stroke-width=".5"/>`).join('') + `</g>`,
-      violin: `<g><rect x="79.2" y="66.0" width="1.6" height="12.0" rx=".6" fill="#5e2c0c"/><circle cx="80.0" cy="65.2" r="1.5" fill="#5e2c0c"/><ellipse cx="80.0" cy="81.5" rx="5.0" ry="4.0" fill="#b0602a" stroke="#5e2c0c" stroke-width=".5"/><ellipse cx="80.0" cy="88.0" rx="6.0" ry="5.0" fill="#b0602a" stroke="#5e2c0c" stroke-width=".5"/><path d="M77.6 85.0 q.8 1.6 0 3.2 M82.4 85.0 q-.8 1.6 0 3.2" stroke="#5e2c0c" stroke-width=".5" fill="none"/><path d="M80.0 67.0 V92.0" stroke="#e8e2d0" stroke-width=".4"/></g>` + `<path d="M62 97 L94 70" stroke="#d9c49a" stroke-width="1" stroke-linecap="round"/><rect x="61" y="95.6" width="3.2" height="2" rx=".5" fill="#5e2c0c" transform="rotate(-40 62.6 96.6)"/>`,
+      violin: pic('violin', 42, 76, 82),
       viola: `<g><rect x="79.2" y="63.0" width="1.6" height="13.4" rx=".6" fill="#5e2c0c"/><circle cx="80.0" cy="62.2" r="1.7" fill="#5e2c0c"/><ellipse cx="80.0" cy="80.4" rx="5.6" ry="4.5" fill="#93461a" stroke="#5e2c0c" stroke-width=".5"/><ellipse cx="80.0" cy="87.6" rx="6.7" ry="5.6" fill="#93461a" stroke="#5e2c0c" stroke-width=".5"/><path d="M77.3 84.3 q.8 1.6 0 3.2 M82.7 84.3 q-.8 1.6 0 3.2" stroke="#5e2c0c" stroke-width=".5" fill="none"/><path d="M80.0 64.0 V92.1" stroke="#e8e2d0" stroke-width=".4"/></g>` + `<path d="M62 97 L94 70" stroke="#d9c49a" stroke-width="1" stroke-linecap="round"/><rect x="61" y="95.6" width="3.2" height="2" rx=".5" fill="#5e2c0c" transform="rotate(-40 62.6 96.6)"/>`,
       cello: { hand: `<path d="M62 97 L94 70" stroke="#d9c49a" stroke-width="1" stroke-linecap="round"/><rect x="61" y="95.6" width="3.2" height="2" rx=".5" fill="#5e2c0c" transform="rotate(-40 62.6 96.6)"/>`, side: `<g><path d="M84 112 V116" stroke="#7d879b" stroke-width="1"/><rect x="83" y="56" width="2" height="26" rx=".8" fill="#5e2c0c"/><circle cx="84" cy="55" r="2" fill="#5e2c0c"/><ellipse cx="84" cy="88" rx="8.5" ry="7.5" fill="#a0521d" stroke="#5e2c0c" stroke-width=".6"/><ellipse cx="84" cy="101" rx="10.5" ry="10" fill="#a0521d" stroke="#5e2c0c" stroke-width=".6"/><path d="M79.5 93 q1.2 2.4 0 4.8 M88.5 93 q-1.2 2.4 0 4.8" stroke="#5e2c0c" stroke-width=".7" fill="none"/><path d="M84 58 V106" stroke="#e8e2d0" stroke-width=".4"/><rect x="81" y="99" width="6" height="1.2" fill="#5e2c0c"/></g>` },   // stands beside the avatar
       bass: { hand: `<path d="M62 97 L94 70" stroke="#d9c49a" stroke-width="1" stroke-linecap="round"/><rect x="61" y="95.6" width="3.2" height="2" rx=".5" fill="#5e2c0c" transform="rotate(-40 62.6 96.6)"/>`, side: `<g><path d="M86 112 V117" stroke="#7d879b" stroke-width="1.1"/><rect x="85" y="34" width="2.2" height="40" rx=".9" fill="#5e2c0c"/><circle cx="86.1" cy="33" r="2.4" fill="#5e2c0c"/><ellipse cx="86" cy="80" rx="9.5" ry="9" fill="#8a4518" stroke="#5e2c0c" stroke-width=".6"/><ellipse cx="86" cy="97" rx="12" ry="12.5" fill="#8a4518" stroke="#5e2c0c" stroke-width=".6"/><path d="M81 88 q1.4 3 0 6 M91 88 q-1.4 3 0 6" stroke="#5e2c0c" stroke-width=".8" fill="none"/><path d="M86 36 V104" stroke="#e8e2d0" stroke-width=".45"/><rect x="82.5" y="96" width="7" height="1.3" fill="#5e2c0c"/></g>` },   // stands beside the avatar
@@ -1822,7 +1834,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     var on = draft[it.slot] === it.id, have = owns(it), t = trying && key(trying) === key(it);
     var tag = on ? '<span class="mav-tag on">Wearing</span>' : have ? '<span class="mav-tag">Yours</span>' : it.enc ? '<span class="mav-tag lock">🎭 ' + it.enc + '</span>' : it.lock ? '<span class="mav-tag lock">🔒</span>' : '<span class="mav-tag price">' + price(it) + '</span>';
     return '<button type="button" class="mav-item' + (on ? ' on' : '') + (t ? ' try' : '') + (it.lock && !have ? ' locked' : '') + '" data-item="' + key(it) + '" title="' + (it.lock && !have ? 'How to get it: ' + it.lock : it.name) + '">'
-      + '<span class="mav-ic" aria-hidden="true">' + it.ic + '</span><span class="mav-in">' + it.name + '</span>' + tag + '</button>';
+      + '<span class="mav-ic" aria-hidden="true">' + (it.art ? '<img src="' + ART + it.art + '.png" alt="" width="34" height="34" loading="lazy">' : it.ic) + '</span><span class="mav-in">' + it.name + '</span>' + tag + '</button>';
   }
   function itemsOf(slot){ return ITEMS.filter(function(it){ return it.slot === slot; }); }
   function tabHtml(){
