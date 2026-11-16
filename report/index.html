@@ -1215,6 +1215,13 @@ boot();
 .mav-right{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0}
 .mav-right h2{margin:0;font-size:22px}
 .mav-sub{margin:4px 0 10px;color:#a8b3d6}
+.mav-wallet{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 2px;font-size:14px}
+.mav-wallet span{background:#1d2547;border:1px solid #34407a;border-radius:999px;padding:4px 11px}
+.mav-wallet b{color:#ffd166}
+.mav-wallet .mav-soon{background:none;border:0;color:#7d88a8;padding:4px 0}
+.mav-pop{position:fixed;z-index:2147483000;transform:translateX(-50%);font:800 15px system-ui,sans-serif;text-shadow:0 1px 3px #000;pointer-events:none;animation:mav-up 1.3s ease-out forwards}
+@keyframes mav-up{from{opacity:1;transform:translate(-50%,0)}to{opacity:0;transform:translate(-50%,-34px)}}
+@media (prefers-reduced-motion:reduce){.mav-pop{animation:none;opacity:0}}
 .mav-rows{overflow:auto;flex:1;min-height:0;padding-right:4px}
 .mav-row{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid #26305a}
 .mav-lab{flex:0 0 108px;font-weight:700;font-size:13px;letter-spacing:.04em;color:#c8d0ee;padding-top:6px}
@@ -1236,7 +1243,9 @@ boot();
    Saved on this device (localStorage mtg_avatar_v1:<sid>) and, for signed-in students, in Firestore avatars/<class or none>_<sid>
    = { look, sid, updated_at }: one write a few seconds after Save, one read only on a device that has no copy yet. Guests get a
    random avatar for the visit, never saved. On localhost nothing is sent unless the address has ?avatar=1.
-   Later steps: coins and points, the Store, ranks, avatars on boards and reports, a class setting to turn avatars off. */
+   Step 2 (2026-11-16): coins (1 per minute of play, 60 a day) and points (right answer = level 1-9, +5 every 5 in a row, a run = 10 x level,
+   a test +50), shown in the builder and as a small pop; sent to the same doc as increments at most once a minute and when the page hides.
+   Later steps: the Store, ranks, avatars on boards and reports, a class setting to turn avatars off. */
 (function(){
   var me = document.currentScript, MOUNT = (me && me.getAttribute('data-mount')) || '.mtg-home';
   if (window.MTGAvatar) return;
@@ -1451,33 +1460,57 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     return out;
   }
   var P = who(), SID = P ? sidOf(P) : '', DOC = P ? (activeCode(P) || 'none') + '_' + SID : '', KEY = 'mtg_avatar_v1:' + SID;
-  var look = null, fresh = false;
-  if (P) { try { var raw = JSON.parse(localStorage.getItem(KEY) || 'null'); if (raw && raw.look) look = clean(raw.look); } catch(e){} }
+  var today = function(){ var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  // W = the wallet (build step 2): coins for playing (1 per active minute, 60 a day), points for doing well
+  var look = null, fresh = false, W = { coins: 0, points: 0, day: today(), dayCoins: 0 };
+  if (P) { try { var raw = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (raw && raw.look) look = clean(raw.look);
+    if (raw && raw.w) W = { coins: Math.max(0, +raw.w.coins || 0), points: Math.max(0, +raw.w.points || 0), day: String(raw.w.day || today()), dayCoins: Math.max(0, +raw.w.dayCoins || 0) };
+  } catch(e){} }
   if (!look) { look = randomLook(); fresh = !!P; }   // guests: a random avatar for this visit, never saved
 
   var FS = 'https://firestore.googleapis.com/v1/projects/rhythm-trainer-fc313/databases/(default)/documents/', FKEY = 'AIzaSyDU9vbCWJ4yWuD8bAX984DmQF4dvo13BHs';
   var LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && !/[?&]avatar=1\b/.test(location.search);
   function toFields(L){ var f = {}; Object.keys(L).forEach(function(k){ f[k] = typeof L[k] === 'number' ? { integerValue: String(L[k]) } : { stringValue: L[k] }; }); return f; }
   function fromFields(f){ var L = {}; Object.keys(f || {}).forEach(function(k){ var v = f[k]; L[k] = 'integerValue' in v ? +v.integerValue : v.stringValue; }); return L; }
-  function saveLocal(){ if (!P) return; try { localStorage.setItem(KEY, JSON.stringify({ look: look, at: Date.now() })); } catch(e){} }
-  var sendT = 0;
-  function sendOnline(){   // at most one write per change, a few seconds after the last tap; nothing per question
-    if (!P || LOCAL) return;
-    clearTimeout(sendT);
-    sendT = setTimeout(function(){
-      try {
-        fetch(FS.replace(/\/$/, '') + ':commit?key=' + FKEY, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ writes: [{ update: { name: FS.replace('https://firestore.googleapis.com/v1/', '') + 'avatars/' + DOC,
-            fields: { look: { mapValue: { fields: toFields(look) } }, sid: { stringValue: SID } } },
-            updateTransforms: [{ fieldPath: 'updated_at', setToServerValue: 'REQUEST_TIME' }] }] }) }).catch(function(){});
-      } catch(e){}
-    }, 3000);
+  function saveLocal(){ if (!P) return; try { localStorage.setItem(KEY, JSON.stringify({ look: look, w: W, at: Date.now() })); } catch(e){} }
+
+  // Online copy: earnings go up as increments (dCoins / dPoints not sent yet), so two computers can't overwrite each other.
+  // One write at most a minute (or a few seconds after Save), plus one when the page is hidden. Nothing per question.
+  var dCoins = 0, dPoints = 0, lookDirty = false, lastSend = 0, sendT = 0;
+  function sendNow(){
+    clearTimeout(sendT); sendT = 0;
+    if (!P || LOCAL || (!dCoins && !dPoints && !lookDirty)) return;
+    var c = Math.min(dCoins, 30), p = Math.min(dPoints, 600);   // the rules allow at most this much per write; the rest goes next time
+    var tf = [{ fieldPath: 'updated_at', setToServerValue: 'REQUEST_TIME' }];
+    if (c) tf.push({ fieldPath: 'coins', increment: { integerValue: String(c) } });
+    if (p) tf.push({ fieldPath: 'points', increment: { integerValue: String(p) } });
+    var fields = { look: { mapValue: { fields: toFields(look) } }, sid: { stringValue: SID }, coin_day: { stringValue: W.day }, coins_today: { integerValue: String(Math.min(60, W.dayCoins)) } };
+    dCoins -= c; dPoints -= p; lookDirty = false; lastSend = Date.now();
+    try {
+      fetch(FS.replace(/\/$/, '') + ':commit?key=' + FKEY, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ writes: [{ update: { name: FS.replace('https://firestore.googleapis.com/v1/', '') + 'avatars/' + DOC, fields: fields },
+          updateMask: { fieldPaths: Object.keys(fields) }, updateTransforms: tf }] }) })
+        .then(function(r){ if (!r.ok) { dCoins += c; dPoints += p; } }).catch(function(){ dCoins += c; dPoints += p; });   // try again next time
+    } catch(e){ dCoins += c; dPoints += p; }
   }
-  // a student new to this device: fetch their saved avatar once (another computer may have made it)
-  if (fresh && !LOCAL) {
+  function sendSoon(ms){ if (!sendT) sendT = setTimeout(sendNow, Math.max(ms, 60000 - (Date.now() - lastSend))); }
+  function sendOnline(){ lookDirty = true; clearTimeout(sendT); sendT = setTimeout(sendNow, 3000); }   // after Save
+  document.addEventListener('visibilitychange', function(){ if (document.hidden) sendNow(); });
+  addEventListener('pagehide', sendNow);
+
+  // once per visit (this tab): pick up the online look and totals (another computer may have earned or saved some)
+  var READ = 'mtg_avatar_read_v1:' + SID;
+  if (P && !LOCAL && (fresh || !sessionStorage.getItem(READ))) {
+    try { sessionStorage.setItem(READ, '1'); } catch(e){}
     try { fetch(FS + 'avatars/' + DOC + '?key=' + FKEY).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
-      var f = d && d.fields && d.fields.look && d.fields.look.mapValue && d.fields.look.mapValue.fields;
-      if (f) { look = clean(fromFields(f)); saveLocal(); drawAll(); }
+      var f = d && d.fields; if (!f) { if (fresh) { lookDirty = true; sendSoon(5000); } return; }
+      var lf = f.look && f.look.mapValue && f.look.mapValue.fields;
+      if (lf && fresh) look = clean(fromFields(lf));
+      var sc = f.coins ? +f.coins.integerValue : 0, sp = f.points ? +f.points.integerValue : 0;
+      W.coins = Math.max(W.coins, sc + dCoins); W.points = Math.max(W.points, sp + dPoints);   // online total + what this tab still has to send
+      if (f.coin_day && f.coin_day.stringValue === W.day) W.dayCoins = Math.max(W.dayCoins, +f.coins_today.integerValue || 0);
+      saveLocal(); drawAll();
     }).catch(function(){}); } catch(e){}
   }
   if (fresh && LOCAL) saveLocal();
@@ -1496,7 +1529,15 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   function drawAll(){
     corner.innerHTML = avatar(look, { crop: 1, label: 'Your avatar' });
     corner.dataset.idle = look.idle;
-    if (dlg && dlg.open) drawBig();
+    if (dlg && dlg.open) { drawBig(); drawWallet(); }
+  }
+  // a small "+12 ★" that floats up from the avatar
+  function pop(txt, color){
+    if (!corner.isConnected) return;
+    var r = corner.getBoundingClientRect(), p = document.createElement('div');
+    p.className = 'mav-pop'; p.textContent = txt; p.style.color = color;
+    p.style.left = (r.left + r.width / 2) + 'px'; p.style.top = (r.top - 2) + 'px';
+    document.body.appendChild(p); setTimeout(function(){ p.remove(); }, 1300);
   }
 
   // ---------- moves: right answer = happy move, miss = shrug (never sad), finished run = dance ----------
@@ -1505,10 +1546,43 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     clearTimeout(actT); delete corner.dataset.act; void corner.offsetWidth; corner.dataset.act = move;
     actT = setTimeout(function(){ delete corner.dataset.act; }, LEN[move] || 1000);
   }
+
+  // ---------- earning (signed-in students only) ----------
+  // Points: a right answer = 1 x level (1-9), +5 for every 5 in a row, a finished run = 10 x level, +50 more for a test.
+  // The level is the one the game reports with its runs (mapped to 1-9); before the first run of a visit it counts as 1.
+  // Coins: 1 for every minute of real play (answers less than 2 minutes apart), at most 60 a day.
+  var lvl = 1, streak = 0, playMs = 0, lastAns = 0, runPts = 0;
+  function earn(pts, coins){
+    if (!P) return;
+    if (W.day !== today()) { W.day = today(); W.dayCoins = 0; }
+    coins = Math.max(0, Math.min(coins, 60 - W.dayCoins));
+    if (!pts && !coins) return;
+    W.points += pts; W.coins += coins; W.dayCoins += coins; dPoints += pts; dCoins += coins;
+    saveLocal(); sendSoon(60000);
+    if (dlg && dlg.open) drawWallet();
+  }
   addEventListener('mtghist', function(e){
     var d = e.detail || {};
-    if (d.type === 'note') act(d.ok ? look.happy : look.aww);
-    else if (d.type === 'run') act(look.dance);
+    if (d.type === 'note') {
+      act(d.ok ? look.happy : look.aww);
+      var now = Date.now();
+      if (lastAns && now - lastAns < 120000) playMs += now - lastAns;
+      lastAns = now;
+      var coins = Math.floor(playMs / 60000); playMs -= coins * 60000;
+      var pts = 0;
+      if (d.ok) { streak++; pts = lvl + (streak % 5 === 0 ? 5 : 0); } else streak = 0;
+      runPts += pts;
+      earn(pts, coins);
+      if (coins && P) pop('+' + coins + ' 🪙', '#ffd166');
+    } else if (d.type === 'run') {
+      act(look.dance);
+      var r = d.r || {}, L = Math.round(+r.level || 0);
+      if (L > 0) lvl = Math.max(1, Math.min(9, L));
+      var bonus = 10 * lvl + (/[?&]test=/.test(location.search) ? 50 : 0);
+      earn(bonus, 0);
+      if (P) pop('+' + (runPts + bonus) + ' ★', '#7be0c3');
+      runPts = 0;
+    }
   });
 
   // ---------- the builder: tap the corner avatar ----------
@@ -1518,6 +1592,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     ['Hair', 'hair'], ['Hair color', 'hairC', 'swatch', HAIRC], ['Head covering', 'cover'], ['Glasses', 'glasses'],
     ['Top', 'top', 'list', TOPS], ['Top color', 'topC', 'swatch', TOPC], ['Pants', 'pantC', 'swatch', PANTC],
   ];
+  function drawWallet(){ var c = dlg.querySelector('.mav-c'), p = dlg.querySelector('.mav-p'); if (c) c.textContent = W.coins.toLocaleString(); if (p) p.textContent = W.points.toLocaleString(); }
   function drawBig(){ dlg.querySelector('.mav-big').innerHTML = avatar(draft, { label: 'Your avatar' }); dlg.querySelector('.mav-big').dataset.idle = draft.idle; }
   function rowsHtml(){
     return ROWS.map(function(r){
@@ -1544,10 +1619,11 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     dlg.innerHTML = '<div class="mav-wrap"><div class="mav-left"><div class="mav-big av"></div>'
       + '<button type="button" class="mav-btn ghost" data-do="try">▶ Try a move</button><button type="button" class="mav-btn ghost" data-do="random">🎲 Random</button></div>'
       + '<div class="mav-right"><h2>Make your avatar</h2>'
+      + (P ? '<div class="mav-wallet"><span title="Coins: 1 for every minute you play, up to 60 a day">🪙 <b class="mav-c"></b> coins</span><span title="Points: right answers and finished runs; harder levels pay more">★ <b class="mav-p"></b> points</span><span class="mav-soon">The Store opens soon</span></div>' : '')
       + (P ? '<p class="mav-sub">It shows in every game and reacts when you play.</p>' : '<p class="mav-sub">Guest avatar: <b>sign in to keep it</b>. It goes away when you close this page.</p>')
       + '<div class="mav-rows">' + rowsHtml() + '</div>'
       + '<div class="mav-acts"><button type="button" class="mav-btn ghost" data-do="close">Cancel</button><button type="button" class="mav-btn" data-do="save">Save</button></div></div></div>';
-    drawBig();
+    drawBig(); drawWallet();
     if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
   }
   corner.addEventListener('click', openBuilder);
@@ -1556,7 +1632,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   if (!start()) {
     var tries = 0, iv = setInterval(function(){ if (start() || ++tries > 40) clearInterval(iv); }, 250);   // pages that build their header late
   }
-  window.MTGAvatar = { look: function(){ return Object.assign({}, look); }, svg: function(o){ return avatar(look, o || {}); }, open: openBuilder };
+  window.MTGAvatar = { wallet: function(){ return { coins: W.coins, points: W.points }; }, look: function(){ return Object.assign({}, look); }, svg: function(o){ return avatar(look, o || {}); }, open: openBuilder };
 
 })();
 </script>
