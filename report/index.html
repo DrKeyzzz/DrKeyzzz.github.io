@@ -1263,6 +1263,13 @@ boot();
 .mav-try{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:10px 12px;border-radius:12px;background:#22294d;border:1px solid #ffc85c55;font-size:14px}
 .mav-need{color:#ffd166;font-weight:700}
 .mav-enc{left:1px;right:auto}
+.av[data-act=ovation] .root{animation:mav-bow 3s ease-in-out}.av[data-act=ovation] .head{animation:mav-bowh 3s ease-in-out}
+.av[data-act=ovation] .arm-l{animation:mav-ovl 3s ease-in-out}.av[data-act=ovation] .arm-r{animation:mav-ovr 3s ease-in-out}
+@keyframes mav-bow{0%,100%,45%,55%{transform:none}20%,30%,70%,80%{transform:translateY(5px) scaleY(.93)}}
+@keyframes mav-bowh{0%,100%,45%,55%{transform:none}20%,30%,70%,80%{transform:translateY(5px) rotate(18deg)}}
+@keyframes mav-ovl{0%,100%{transform:none}10%,90%{transform:rotate(70deg)}}@keyframes mav-ovr{0%,100%{transform:none}10%,90%{transform:rotate(-70deg)}}
+.mav-head{display:inline-block;vertical-align:middle;border-radius:50%;border:2px solid #7d88a8;overflow:hidden;background:#26305a;margin-right:6px;flex:none}
+.mav-head svg{width:100%;height:100%;display:block}
 .mav-rk{position:absolute;right:1px;top:1px;min-width:14px;height:14px;border-radius:7px;font:900 9px/14px system-ui,sans-serif;color:#141a30;text-align:center;padding:0 2px}
 .mav-rnow{margin:8px 0 0;font-size:16px}
 .mav-ladder{list-style:none;margin:8px 0;padding:0;display:flex;flex-direction:column;gap:4px}
@@ -1294,6 +1301,8 @@ boot();
    Step 4b (2026-11-16): mastery read from each game's own saves (see the mastery section), kept in mtg_mastery_v1:<sid>; unlocks rank gates
    and the Gold Piano Jacket, Detective Coat and Captain's Hat.
    Step 5a (2026-11-16): a teacher can turn avatars off for a class (classes/<code>.avatars_off, dashboard switch); checked once per tab.
+   Step 5b (2026-11-16): MTGAvatar.peer / .badge (classmates' avatars, rank sent as 'rank'); Encore items: Encore Jacket (1), Standing Ovation (2),
+   Spotlight (3), Golden Mic (4), Rainbow platform (5).
    Later steps: ranks, avatars on boards and reports, a class setting to turn avatars off. */
 (function(){
   var me = document.currentScript, MOUNT = (me && me.getAttribute('data-mount')) || '.mtg-home';
@@ -1346,6 +1355,9 @@ boot();
     {id:'rockstar',slot:'outfit',name:'Rock Star',ic:'🤘',c:200},{id:'hero',slot:'outfit',name:'Super Hero',ic:'⚡',p:600},{id:'astronaut',slot:'outfit',name:'Astronaut',ic:'🚀',p:900},
     {id:'robot',slot:'outfit',name:'Robot',ic:'🤖',p:1500},{id:'wizard',slot:'outfit',name:'Wizard',ic:'🧙',p:2000},
     {id:'step',slot:'idle',name:'Side step',ic:'👟',c:100},{id:'kick',slot:'happy',name:'Kick',ic:'🦵',c:45},{id:'kickstep',slot:'dance',name:'Kick Step',ic:'🦶',p:800},
+    // Encore-only items (step 5): yours after that many Encores
+    {id:'encjacket',slot:'top',name:'Encore Jacket',ic:'🎭',enc:1}, {id:'ovation',slot:'dance',name:'Standing Ovation',ic:'👏',enc:2},
+    {id:'spotlight',slot:'bg',name:'Spotlight',ic:'🔦',enc:3}, {id:'goldmic',slot:'gear',name:'Golden Mic',ic:'🎤',enc:4},
   ];
   let uid = 0;
 function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Math.max(0, Math.min(255, Math.round(((n >> s) & 255) * f))); return '#' + [16, 8, 0].map(s => c(s).toString(16).padStart(2, '0')).join(''); }
@@ -1356,6 +1368,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     for (var i = 0; i < n; i++) dots += '<circle cx="' + (50 + (i - (n - 1) / 2) * 6) + '" cy="114.2" r="1.2" fill="' + c + '"/>';
     if (r >= 9) sparkle = [[26, 106], [74, 107], [50, 117]].map(function(q){ var x = q[0], y = q[1]; return '<path d="M' + x + ' ' + (y - 3) + ' L' + (x + .8) + ' ' + (y - .8) + ' L' + (x + 3) + ' ' + y + ' L' + (x + .8) + ' ' + (y + .8) + ' L' + x + ' ' + (y + 3) + ' L' + (x - .8) + ' ' + (y + .8) + ' L' + (x - 3) + ' ' + y + ' L' + (x - .8) + ' ' + (y - .8) + 'Z" fill="#fff"/>'; }).join('');
     var e = W.encores || 0, ec = e ? encCol(e) : '', ring = e ? '<ellipse cx="50" cy="111" rx="28" ry="5.6" fill="none" stroke="' + ec + '" stroke-width="1.4" stroke-dasharray="3 2"/><text x="50" y="121.5" font-size="6" font-weight="800" text-anchor="middle" fill="' + ec + '">' + encMark(e) + '</text>' : '';
+    if (e >= 5) ring = '<defs><linearGradient id="mavrb" x1="0" x2="1"><stop offset="0" stop-color="#ff4d6d"/><stop offset=".25" stop-color="#ffb020"/><stop offset=".5" stop-color="#3ccf9a"/><stop offset=".75" stop-color="#4f7cff"/><stop offset="1" stop-color="#b07cff"/></linearGradient></defs><ellipse cx="50" cy="111" rx="30" ry="6.4" fill="none" stroke="url(#mavrb)" stroke-width="2.4"/>' + ring;   // Rainbow platform (5th Encore)
     return '<g class="plat">' + ring + '<ellipse class="plat-glow" cx="50" cy="111" rx="31" ry="7" fill="' + c + '" opacity="' + (r ? .5 : .2) + '"/><ellipse cx="50" cy="111" rx="24" ry="4.4" fill="' + c + '" fill-opacity=".22" stroke="' + c + '" stroke-width="1.4"/>' + dots + sparkle + '</g>';
   }
 
@@ -1372,7 +1385,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     else if (L.bg === 'stage') { defs += `<radialGradient id="${u}s" cx=".5" cy=".2" r=".9"><stop offset="0" stop-color="#a77bff"/><stop offset="1" stop-color="#1a1240"/></radialGradient>`; bg = `<rect ${B} fill="url(#${u}s)"/><path d="M20 0 L5 120 L35 120Z M80 0 L65 120 L95 120Z" fill="#fff" opacity=".12"/>`; }
     else if (L.bg === 'sunset') { defs += `<linearGradient id="${u}g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff9a5a"/><stop offset=".6" stop-color="#ff5f8f"/><stop offset="1" stop-color="#6a3cbc"/></linearGradient>`; bg = `<rect ${B} fill="url(#${u}g)"/><circle cx="50" cy="78" r="22" fill="#ffd36e" opacity=".8"/>`; }
     else if (L.bg === 'galaxy') { bg = `<rect ${B} fill="#0b0b2a"/>` + Array.from({length: 26}, (_, i) => `<circle cx="${(i * 37) % 96 + 2}" cy="${(i * 53) % 114 + 3}" r="${i % 3 ? .7 : 1.3}" fill="#fff" opacity="${.5 + (i % 4) / 8}"/>`).join('') + `<ellipse cx="70" cy="30" rx="22" ry="7" fill="#7c5cff" opacity=".35" transform="rotate(-25 70 30)"/>`; }
-    else if (L.bg === 'wreath') { defs += `<radialGradient id="${u}w"><stop offset="0" stop-color="#4a3800"/><stop offset="1" stop-color="#140f00"/></radialGradient>`; bg = `<rect ${B} fill="url(#${u}w)"/>` + Array.from({length: 16}, (_, i) => { const side = i < 8 ? 1 : -1, k = i % 8, a = Math.PI / 2 + side * (.45 + k * .33), x = 50 + 40 * Math.cos(a), y = 62 + 44 * Math.sin(a); return `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="5" ry="2.4" fill="#f5c542" transform="rotate(${(a * 180 / Math.PI + 90).toFixed(0)} ${x.toFixed(1)} ${y.toFixed(1)})"/>`; }).join(''); }
+    else if (L.bg === 'spotlight') { defs += `<radialGradient id="${u}p" cx=".5" cy=".95" r=".7"><stop offset="0" stop-color="#3a2a6a"/><stop offset="1" stop-color="#0b0820"/></radialGradient>`; bg = `<rect ${B} fill="url(#${u}p)"/><path d="M44 0 L56 0 L84 120 L16 120Z" fill="#fff6c8" opacity=".18"/><ellipse cx="50" cy="112" rx="34" ry="6" fill="#fff6c8" opacity=".22"/>`; }
+  else if (L.bg === 'wreath') { defs += `<radialGradient id="${u}w"><stop offset="0" stop-color="#4a3800"/><stop offset="1" stop-color="#140f00"/></radialGradient>`; bg = `<rect ${B} fill="url(#${u}w)"/>` + Array.from({length: 16}, (_, i) => { const side = i < 8 ? 1 : -1, k = i % 8, a = Math.PI / 2 + side * (.45 + k * .33), x = 50 + 40 * Math.cos(a), y = 62 + 44 * Math.sin(a); return `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="5" ry="2.4" fill="#f5c542" transform="rotate(${(a * 180 / Math.PI + 90).toFixed(0)} ${x.toFixed(1)} ${y.toFixed(1)})"/>`; }).join(''); }
     else if (o.crop) bg = `<rect ${B} fill="#26305a"/>`;
     const covered = L.cover !== 'none' && !OUT;
     // hair behind the head
@@ -1441,7 +1455,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       captain: `<path d="M29 27 Q30 10 50 10 Q70 10 71 27Z" fill="#fff"/><rect x="28" y="24" width="44" height="6" rx="2" fill="#1d2a52"/><path d="M34 30 Q50 37 66 30 L66 31.5 Q50 39 34 31.5Z" fill="#111"/><text x="50" y="22" font-size="9" text-anchor="middle" fill="#f5c542">⚓</text>`,
     };
     let hat = HT[L.hat] || '';
-    // clothes: torso + sleeves (upper and lower arm) + shoes
+    const star = (cx, cy, rr, f) => { let p = ''; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, q = i % 2 ? rr * .45 : rr; p += (i ? 'L' : 'M') + (cx + q * Math.cos(a)).toFixed(2) + ' ' + (cy + q * Math.sin(a)).toFixed(2); } return `<path d="${p}Z" fill="${f}"/>`; };
+  // clothes: torso + sleeves (upper and lower arm) + shoes
     let topFill = tc, sleeve = tc, fore = tc, shoe = '#f1f3f5', stripe = '#ff4d6d', extra = '';
     let torsoD = 'M34 64 Q34 57.5 42 57 L58 57 Q66 57.5 66 64 L66 92 L34 92Z';
     if (L.top === 'tee') { fore = sk; extra = `<path d="M45 57.2 Q50 62.5 55 57.2" fill="none" stroke="${shade(tc, .7)}" stroke-width="1.6"/>`; }
@@ -1450,10 +1465,10 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     if (L.top === 'varsity') { sleeve = fore = '#f1f3f5'; extra = `<text x="44" y="78" font-size="13" font-weight="900" fill="#fff">♪</text><path d="M34 88 H66" stroke="#fff" stroke-width="2"/>`; }
     if (L.top === 'band') { topFill = sleeve = fore = '#c92a2a'; extra = `<path d="M38 57 L62 90" stroke="#fff" stroke-width="3.5"/>` + [64, 71, 78, 85].map(y => `<circle cx="45" cy="${y}" r="1.4" fill="#f5c542"/>`).join(''); }
     if (L.top === 'goldpiano') { topFill = sleeve = fore = '#f5c542'; extra = `<rect x="34" y="84" width="32" height="8" fill="#fff"/>` + [37, 41, 48, 52, 56, 63].map(x => `<rect x="${x}" y="84" width="2" height="4.6" fill="#111"/>`).join('') + `<path d="M45 57 L50 66 L55 57" fill="none" stroke="#b8860b" stroke-width="1.4"/>`; }
-    if (L.top === 'detective') { topFill = sleeve = fore = '#b08a5a'; torsoD = 'M33 64 Q33 57.5 42 57 L58 57 Q67 57.5 67 64 L69 104 L31 104Z'; extra = `<path d="M43 57 L50 70 L57 57 L54 57 L50 64 L46 57Z" fill="#8a6a40"/><rect x="33" y="80" width="34" height="3.6" fill="#5a4026"/>`; }
+    if (L.top === 'encjacket') { topFill = sleeve = fore = '#5b2fb8'; extra = `<path d="M44 57 L50 70 L56 57Z" fill="#f5c542"/>` + [[39, 66], [60, 70], [42, 80], [58, 84], [47, 88]].map(([x, y]) => star(x, y, 1.8, '#ffe38a')).join('') + `<path d="M34 90 H66" stroke="#f5c542" stroke-width="1.6"/>`; }
+  if (L.top === 'detective') { topFill = sleeve = fore = '#b08a5a'; torsoD = 'M33 64 Q33 57.5 42 57 L58 57 Q67 57.5 67 64 L69 104 L31 104Z'; extra = `<path d="M43 57 L50 70 L57 57 L54 57 L50 64 L46 57Z" fill="#8a6a40"/><rect x="33" y="80" width="34" height="3.6" fill="#5a4026"/>`; }
     // full skins (costumes) replace the clothes
-    const star = (cx, cy, rr, f) => { let p = ''; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, q = i % 2 ? rr * .45 : rr; p += (i ? 'L' : 'M') + (cx + q * Math.cos(a)).toFixed(2) + ' ' + (cy + q * Math.sin(a)).toFixed(2); } return `<path d="${p}Z" fill="${f}"/>`; };
-    if (OUT) { extra = ''; torsoD = 'M34 64 Q34 57.5 42 57 L58 57 Q66 57.5 66 64 L66 92 L34 92Z'; if (!['rockstar', 'hero'].includes(OUT)) hat = ''; }
+      if (OUT) { extra = ''; torsoD = 'M34 64 Q34 57.5 42 57 L58 57 Q66 57.5 66 64 L66 92 L34 92Z'; if (!['rockstar', 'hero'].includes(OUT)) hat = ''; }
     if (OUT === 'astronaut') { topFill = sleeve = fore = '#eef1f6'; pc = '#e2e7ef'; shoe = '#cfd6e3'; stripe = '#ff8c42';
       behind = `<rect x="30" y="58" width="40" height="30" rx="6" fill="#c3cad8"/>`;
       extra = `<rect x="42" y="63" width="16" height="11" rx="2" fill="#cfd6e3"/><circle cx="46" cy="68.5" r="1.6" fill="#ff4d6d"/><circle cx="50" cy="68.5" r="1.6" fill="#3ccf9a"/><circle cx="54" cy="68.5" r="1.6" fill="#4f7cff"/><rect x="34" y="85" width="32" height="3" fill="#ff8c42"/>`;
@@ -1485,7 +1500,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       trumpet: `<path d="M70 88 L86 84 L86 92 Z" fill="#f5c542"/><rect x="62" y="86.5" width="10" height="3" rx="1" fill="#f5c542"/><circle cx="66" cy="85" r="1.3" fill="#b8860b"/>`,
       guitar: `<g transform="rotate(-35 70 88)"><rect x="68.6" y="62" width="2.8" height="22" fill="#5a3a1e"/><ellipse cx="70" cy="90" rx="7" ry="6" fill="#e85d2f"/><ellipse cx="70" cy="97" rx="8.5" ry="7" fill="#e85d2f"/><circle cx="70" cy="93" r="2" fill="#2b1608"/></g>`,
       keytar: `<g transform="rotate(-20 70 88)"><rect x="56" y="85" width="30" height="8" rx="2" fill="#9b6bff"/>` + [58, 61, 64, 67, 70, 73, 76].map(x => `<rect x="${x}" y="86.5" width="2.2" height="5" fill="#fff"/>`).join('') + `</g>`,
-      baton: `<path d="M70 88 L84 72" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><circle cx="70" cy="88" r="1.8" fill="#5a3a1e"/>`,
+      goldmic: `<rect x="68" y="86" width="3.2" height="10" rx="1.4" fill="#b8860b"/><circle cx="69.5" cy="85" r="4.2" fill="#f5c542" stroke="#fff3b0" stroke-width=".8"/>`,
+    baton: `<path d="M70 88 L84 72" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><circle cx="70" cy="88" r="1.8" fill="#5a3a1e"/>`,
     };
     const PT = {
       none: '',
@@ -1558,7 +1574,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   } catch(e){} }
   if (!look) { look = randomLook(); fresh = !!P; }   // guests: a random avatar for this visit, never saved
   function wearOwned(L){   // a paid item that isn't in this student's owned list goes back to the free default
-    ITEMS.forEach(function(it){ var k = it.slot + ':' + it.id; if (L[it.slot] === it.id && !it.free && W.owned.indexOf(k) < 0 && !(k === 'gear:baton' && rankNow() >= 8) && !(k === 'bg:wreath' && rankNow() >= 9) && !masteredGear(k)) L[it.slot] = DEF[it.slot]; });
+    ITEMS.forEach(function(it){ var k = it.slot + ':' + it.id; if (L[it.slot] === it.id && !it.free && W.owned.indexOf(k) < 0 && !(k === 'gear:baton' && rankNow() >= 8) && !(k === 'bg:wreath' && rankNow() >= 9) && !masteredGear(k) && !(it.enc && (W.encores || 0) >= it.enc)) L[it.slot] = DEF[it.slot]; });
     if (!ITEMS.some(function(it){ return it.slot === 'top' && it.id === L.top; })) L.top = DEF.top;
     return L;
   }
@@ -1648,7 +1664,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     if (p) tf.push({ fieldPath: 'points', increment: { integerValue: String(p) } });
     var fields = { look: { mapValue: { fields: toFields(look) } }, sid: { stringValue: SID }, coin_day: { stringValue: W.day }, coins_today: { integerValue: String(Math.min(60, W.dayCoins)) },
       owned: { arrayValue: { values: W.owned.slice(0, 300).map(function(k){ return { stringValue: k }; }) } },
-      encores: { integerValue: String(W.encores) }, encore_xp: { integerValue: String(Math.round(W.encXP)) } };
+      encores: { integerValue: String(W.encores) }, encore_xp: { integerValue: String(Math.round(W.encXP)) }, rank: { integerValue: String(rankNow()) } };
     dCoins -= c; dPoints -= p; lookDirty = false; lastSend = Date.now();
     try {
       fetch(FS.replace(/\/$/, '') + ':commit?key=' + FKEY, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' },
@@ -1710,7 +1726,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   }
 
   // ---------- moves: right answer = happy move, miss = shrug (never sad), finished run = dance ----------
-  var LEN = { hop: 700, fistpump: 800, spin: 800, shrug: 900, scratch: 1000, facepalm: 1100, kick: 800, kickstep: 3000, groove: 3000, wave: 3000, robot: 3000, disco: 3000, spinout: 3000 }, actT = 0;
+  var LEN = { ovation: 3000, hop: 700, fistpump: 800, spin: 800, shrug: 900, scratch: 1000, facepalm: 1100, kick: 800, kickstep: 3000, groove: 3000, wave: 3000, robot: 3000, disco: 3000, spinout: 3000 }, actT = 0;
   function act(move){
     clearTimeout(actT); delete corner.dataset.act; void corner.offsetWidth; corner.dataset.act = move;
     actT = setTimeout(function(){ delete corner.dataset.act; }, LEN[move] || 1000);
@@ -1750,7 +1766,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       var r = d.r || {}, L = Math.round(+r.level || 0);
       if (L > 0) lvl = Math.max(1, Math.min(9, L));
       var bonus = 10 * lvl + (/[?&]test=/.test(location.search) ? 50 : 0);
-      var r0 = rankNow(); addXP(25);
+      var r0 = rankNow(); addXP(25); if (rankNow() !== r0) lookDirty = true;
       setTimeout(function(){ var won = checkMastery() || []; if (won.length) { pop('🏆 ' + GNAME[won[0]] + ' mastered!', '#7af0ff'); drawAll(); } }, 1500);
       var r1 = rankNow();
       if (r1 > r0) { setTimeout(function(){ pop('🎉 ' + RANKS[r1][1] + '!', '#ffd166'); drawAll(); }, 900); }
@@ -1765,7 +1781,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   // Items with "lock" are earned by mastering a game (build step 4); until then they show the lock and how to get them.
   var key = function(it){ return it.slot + ':' + it.id; };
   var RANK_ITEMS = { 'gear:baton': 8, 'bg:wreath': 9 };   // rank index that unlocks them
-  var owns = function(it){ var k = key(it); return !!it.free || W.owned.indexOf(k) >= 0 || (RANK_ITEMS[k] != null && rankNow() >= RANK_ITEMS[k]) || masteredGear(k); };
+  var owns = function(it){ var k = key(it); return !!it.free || (it.enc && (W.encores || 0) >= it.enc) || W.owned.indexOf(k) >= 0 || (RANK_ITEMS[k] != null && rankNow() >= RANK_ITEMS[k]) || masteredGear(k); };
   var TABS = [['look', 'Look'], ['outfit', 'Skins'], ['clothes', 'Clothes'], ['hat', 'Hats'], ['gear', 'Gear'], ['moves', 'Moves'], ['bg', 'Backdrops'], ['pet', 'Pets'], ['rank', 'Rank']];
   var MOVE_SLOTS = [['idle', 'Standing still'], ['happy', 'Right answer'], ['aww', 'Missed one (never sad)'], ['dance', 'End of a run']];
   var LOOKROWS = [
@@ -1789,7 +1805,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   function price(it){ return it.c ? it.c + ' 🪙' : it.p ? it.p.toLocaleString() + ' ★' : ''; }
   function card(it){
     var on = draft[it.slot] === it.id, have = owns(it), t = trying && key(trying) === key(it);
-    var tag = on ? '<span class="mav-tag on">Wearing</span>' : have ? '<span class="mav-tag">Yours</span>' : it.lock ? '<span class="mav-tag lock">🔒</span>' : '<span class="mav-tag price">' + price(it) + '</span>';
+    var tag = on ? '<span class="mav-tag on">Wearing</span>' : have ? '<span class="mav-tag">Yours</span>' : it.enc ? '<span class="mav-tag lock">🎭 ' + it.enc + '</span>' : it.lock ? '<span class="mav-tag lock">🔒</span>' : '<span class="mav-tag price">' + price(it) + '</span>';
     return '<button type="button" class="mav-item' + (on ? ' on' : '') + (t ? ' try' : '') + (it.lock && !have ? ' locked' : '') + '" data-item="' + key(it) + '" title="' + (it.lock && !have ? 'How to get it: ' + it.lock : it.name) + '">'
       + '<span class="mav-ic" aria-hidden="true">' + it.ic + '</span><span class="mav-in">' + it.name + '</span>' + tag + '</button>';
   }
@@ -1818,6 +1834,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     if (note) return '<div class="mav-try"><span>' + note + '</span></div>';
     if (!trying || owns(trying)) return '';
     var it = trying;
+    if (it.enc) return '<div class="mav-try"><b>' + it.ic + ' ' + it.name + '</b> is yours after Encore ' + encMark(it.enc) + ' (reach the top rank and take a bow).</div>';
     if (it.lock) return '<div class="mav-try"><b>' + it.ic + ' ' + it.name + '</b> is earned, not bought: ' + it.lock + '.</div>';
     if (!P) return '<div class="mav-try"><b>' + it.ic + ' ' + it.name + '</b> · ' + price(it) + '. Sign in to earn coins and points and buy it.</div>';
     var have = it.c ? W.coins : W.points, need = (it.c || it.p) - have;
@@ -1901,7 +1918,36 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     if (off) { OFF = true; P = null; corner.remove(); return; }   // P = null: no earning, no saving
     if (!start()) { var tries = 0, iv = setInterval(function(){ if (start() || ++tries > 40) clearInterval(iv); }, 250); }   // pages that build their header late
   });
-  window.MTGAvatar = { off: function(){ return OFF; }, signedIn: function(){ return !!P; }, rank: function(){ return P ? { n: rankNow() + 1, name: RANKS[rankNow()][1], encores: W.encores || 0 } : null; },
+  // ---------- classmates' avatars (step 5): for class boards and the teacher's view ----------
+  // MTGAvatar.peer(code, sid) -> Promise of { look, rank, encores } or null. One read per student per tab, kept 10 minutes in
+  // sessionStorage (mtg_avatar_peer_v1:<doc>); reads of the same student at once share one request.
+  var peerWait = {};
+  function peer(code, sid){
+    sid = String(sid || '').toLowerCase().replace(/[^a-z]/g, '').slice(0, 16); if (!sid) return Promise.resolve(null);
+    var doc = (code || 'none') + '_' + sid, k = 'mtg_avatar_peer_v1:' + doc, c = null;
+    try { c = JSON.parse(sessionStorage.getItem(k) || 'null'); } catch(e){}
+    if (c && Date.now() - c.at < 600000) return Promise.resolve(c.v);
+    if (peerWait[doc]) return peerWait[doc];
+    return peerWait[doc] = fetch(FS + 'avatars/' + doc + '?key=' + FKEY).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
+      var f = d && d.fields, v = null;
+      if (f && f.look && f.look.mapValue) v = { look: clean(fromFields(f.look.mapValue.fields)), rank: f.rank ? Math.max(0, Math.min(9, +f.rank.integerValue || 0)) : 0, encores: f.encores ? +f.encores.integerValue || 0 : 0 };
+      try { sessionStorage.setItem(k, JSON.stringify({ at: Date.now(), v: v })); } catch(e){}
+      delete peerWait[doc]; return v;
+    }).catch(function(){ delete peerWait[doc]; return null; });
+  }
+  // MTGAvatar.badge(el, code, sid, size): puts a small round head (with the rank color ring) at the start of el. Does nothing for
+  // students without an avatar, or when avatars are off for the viewer's class.
+  function badge(el, code, sid, size){
+    if (!el || OFF) return; size = size || 26;
+    peer(code, sid).then(function(v){
+      if (!v || !el.isConnected || el.querySelector(':scope > .mav-head')) return;
+      var h = document.createElement('span'); h.className = 'mav-head';
+      h.style.cssText = 'width:' + size + 'px;height:' + size + 'px;border-color:' + tier(v.rank) + (v.encores ? ';box-shadow:0 0 0 2px ' + encCol(v.encores) : '');
+      h.title = RANKS[v.rank][1] + (v.encores ? ' · Encore ' + encMark(v.encores) : '');
+      h.innerHTML = avatar(v.look, { crop: 1, label: 'Avatar' }); el.insertBefore(h, el.firstChild);
+    });
+  }
+  window.MTGAvatar = { peer: peer, badge: badge, off: function(){ return OFF; }, signedIn: function(){ return !!P; }, rank: function(){ return P ? { n: rankNow() + 1, name: RANKS[rankNow()][1], encores: W.encores || 0 } : null; },
     wallet: function(){ return { coins: W.coins, points: W.points }; }, look: function(){ return Object.assign({}, look); }, svg: function(o){ o = o || {}; if (o.rank == null && P) o.rank = rankNow(); return avatar(look, o); }, open: openBuilder };
 
 })();
