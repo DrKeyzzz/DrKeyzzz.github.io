@@ -222,6 +222,12 @@
   #views button[aria-pressed="true"] { background: var(--gc); border-color: var(--gc); color: #10131a; box-shadow: 0 0 0 3px rgba(255,255,255,.08), 0 6px 18px -6px var(--gc); }
   #views button.adm { border-color: rgba(255,200,92,.45); border-style: dashed; }
   #views button.adm::after { content: 'Admin only'; position: absolute; top: -8px; left: 50%; transform: translateX(-50%); padding: 1px 6px 0; border-radius: 999px; background: var(--bg); color: var(--gold); font-size: 9px; letter-spacing: .1em; white-space: nowrap; }
+  .vtip { position: absolute; z-index: 50; max-width: 260px; padding: 8px 11px 7px; border-radius: 10px; background: #0b111c; border: 1px solid var(--gc); color: var(--text); font: 600 13px/1.35 var(--f-ui); box-shadow: 0 8px 24px rgba(0,0,0,.45); pointer-events: none; }
+  .vtip b { display: block; margin-top: 4px; color: var(--gold); font-weight: 700; }
+  .bdswitch { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
+  .bdswitch button { font: 700 14px var(--f-ui); color: var(--text); background: var(--bg); border: 1px solid #33445f; border-radius: 999px; padding: 9px 16px 7px; cursor: pointer; }
+  .bdswitch button[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: #10131a; }
+  .bdswitch .nb { display: inline-block; min-width: 18px; margin-left: 6px; padding: 1px 5px 0; border-radius: 999px; background: #c0392b; color: #fff; font-size: 12px; }
   #views button .rq, #views button .nb { position: absolute; top: 5px; right: 6px; margin: 0; }
   @media (prefers-reduced-motion: reduce) { #views button { transition: none; } #views button:hover { transform: none; } }
   /* Admin tab pulses (admin only) while teacher requests are waiting */
@@ -434,16 +440,16 @@
           <option value="0">All time</option>
         </select></label>
         <div class="seg" id="views" role="group" aria-label="What to show">
-          <button type="button" data-v="progress" aria-pressed="true"><span class="ti" aria-hidden="true">📈</span><span class="tl">Progress</span></button>
-          <button type="button" data-v="scores" aria-pressed="false"><span class="ti" aria-hidden="true">🏆</span><span class="tl">Scores</span></button>
-          <button type="button" data-v="grades" aria-pressed="false"><span class="ti" aria-hidden="true">📋</span><span class="tl">Assignments</span></button>
-          <button type="button" data-v="tests" aria-pressed="false"><span class="ti" aria-hidden="true">📝</span><span class="tl">Tests</span></button>
-          <button type="button" data-v="live" aria-pressed="false" hidden title="Ask the class questions live (Live Class)"><span class="ti" aria-hidden="true">📡</span><span class="tl">Live questioning</span></button>
-          <button type="button" data-v="messages" aria-pressed="false"><span class="ti" aria-hidden="true">✉️</span><span class="tl">Messages</span><span class="rq" id="msgcount" hidden></span></button>
-          <button type="button" data-v="board" aria-pressed="false"><span class="ti" aria-hidden="true">📌</span><span class="tl">Board</span><span class="nb" id="boardcount" hidden></span></button>
-          <button type="button" data-v="activity" aria-pressed="false" hidden title="Who is playing: visits from your students"><span class="ti" aria-hidden="true">👀</span><span class="tl">Activity</span></button>
-          <button type="button" data-v="feedback" aria-pressed="false" hidden class="adm" title="Notes students and guests send from the Feedback button in every game"><span class="ti" aria-hidden="true">💬</span><span class="tl">Feedback</span></button>
-          <button type="button" data-v="admin" aria-pressed="false" hidden class="adm"><span class="ti" aria-hidden="true">🛡️</span><span class="tl">Admin</span><span class="rq" id="rqcount" hidden></span></button>
+          <button type="button" data-v="progress" data-tip="How much each student practiced: answers, accuracy and minutes in every game" aria-pressed="true"><span class="ti" aria-hidden="true">📈</span><span class="tl">Progress</span></button>
+          <button type="button" data-v="scores" data-tip="Best scores and levels your students reached in each game" aria-pressed="false"><span class="ti" aria-hidden="true">🏆</span><span class="tl">Scores</span></button>
+          <button type="button" data-v="grades" data-tip="Make, edit and grade practice assignments for your classes" aria-pressed="false"><span class="ti" aria-hidden="true">📋</span><span class="tl">Assignments</span></button>
+          <button type="button" data-v="tests" data-tip="Create tests, open or close them, and see every student's result" aria-pressed="false"><span class="ti" aria-hidden="true">📝</span><span class="tl">Tests</span></button>
+          <button type="button" data-v="live" data-tip="Ask your class questions live; answers show up on your screen as students reply" aria-pressed="false" hidden><span class="ti" aria-hidden="true">📡</span><span class="tl">Live questioning</span></button>
+          <button type="button" data-v="messages" hidden data-tip="Messages between you and your students (coming soon)" aria-pressed="false"><span class="ti" aria-hidden="true">✉️</span><span class="tl">Messages</span><span class="rq" id="msgcount" hidden></span></button>
+          <button type="button" data-v="board" data-tip="Teacher Board: share ideas with every teacher, plus your private chat with Music Theory Academy support" aria-pressed="false"><span class="ti" aria-hidden="true">📌</span><span class="tl">Board</span><span class="nb" id="boardcount" hidden></span></button>
+          <button type="button" data-v="activity" data-tip="Who is playing right now and lately: visits from your students" aria-pressed="false" hidden><span class="ti" aria-hidden="true">👀</span><span class="tl">Activity</span></button>
+          <button type="button" data-v="feedback" data-tip="Every note students and guests send from the Feedback button in the games (only you see this)" aria-pressed="false" hidden class="adm"><span class="ti" aria-hidden="true">💬</span><span class="tl">Feedback</span></button>
+          <button type="button" data-v="admin" data-tip="Teacher requests, access and site-wide numbers (only you see this)" aria-pressed="false" hidden class="adm"><span class="ti" aria-hidden="true">🛡️</span><span class="tl">Admin</span><span class="rq" id="rqcount" hidden></span></button>
         </div>
         <span class="grow"></span>
         <button class="btn ghost sm" type="button" id="csv">Download CSV</button>
@@ -489,6 +495,7 @@
         <p class="note" id="note"></p>
       </div>
       <div id="gradelist2" class="glist" hidden></div>
+      <div class="bdswitch" id="bdswitch" role="group" aria-label="Board sections" hidden></div>
       <div id="msgview" hidden></div>
       <div id="boardview" hidden></div>
       <div id="liveview" hidden><iframe id="lframe" title="Live Class" style="width:100%;border:0;min-height:760px;margin-top:6px;background:transparent"></iframe></div>
@@ -992,8 +999,8 @@ function render() {
   syncLive(); syncAct();
   const g = G[S.game]; document.documentElement.style.setProperty('--gc', g.color);
   document.querySelectorAll('.gt').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.g === S.game)));
-  document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (S.view === 'newtest' && b.dataset.v === 'tests') || (S.view === 'assign' && b.dataset.v === 'grades'))));
-  const social = S.view === 'messages' || S.view === 'board' || S.view === 'live';
+  document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (S.view === 'messages' && b.dataset.v === 'board') || (S.view === 'newtest' && b.dataset.v === 'tests') || (S.view === 'assign' && b.dataset.v === 'grades'))));
+  const social = S.view === 'messages' || S.view === 'board' || S.view === 'live'; bdSwitch();
   $('msgview').hidden = S.view !== 'messages'; $('boardview').hidden = S.view !== 'board'; $('liveview').hidden = S.view !== 'live'; document.querySelector('footer').hidden = social; $('games').hidden = social; syncHash();
   if (social) {
     ['upbox', 'actbox', 'adminsum', 'adminacc', 'data', 'gradebar', 'gradelist', 'gradelist2', 'assignbox', 'testsbox', 'newtestbox', 'csv'].forEach(id => { $(id).hidden = true; });
@@ -1014,7 +1021,7 @@ function render() {
   if (gv) { $('aout').closest('label').hidden = !S.gradeA; if (S.gradeA) $('aout').value = aOut(S.classes.find(x => x.code === S.code), S.gradeA); }
   $('data').hidden = asg || nt || tpg || (gv && !S.gradeA); $('assignbox').hidden = !asg; $('testsbox').hidden = !ts; $('newtestbox').hidden = !nt; $('csv').hidden = asg || nt || tpg || (gv && !S.gradeA);
   $('cls').closest('label').hidden = asg || ad || av || S.view === 'feedback'; $('rng').closest('label').hidden = asg || nt || ts;
-  document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (nt && b.dataset.v === 'tests') || (asg && b.dataset.v === 'grades'))));
+  document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (S.view === 'messages' && b.dataset.v === 'board') || (nt && b.dataset.v === 'tests') || (asg && b.dataset.v === 'grades'))));
   if (asg) { showAssign(); return; }
   if (nt) { showNewTest(); return; }
   if (ts) { renderUpcoming(); renderTestsBox(); } else if (S.view === 'grades' || S.view === 'progress') renderUpcoming();
@@ -1228,7 +1235,7 @@ async function checkRequests() {
   const b = $('views').querySelector('[data-v=admin]'), n = S.requests.length;
   b.classList.toggle('waiting', n > 0);
   $('rqcount').hidden = !n; $('rqcount').textContent = n;
-  b.title = n ? `${n} teacher request${n > 1 ? 's' : ''} waiting` : '';
+  b.dataset.note = n ? `${n} teacher request${n > 1 ? 's' : ''} waiting` : '';
   if (S.view === 'admin') renderAccess();
 }
 const validEmail = v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
@@ -1693,20 +1700,39 @@ async function loadMe() {
   S.me = { name: String((d && d.name) || (amAdmin() ? 'Music Theory Academy Support' : S.email.split('@')[0])).slice(0, 60), school: String((d && d.school) || '').slice(0, 80) };
   return S.me;
 }
+// Since 2026-11-16 the private support chat (internal view 'messages') lives under the Board tile, so the Board tile shows
+// both counts; the switch at the top of Board shows each one. The Messages tile is kept for student messages (not built yet).
 function setBadge(v, n) {
-  const b = $('views').querySelector(`[data-v=${v}]`), c = $(v === 'messages' ? 'msgcount' : 'boardcount');
-  c.hidden = !n; c.textContent = n > 99 ? '99+' : String(n);
-  b.classList.toggle('waiting', n > 0);   // Messages and Board both pulse while something is new
-  (S.newCounts = S.newCounts || {})[v] = n; newsBar();
-  b.title = n ? (v === 'messages' ? `${n} unread message${n > 1 ? 's' : ''}` : `${n} new on the Board since your last visit`) : '';
+  (S.newCounts = S.newCounts || {})[v] = n;
+  const m = S.newCounts.messages || 0, bd = S.newCounts.board || 0, t = m + bd, b = $('views').querySelector('[data-v=board]'), c = $('boardcount');
+  c.hidden = !t; c.textContent = t > 99 ? '99+' : String(t);
+  b.classList.toggle('waiting', t > 0);
+  b.dataset.note = [m ? `${m} unread private message${m > 1 ? 's' : ''}` : '', bd ? `${bd} new on the Board` : ''].filter(Boolean).join(' · ');
+  newsBar(); bdSwitch();
+}
+// the two sections of Board: All teachers (view 'board') and Private with support (view 'messages')
+function bdSwitch() {
+  const el = $('bdswitch'); if (!el) return;
+  const on = S.view === 'messages' || S.view === 'board'; el.hidden = !on; if (!on) return;
+  const c = S.newCounts || {}, n = k => c[k] ? ` <span class="nb">${c[k] > 99 ? '99+' : c[k]}</span>` : '';
+  el.innerHTML = `<button type="button" data-go="board" aria-pressed="${S.view === 'board'}">📌 All teachers${n('board')}</button>`
+    + `<button type="button" data-go="messages" aria-pressed="${S.view === 'messages'}">🔒 Private with support${n('messages')}</button>`;
 }
 // A line under "Signed in as" that says what's new and jumps to it (hidden when nothing is new)
+const vtip = { t: 0 };
+function vtipShow(b) {
+  let el = $('vtip'); if (!el) { document.body.insertAdjacentHTML('beforeend', '<div id="vtip" class="vtip" role="tooltip" hidden></div>'); el = $('vtip'); }
+  el.innerHTML = esc(b.dataset.tip) + (b.dataset.note ? `<b>${esc(b.dataset.note)}</b>` : ''); el.hidden = false;
+  const r = b.getBoundingClientRect(), w = el.offsetWidth, x = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2));
+  el.style.left = x + scrollX + 'px'; el.style.top = r.bottom + scrollY + 8 + 'px'; b.setAttribute('aria-describedby', 'vtip');
+}
+function vtipHide() { clearTimeout(vtip.t); const el = $('vtip'); if (el) el.hidden = true; document.querySelectorAll('#views [aria-describedby]').forEach(b => b.removeAttribute('aria-describedby')); }
 function newsBar() {
   let bar = $('newsbar');
   if (!bar) { $('who').closest('.who').insertAdjacentHTML('afterend', '<div id="newsbar" class="newsbar" role="status" hidden></div>'); bar = $('newsbar');
     bar.onclick = e => { const t = e.target.closest('[data-go]'); if (t) $('views').querySelector(`[data-v=${t.dataset.go}]`).click(); }; }
   const c = S.newCounts || {}, m = c.messages || 0, b = c.board || 0, parts = [];
-  if (m) parts.push(`<button type="button" class="btn sm" data-go="messages">✉ ${m} new message${m > 1 ? 's' : ''}</button>`);
+  if (m) parts.push(`<button type="button" class="btn sm" data-go="messages">🔒 ${m} new private message${m > 1 ? 's' : ''}</button>`);
   if (b) parts.push(`<button type="button" class="btn sm" data-go="board">📌 ${b} new on the Board</button>`);
   bar.innerHTML = parts.length ? '<span>📬 New for you:</span> ' + parts.join(' ') : ''; bar.hidden = !parts.length;
 }
@@ -2178,7 +2204,13 @@ function wire() {
     if (e.target.closest('#tpback')) { S.teacher = ''; S.tp = null; render(); return; }
     const t = e.target.closest('[data-teacher]'); if (t) openTeacher(t.dataset.teacher);
   };
-  $('views').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.view = b.dataset.v; load(); };
+  $('views').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.view = b.dataset.v; vtipHide(); load(); };
+  $('bdswitch').onclick = e => { const b = e.target.closest('[data-go]'); if (!b || S.view === b.dataset.go) return; S.view = b.dataset.go; load(); };
+  // hover pop-ups on the tiles (2026-11-16): a small bubble under the tile after a short rest; none on touch screens
+  $('views').addEventListener('pointerover', e => { const b = e.target.closest('button[data-tip]'); if (!b || e.pointerType === 'touch') return; clearTimeout(vtip.t); vtip.t = setTimeout(() => vtipShow(b), 350); });
+  $('views').addEventListener('pointerout', e => { const b = e.target.closest('button[data-tip]'); if (b && !b.contains(e.relatedTarget)) vtipHide(); });
+  $('views').addEventListener('focusin', e => { const b = e.target.closest('button[data-tip]'); if (b && b.matches(':focus-visible')) vtipShow(b); });
+  $('views').addEventListener('focusout', vtipHide);
   $('cls').onchange = () => { if (S.view === 'assign') S.view = 'grades'; S.gradeOpen = undefined; S.code = $('cls').value; if (S.code === WORLD) { if (!['scores', 'admin'].includes(S.view)) S.view = 'scores'; } else S.lastCode = S.code; load(); };
   $('rng').onchange = load;
   const gclick = e => { const b = e.target.closest('[data-ga]'); if (!b) return; const a = S.gradeList[+b.dataset.ga]; S.gradeOpen = S.gradeA && aKey(S.gradeA) === aKey(a) ? '' : aKey(a); load(); };
