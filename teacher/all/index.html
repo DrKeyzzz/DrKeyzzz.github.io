@@ -279,6 +279,10 @@
   .up .w { font-weight: 700; min-width: 190px; }
   .up .k { font: 700 11px var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-left: 8px; }
   .up .s { color: var(--muted); font-size: 13px; margin-left: auto; }
+  .up li { display: flex; gap: 6px; align-items: stretch; } .up li button { flex: 1; width: auto; }
+  .upv, .gprev a { display: inline-flex; align-items: center; gap: 6px; font: 700 13px var(--f-ui); color: var(--text); text-decoration: none; background: var(--bg); border: 1px solid var(--gold); border-radius: 10px; padding: 6px 12px; white-space: nowrap; }
+  .upv:hover, .gprev a:hover, .upv:focus-visible, .gprev a:focus-visible { background: var(--gold); color: #111; }
+  .gprev { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: -2px 0 4px 26px; font: 600 13px var(--f-ui); color: var(--muted); }
   .note { font-size: 15px; color: var(--muted); margin: 12px 0 0; }
   .fbtext { white-space: normal; min-width: 260px; max-width: 520px; }
   .x { font: 700 14px var(--f-ui); border: 1px solid var(--card-border); background: transparent; color: var(--muted); border-radius: 999px; padding: 4px 11px 2px; cursor: pointer; }
@@ -608,6 +612,25 @@ const dayList = (a, b) => { const out = []; for (let d = new Date(a + 'T12:00:00
 const taskName = t => { const g = G[t.game], keys = t.game === 'scale' && t.settings && Array.isArray(t.settings.keys) ? t.settings.keys : [], sk = [].concat(t.skills || t.skill || []).filter(Boolean);
   const ksl = t.game === 'scale' && t.settings && t.settings.ksLevel >= 1 ? t.settings.ksLevel : 0;   // Scale Quest key signature ladder
   return `${g ? g.name : 'Any game'}${ksl ? ': Key signatures, level ' + ksl : keys.length ? ': ' + keys.join(', ') : sk.length ? ': ' + sk.join(', ') : ''}`; };
+// Preview (David, 2026-11-15): open each task the way the student's home page card does (hub index.html taskLink), so a teacher
+// can try an assignment before it starts. Same ?settings=<base64url JSON> and &focus=<skill> links; 'Any game' tasks have no link.
+const P_FOCUS = {
+  scale: lab => /(major|minor|Dorian|Phrygian|Lydian|Mixolydian|Aeolian|Locrian)$/.test(lab) || /^(Tonic|Supertonic|Mediant|Subdominant|Dominant|Submediant|Leading Tone)$/.test(lab),
+  rhythm: lab => /^(Quarters & eighths|Sixteenths|Dotted rhythms|Rests|Syncopation|Compound beat|Triplets|Hemiola & duplets)$/.test(lab) || / (level|time)$/.test(lab),
+  tidal: lab => /^(Treble|Bass|Alto) clef notes$|^Ledger lines$|^Intervals$|^[A-G][♯♭]?\d|^([MmPAd][2-8]|2nd|3rd|[4-7]th|Octave)$/.test(lab),
+  earshot: lab => /^(Minor|Major|Perfect|Augmented|Diminished) (unison|2nd|3rd|4th|5th|6th|7th|octave)$|^Tritone$|^Octave$/.test(lab),
+  brainwaves: lab => Object.keys(BW_AREA_ID).includes(lab.split(' · ')[0]),
+  rooftop: lab => /^(Sixteenth triplets|Syncopation|Eighth notes|Quarter notes|Dotted quarters|Half notes|Dotted halves|Whole notes|Sixteenth notes|Dotted eighths|Triplets)$/.test(lab),
+};
+const p64 = o => { let bin = ''; new TextEncoder().encode(JSON.stringify(o)).forEach(b => { bin += String.fromCharCode(b); }); return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+function previewLink(t) {
+  const g = G[t.game]; if (!g || !g.url) return '';
+  const one = !(Array.isArray(t.skills) && t.skills.length > 1) && t.skill, focus = one && P_FOCUS[g.id] && P_FOCUS[g.id](t.skill);
+  if (!t.settings) return focus ? `${g.url}?focus=${encodeURIComponent(t.skill)}` : g.url;
+  return `${g.url}?settings=${p64(t.settings)}${focus ? '&focus=' + encodeURIComponent(t.skill) : ''}`;
+}
+const previewBtns = (a, cls = '') => (a.tasks || []).map(t => [t, previewLink(t)]).filter(x => x[1]).map(([t, u]) =>
+  `<a${cls ? ` class="${cls}"` : ''} href="${esc(u)}" target="_blank" rel="noopener" title="Opens ${esc(taskName(t))} with this assignment's settings, the way students will see it">▶ ${a.tasks.length > 1 || !cls ? esc(taskName(t)) : 'Preview'}</a>`).join('');
 function taskCount(t, recs) {   // recs: one student's practice records in the date range
   const mine = recs.filter(r => t.game === 'any' || r.game === t.game);
   if (t.unit === 'minutes') return { done: Math.round(mine.reduce((a, r) => a + r.minutes, 0)), right: null, all: null };
@@ -645,6 +668,7 @@ function gradePick() {
     lvAreas(t).map(a => ({ k: `lv${i}_${a}`, h: `${BW_AREA_NAME[a]}: level reached`, t: 'n', num: 1, f: r => r[`lv${i}_${a}`] ? `Level ${r[`lv${i}_${a}`]} of ${BW_LEVELS[a]}` : '<span style="opacity:.55">no test run</span>' })))),
     [{ k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) }, { k: 'grade', h: 'Grade', t: 'n', num: 1, f: r => `<b>${r.grade}%</b>` }, { k: 'points', h: 'Points', t: 's', num: 1, f: r => gradeCell(r.points) }, { k: 'status', h: 'Status', t: 's', f: r => r.grade >= 100 ? '<b style="color:#2fbf71">✓ Done</b>' : r.status }, { k: 'dateMs', h: 'Last practiced', t: 'n', f: r => esc(fmtDate(r.dateMs)) }]);
 }
+const PREVIEW_NOLINK = a => !previewBtns(a);
 function renderGradeList() {
   const today = ymd(new Date()), open = S.gradeA ? aKey(S.gradeA) : '';
   const item = (a, i) => { const on = aKey(a) === open, st = a.ended_ms || !current || aKey(current) !== aKey(a) || a.end < today ? ['Ended', 'end'] : a.start > today ? ['Upcoming', 'up'] : ['Now', 'now'];
@@ -656,7 +680,7 @@ function renderGradeList() {
   const current = (S.classes.find(c => c.code === S.code) || {}).hub_assignment;
   $('aend').disabled = PREVIEW || !!S.assignmentBusy || !S.gradeA || !current || aKey(current) !== open || !!current.ended_ms || current.end < today;
   const L = S.gradeList || [], at = L.findIndex(a => aKey(a) === open);
-  $('gradelist').innerHTML = L.length ? L.slice(0, at < 0 ? L.length : at + 1).map(item).join('') : '<p class="count">This class has no assignment yet. Click + New assignment to make one.</p>';
+  $('gradelist').innerHTML = L.length ? L.slice(0, at < 0 ? L.length : at + 1).map((a, i) => item(a, i) + (i === at && !PREVIEW_NOLINK(a) ? `<div class="gprev">Try it as a student:${previewBtns(a)}</div>` : '')).join('') : '<p class="count">This class has no assignment yet. Click + New assignment to make one.</p>';
   $('gradelist2').innerHTML = at < 0 ? '' : L.slice(at + 1).map((a, j) => item(a, at + 1 + j)).join('');
 }
 async function loadGrades(c, assignment, through = assignment?.end) {
@@ -960,7 +984,7 @@ function render() {
   if (av) COLS.activity = { player: ACT_PLAYER_COLS, teacher: ACT_TEACHER_COLS }[$('actby').value] || ACT_VISIT_COLS;
   if (!ad) S.teacher = '';
   const tpg = ad && !!S.teacher;
-  $('upbox').hidden = !ts; $('adminsum').hidden = !ad; $('adminacc').hidden = !ad || tpg; $('devfix').hidden = !ad || tpg || PREVIEW;
+  $('upbox').hidden = !(ts || S.view === 'grades' || S.view === 'progress'); $('adminsum').hidden = !ad; $('adminacc').hidden = !ad || tpg; $('devfix').hidden = !ad || tpg || PREVIEW;
   const gv = S.view === 'grades'; if (gv) { gradePick(); renderGradeList(); }
   $('gradelist').hidden = $('gradelist2').hidden = $('gradebar').hidden = !gv;
   if (gv) { $('aout').closest('label').hidden = !S.gradeA; if (S.gradeA) $('aout').value = aOut(S.classes.find(x => x.code === S.code), S.gradeA); }
@@ -969,7 +993,7 @@ function render() {
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (nt && b.dataset.v === 'tests') || (asg && b.dataset.v === 'grades'))));
   if (asg) { showAssign(); return; }
   if (nt) { showNewTest(); return; }
-  if (ts) { renderUpcoming(); renderTestsBox(); }
+  if (ts) { renderUpcoming(); renderTestsBox(); } else if (S.view === 'grades' || S.view === 'progress') renderUpcoming();
   const cols = COLS[S.view]; const st = S.sort[S.view] || DEFAULT_SORT[S.view]; const rows = visible();
   const head = cols.map(c => c.t === 'x' ? '<th></th>' : `<th class="${c.num ? 'num' : ''}" aria-sort="${st.k === c.k ? (st.dir > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" data-k="${c.k}">${esc(c.h)}<span class="ar" aria-hidden="true">${st.k === c.k ? (st.dir > 0 ? '▲' : '▼') : ''}</span></button></th>`).join('');
   const body = rows.length ? rows.map(r => '<tr>' + cols.map(c => `<td class="${(c.num ? 'num ' : '') + (c.cls || '')}">${cellText(c, r)}</td>`).join('') + '</tr>').join('')
@@ -1258,7 +1282,7 @@ function upItems() {
   S.classes.forEach(c => {
     const a = c.hub_assignment; if (!a || !Array.isArray(a.tasks) || !a.tasks.length || !a.start || !a.end || a.end < today) return;
     const what = a.tasks.map(t => `${(G[t.game] || {}).name || 'Any game'}${(t.skills && t.skills.length) ? ': ' + t.skills.join(', ') : ''}, ${t.goal} ${t.unit === 'minutes' ? 'min' : 'answers'}`).join(' · ');
-    const it = { kind: 'Assignment', cls: cn(c.code), code: c.code, name: what, view: 'grades', color: '#4ea1ff' };
+    const it = { kind: 'Assignment', cls: cn(c.code), code: c.code, name: what, view: 'grades', color: '#4ea1ff', asg: a };
     if (a.start > today) soon.push({ ...it, ms: dayMs(a.start), when: dayText(a.start) + (a.end !== a.start ? ' to ' + dayText(a.end) : ''), sub: 'Starts ' + dayText(a.start) });
     else live.push({ ...it, ms: dayMs(a.end), when: 'Ends ' + dayText(a.end), sub: 'Running now' });
   });
@@ -1273,9 +1297,9 @@ function upItems() {
 }
 function renderUpcoming() {
   const { soon, live } = upItems(), all = soon.concat(live).sort((x, y) => x.ms - y.ms);
-  const li = i => `<li><button type="button" data-code="${esc(i.code)}" data-view="${i.view}" data-test="${esc(i.testId || '')}" style="--ic:${i.color}"><span class="w">${esc(i.when)}</span><span>${esc(i.name)}<span class="k">${i.kind} · ${esc(i.cls)}</span></span><span class="s">${esc(i.sub)}</span></button></li>`;
+  const li = i => `<li><button type="button" data-code="${esc(i.code)}" data-view="${i.view}" data-test="${esc(i.testId || '')}" style="--ic:${i.color}"><span class="w">${esc(i.when)}</span><span>${esc(i.name)}<span class="k">${i.kind} · ${esc(i.cls)}</span></span><span class="s">${esc(i.sub)}</span></button>${i.asg ? previewBtns(i.asg, 'upv') : ''}</li>`;
   $('upbox').hidden = !all.length && !S.loading;
-  $('upbox').innerHTML = all.length ? '<div class="up"><h3>Scheduled (click to change)</h3><ul>' + all.map(li).join('') + '</ul></div>' : '';
+  $('upbox').innerHTML = all.length ? '<div class="up"><h3>' + (S.view === 'tests' ? 'Scheduled (click to change)' : 'Upcoming and running now (click to open, ▶ to try it)') + '</h3><ul>' + all.map(li).join('') + '</ul></div>' : '';
 }
 // ---------- Tests: tests/<id> made here, results in test_results/<id>_<sid> ----------
 const tstate = t => !t.open ? 'closed' : (t.opens_at && toMs(t.opens_at) > Date.now()) ? 'scheduled' : (t.closes_at && toMs(t.closes_at) < Date.now()) ? 'ended' : 'open';
