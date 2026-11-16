@@ -815,7 +815,9 @@ async function fetchFeedback() {
     // admin only (David, 2026-11-16): every note from every game, class or guest, newest first; teachers no longer read them
     const snap = await fs.getDocs(fs.query(fs.collection(db, 'game_feedback'), fs.orderBy('created_at', 'desc'), fs.limit(500)));
     const out = [];
-    snap.forEach(x => { const d = x.data(); out.push({ id: x.id, game: FB_NAME[d.game] || d.game || '', name: d.name || '', code: d.class_code || '', text: d.text || '', dateMs: toMs(d.created_at) }); });
+    try { await actLoadCls(fs, db); } catch (e) { ACT_CLS = ACT_CLS || {}; }   // Teacher · class column (David, 2026-11-16: "who that student belongs to")
+    snap.forEach(x => { const d = x.data(); out.push({ id: x.id, game: FB_NAME[d.game] || d.game || '', name: d.name || '', code: d.class_code || '', class_code: d.class_code || '', guest: !d.class_code && (!d.name || /^guest$/i.test(d.name)), text: d.text || '', dateMs: toMs(d.created_at) }); });
+    out.forEach(actWho);
     return out.filter(r => !cutoff || r.dateMs >= cutoff);
   });
 }
@@ -844,7 +846,7 @@ function sample() {
     });
   });
   const T = ['Loved the new level!', 'The piano sound is too quiet on my Chromebook.', 'Can we play Rooftop Runner in class tomorrow?', 'Scale Quest is hard but fun.'];
-  T.forEach((t, i) => fbs.push({ id: 'f' + i, game: ['tidal', 'rooftop', 'rooftop', 'scale'][i], name: names[i], code: 'PREVW', text: t, dateMs: Date.now() - i * 86400000 * 1.3 }));
+  T.forEach((t, i) => fbs.push({ id: 'f' + i, game: ['tidal', 'rooftop', 'rooftop', 'scale'][i], name: i === 3 ? 'Guest' : names[i], code: ['PREVW', 'PREV2', 'PREVW', ''][i], class_code: ['PREVW', 'PREV2', 'PREVW', ''][i], guest: i === 3, text: t, dateMs: Date.now() - i * 86400000 * 1.3 }));
   const testList = [{ id: 'T1', class_code: 'PREVW', closes_at: new Date(Date.now() + 2 * 86400000), name: 'Unit 3 scales quiz', game: 'scale', grade: 'acc', tries: 0, open: true }, { id: 'T2', class_code: 'PREVW', opens_at: new Date(Date.now() + 5 * 86400000), name: 'Final scales test', game: 'scale', grade: 'acc', tries: 1, open: false }];
   const tests = names.filter((_, i) => i !== 5).map((n, i) => ({ id: 'r' + i, game: 'scale', name: n, best: 60 + Math.floor(rnd() * 40), unit: '%', acc: 0, tries: 1 + Math.floor(rnd() * 4), dateMs: Date.now() - Math.floor(rnd() * 5) * 86400000 })); tests.forEach(t => { t.acc = t.best; });
   const devs = ['Phone · iPhone · Safari · 390px', 'Computer · Chromebook · Chrome · 1366px', 'Tablet · iPad · Safari · 820px', 'Computer · Windows · Edge · 1536px', 'Phone · Android · Chrome · 412px'];
@@ -886,7 +888,7 @@ const COLS = {
   ],
   activity: [],   // ACT_VISIT_COLS or ACT_PLAYER_COLS, picked in render()
   feedback: [
-    { k: 'dateMs', h: 'Date', t: 'n', f: r => esc(fmtDate(r.dateMs)) }, { k: 'name', h: 'Student', t: 's', f: r => esc(r.name || 'Guest') }, { k: 'game', h: 'Game', t: 'g' },
+    { k: 'dateMs', h: 'Date', t: 'n', f: r => esc(fmtDate(r.dateMs)) }, { k: 'name', h: 'Student', t: 's', f: r => esc(r.name || 'Guest') }, { k: 'teacher', h: 'Teacher · class', t: 's', f: actTC }, { k: 'game', h: 'Game', t: 'g' },
     { k: 'text', h: 'Feedback', t: 's', cls: 'fbtext' }, { k: 'x', h: '', t: 'x' },
   ],
 };
@@ -1066,6 +1068,7 @@ async function load() {
     else if (PREVIEW) {
       SAMPLE = SAMPLE || sample();
       rows = S.view === 'progress' ? SAMPLE.prog : S.view === 'scores' ? SAMPLE.scores : S.view === 'tests' ? SAMPLE.tests : SAMPLE.fbs;
+      if (S.view === 'feedback') rows.forEach(actWho);
       if (S.view === 'tests') { await loadUpcoming().catch(() => {}); S.tests = SAMPLE.testList; if (!S.testId) S.testId = S.tests[0].id; rows = await loadTestRows(); }
       await new Promise(r => setTimeout(r, 120));
     } else if (S.view === 'tests') {
