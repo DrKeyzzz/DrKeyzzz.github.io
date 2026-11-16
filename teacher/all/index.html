@@ -1495,6 +1495,15 @@ async function actClean(auto) {
         const b = fs.writeBatch(db); snap.docs.forEach(d => b.delete(d.ref)); await b.commit(); gone += snap.size;
       }
     });
+    // Message my teacher (2026-11-16): conversations with no new message for 90 days are deleted with their messages (privacy page)
+    await run(async ({ fs, db }) => {
+      const cut = fs.Timestamp.fromMillis(Date.now() - 90 * 864e5);
+      const old = await fs.getDocs(fs.query(fs.collection(db, 'sm_threads'), fs.where('last_at', '<', cut), fs.limit(100)));
+      for (const t of old.docs) {
+        const ms = await fs.getDocs(fs.collection(db, 'sm_threads', t.id, 'msgs'));
+        const b = fs.writeBatch(db); ms.docs.slice(0, 450).forEach(d => b.delete(d.ref)); if (ms.size <= 450) b.delete(t.ref); await b.commit();
+      }
+    }).catch(e => console.warn('messages clean up:', e && e.code));
     try { localStorage.setItem('mtg_actclean_v1', ymd(new Date())); } catch {}
     if (!auto) $('actmsg').textContent = gone ? `Deleted ${gone} old record${gone === 1 ? '' : 's'}.` : 'Nothing older than 30 days.';
   } catch (e) { if (!auto) $('actmsg').textContent = errText(e); else console.warn('activity clean up:', e && e.code); }
