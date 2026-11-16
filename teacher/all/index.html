@@ -215,6 +215,9 @@
     border: 1px solid #33445f; border-radius: 14px; background: linear-gradient(#1c2840, #151f31); color: var(--text); font: 700 13px var(--f-ui); letter-spacing: .05em; line-height: 1.15; text-align: center; white-space: normal;
     box-shadow: 0 2px 0 rgba(0,0,0,.35); transition: transform .12s, border-color .12s, background .12s; }
   #views button .ti { font-size: 22px; line-height: 1; letter-spacing: 0; }
+  /* labels size themselves to the tile (container units), mixed case, so "Assignments" and "Live questioning" never spill out (2026-11-16) */
+  #views button { container-type: inline-size; text-transform: none; letter-spacing: 0; }
+  #views button .tl { display: block; max-width: 100%; font-size: clamp(11px, 16.5cqi, 15px); letter-spacing: .01em; overflow-wrap: anywhere; hyphens: manual; }
   #views button:hover { transform: translateY(-2px); border-color: var(--gc); }
   #views button[aria-pressed="true"] { background: var(--gc); border-color: var(--gc); color: #10131a; box-shadow: 0 0 0 3px rgba(255,255,255,.08), 0 6px 18px -6px var(--gc); }
   #views button.adm { border-color: rgba(255,200,92,.45); border-style: dashed; }
@@ -378,7 +381,7 @@
   @media (max-width: 720px) {
     #views { grid-template-columns: repeat(4, 1fr); gap: 6px; }
     #views button { min-height: 58px; padding: 8px 2px 6px; font-size: 11px; letter-spacing: .02em; gap: 4px; }   /* phones: 4 tiles a row */
-    #views button .ti { font-size: 19px; }
+    #views button .ti { font-size: 19px; } #views button .tl { font-size: clamp(9.5px, 15.5cqi, 13px); letter-spacing: 0; }
     .mx { grid-template-columns: 1fr; height: auto; }
     .mx.show-thread .mx-list, .mx:not(.show-thread) .mx-thread { display: none; }
     .mx-list ul { max-height: 70vh; }
@@ -431,16 +434,16 @@
           <option value="0">All time</option>
         </select></label>
         <div class="seg" id="views" role="group" aria-label="What to show">
-          <button type="button" data-v="progress" aria-pressed="true"><span class="ti" aria-hidden="true">📈</span>Progress</button>
-          <button type="button" data-v="scores" aria-pressed="false"><span class="ti" aria-hidden="true">🏆</span>Scores</button>
-          <button type="button" data-v="grades" aria-pressed="false"><span class="ti" aria-hidden="true">📋</span>Assignments</button>
-          <button type="button" data-v="tests" aria-pressed="false"><span class="ti" aria-hidden="true">📝</span>Tests</button>
-          <button type="button" data-v="feedback" aria-pressed="false"><span class="ti" aria-hidden="true">💬</span>Feedback</button>
-          <button type="button" data-v="messages" aria-pressed="false"><span class="ti" aria-hidden="true">✉️</span>Messages<span class="rq" id="msgcount" hidden></span></button>
-          <button type="button" data-v="board" aria-pressed="false"><span class="ti" aria-hidden="true">📌</span>Board<span class="nb" id="boardcount" hidden></span></button>
-          <button type="button" data-v="live" aria-pressed="false" hidden title="Ask the class questions live (Live Class)" class="adm"><span class="ti" aria-hidden="true">📡</span>Live questioning</button>
-          <button type="button" data-v="admin" aria-pressed="false" hidden class="adm"><span class="ti" aria-hidden="true">🛡️</span>Admin<span class="rq" id="rqcount" hidden></span></button>
-          <button type="button" data-v="activity" aria-pressed="false" hidden title="Who is playing: visits from your students"><span class="ti" aria-hidden="true">👀</span>Activity</button>
+          <button type="button" data-v="progress" aria-pressed="true"><span class="ti" aria-hidden="true">📈</span><span class="tl">Progress</span></button>
+          <button type="button" data-v="scores" aria-pressed="false"><span class="ti" aria-hidden="true">🏆</span><span class="tl">Scores</span></button>
+          <button type="button" data-v="grades" aria-pressed="false"><span class="ti" aria-hidden="true">📋</span><span class="tl">Assignments</span></button>
+          <button type="button" data-v="tests" aria-pressed="false"><span class="ti" aria-hidden="true">📝</span><span class="tl">Tests</span></button>
+          <button type="button" data-v="feedback" aria-pressed="false"><span class="ti" aria-hidden="true">💬</span><span class="tl">Feedback</span></button>
+          <button type="button" data-v="messages" aria-pressed="false"><span class="ti" aria-hidden="true">✉️</span><span class="tl">Messages</span><span class="rq" id="msgcount" hidden></span></button>
+          <button type="button" data-v="board" aria-pressed="false"><span class="ti" aria-hidden="true">📌</span><span class="tl">Board</span><span class="nb" id="boardcount" hidden></span></button>
+          <button type="button" data-v="live" aria-pressed="false" hidden title="Ask the class questions live (Live Class)" class="adm"><span class="ti" aria-hidden="true">📡</span><span class="tl">Live questioning</span></button>
+          <button type="button" data-v="admin" aria-pressed="false" hidden class="adm"><span class="ti" aria-hidden="true">🛡️</span><span class="tl">Admin</span><span class="rq" id="rqcount" hidden></span></button>
+          <button type="button" data-v="activity" aria-pressed="false" hidden title="Who is playing: visits from your students"><span class="ti" aria-hidden="true">👀</span><span class="tl">Activity</span></button>
         </div>
         <span class="grow"></span>
         <button class="btn ghost sm" type="button" id="csv">Download CSV</button>
