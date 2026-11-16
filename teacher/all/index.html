@@ -224,6 +224,10 @@
   #views button.adm::after { content: 'Admin only'; position: absolute; top: -8px; left: 50%; transform: translateX(-50%); padding: 1px 6px 0; border-radius: 999px; background: var(--bg); color: var(--gold); font-size: 9px; letter-spacing: .1em; white-space: nowrap; }
   .vtip { position: absolute; z-index: 50; max-width: 260px; padding: 8px 11px 7px; border-radius: 10px; background: #0b111c; border: 1px solid var(--gc); color: var(--text); font: 600 13px/1.35 var(--f-ui); box-shadow: 0 8px 24px rgba(0,0,0,.45); pointer-events: none; }
   .vtip b { display: block; margin-top: 4px; color: var(--gold); font-weight: 700; }
+  .fbbox { position: fixed; inset: 0; z-index: 60; background: rgba(5,8,14,.6); display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .fbcard { width: min(620px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--card-border); border-radius: 16px; overflow: hidden; }
+  .fbcard .mx-log { min-height: 160px; }
+  .fbcard .warn { color: #ffb547; font-size: 13px; margin: 0 0 8px; }
   .smbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin: 14px 0 0; }
   .bdswitch { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
   .bdswitch button { font: 700 14px var(--f-ui); color: var(--text); background: var(--bg); border: 1px solid #33445f; border-radius: 999px; padding: 9px 16px 7px; cursor: pointer; }
@@ -449,7 +453,7 @@
           <button type="button" data-v="students" hidden data-tip="Messages from your students: read and reply (you turn it on for each class)" aria-pressed="false"><span class="ti" aria-hidden="true">✉️</span><span class="tl">Messages</span><span class="rq" id="smcount" hidden></span><span id="msgcount" hidden></span></button>
           <button type="button" data-v="board" data-tip="Teacher Board: share ideas with every teacher, plus your private chat with Music Theory Academy support" aria-pressed="false"><span class="ti" aria-hidden="true">📌</span><span class="tl">Board</span><span class="nb" id="boardcount" hidden></span></button>
           <button type="button" data-v="activity" data-tip="Who is playing right now and lately: visits from your students" aria-pressed="false" hidden><span class="ti" aria-hidden="true">👀</span><span class="tl">Activity</span></button>
-          <button type="button" data-v="feedback" data-tip="Every note students and guests send from the Feedback button in the games (only you see this)" aria-pressed="false" hidden class="adm"><span class="ti" aria-hidden="true">💬</span><span class="tl">Feedback</span></button>
+          <button type="button" data-v="feedback" data-tip="Every note students and guests send from the Feedback button in the games (only you see this)" aria-pressed="false" hidden class="adm"><span class="ti" aria-hidden="true">💬</span><span class="tl">Feedback</span><span class="rq" id="fbcount" hidden></span></button>
           <button type="button" data-v="admin" data-tip="Teacher requests, access and site-wide numbers (only you see this)" aria-pressed="false" hidden class="adm"><span class="ti" aria-hidden="true">🛡️</span><span class="tl">Admin</span><span class="rq" id="rqcount" hidden></span></button>
         </div>
         <span class="grow"></span>
@@ -816,8 +820,9 @@ async function fetchFeedback() {
     const snap = await fs.getDocs(fs.query(fs.collection(db, 'game_feedback'), fs.orderBy('created_at', 'desc'), fs.limit(500)));
     const out = [];
     try { await actLoadCls(fs, db); } catch (e) { ACT_CLS = ACT_CLS || {}; }   // Teacher · class column (David, 2026-11-16: "who that student belongs to")
-    snap.forEach(x => { const d = x.data(); out.push({ id: x.id, game: FB_NAME[d.game] || d.game || '', name: d.name || '', code: d.class_code || '', class_code: d.class_code || '', guest: !d.class_code && (!d.name || /^guest$/i.test(d.name)), text: d.text || '', dateMs: toMs(d.created_at) }); });
+    snap.forEach(x => { const d = x.data(); out.push({ id: x.id, game: FB_NAME[d.game] || d.game || '', name: d.name || '', code: d.class_code || '', class_code: d.class_code || '', key: d.key || '', sid: d.sid || '', guest: !d.class_code && (!d.name || /^guest$/i.test(d.name)), text: d.text || '', dateMs: toMs(d.created_at) }); });
     out.forEach(actWho);
+    try { await fbLoad(); fbBadge(); } catch (e) { console.warn('feedback replies:', e && e.code); }
     return out.filter(r => !cutoff || r.dateMs >= cutoff);
   });
 }
@@ -889,7 +894,7 @@ const COLS = {
   activity: [],   // ACT_VISIT_COLS or ACT_PLAYER_COLS, picked in render()
   feedback: [
     { k: 'dateMs', h: 'Date', t: 'n', f: r => esc(fmtDate(r.dateMs)) }, { k: 'name', h: 'Student', t: 's', f: r => esc(r.name || 'Guest') }, { k: 'teacher', h: 'Teacher · class', t: 's', f: actTC }, { k: 'game', h: 'Game', t: 'g' },
-    { k: 'text', h: 'Feedback', t: 's', cls: 'fbtext' }, { k: 'x', h: '', t: 'x' },
+    { k: 'text', h: 'Feedback', t: 's', cls: 'fbtext' }, { k: 'reply', h: '', t: 'r', f: fbCell }, { k: 'x', h: '', t: 'x' },
   ],
 };
 // Activity tab: one row per visit, or one row per player (totals for the time range)
@@ -1031,7 +1036,7 @@ function render() {
   if (nt) { showNewTest(); return; }
   if (ts) { renderUpcoming(); renderTestsBox(); } else if (S.view === 'grades' || S.view === 'progress') renderUpcoming();
   const cols = COLS[S.view]; const st = S.sort[S.view] || DEFAULT_SORT[S.view]; const rows = visible();
-  const head = cols.map(c => c.t === 'x' ? '<th></th>' : `<th class="${c.num ? 'num' : ''}" aria-sort="${st.k === c.k ? (st.dir > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" data-k="${c.k}">${esc(c.h)}<span class="ar" aria-hidden="true">${st.k === c.k ? (st.dir > 0 ? '▲' : '▼') : ''}</span></button></th>`).join('');
+  const head = cols.map(c => c.t === 'x' || c.t === 'r' ? '<th></th>' : `<th class="${c.num ? 'num' : ''}" aria-sort="${st.k === c.k ? (st.dir > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" data-k="${c.k}">${esc(c.h)}<span class="ar" aria-hidden="true">${st.k === c.k ? (st.dir > 0 ? '▲' : '▼') : ''}</span></button></th>`).join('');
   const body = rows.length ? rows.map(r => '<tr>' + cols.map(c => `<td class="${(c.num ? 'num ' : '') + (c.cls || '')}">${cellText(c, r)}</td>`).join('') + '</tr>').join('')
     : `<tr><td class="empty" colspan="${cols.length}">${S.loading ? 'Loading…' : 'Nothing here yet for this class and time.'}</td></tr>`;
   $('tbl').innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
@@ -1068,7 +1073,7 @@ async function load() {
     else if (PREVIEW) {
       SAMPLE = SAMPLE || sample();
       rows = S.view === 'progress' ? SAMPLE.prog : S.view === 'scores' ? SAMPLE.scores : S.view === 'tests' ? SAMPLE.tests : SAMPLE.fbs;
-      if (S.view === 'feedback') rows.forEach(actWho);
+      if (S.view === 'feedback') { rows.forEach(actWho); await fbLoad(); fbBadge(); }
       if (S.view === 'tests') { await loadUpcoming().catch(() => {}); S.tests = SAMPLE.testList; if (!S.testId) S.testId = S.tests[0].id; rows = await loadTestRows(); }
       await new Promise(r => setTimeout(r, 120));
     } else if (S.view === 'tests') {
@@ -1501,10 +1506,12 @@ async function actClean(auto) {
     // Message my teacher (2026-11-16): conversations with no new message for 90 days are deleted with their messages (privacy page)
     await run(async ({ fs, db }) => {
       const cut = fs.Timestamp.fromMillis(Date.now() - 90 * 864e5);
-      const old = await fs.getDocs(fs.query(fs.collection(db, 'sm_threads'), fs.where('last_at', '<', cut), fs.limit(100)));
-      for (const t of old.docs) {
-        const ms = await fs.getDocs(fs.collection(db, 'sm_threads', t.id, 'msgs'));
-        const b = fs.writeBatch(db); ms.docs.slice(0, 450).forEach(d => b.delete(d.ref)); if (ms.size <= 450) b.delete(t.ref); await b.commit();
+      for (const col of ['sm_threads', 'fb_threads']) {   // student-teacher messages and replies to feedback
+        const old = await fs.getDocs(fs.query(fs.collection(db, col), fs.where('last_at', '<', cut), fs.limit(100)));
+        for (const t of old.docs) {
+          const ms = await fs.getDocs(fs.collection(db, col, t.id, 'msgs'));
+          const b = fs.writeBatch(db); ms.docs.slice(0, 450).forEach(d => b.delete(d.ref)); if (ms.size <= 450) b.delete(t.ref); await b.commit();
+        }
       }
     }).catch(e => console.warn('messages clean up:', e && e.code));
     try { localStorage.setItem('mtg_actclean_v1', ymd(new Date())); } catch {}
@@ -2041,6 +2048,97 @@ function smWire() {
   });
 }
 
+// ---------- Replies to feedback (admin, 2026-11-16; spec hub/docs/notifications-spec.md) ----------
+// fb_threads/<id> (+ msgs/<id>): id = the note's device key, or <class code>_<sid> for older notes. The admin starts it by replying.
+// Read once when the Feedback tab opens (and on the admin's sign-in, for the tile count); a conversation is read when opened.
+const FBT = { threads: {}, at: 0, open: null, msgs: [], busy: false };
+let FBS = null;   // ?preview=1 sample threads
+const fbSid = name => String(name || '').toLowerCase().replace(/[^a-z]/g, '').slice(0, 16);
+function fbTid(r) {   // which conversation a note belongs to ('' = can't be answered: guest or anonymous)
+  if (r.key) return r.key;
+  const sid = r.sid || fbSid(r.name);
+  return r.class_code && r.name && !/^guest$/i.test(r.name) && sid.length >= 2 ? r.class_code + '_' + sid : '';
+}
+async function fbLoad() {
+  if (PREVIEW) {
+    FBS = FBS || { threads: { PREVW_aaliyahr: { id: 'PREVW_aaliyahr', name: 'Aaliyah R.', sid: 'aaliyahr', class_code: 'PREVW', note_text: 'Loved the new level!', last_at: Date.now() - 3600e3, last_from: 'student', last_text: 'Can you add more levels?', unread_admin: 1, unread_student: 0 } },
+      msgs: { PREVW_aaliyahr: [{ id: 'a', from: 'support', text: 'Thank you Aaliyah! More levels are coming.', at: Date.now() - 7200e3 }, { id: 'b', from: 'student', text: 'Can you add more levels?', at: Date.now() - 3600e3 }] } };
+    FBT.threads = FBS.threads; FBT.at = Date.now(); return;
+  }
+  const list = await run(async ({ fs, db }) => (await fs.getDocs(fs.query(fs.collection(db, 'fb_threads'), fs.orderBy('last_at', 'desc'), fs.limit(300)))).docs.map(d => ({ id: d.id, ...d.data(), last_at: toMs(d.data().last_at) })));
+  FBT.threads = Object.fromEntries(list.map(t => [t.id, t])); FBT.at = Date.now();
+}
+function fbBadge() {
+  const n = Object.values(FBT.threads).reduce((a, t) => a + (+t.unread_admin || 0), 0), b = $('views').querySelector('[data-v=feedback]'), c = $('fbcount');
+  if (!b || !c) return;
+  c.hidden = !n; c.textContent = n > 99 ? '99+' : String(n); b.classList.toggle('waiting', n > 0);
+  b.dataset.note = n ? `${n} student answer${n > 1 ? 's' : ''} to your replies` : '';
+  if (typeof bellUpdate === 'function') bellUpdate();
+}
+function fbCell(r) {
+  const tid = fbTid(r), t = tid && FBT.threads[tid];
+  if (!tid) return `<span class="note" title="${r.name ? 'No class on this note' : 'Sent anonymously or by a guest'}">Can't reply</span>`;
+  return `<button class="btn ghost sm" type="button" data-fbreply="${esc(r.id)}">${t ? (t.unread_admin ? `💬 ${t.unread_admin} new` : '💬 Conversation') : 'Reply'}</button>`;
+}
+async function fbOpen(r) {
+  const tid = fbTid(r); if (!tid) return;
+  FBT.open = { tid, r }; FBT.msgs = []; fbRender(true);
+  const t = FBT.threads[tid];
+  if (t) {
+    try {
+      if (PREVIEW) FBT.msgs = (FBS.msgs[tid] || []).slice();
+      else FBT.msgs = await run(async ({ fs, db }) => (await fs.getDocs(fs.query(fs.collection(db, 'fb_threads', tid, 'msgs'), fs.orderBy('at')))).docs.map(d => ({ id: d.id, ...d.data(), at: toMs(d.data().at) })));
+      if (t.unread_admin) { if (!PREVIEW) await run(({ fs, db }) => fs.updateDoc(fs.doc(db, 'fb_threads', tid), { unread_admin: 0 })); t.unread_admin = 0; fbBadge(); }
+    } catch (e) { msg(errText(e)); }
+  }
+  fbRender(false); if (S.view === 'feedback') render();
+}
+function fbRender(loading) {
+  let box = $('fbbox');
+  if (!FBT.open) { if (box) box.remove(); return; }
+  if (!box) { document.body.insertAdjacentHTML('beforeend', '<div id="fbbox" class="fbbox" role="dialog" aria-modal="true" aria-labelledby="fbbox-h"></div>'); box = $('fbbox'); }
+  const { tid, r } = FBT.open, old = !r.key;
+  box.innerHTML = `<div class="fbcard"><div class="mx-head"><h3 id="fbbox-h">${esc(r.name)}</h3><small>${esc(r.clsName || r.class_code || '')}${r.teacher ? ' · ' + esc(r.teacher) : ''}</small><span class="grow"></span><button type="button" class="btn ghost sm" data-fbclose="1">Close</button></div>
+    <div class="mx-log" id="fb-log"><div class="bub them"><p>${esc(r.text)}</p><span class="bt">Feedback · ${esc(G[r.game] ? G[r.game].name : r.game)} · ${esc(fmtDate(r.dateMs))}</span></div>
+    ${loading ? '<p class="mx-none">Loading…</p>' : FBT.msgs.map(m => `<div class="bub ${m.from === 'support' ? 'me' : 'them'}"><p>${esc(m.text)}</p><span class="bt"><time>${esc(fmtDate(m.at))}</time>${m.from === 'support' ? ' · You' : ''}</span></div>`).join('')}</div>
+    <div class="reply">${old ? `<p class="warn">Older note: anyone signed in as ${esc(r.name)} in this class can read this reply. Keep it general.</p>` : ''}
+      <textarea id="fb-text" maxlength="300" placeholder="Reply to ${esc(r.name)}…" aria-label="Reply"></textarea>
+      <div class="reply-bar"><span class="hint">Nothing personal: students sign in with a name and class code, not a password · 300 characters</span><button class="btn sm" type="button" data-fbsend="1">Send reply</button></div></div></div>`;
+  const l = $('fb-log'); if (l) l.scrollTop = l.scrollHeight;
+  if (!loading) { const ta = $('fb-text'); if (ta && document.activeElement !== ta) ta.focus(); }
+}
+async function fbSend() {
+  if (!FBT.open || FBT.busy) return;
+  const { tid, r } = FBT.open, text = $('fb-text').value.trim().slice(0, 300); if (!text) return;
+  FBT.busy = true; const t = FBT.threads[tid];
+  try {
+    if (PREVIEW) {
+      FBS.msgs[tid] = (FBS.msgs[tid] || []).concat({ id: 'p' + Date.now(), from: 'support', text, at: Date.now() });
+      FBT.threads[tid] = { ...(t || { id: tid, name: r.name, class_code: r.class_code, note_text: r.text }), last_at: Date.now(), last_from: 'support', last_text: text.slice(0, 120), unread_admin: 0 };
+    } else {
+      await run(({ fs, db }) => {
+        const w = fs.writeBatch(db), ref = fs.doc(db, 'fb_threads', tid), ts = fs.serverTimestamp();
+        if (!t) w.set(ref, { name: r.name, sid: r.sid || fbSid(r.name), class_code: r.class_code || '', note_id: r.id, note_text: r.text, game: r.gameId || '', created_at: ts, last_at: ts, last_from: 'support', last_text: text.slice(0, 120), unread_admin: 0, unread_student: 1 });
+        else w.update(ref, { last_at: ts, last_from: 'support', last_text: text.slice(0, 120), unread_student: fs.increment(1), unread_admin: 0 });
+        w.set(fs.doc(fs.collection(db, 'fb_threads', tid, 'msgs')), { from: 'support', text, at: ts });
+        return w.commit();
+      });
+      FBT.threads[tid] = { ...(t || { id: tid, name: r.name, class_code: r.class_code }), last_at: Date.now(), last_from: 'support', last_text: text.slice(0, 120), unread_admin: 0 };
+    }
+    FBT.msgs.push({ id: 'n' + Date.now(), from: 'support', text, at: Date.now() }); fbRender(false); if (S.view === 'feedback') render();
+  } catch (e) { alert('That did not send: ' + errText(e)); }
+  FBT.busy = false;
+}
+function fbWire() {
+  document.addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.fbreply) { const r = S.rows.find(x => x.id === b.dataset.fbreply); if (r) fbOpen(r); }
+    else if (b.dataset.fbclose) { FBT.open = null; fbRender(); }
+    else if (b.dataset.fbsend) fbSend();
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && FBT.open) { FBT.open = null; fbRender(); } });
+}
+
 // ----- Teacher Board -----
 const seenKey = () => 'mtg_board_seen_v1:' + S.email;
 function boardSeen() { try { const v = +localStorage.getItem(seenKey()); if (v) return v; } catch (e) {} return Date.now() - 7 * 86400000; }   // first visit: the last week counts as new
@@ -2341,7 +2439,7 @@ function wire() {
     const t = e.target.closest('[data-teacher]'); if (t) openTeacher(t.dataset.teacher);
   };
   $('views').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.view = b.dataset.v; vtipHide(); load(); };
-  smWire();
+  smWire(); fbWire();
   $('bdswitch').onclick = e => { const b = e.target.closest('[data-go]'); if (!b || S.view === b.dataset.go) return; S.view = b.dataset.go; load(); };
   // hover pop-ups on the tiles (2026-11-16): a small bubble under the tile after a short rest; none on touch screens
   $('views').addEventListener('pointerover', e => { const b = e.target.closest('button[data-tip]'); if (!b || e.pointerType === 'touch') return; clearTimeout(vtip.t); vtip.t = setTimeout(() => vtipShow(b), 350); });
@@ -2467,7 +2565,7 @@ async function signedIn(email) {
   $('views').querySelector('[data-v=students]').hidden = false;   // Messages from students (2026-11-16)
   $('views').querySelector('[data-v=live]').hidden = false;   // Live questioning: every teacher (David, 2026-11-16; was admin only while he tried it first)
   $('gate').hidden = true; $('main').hidden = false;
-  if (ADMIN_EMAILS.includes(email)) { checkRequests(); setInterval(() => { if (!document.hidden) checkRequests(); }, 120000); }
+  if (ADMIN_EMAILS.includes(email)) { fbLoad().then(fbBadge).catch(() => {}); checkRequests(); setInterval(() => { if (!document.hidden) checkRequests(); }, 120000); }
   if (hashView()) S.view = hashView();
   startSocial();
   await loadClasses();
