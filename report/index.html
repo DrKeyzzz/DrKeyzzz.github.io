@@ -1261,6 +1261,7 @@ boot();
 .mav-tryrow:empty{display:none}
 .mav-try{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:10px 12px;border-radius:12px;background:#22294d;border:1px solid #ffc85c55;font-size:14px}
 .mav-need{color:#ffd166;font-weight:700}
+.mav-enc{left:1px;right:auto}
 .mav-rk{position:absolute;right:1px;top:1px;min-width:14px;height:14px;border-radius:7px;font:900 9px/14px system-ui,sans-serif;color:#141a30;text-align:center;padding:0 2px}
 .mav-rnow{margin:8px 0 0;font-size:16px}
 .mav-ladder{list-style:none;margin:8px 0;padding:0;display:flex;flex-direction:column;gap:4px}
@@ -1287,6 +1288,8 @@ boot();
    owned items (W.owned, 'slot:id', <= 300) saved with the wallet and sent as the list 'owned'; spending goes online as a negative increment.
    Step 4a (2026-11-16): ranks (see the ranks section); corner frame color + number, platform color and step dots, a Rank tab in the Store;
    Maestro Baton opens at rank 9 and the Golden Wreath at rank 10.
+   Step 4c (2026-11-16): Encore at the top rank (two taps): avatar rank restarts (xp - encXP), items/coins/points kept, ★ ring on the platform,
+   ★ on the corner, +10% points per Encore (max +50%); saved as encores / encore_xp. Encore-only items: later.
    Later steps: ranks, avatars on boards and reports, a class setting to turn avatars off. */
 (function(){
   var me = document.currentScript, MOUNT = (me && me.getAttribute('data-mount')) || '.mtg-home';
@@ -1348,7 +1351,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     var c = tier(r), n = r ? stepOf(r) + 1 : 0, dots = '', sparkle = '';
     for (var i = 0; i < n; i++) dots += '<circle cx="' + (50 + (i - (n - 1) / 2) * 6) + '" cy="114.2" r="1.2" fill="' + c + '"/>';
     if (r >= 9) sparkle = [[26, 106], [74, 107], [50, 117]].map(function(q){ var x = q[0], y = q[1]; return '<path d="M' + x + ' ' + (y - 3) + ' L' + (x + .8) + ' ' + (y - .8) + ' L' + (x + 3) + ' ' + y + ' L' + (x + .8) + ' ' + (y + .8) + ' L' + x + ' ' + (y + 3) + ' L' + (x - .8) + ' ' + (y + .8) + ' L' + (x - 3) + ' ' + y + ' L' + (x - .8) + ' ' + (y - .8) + 'Z" fill="#fff"/>'; }).join('');
-    return '<g class="plat"><ellipse class="plat-glow" cx="50" cy="111" rx="31" ry="7" fill="' + c + '" opacity="' + (r ? .5 : .2) + '"/><ellipse cx="50" cy="111" rx="24" ry="4.4" fill="' + c + '" fill-opacity=".22" stroke="' + c + '" stroke-width="1.4"/>' + dots + sparkle + '</g>';
+    var e = W.encores || 0, ec = e ? encCol(e) : '', ring = e ? '<ellipse cx="50" cy="111" rx="28" ry="5.6" fill="none" stroke="' + ec + '" stroke-width="1.4" stroke-dasharray="3 2"/><text x="50" y="121.5" font-size="6" font-weight="800" text-anchor="middle" fill="' + ec + '">' + encMark(e) + '</text>' : '';
+    return '<g class="plat">' + ring + '<ellipse class="plat-glow" cx="50" cy="111" rx="31" ry="7" fill="' + c + '" opacity="' + (r ? .5 : .2) + '"/><ellipse cx="50" cy="111" rx="24" ry="4.4" fill="' + c + '" fill-opacity=".22" stroke="' + c + '" stroke-width="1.4"/>' + dots + sparkle + '</g>';
   }
 
   // the drawing: one small SVG built from layers (shoulder, elbow, hip and knee joints)
@@ -1542,10 +1546,11 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   var P = who(), SID = P ? sidOf(P) : '', DOC = P ? (activeCode(P) || 'none') + '_' + SID : '', KEY = 'mtg_avatar_v1:' + SID;
   var today = function(){ var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
   // W = the wallet (build step 2): coins for playing (1 per active minute, 60 a day), points for doing well
-  var look = null, fresh = false, W = { coins: 0, points: 0, day: today(), dayCoins: 0, owned: [] };
+  var look = null, fresh = false, W = { coins: 0, points: 0, day: today(), dayCoins: 0, owned: [], encores: 0, encXP: 0 };
   if (P) { try { var raw = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (raw && raw.look) look = clean(raw.look);
-    if (raw && raw.w) W = { coins: Math.max(0, +raw.w.coins || 0), points: Math.max(0, +raw.w.points || 0), day: String(raw.w.day || today()), dayCoins: Math.max(0, +raw.w.dayCoins || 0), owned: Array.isArray(raw.w.owned) ? raw.w.owned.filter(function(k){ return typeof k === 'string' && k.length <= 40; }).slice(0, 300) : [] };
+    if (raw && raw.w) W = { coins: Math.max(0, +raw.w.coins || 0), points: Math.max(0, +raw.w.points || 0), day: String(raw.w.day || today()), dayCoins: Math.max(0, +raw.w.dayCoins || 0), owned: Array.isArray(raw.w.owned) ? raw.w.owned.filter(function(k){ return typeof k === 'string' && k.length <= 40; }).slice(0, 300) : [],
+      encores: Math.max(0, Math.min(99, +raw.w.encores || 0)), encXP: Math.max(0, +raw.w.encXP || 0) };
   } catch(e){} }
   if (!look) { look = randomLook(); fresh = !!P; }   // guests: a random avatar for this visit, never saved
   function wearOwned(L){   // a paid item that isn't in this student's owned list goes back to the free default
@@ -1576,6 +1581,9 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     return Math.max(r, b);
   }
   function stepOf(r){ if (r >= 9) return 2; var x = xpNow() - (W.encXP || 0), lo = RANKS[r][0], hi = RANKS[r + 1][0]; return Math.max(0, Math.min(2, Math.floor(3 * (x - lo) / (hi - lo)))); }
+  var ENC_COLS = ['#b07cff', '#2fd6c4', '#ff6fb5', '#f5c542', '#ffffff'];
+  var encCol = function(e){ return ENC_COLS[Math.floor((e - 1) / 5) % 5]; };   // the color steps up every 5 Encores, then starts over
+  var encMark = function(e){ return e <= 5 ? new Array(e + 1).join('★') : '★' + e; };
   var tier = function(r){ return r === 0 ? '#7d88a8' : r <= 3 ? '#d08a4a' : r <= 6 ? '#d9e1f0' : r <= 8 ? '#f5c542' : '#7af0ff'; };   // Rookie, Bronze, Silver, Gold, Diamond
 
   var FS = 'https://firestore.googleapis.com/v1/projects/rhythm-trainer-fc313/databases/(default)/documents/', FKEY = 'AIzaSyDU9vbCWJ4yWuD8bAX984DmQF4dvo13BHs';
@@ -1595,7 +1603,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     if (c) tf.push({ fieldPath: 'coins', increment: { integerValue: String(c) } });
     if (p) tf.push({ fieldPath: 'points', increment: { integerValue: String(p) } });
     var fields = { look: { mapValue: { fields: toFields(look) } }, sid: { stringValue: SID }, coin_day: { stringValue: W.day }, coins_today: { integerValue: String(Math.min(60, W.dayCoins)) },
-      owned: { arrayValue: { values: W.owned.slice(0, 300).map(function(k){ return { stringValue: k }; }) } } };
+      owned: { arrayValue: { values: W.owned.slice(0, 300).map(function(k){ return { stringValue: k }; }) } },
+      encores: { integerValue: String(W.encores) }, encore_xp: { integerValue: String(Math.round(W.encXP)) } };
     dCoins -= c; dPoints -= p; lookDirty = false; lastSend = Date.now();
     try {
       fetch(FS.replace(/\/$/, '') + ':commit?key=' + FKEY, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' },
@@ -1621,6 +1630,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       var sc = f.coins ? +f.coins.integerValue : 0, sp = f.points ? +f.points.integerValue : 0;
       W.coins = Math.max(W.coins, sc + dCoins); W.points = Math.max(W.points, sp + dPoints);   // online total + what this tab still has to send
       ((f.owned && f.owned.arrayValue && f.owned.arrayValue.values) || []).forEach(function(v){ if (v.stringValue && W.owned.indexOf(v.stringValue) < 0 && W.owned.length < 300) W.owned.push(v.stringValue); });   // items bought on another computer
+      if (f.encores && +f.encores.integerValue > W.encores) { W.encores = +f.encores.integerValue; W.encXP = f.encore_xp ? +f.encore_xp.integerValue : W.encXP; }   // an Encore taken on another computer
       if (f.coin_day && f.coin_day.stringValue === W.day) W.dayCoins = Math.max(W.dayCoins, +f.coins_today.integerValue || 0);
       saveLocal(); drawAll();
     }).catch(function(){}); } catch(e){}
@@ -1640,7 +1650,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   }
   function drawAll(){
     var r = rankNow(), c = tier(r);
-    corner.innerHTML = avatar(look, { crop: 1, label: 'Your avatar' }) + (P ? '<span class="mav-rk" style="background:' + c + '">' + (r + 1) + '</span>' : '');
+    corner.innerHTML = avatar(look, { crop: 1, label: 'Your avatar' }) + (P ? '<span class="mav-rk" style="background:' + c + '">' + (r + 1) + '</span>' : '') + (P && W.encores ? '<span class="mav-rk mav-enc" style="background:' + encCol(W.encores) + '">' + (W.encores <= 3 ? encMark(W.encores) : '★' + W.encores) + '</span>' : '');
     corner.style.borderColor = c; corner.style.boxShadow = r >= 7 ? '0 0 10px ' + c : '';
     corner.title = P ? 'Rank ' + (r + 1) + ': ' + RANKS[r][1] + '. Click to change your avatar or open the Store' : corner.title;
     corner.dataset.idle = look.idle;
@@ -1672,6 +1682,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     if (W.day !== today()) { W.day = today(); W.dayCoins = 0; }
     coins = Math.max(0, Math.min(coins, 60 - W.dayCoins));
     if (!pts && !coins) return;
+    pts = Math.round(pts * (1 + .1 * Math.min(5, W.encores || 0)));   // Encore bonus
     W.points += pts; W.coins += coins; W.dayCoins += coins; dPoints += pts; dCoins += coins;
     saveLocal(); sendSoon(60000);
     if (dlg && dlg.open) drawWallet();
@@ -1744,6 +1755,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       var r = rankNow(), x = xpNow() - (W.encXP || 0), m = mastered();
       var next = r + 1 < RANKS.length ? RANKS[r + 1] : null;
       var head = '<p class="mav-rnow">Rank ' + (r + 1) + ' of 10 · <b>' + RANKS[r][1] + ' ' + ['I', 'II', 'III'][stepOf(r)] + '</b> · ' + x.toLocaleString() + ' XP</p>'
+        + (W.encores ? '<p class="mav-sub">Encores: <b style="color:' + encCol(W.encores) + '">' + encMark(W.encores) + '</b> · points +' + Math.min(50, 10 * W.encores) + '%</p>' : '')
+        + (r === 9 ? '<div class="mav-try"><span><b>🎭 Take an Encore?</b> Your avatar rank goes back to Rookie Listener and you climb again. You keep every item, coin and point, and you get ★ on your platform and +10% points (up to +50%). Nothing your teacher sees changes.</span><button type="button" class="mav-btn" data-do="encore">Take a bow</button></div>' : '')
         + (next ? '<p class="mav-sub">' + (x < next[0] ? (next[0] - x).toLocaleString() + ' XP to ' + next[1] : '') + (GATES[r + 1] && m < GATES[r + 1] ? (x < next[0] ? ' and ' : 'Next: ') + 'master ' + (GATES[r + 1] === 7 ? 'every game' : GATES[r + 1] + (GATES[r + 1] === 1 ? ' game' : ' games')) + ' (you have ' + m + ')' : '') + '</p>' : '<p class="mav-sub">Top rank! 👑</p>');
       return head + '<ol class="mav-ladder">' + RANKS.map(function(k, i){ return '<li class="' + (i === r ? 'on' : i < r ? 'done' : '') + '"><span class="mav-dot" style="background:' + tier(i) + '"></span><b>' + k[1] + '</b><span>' + k[0].toLocaleString() + ' XP' + (GATES[i] ? ' + master ' + (GATES[i] === 7 ? 'every game' : GATES[i] + (GATES[i] === 1 ? ' game' : ' games')) : '') + '</span></li>'; }).join('') + '</ol>';
     }
@@ -1795,6 +1808,12 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
           return;
         }
         if (b.dataset.do === 'buy') { if (trying) buy(trying); return; }
+        if (b.dataset.do === 'encore') {
+          if (!P || rankNow() !== 9) return;
+          if (!b.dataset.sure) { b.dataset.sure = '1'; b.textContent = 'Yes, Encore!'; return; }   // a second tap to be sure
+          W.encores = Math.min(99, W.encores + 1); W.encXP = xpNow(); lookDirty = true; saveLocal(); clearTimeout(sendT); sendT = setTimeout(sendNow, 3000);
+          drawAll(); note = '🎭 Encore ' + encMark(W.encores) + '! The crowd goes wild. Climb again!'; render(); play(look.dance); note = ''; return;
+        }
         if (b.dataset.do === 'random') { var keep = {}; Object.keys(DEF).forEach(function(k){ if (!/^(skin|face|eyes|brows|nose|mouth|hair|hairC|cover|glasses|topC|pantC)$/.test(k)) keep[k] = draft[k]; }); draft = Object.assign(randomLook(), keep); trying = null; render(); return; }
         if (b.dataset.do === 'try') { play(pick([draft.happy, draft.aww, draft.dance])); return; }
         if (b.dataset.do === 'save') { look = wearOwned(clean(draft)); saveLocal(); sendOnline(); drawAll(); dlg.close(); act(look.happy); return; }
