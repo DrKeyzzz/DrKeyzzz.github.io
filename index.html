@@ -1663,12 +1663,61 @@ render(); refreshClass(); tipIds();
 })();
 </script>
 <!-- MTG_TIME end -->
+<script>
+// Brainwaves card: electric pulses hop neuron to neuron over the brain picture (like the Brainwaves brain page), trails and flashes.
+(() => {
+  const cv = document.querySelector('.bw-sparks'); if (!cv || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const img = cv.nextElementSibling, cx = cv.getContext('2d'), COLS = ['#7c8cff', '#ff6fd8', '#3ee8f0', '#ffc85c', '#7dffb0', '#ff8a5c'];
+  let W = 0, H = 0, N = [], P = [], F = [], on = true, last = 0;
+  function layout() {
+    const r = cv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1); W = r.width; H = r.height;
+    cv.width = W * dpr; cv.height = H * dpr; cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // neurons scattered over the picture itself (it's centered and contained in the box)
+    const ir = img.getBoundingClientRect(), ox = ir.left - r.left, oy = ir.top - r.top, iw = ir.width || W, ih = ir.height || H;
+    N = Array.from({ length: 42 }, () => { const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random());
+      return { x: ox + iw * (.5 + Math.cos(a) * d * .36), y: oy + ih * (.47 + Math.sin(a) * d * .3) }; });
+    N.forEach(n => { n.nb = N.filter(m => m !== n).sort((a, b) => Math.hypot(a.x - n.x, a.y - n.y) - Math.hypot(b.x - n.x, b.y - n.y)).slice(0, 4); });
+    P = Array.from({ length: 22 }, spawn);
+  }
+  function spawn() { const a = N[Math.random() * N.length | 0]; return { a, b: a.nb[Math.random() * a.nb.length | 0], t: Math.random(), v: .9 + Math.random() * 1.1, c: COLS[Math.random() * COLS.length | 0], tr: [] }; }
+  function frame(now) {
+    if (!on) return; requestAnimationFrame(frame);
+    const dt = Math.min(.05, (now - (last || now)) / 1000); last = now;
+    cx.clearRect(0, 0, W, H); cx.lineCap = 'round';
+    for (const p of P) {
+      p.t += dt * p.v * 1.6;
+      if (p.t >= 1) { F.push({ x: p.b.x, y: p.b.y, c: p.c, life: 1 }); p.a = p.b; p.b = p.a.nb[Math.random() * p.a.nb.length | 0]; p.t = 0; if (Math.random() < .25) p.c = COLS[Math.random() * COLS.length | 0]; }
+      const x = p.a.x + (p.b.x - p.a.x) * p.t, y = p.a.y + (p.b.y - p.a.y) * p.t;
+      p.tr.push([x, y]); if (p.tr.length > 18) p.tr.shift();
+      for (let k = 1; k < p.tr.length; k++) { cx.strokeStyle = p.c; cx.globalAlpha = k / p.tr.length * .8; cx.lineWidth = 1.5 + k / p.tr.length * 3;
+        cx.beginPath(); cx.moveTo(p.tr[k - 1][0], p.tr[k - 1][1]); cx.lineTo(p.tr[k][0], p.tr[k][1]); cx.stroke(); }
+      cx.globalAlpha = 1; cx.shadowColor = p.c; cx.shadowBlur = 16; cx.fillStyle = '#fff'; cx.beginPath(); cx.arc(x, y, 3.2, 0, 7); cx.fill(); cx.shadowBlur = 0;
+    }
+    F = F.filter(f => (f.life -= dt * 2.2) > 0);
+    for (const f of F) { cx.globalAlpha = f.life; cx.fillStyle = f.c; cx.shadowColor = f.c; cx.shadowBlur = 24; cx.beginPath(); cx.arc(f.x, f.y, 4 + (1 - f.life) * 9, 0, 7); cx.fill(); }
+    cx.globalAlpha = 1; cx.shadowBlur = 0;
+  }
+  const go = () => { layout(); last = 0; requestAnimationFrame(frame); };
+  if (img.complete) go(); else img.addEventListener('load', go);
+  addEventListener('resize', () => layout());
+  // only run while the card is on screen and the tab is visible
+  new IntersectionObserver(([e]) => { const was = on; on = e.isIntersecting && !document.hidden; if (on && !was) { last = 0; requestAnimationFrame(frame); } }).observe(cv);
+  document.addEventListener('visibilitychange', () => { const was = on; on = !document.hidden; if (on && !was) { last = 0; requestAnimationFrame(frame); } });
+})();
+</script>
+<script src="msg/student-msg.js" defer></script>
 <!-- MTG_FEEDBACK start: identical in every game, only data-game changes. Master copy: Music Games/shared/mtg-feedback.snippet.html -->
 <script id="mtg-feedback" data-game="hub">
 (function(){
   var me = document.currentScript, GAME = (me && me.getAttribute('data-game')) || 'game';
   var MOUNT = me && me.getAttribute('data-mount');
   if (window.__mtgFeedback) return; window.__mtgFeedback = true;
+  // 🔔 notification bell (2026-11-16): one shared script from the hub shows unread replies beside the .mtg-home pills
+  if (!window.MTGMsgBoot && !document.querySelector('script[src*="msg/student-msg.js"]')) {
+    var bs = document.createElement('script'); bs.defer = true;
+    bs.src = (/^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? '/hub' : '') + '/msg/student-msg.js';
+    document.head.appendChild(bs);
+  }
   var CFG = { apiKey: 'AIzaSyDU9vbCWJ4yWuD8bAX984DmQF4dvo13BHs', authDomain: 'rhythm-trainer-fc313.firebaseapp.com', projectId: 'rhythm-trainer-fc313', appId: '1:956677028482:web:c3ec72a279e61b6f6c929b' };
   var SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';
   var MAX = 300, WAIT_MS = 60000, LAST_KEY = 'mtgfb_last_v1';
@@ -1707,6 +1756,17 @@ render(); refreshClass(); tipIds();
       var p = JSON.parse(localStorage.getItem('rdt_profile_v1') || 'null');
       return p && p.first && p.init ? p : null;
     }catch(e){ return null; }
+  }
+  // the device key Live Class and Message my teacher use (localStorage mtg_bc_v1:<sid>), so a reply to this note can be private (2026-11-16)
+  function sidOf(p){ return (String(p.first) + String(p.init)).toLowerCase().replace(/[^a-z]/g, '').slice(0, 16); }
+  function devKey(p){
+    var k = 'mtg_bc_v1:' + sidOf(p), o = null;
+    try { o = JSON.parse(localStorage.getItem(k) || 'null'); } catch(e){}
+    if (o && /^[a-z0-9]{20}$/.test(o.key)) return o.key;
+    var a = 'abcdefghijklmnopqrstuvwxyz0123456789', s = '', r = crypto.getRandomValues(new Uint8Array(20));
+    r.forEach(function(x){ s += a[x % 36]; });
+    try { localStorage.setItem(k, JSON.stringify({ key: s, lost: false, conf: 3, hist: [], react: null })); } catch(e){}
+    return s;
   }
   function niceName(p){ var f = String(p.first); return (f.charAt(0).toUpperCase() + f.slice(1) + ' ' + p.init + '.').slice(0, 24); }
   function classList(p){
@@ -1816,11 +1876,13 @@ render(); refreshClass(); tipIds();
       owner: cl.length ? String(cl[0].owner || '') : ''
     };
     if (cl.length > 1) data.class_codes = cl.map(function(c){ return String(c.code); });
+    if (!anon) { try { data.key = devKey(p); data.sid = sidOf(p); } catch(e){} }
     sending = true; $('send').disabled = true; $('send').textContent = 'Sending'; err.textContent = '';
     send(data).catch(function(e){
       // a stale class code or owner is refused by the rules: send it again without the class
       if (e && e.code === 'permission-denied' && data.class_code) {
         var d2 = { game: data.game, text: data.text, name: data.name, class_code: '', owner: '' };
+        if (data.key) { d2.key = data.key; d2.sid = data.sid; }
         return send(d2);
       }
       throw e;
@@ -1841,48 +1903,5 @@ render(); refreshClass(); tipIds();
 })();
 </script>
 <!-- MTG_FEEDBACK end -->
-<script>
-// Brainwaves card: electric pulses hop neuron to neuron over the brain picture (like the Brainwaves brain page), trails and flashes.
-(() => {
-  const cv = document.querySelector('.bw-sparks'); if (!cv || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const img = cv.nextElementSibling, cx = cv.getContext('2d'), COLS = ['#7c8cff', '#ff6fd8', '#3ee8f0', '#ffc85c', '#7dffb0', '#ff8a5c'];
-  let W = 0, H = 0, N = [], P = [], F = [], on = true, last = 0;
-  function layout() {
-    const r = cv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1); W = r.width; H = r.height;
-    cv.width = W * dpr; cv.height = H * dpr; cx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // neurons scattered over the picture itself (it's centered and contained in the box)
-    const ir = img.getBoundingClientRect(), ox = ir.left - r.left, oy = ir.top - r.top, iw = ir.width || W, ih = ir.height || H;
-    N = Array.from({ length: 42 }, () => { const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random());
-      return { x: ox + iw * (.5 + Math.cos(a) * d * .36), y: oy + ih * (.47 + Math.sin(a) * d * .3) }; });
-    N.forEach(n => { n.nb = N.filter(m => m !== n).sort((a, b) => Math.hypot(a.x - n.x, a.y - n.y) - Math.hypot(b.x - n.x, b.y - n.y)).slice(0, 4); });
-    P = Array.from({ length: 22 }, spawn);
-  }
-  function spawn() { const a = N[Math.random() * N.length | 0]; return { a, b: a.nb[Math.random() * a.nb.length | 0], t: Math.random(), v: .9 + Math.random() * 1.1, c: COLS[Math.random() * COLS.length | 0], tr: [] }; }
-  function frame(now) {
-    if (!on) return; requestAnimationFrame(frame);
-    const dt = Math.min(.05, (now - (last || now)) / 1000); last = now;
-    cx.clearRect(0, 0, W, H); cx.lineCap = 'round';
-    for (const p of P) {
-      p.t += dt * p.v * 1.6;
-      if (p.t >= 1) { F.push({ x: p.b.x, y: p.b.y, c: p.c, life: 1 }); p.a = p.b; p.b = p.a.nb[Math.random() * p.a.nb.length | 0]; p.t = 0; if (Math.random() < .25) p.c = COLS[Math.random() * COLS.length | 0]; }
-      const x = p.a.x + (p.b.x - p.a.x) * p.t, y = p.a.y + (p.b.y - p.a.y) * p.t;
-      p.tr.push([x, y]); if (p.tr.length > 18) p.tr.shift();
-      for (let k = 1; k < p.tr.length; k++) { cx.strokeStyle = p.c; cx.globalAlpha = k / p.tr.length * .8; cx.lineWidth = 1.5 + k / p.tr.length * 3;
-        cx.beginPath(); cx.moveTo(p.tr[k - 1][0], p.tr[k - 1][1]); cx.lineTo(p.tr[k][0], p.tr[k][1]); cx.stroke(); }
-      cx.globalAlpha = 1; cx.shadowColor = p.c; cx.shadowBlur = 16; cx.fillStyle = '#fff'; cx.beginPath(); cx.arc(x, y, 3.2, 0, 7); cx.fill(); cx.shadowBlur = 0;
-    }
-    F = F.filter(f => (f.life -= dt * 2.2) > 0);
-    for (const f of F) { cx.globalAlpha = f.life; cx.fillStyle = f.c; cx.shadowColor = f.c; cx.shadowBlur = 24; cx.beginPath(); cx.arc(f.x, f.y, 4 + (1 - f.life) * 9, 0, 7); cx.fill(); }
-    cx.globalAlpha = 1; cx.shadowBlur = 0;
-  }
-  const go = () => { layout(); last = 0; requestAnimationFrame(frame); };
-  if (img.complete) go(); else img.addEventListener('load', go);
-  addEventListener('resize', () => layout());
-  // only run while the card is on screen and the tab is visible
-  new IntersectionObserver(([e]) => { const was = on; on = e.isIntersecting && !document.hidden; if (on && !was) { last = 0; requestAnimationFrame(frame); } }).observe(cv);
-  document.addEventListener('visibilitychange', () => { const was = on; on = !document.hidden; if (on && !was) { last = 0; requestAnimationFrame(frame); } });
-})();
-</script>
-<script src="msg/student-msg.js" defer></script>
 </body>
 </html>

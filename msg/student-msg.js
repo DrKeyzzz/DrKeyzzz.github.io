@@ -12,6 +12,7 @@
    - ?msgpreview=1: sample conversations in memory, nothing sent.
 */
 (function () {
+if (window.__mtgMsg) return; window.__mtgMsg = true;   // loaded once even if a page includes it twice
 var cssDone = false, lastSig = '';
 var PREVIEW = /[?&]msgpreview=1/.test(location.search);
 var CFG = { apiKey: 'AIzaSyDU9vbCWJ4yWuD8bAX984DmQF4dvo13BHs', authDomain: 'rhythm-trainer-fc313.firebaseapp.com', projectId: 'rhythm-trainer-fc313', appId: '1:956677028482:web:c3ec72a279e61b6f6c929b' };
