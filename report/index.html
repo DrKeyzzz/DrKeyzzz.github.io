@@ -1290,6 +1290,8 @@ boot();
    Maestro Baton opens at rank 9 and the Golden Wreath at rank 10.
    Step 4c (2026-11-16): Encore at the top rank (two taps): avatar rank restarts (xp - encXP), items/coins/points kept, ★ ring on the platform,
    ★ on the corner, +10% points per Encore (max +50%); saved as encores / encore_xp. Encore-only items: later.
+   Step 4b (2026-11-16): mastery read from each game's own saves (see the mastery section), kept in mtg_mastery_v1:<sid>; unlocks rank gates
+   and the Gold Piano Jacket, Detective Coat and Captain's Hat.
    Later steps: ranks, avatars on boards and reports, a class setting to turn avatars off. */
 (function(){
   var me = document.currentScript, MOUNT = (me && me.getAttribute('data-mount')) || '.mtg-home';
@@ -1554,7 +1556,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   } catch(e){} }
   if (!look) { look = randomLook(); fresh = !!P; }   // guests: a random avatar for this visit, never saved
   function wearOwned(L){   // a paid item that isn't in this student's owned list goes back to the free default
-    ITEMS.forEach(function(it){ var k = it.slot + ':' + it.id; if (L[it.slot] === it.id && !it.free && W.owned.indexOf(k) < 0 && !(k === 'gear:baton' && rankNow() >= 8) && !(k === 'bg:wreath' && rankNow() >= 9)) L[it.slot] = DEF[it.slot]; });
+    ITEMS.forEach(function(it){ var k = it.slot + ':' + it.id; if (L[it.slot] === it.id && !it.free && W.owned.indexOf(k) < 0 && !(k === 'gear:baton' && rankNow() >= 8) && !(k === 'bg:wreath' && rankNow() >= 9) && !masteredGear(k)) L[it.slot] = DEF[it.slot]; });
     if (!ITEMS.some(function(it){ return it.slot === 'top' && it.id === L.top; })) L.top = DEF.top;
     return L;
   }
@@ -1581,6 +1583,46 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     return Math.max(r, b);
   }
   function stepOf(r){ if (r >= 9) return 2; var x = xpNow() - (W.encXP || 0), lo = RANKS[r][0], hi = RANKS[r + 1][0]; return Math.max(0, Math.min(2, Math.floor(3 * (x - lo) / (hi - lo)))); }
+  // ---------- mastery (build step 4b): read what the games already save on this device; once found it is kept ----------
+  // mtg_mastery_v1:<sid> = { games: [...], gear: ['top:goldpiano', ...] }. Games: scale (every map level and key signature level
+  // starred), brainwaves (every area's levels finished; Tuner has none), rhythm (an Extreme challenge at 90%+), tidal and rooftop
+  // (level 16 reached: their top badge tier, both games go on forever), earshot (town 8, the last before they repeat), genius
+  // (a full flight). Gear: Gold Piano Jacket (all 15 major keys answered in Scale Quest), Detective Coat (the Big Score one),
+  // Captain's Hat (the Tidal Tones one). Scale Quest's and the Big Score's logs keep only 7 days, which is why the result is kept.
+  function checkMastery(){
+    if (!P) return;
+    var sk = SID + ':' + (P.classCode || ''), m = lsGet(MASTK) || { games: [], gear: [] }, add = function(list, v){ if (m[list].indexOf(v) < 0) m[list].push(v); };
+    m.games = Array.isArray(m.games) ? m.games : []; m.gear = Array.isArray(m.gear) ? m.gear : [];
+    var hist = lsGet('mtg_hist_v1:' + SID), topLevel = function(g){ var best = 0; Object.values((hist && hist.days) || {}).forEach(function(d){ if (d && d[g]) best = Math.max(best, +d[g].level || 0); }); return best; };
+    try {
+      var map = lsGet('scalequest.map:' + sk), lad = lsGet('scalequest.ksladder:' + sk), s = (map && map.s) || {};
+      var worldsDone = [[0, 8], [1, 7], [2, 9], [4, 8]].every(function(w){ for (var i = 0; i < w[1]; i++) if (!(s[w[0] + ':' + i] >= 1)) return false; return true; });
+      var ladDone = !!lad && [0, 1, 2, 3, 4, 5, 6, 7, 8].every(function(i){ return lad[i] >= 1; });
+      if (worldsDone && ladDone) add('games', 'scale');
+      var MAJ = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#', 'F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb'], log = lsGet('scalequest.log:' + sk) || {}, seen = {};
+      Object.values(log).forEach(function(d){ ((d && d.q) || []).forEach(function(e){ if (e && e.y !== 'k') seen[String(e.k).replace('♯', '#').replace('♭', 'b')] = 1; }); });
+      if (MAJ.every(function(k){ return seen[k]; })) add('gear', 'top:goldpiano');
+    } catch(e){}
+    try {
+      var bw = lsGet('earbrain_prog_v1:' + SID), syn = lsGet('synapse_best_v1:' + SID), N = { synapse: 6, intervals: 6, chords: 8, progressions: 6, scales: 8, voice: 9, pitch: 9 };
+      if (bw && Object.keys(N).every(function(a){ var arr = bw[a] || []; for (var i = 0; i < N[a]; i++) if (!arr[i] && !(a === 'synapse' && syn && i < (+syn.floor || 0) - 1)) return false; return true; })) add('games', 'brainwaves');
+    } catch(e){}
+    try {
+      var rl = lsGet('rdt_log_v1:' + sk) || {};
+      if (Object.values(rl).some(function(d){ return ((d && d.runs) || []).some(function(r){ return r && r.lv === 'extreme' && +r.score >= 90; }); })) { add('games', 'rhythm'); add('gear', 'top:detective'); }
+    } catch(e){}
+    if (topLevel('tidal') >= 16) { add('games', 'tidal'); add('gear', 'hat:captain'); }
+    if (topLevel('rooftop') >= 16) add('games', 'rooftop');
+    if (topLevel('earshot') >= 8) add('games', 'earshot');
+    try { var g = lsGet('mtg_super_genius_v1:' + SID); if (g && g.version === 2 && ((g.ranks && g.ranks[2] === true) || (g.best && g.best.won))) add('games', 'genius'); } catch(e){}
+    var before = (lsGet(MASTK) || {}).games || [];
+    lsSet(MASTK, m);
+    return m.games.length > before.length ? m.games.filter(function(x){ return before.indexOf(x) < 0; }) : [];
+  }
+  var GNAME = { scale: 'Scale Quest', brainwaves: 'Brainwaves', rhythm: 'The Big Score', tidal: 'Tidal Tones', rooftop: 'Rooftop Runner', earshot: 'Earshot Saloon', genius: 'Super Genius' };
+  function masteredGear(k){ var m = P && lsGet(MASTK); return !!(m && Array.isArray(m.gear) && m.gear.indexOf(k) >= 0); }
+  checkMastery();
+
   var ENC_COLS = ['#b07cff', '#2fd6c4', '#ff6fb5', '#f5c542', '#ffffff'];
   var encCol = function(e){ return ENC_COLS[Math.floor((e - 1) / 5) % 5]; };   // the color steps up every 5 Encores, then starts over
   var encMark = function(e){ return e <= 5 ? new Array(e + 1).join('★') : '★' + e; };
@@ -1706,7 +1748,9 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       var r = d.r || {}, L = Math.round(+r.level || 0);
       if (L > 0) lvl = Math.max(1, Math.min(9, L));
       var bonus = 10 * lvl + (/[?&]test=/.test(location.search) ? 50 : 0);
-      var r0 = rankNow(); addXP(25); var r1 = rankNow();
+      var r0 = rankNow(); addXP(25);
+      setTimeout(function(){ var won = checkMastery() || []; if (won.length) { pop('🏆 ' + GNAME[won[0]] + ' mastered!', '#7af0ff'); drawAll(); } }, 1500);
+      var r1 = rankNow();
       if (r1 > r0) { setTimeout(function(){ pop('🎉 ' + RANKS[r1][1] + '!', '#ffd166'); drawAll(); }, 900); }
       earn(bonus, 0);
       if (P) pop('+' + (runPts + bonus) + ' ★', '#7be0c3');
@@ -1719,7 +1763,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   // Items with "lock" are earned by mastering a game (build step 4); until then they show the lock and how to get them.
   var key = function(it){ return it.slot + ':' + it.id; };
   var RANK_ITEMS = { 'gear:baton': 8, 'bg:wreath': 9 };   // rank index that unlocks them
-  var owns = function(it){ var k = key(it); return !!it.free || W.owned.indexOf(k) >= 0 || (RANK_ITEMS[k] != null && rankNow() >= RANK_ITEMS[k]); };
+  var owns = function(it){ var k = key(it); return !!it.free || W.owned.indexOf(k) >= 0 || (RANK_ITEMS[k] != null && rankNow() >= RANK_ITEMS[k]) || masteredGear(k); };
   var TABS = [['look', 'Look'], ['outfit', 'Skins'], ['clothes', 'Clothes'], ['hat', 'Hats'], ['gear', 'Gear'], ['moves', 'Moves'], ['bg', 'Backdrops'], ['pet', 'Pets'], ['rank', 'Rank']];
   var MOVE_SLOTS = [['idle', 'Standing still'], ['happy', 'Right answer'], ['aww', 'Missed one (never sad)'], ['dance', 'End of a run']];
   var LOOKROWS = [
@@ -1758,6 +1802,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
         + (W.encores ? '<p class="mav-sub">Encores: <b style="color:' + encCol(W.encores) + '">' + encMark(W.encores) + '</b> · points +' + Math.min(50, 10 * W.encores) + '%</p>' : '')
         + (r === 9 ? '<div class="mav-try"><span><b>🎭 Take an Encore?</b> Your avatar rank goes back to Rookie Listener and you climb again. You keep every item, coin and point, and you get ★ on your platform and +10% points (up to +50%). Nothing your teacher sees changes.</span><button type="button" class="mav-btn" data-do="encore">Take a bow</button></div>' : '')
         + (next ? '<p class="mav-sub">' + (x < next[0] ? (next[0] - x).toLocaleString() + ' XP to ' + next[1] : '') + (GATES[r + 1] && m < GATES[r + 1] ? (x < next[0] ? ' and ' : 'Next: ') + 'master ' + (GATES[r + 1] === 7 ? 'every game' : GATES[r + 1] + (GATES[r + 1] === 1 ? ' game' : ' games')) + ' (you have ' + m + ')' : '') + '</p>' : '<p class="mav-sub">Top rank! 👑</p>');
+      var mg = ((lsGet(MASTK) || {}).games) || [];
+      head += '<p class="mav-sub">Games mastered: ' + (mg.length ? mg.map(function(g){ return GNAME[g] || g; }).join(', ') : 'none yet') + ' (' + mg.length + ' of 7)</p>';
       return head + '<ol class="mav-ladder">' + RANKS.map(function(k, i){ return '<li class="' + (i === r ? 'on' : i < r ? 'done' : '') + '"><span class="mav-dot" style="background:' + tier(i) + '"></span><b>' + k[1] + '</b><span>' + k[0].toLocaleString() + ' XP' + (GATES[i] ? ' + master ' + (GATES[i] === 7 ? 'every game' : GATES[i] + (GATES[i] === 1 ? ' game' : ' games')) : '') + '</span></li>'; }).join('') + '</ol>';
     }
     var html = '';
