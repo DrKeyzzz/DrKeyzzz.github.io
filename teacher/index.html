@@ -669,6 +669,14 @@ const EDIT = TESTMODE ? (new URLSearchParams(location.search).get('edit') || '')
 const TEST_GAMES = ['scale','tidal','rooftop','rhythm','earshot','synapse'];   // games that have a test hook (the home page's TEST_GAMES must match)
 const APARAMS = new URLSearchParams(location.search);
 const assignKey = a => a.id || legacyKey(a);
+// Queue (2026-11-15, David): a class can hold several assignments at once. Live = not ended, not over, and either the class's
+// main one (hub_assignment) or saved since the queue started (q: 1). Older replaced ones in hub_assignments have no q, so they
+// stay ended. hub_assignment = the main one (running with the soonest end, else the soonest upcoming), kept for older readers.
+// Same helpers in index.html (home page) and teacher/all/index.html (dashboard).
+const liveAssigns = (c, today, key) => { const m = c && c.hub_assignment, seen = new Set();
+  return [].concat(m || [], (c && Array.isArray(c.hub_assignments) && c.hub_assignments) || []).filter(a => a && Array.isArray(a.tasks) && a.tasks.length && a.start && a.end
+    && !a.ended_ms && a.end >= today && (a === m || a.q) && !seen.has(key(a)) && seen.add(key(a))).sort((x, y) => x.start.localeCompare(y.start) || x.end.localeCompare(y.end)); };
+const mainOf = (L, today) => L.filter(a => a.start <= today).sort((x, y) => x.end.localeCompare(y.end))[0] || L[0] || null;
 const legacyKey = a => { const stable = v => Array.isArray(v) ? '[' + v.map(stable) + ']' : v && typeof v === 'object' ? '{' + Object.keys(v).sort().map(k => k + ':' + stable(v[k])) + '}' : JSON.stringify(v); return [a.start, a.end, stable(a.tasks)].join('|'); };
 // + New assignment starts with no class picked: the teacher taps one
 const S = { email: '', classes: [], code: APARAMS.has('new') && !TESTMODE ? '' : APARAMS.get('code') || '', when: 'today', tasks: [newTask()] };
@@ -742,8 +750,8 @@ async function loadClasses() {
 function renderClasses() {
   if (!S.classes.length) return;
   $('classes').innerHTML = S.classes.map(c => {
-    const a = c.hub_assignment;
-    const what = a && a.tasks && a.tasks.length ? `<b>${esc(whenText(a))}</b> · ${a.tasks.map(t => esc(taskText(t))).join(' · ')}` : 'No assignment';
+    const L = liveAssigns(c, dayKey(), assignKey), a = L[0];
+    const what = a ? `<b>${esc(whenText(a))}</b> · ${a.tasks.map(t => esc(taskText(t))).join(' · ')}${L.length > 1 ? ` <b>+ ${L.length - 1} more coming</b>` : ''}` : 'No assignment';
     const on = c.code === S.code, pick = canPick() ? ` role="button" tabindex="0" data-code="${esc(c.code)}" aria-pressed="${on}"` : '';
     return `<li class="${on ? 'on' : ''}"${pick}><span class="cn">${esc(c.name)}</span><span class="cc">${esc(c.code)}</span>${on ? '<span class="sel">Assigning</span>' : ''}<span class="ca">${what}</span></li>`;
   }).join('');
@@ -753,7 +761,7 @@ function pickClass() {
   const c = cls(), today = dayKey();
   const requested = APARAMS.get('assignment');
   const candidates = c ? [c.hub_assignment, ...(c.hub_assignments || [])].filter(Boolean) : [];
-  const a = !TESTMODE && (requested ? candidates.find(x => assignKey(x) === requested) : APARAMS.has('new') ? null : c && c.hub_assignment?.end >= today ? c.hub_assignment : null);
+  const a = !TESTMODE && (requested ? candidates.find(x => assignKey(x) === requested) : APARAMS.has('new') ? null : c ? mainOf(liveAssigns(c, today, assignKey), today) : null);
   S.originalAssignment = a || null;
   if (!TESTMODE) {
     $('a-head').textContent = (requested || a ? 'Edit assignment' : 'New assignment') + (c ? ` for ${c.name}` : '');
@@ -982,11 +990,13 @@ $('form').addEventListener('submit', async e => {
       if (original && (!selected || selected.set_ms !== original.set_ms || selected.ended_ms !== original.ended_ms)) {
         throw new Error('This assignment changed. Reopen it before saving.');
       }
-      const active = !original || matches(current);
-      const next = { ...selected, ...b.a, id, set_ms: now };
+      const today = dayKey(), liveKeys = new Set(liveAssigns(fresh, today, assignKey).map(assignKey));
+      const next = { ...selected, ...b.a, id, set_ms: now, q: 1 };   // q: 1 = queued; it no longer replaces the running one
       const seen = new Set();
       const keep = [next, current, ...history].filter((a, i) => a && Array.isArray(a.tasks)
-        && !(i && matches(a)) && !seen.has(assignKey(a)) && seen.add(assignKey(a)));
+        && !(i && matches(a)) && !seen.has(assignKey(a)) && seen.add(assignKey(a)))
+        .map(a => !a.q && liveKeys.has(assignKey(a)) ? { ...a, q: 1 } : a);   // the old main one keeps running beside the new one
+      const main = mainOf(liveAssigns({ hub_assignments: keep.slice(0, 40) }, today, assignKey), today);
       const gradeOut = { ...fresh.grade_out_of };
       if (original && !original.id) gradeOut[id] = gradeOut[original.start + '_' + original.end] ?? 10;
       for (const old of keep.slice(40)) {
@@ -994,15 +1004,15 @@ $('form').addEventListener('submit', async e => {
         if (old.ended_ms && old.id) tx.delete(fs.doc(db, 'classes', c.code, 'assignment_grades', old.id));
       }
       const patch = { hub_assignments: keep.slice(0, 40), grade_out_of: gradeOut,
-        ...(active ? { hub_assignment: { ...next, set_at: fs.serverTimestamp() } } : {}) };
+        hub_assignment: main ? { ...main, set_at: fs.serverTimestamp() } : null };
       tx.update(ref, patch);
-      if (active) patch.hub_assignment = next;
+      patch.hub_assignment = main;
       return patch;
     });
     Object.assign(c, patch);
-    if (APARAMS.has('assignment')) APARAMS.set('assignment', id);
+    APARAMS.set('assignment', id);   // keep the one just saved open (several can be queued now)
     APARAMS.delete('new'); pickClass();
-    msg(`Saved for ${c.name}.`, true);
+    msg(`Saved for ${c.name}.${b.a.start > dayKey() ? ' Students see it from ' + toDate(b.a.start).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) + '.' : ''}`, true);
     if (APARAMS.get('embed') === '1') parent.postMessage({ type: 'mtg-assign-saved', code: c.code, id }, location.origin);
   } catch (err) { msg(errText(err, true)); }
   finally { $('save').disabled = false; $('save').textContent = 'Save assignment'; }

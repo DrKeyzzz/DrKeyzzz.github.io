@@ -901,9 +901,20 @@ function cleanAssign(a) {
       ...(t.game !== 'any' && t.settings && typeof t.settings === 'object' && !Array.isArray(t.settings) && Object.keys(t.settings).length ? { settings: t.settings } : {}) }));
   return tasks.length ? { start: a.start, end: a.end, tasks } : null;
 }
+// Queue (2026-11-15): a class can hold several assignments (hub_assignments with q: 1, plus the main hub_assignment); same
+// liveAssigns as teacher/index.html. ASSIGN_KEY2 keeps every live one per class for the cards here; ASSIGN_KEY (v1) keeps one
+// per class (the one running today, else the next) for the games' Assignment complete card (shared/mtg-assign.snippet.html).
+const ASSIGN_KEY2 = p => 'mtg_assign_v2:' + sidOf(p);
+const aKeyOf = a => a.id || a.start + '|' + a.end + '|' + JSON.stringify(a.tasks);
+const liveAssigns = (c, today, key) => { const m = c && c.hub_assignment, seen = new Set();
+  return [].concat(m || [], (c && Array.isArray(c.hub_assignments) && c.hub_assignments) || []).filter(a => a && Array.isArray(a.tasks) && a.tasks.length && a.start && a.end
+    && !a.ended_ms && a.end >= today && (a === m || a.q) && !seen.has(key(a)) && seen.add(key(a))).sort((x, y) => x.start.localeCompare(y.start) || x.end.localeCompare(y.end)); };
 function saveAssigns(p, cs, ds) {
-  const by = {}; cs.forEach((c, i) => { if (ds[i].exists()) by[c.code] = cleanAssign(ds[i].data().hub_assignment); });
-  try { localStorage.setItem(ASSIGN_KEY(p), JSON.stringify(by)); } catch {}
+  const by = {}, all = {}, today = dayKey();
+  cs.forEach((c, i) => { if (!ds[i].exists()) return;
+    const L = liveAssigns(ds[i].data(), today, aKeyOf).slice(0, 6).map(cleanAssign).filter(Boolean);
+    all[c.code] = L; by[c.code] = L.find(a => a.start <= today) || L[0] || null; });
+  try { localStorage.setItem(ASSIGN_KEY(p), JSON.stringify(by)); localStorage.setItem(ASSIGN_KEY2(p), JSON.stringify(all)); } catch {}
 }
 const dueText = end => {
   if (end === dayKey()) return 'due today';
@@ -982,12 +993,12 @@ function testCards(p) {
   });
 }
 function teacherCards(p, days) {
-  const by = load(ASSIGN_KEY(p)) || {}, cs = classesOf(p), today = dayKey(), out = [];
-  for (const c of cs) {
-    const a = cleanAssign(by[c.code]);
+  const by = load(ASSIGN_KEY(p)) || {}, all = load(ASSIGN_KEY2(p)), cs = classesOf(p), today = dayKey(), out = [];
+  for (const c of cs) for (const a0 of (all && Array.isArray(all[c.code]) ? all[c.code] : [by[c.code]])) {
+    const a = cleanAssign(a0);
     if (!a || a.start > today || a.end < today) continue;
     for (const t of a.tasks) {
-      if (out.length >= 3) break;
+      if (out.length >= 4) break;
       const g = GAME[t.game] || null, what = skl(t).join(', ') || (t.settings && Array.isArray(t.settings.keys) && t.settings.keys.length ? t.settings.keys.slice(0, 6).join(', ') + (t.settings.keys.length > 6 ? '…' : '') : 'any practice'), title = `${g ? g.name : 'Any game'}: ${what}`;
       const v = assignDone(days, a, t), done = v >= t.goal, unit = t.unit === 'minutes' ? 'min' : 'answers';
       const href = g ? taskLink(g, t) : '#games';
