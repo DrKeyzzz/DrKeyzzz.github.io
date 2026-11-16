@@ -946,7 +946,8 @@ async function boot() {
   };
   if (ICONS.includes(p.icon) && ICON_SVG[p.icon]) $('avatar').innerHTML = ICON_SVG[p.icon].replace('class="ic-svg"', 'style="width:60%;height:60%"');
   else $('avatar').textContent = ICONS.includes(p.icon) ? p.icon : p.first.charAt(0).toUpperCase();
-  $('p-name').textContent = displayName(p);
+  // the developer's own account (David signs in as Maestro): no initial, and a clear DEV badge
+  if (/^\s*maestro\b/i.test(String(p.first || ''))) $('p-name').innerHTML = 'Maestro<span style="display:inline-block;vertical-align:middle;margin-left:10px;font:800 13px/1 system-ui,sans-serif;letter-spacing:.06em;color:#141a30;background:#ffc85c;border-radius:999px;padding:6px 10px">DEV · your account</span>'; else $('p-name').textContent = displayName(p);
   const cls = classesOf(p);
   $('p-class').textContent = cls.length > 1 ? cls.map(c => c.name || c.code).join(' · ')
     : p.classCode ? `${p.className && p.className !== p.classCode ? p.className + ' · ' : ''}${p.classCode}` : 'Not in a class';

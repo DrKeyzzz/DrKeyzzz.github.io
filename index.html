@@ -1025,7 +1025,8 @@ function renderHub(p) {
   document.querySelectorAll('.game[data-game]').forEach(a => { const el = a.querySelector('.prog'); el.hidden = !p; if (p) el.textContent = progLine(a.dataset.game, T[a.dataset.game]); });
   $('quests').hidden = !p;
   if (!p) return;
-  $('hi-name').textContent = `Hi ${p.first.charAt(0).toUpperCase()}${p.first.slice(1)}!`;
+  // the developer's own account (David signs in as Maestro): a clear DEV badge
+  if (/^\s*maestro\b/i.test(String(p.first || ''))) $('hi-name').innerHTML = 'Hi Maestro!<span style="display:inline-block;vertical-align:middle;margin-left:10px;font:800 13px/1 system-ui,sans-serif;letter-spacing:.06em;color:#141a30;background:#ffc85c;border-radius:999px;padding:6px 10px">DEV · your account</span>'; else $('hi-name').textContent = `Hi ${p.first.charAt(0).toUpperCase()}${p.first.slice(1)}!`;
   const st = standing(p, days, T);
   $('hi-rank').textContent = `🏅 ${RANKS[st.rank][1]}`;
   $('hi-rank').title = `Rank ${st.rank + 1} of ${RANKS.length} · ${fmt(st.xp)} XP`;
