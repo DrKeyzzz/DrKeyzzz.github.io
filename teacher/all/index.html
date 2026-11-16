@@ -440,7 +440,7 @@
           <button type="button" data-v="board" aria-pressed="false"><span class="ti" aria-hidden="true">📌</span>Board<span class="nb" id="boardcount" hidden></span></button>
           <button type="button" data-v="live" aria-pressed="false" hidden title="Ask the class questions live (Live Class)" class="adm"><span class="ti" aria-hidden="true">📡</span>Live questioning</button>
           <button type="button" data-v="admin" aria-pressed="false" hidden class="adm"><span class="ti" aria-hidden="true">🛡️</span>Admin<span class="rq" id="rqcount" hidden></span></button>
-          <button type="button" data-v="activity" aria-pressed="false" hidden class="adm"><span class="ti" aria-hidden="true">👀</span>Activity</button>
+          <button type="button" data-v="activity" aria-pressed="false" hidden title="Who is playing: visits from your students"><span class="ti" aria-hidden="true">👀</span>Activity</button>
         </div>
         <span class="grow"></span>
         <button class="btn ghost sm" type="button" id="csv">Download CSV</button>
@@ -997,7 +997,10 @@ function render() {
     return S.view === 'live' ? showLive() : S.view === 'messages' ? renderMessages() : renderBoard();
   }
   const asg = S.view === 'assign', nt = S.view === 'newtest', ts = S.view === 'tests', ad = S.view === 'admin', av = S.view === 'activity';
-  $('actbox').hidden = !av || PV_TEACHER;
+  $('actbox').hidden = !av;
+  { const adm = amAdmin(); ['actteach', 'actwho'].forEach(id => { $(id).closest('label').hidden = !adm; }); $('actclean').hidden = !adm;   // teachers: their classes only, no guests, no clean up
+    const tOpt = $('actby').querySelector('option[value="teacher"]'); tOpt.hidden = tOpt.disabled = !adm; if (!adm && $('actby').value === 'teacher') $('actby').value = 'visit';
+    if (!adm) { $('actteach').value = ''; $('actwho').value = ''; } }
   if (av) COLS.activity = { player: ACT_PLAYER_COLS, teacher: ACT_TEACHER_COLS }[$('actby').value] || ACT_VISIT_COLS;
   if (!ad) S.teacher = '';
   const tpg = ad && !!S.teacher;
@@ -1025,6 +1028,7 @@ function render() {
     : S.view === 'progress' ? 'One row per student per game per day. Accuracy is correct answers out of all answers.'
     : S.view === 'scores' && S.code === WORLD ? 'World: the top 50 scores in each game from every class and the world boards, all time (the time range does not apply). Details shows each score\'s class.'
     : S.view === 'tests' ? 'Best score is the highest of all tries. Grade = accuracy of the best try as points out of the test\'s "Grade out of" (20 unless you change it), e.g. 95% of 20 = 19/20. Students who have not started do not appear.'
+    : S.view === 'activity' && !amAdmin() ? 'Who is playing: one row each time a student in your classes opens a game and stays at least 20 seconds. On screen = time the game was open and visible; Playing = time spent answering (pauses over 2 minutes don\'t count). Furthest = the highest level, town, floor or number of keys reached. Playing now = seen in the last few minutes. By player adds up each student\'s visits for the time range. Visits are deleted after 30 days.'
     : S.view === 'activity' ? 'One row each time someone opens a game and stays at least 20 seconds (once per game per browser tab). Teacher = who owns the class the student had picked. By teacher adds up every visit from each teacher\'s classes. On screen = time the game was open and visible; Playing = time spent answering (pauses over 2 minutes don\'t count). Furthest = the highest level, town, floor or number of keys reached. A visit updates every 3 minutes and when the player leaves, so Playing now means seen in the last few minutes. By player adds up each person\'s visits for the time range (all guests share one row). Super Genius shows time only. Visits before Nov 2 have no time or answers. Records stay until you clean them up.'
     : S.view === 'admin' ? 'Time is student practice time recorded in each teacher\'s classes (not teacher log-ins, and not tests). Earshot Saloon records scores only, so it shows no minutes. What they practice lists the most used levels, keys, scale types, modes and time signatures in the records.' : '';
 }
@@ -1038,7 +1042,7 @@ async function load() {
   try {
     let rows = [];
     if (S.view === 'admin') rows = await loadAdmin();
-    else if (S.view === 'activity') rows = PREVIEW ? (SAMPLE = SAMPLE || sample()).activity : act ? act.rows : [];
+    else if (S.view === 'activity') rows = PREVIEW ? (SAMPLE = SAMPLE || sample()).activity.filter(r => !PV_TEACHER || S.classes.some(c => c.code === r.class_code)) : act ? act.rows : [];
     else if (S.view === 'grades') {
       const c = S.classes.find(x => x.code === S.code), assignment = S.gradeA;
       const out = aOut(c, assignment);
@@ -1411,16 +1415,41 @@ function syncLive() {
   }).catch(() => {});
 }
 document.addEventListener('visibilitychange', syncLive);
-// Activity tab (admin only): a listener on activity/ for the chosen time range (newest 500), so new visits show up as they
+// Activity tab (admin: everyone; a teacher: their own classes, 2026-11-16): a listener on activity/ for the chosen time range (newest 500), so new visits show up as they
 // happen. It runs only while the tab is open and the page is visible; each new visit costs one read.
 let act = null;   // { key, stop, rows }
 function syncAct() {
   const n = +$('rng').value;
-  const key = S.view === 'activity' && !PREVIEW && amAdmin() && !document.hidden ? String(n) : '';
+  const admin = amAdmin(), codes = admin ? [] : S.classes.map(c => c.code).filter(Boolean).slice(0, 12);
+  const key = S.view === 'activity' && !PREVIEW && !document.hidden && (admin || codes.length) ? n + '|' + codes.join(',') : '';
   if ((act ? act.key : '') === key) return;
   if (act) { act.stop(); act = null; }
   if (!key) return;
   const me = act = { key, stop: () => {}, rows: [] };
+  const toRow = d => { const r = d.data(), has = 'page_s' in r;   // records from before 2026-11-02 have no counters
+    const row = { id: d.id, dateMs: toMs(r.at) || Date.now(), seenMs: toMs(r.seen), name: r.name || 'Guest', guest: !r.sid, class_code: r.class_code || '', game: r.game || '', device: r.device || '', parts: String(r.parts || '').split(',').filter(Boolean),
+      answers: has ? num(r.answers) : null, correct: num(r.correct), acc: num(r.answers) ? Math.round(100 * num(r.correct) / num(r.answers)) : null,
+      rounds: has ? num(r.rounds) : null, best: num(r.best), level: num(r.level), page_s: has ? num(r.page_s) : null, play_s: has ? num(r.play_s) : null };
+    row.partsTxt = actParts(row.parts); return row; };
+  if (!admin) {   // a teacher (2026-11-16): one listener per own class (rules: ownsClass(class_code)); index class_code + at desc
+    ACT_CLS = Object.fromEntries(S.classes.map(c => [c.code, { cls: c.name || c.code, email: S.email, teacher: 'You' }]));
+    run(async ({ fs, db }) => {
+      const base = fs.collection(db, 'activity'), by = {}, stops = [];
+      codes.forEach(code => {
+        const q = n ? fs.query(base, fs.where('class_code', '==', code), fs.where('at', '>=', fs.Timestamp.fromMillis(Date.now() - n * 864e5)), fs.orderBy('at', 'desc'), fs.limit(300))
+          : fs.query(base, fs.where('class_code', '==', code), fs.orderBy('at', 'desc'), fs.limit(300));
+        stops.push(fs.onSnapshot(q, snap => {
+          if (act !== me) return;
+          by[code] = snap.docs.map(toRow);
+          me.rows = Object.values(by).flat().sort((a, b) => b.dateMs - a.dateMs);
+          if (S.view === 'activity') { S.rows = me.rows; render(); }
+        }, e => { if (act === me) { msg(errText(e)); } }));
+      });
+      me.stop = () => stops.forEach(f => f());
+      if (act !== me) me.stop();
+    }).catch(e => msg(errText(e)));
+    return;
+  }
   run(async ({ fs, db }) => {
     try { await actLoadCls(fs, db); } catch (e) { ACT_CLS = ACT_CLS || {}; }   // Teacher column; the visits still show if this fails
     const base = fs.collection(db, 'activity');
@@ -1428,11 +1457,7 @@ function syncAct() {
       : fs.query(base, fs.orderBy('at', 'desc'), fs.limit(500));
     const stop = fs.onSnapshot(q, snap => {
       if (act !== me) return;
-      me.rows = snap.docs.map(d => { const r = d.data(), has = 'page_s' in r;   // records from before 2026-11-02 have no counters
-        return { id: d.id, dateMs: toMs(r.at) || Date.now(), seenMs: toMs(r.seen), name: r.name || 'Guest', guest: !r.sid, class_code: r.class_code || '', game: r.game || '', device: r.device || '', parts: String(r.parts || '').split(',').filter(Boolean),
-          answers: has ? num(r.answers) : null, correct: num(r.correct), acc: num(r.answers) ? Math.round(100 * num(r.correct) / num(r.answers)) : null,
-          rounds: has ? num(r.rounds) : null, best: num(r.best), level: num(r.level), page_s: has ? num(r.page_s) : null, play_s: has ? num(r.play_s) : null }; });
-      me.rows.forEach(r => { r.partsTxt = actParts(r.parts); });
+      me.rows = snap.docs.map(toRow);
       if (S.view === 'activity') { S.rows = me.rows; render(); }
     }, e => { if (act === me) { msg(errText(e)); act = null; } });
     if (act === me) me.stop = stop; else stop();
@@ -2264,7 +2289,7 @@ async function signedIn(email) {
   try { ok = await isTeacherEmail(email); } catch (e) { return signInScreen(errText(e)); }
   if (!ok) return joinScreen(email);
   S.email = email; $('who').innerHTML = `Signed in as <b>${esc(email)}</b>`;
-  $('views').querySelector('[data-v=admin]').hidden = $('views').querySelector('[data-v=activity]').hidden = !ADMIN_EMAILS.includes(email);
+  $('views').querySelector('[data-v=admin]').hidden = !ADMIN_EMAILS.includes(email); $('views').querySelector('[data-v=activity]').hidden = false;   // Activity: every teacher (their own classes), the admin sees everyone (2026-11-16)
   $('views').querySelector('[data-v=live]').hidden = !ADMIN_EMAILS.includes(email);   // Live Class: your classes first (BACKCHANNEL-PLAN.md, question 3); remove this line to show it to every teacher
   $('gate').hidden = true; $('main').hidden = false;
   if (ADMIN_EMAILS.includes(email)) { checkRequests(); setInterval(() => { if (!document.hidden) checkRequests(); }, 120000); }
@@ -2298,7 +2323,7 @@ async function start() {
   wire();
   if (PREVIEW) {
     S.email = PV_TEACHER ? 'r.kim@sample' : 'sample@preview';
-    $('gate').hidden = true; $('main').hidden = false; $('who').innerHTML = `Signed in as <b>${S.email}</b>`; $('views').querySelector('[data-v=admin]').hidden = $('views').querySelector('[data-v=activity]').hidden = PV_TEACHER; $('views').querySelector('[data-v=live]').hidden = PV_TEACHER;
+    $('gate').hidden = true; $('main').hidden = false; $('who').innerHTML = `Signed in as <b>${S.email}</b>`; $('views').querySelector('[data-v=admin]').hidden = PV_TEACHER; $('views').querySelector('[data-v=activity]').hidden = false; $('views').querySelector('[data-v=live]').hidden = PV_TEACHER;
     $('main').insertAdjacentHTML('afterbegin', `<div class="pv">Preview with sample ${PV_TEACHER ? 'data, seen by a teacher (Ron Kim)' : 'students'}. Nothing here is real.</div>`); if (!PV_TEACHER) checkRequests();
     if (hashView()) S.view = hashView();
     startSocial();
