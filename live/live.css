@@ -157,3 +157,12 @@ input[type=range] { width: 100%; accent-color: var(--gold); }
 .sd-star .av { width: 120px; height: 144px; } .sd-star .av svg { width: 100%; height: 100%; }
 .sd-star.first .av { width: 150px; height: 180px; }
 .sd-star .sd-place { font-size: 13px; color: #ffc85c; letter-spacing: 1px; text-transform: uppercase; }
+
+/* Timer bar (2026-11-17): drains left to right, clock on the right, red for the last 5 seconds */
+.tbar { display: flex; align-items: center; gap: 14px; }
+.tbar-tr { flex: 1; height: 14px; border-radius: 999px; background: rgba(255,255,255,.10); overflow: hidden; }
+.tbar-tr i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--gold), #ffd98a); transition: width .5s linear; }
+.tbar-c { font-weight: 800; color: var(--gold); font-size: 20px; min-width: 3.2em; text-align: right; }
+.tbar.big .tbar-tr { height: 22px; } .tbar.big .tbar-c { font-size: 40px; }
+.tbar.low .tbar-tr i { background: linear-gradient(90deg, #ff5d6c, #ff8a7a); } .tbar.low .tbar-c { color: #ff5d6c; }
+@media (prefers-reduced-motion: reduce) { .tbar-tr i { transition: none; } }

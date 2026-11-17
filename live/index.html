@@ -162,6 +162,24 @@ const { PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, NOW, db, results, latest, left, 
 const $ = id => document.getElementById(id);
 const app = $('app');
 const SCREEN = Q.get('screen') === '1';
+// Timer bar (2026-11-17, David: "make the timer a bar that runs out and the clock on the right"). The full length is the timer the
+// teacher picked: the remaining time the first time this page sees the question, rounded up to a usual length (10 s … 5 min).
+const TBAR = {};
+function tbarTotal(L, s) {
+  const k = L.round + '|' + (+L.ends_at || 0);
+  if (!TBAR[k]) TBAR[k] = [10, 15, 20, 30, 45, 60, 90, 120, 180, 300].find(x => x >= s) || s;
+  return TBAR[k];
+}
+function tbar(L, s, big) {
+  const pct = Math.max(0, Math.min(100, 100 * s / tbarTotal(L, s)));
+  return `<div class="tbar${big ? ' big' : ''}${s <= 5 ? ' low' : ''}" id="tbar"><div class="tbar-tr"><i id="tbi" style="width:${pct}%"></i></div><span class="mono tbar-c" id="cd">${clock(s)}</span></div>`;
+}
+function tbarTick(L) {   // every half second: shrink the bar, update the clock, turn it red for the last 5 s
+  const s = left(L), el = $('cd'), bi = $('tbi'), box = $('tbar'); if (s == null) return;
+  if (el) el.textContent = clock(s);
+  if (bi) bi.style.width = Math.max(0, Math.min(100, 100 * s / tbarTotal(L, s))) + '%';
+  if (box) box.classList.toggle('low', s <= 5);
+}
 const HOME = '../';
 
 // ---------- the signed-in student (shared sign-in, MULTI-CLASS.md) ----------
@@ -214,7 +232,8 @@ if (SCREEN) {
       : P.teacher ? results(L, A, { big: true, correct: L.open ? '' : correctOf() })
       : '<p class="muted">Results show here when this computer is signed in to your teacher dashboard.</p>';
     app.innerHTML = `<main class="proj">
-      <div class="row between"><span class="label" style="font-size:16px">${esc(TYPES[L.type] || '')}</span>${s != null ? `<span class="ptimer mono" id="cd">${clock(s)}</span>` : L.open ? '<span class="chip ok" style="font-size:18px">Answers open</span>' : '<span class="chip no" style="font-size:18px">Locked</span>'}</div>
+      <div class="row between"><span class="label" style="font-size:16px">${esc(TYPES[L.type] || '')}</span>${s != null ? '' : L.open ? '<span class="chip ok" style="font-size:18px">Answers open</span>' : '<span class="chip no" style="font-size:18px">Locked</span>'}</div>
+      ${s != null ? tbar(L, s, true) : ''}
       <h1>${esc(L.q)}</h1>${LC.ksStaff(L.ks)}
       ${L.type === 'mc' ? `<div class="row" style="font-size:24px;gap:14px">${(L.opts || []).map((o, i) => `<span class="chip" style="font-size:22px;padding:6px 16px">${'ABCDEF'[i]}. ${esc(o)}</span>`).join('')}</div>` : ''}
       <div class="projmain"><section class="card">${res}</section>${spot ? `<section class="stack">${spot}</section>` : `<section class="card stack" style="justify-content:center;align-items:center;text-align:center"><span class="big" style="font-size:90px">${P.teacher ? A.length : '–'}</span><span class="muted" style="font-size:24px">answers in</span></section>`}</div>
@@ -255,7 +274,7 @@ if (SCREEN) {
   if (code) db.watchDoc('bc_live/' + code, d => { P.live = d; watchRound(); draw(); }, e => { app.innerHTML = `<main class="proj"><h1>${esc(ERR(e))}</h1></main>`; });
   if (!PREVIEW && code) LC.fbAuth().then(({ am, auth }) => am.onAuthStateChanged(auth, u => { P.teacher = u && u.email ? String(u.email).toLowerCase() : ''; P.round = '__'; watchRound(); draw(); })).catch(() => {});
   window.addEventListener('storage', e => { if (e.key === 'mtg_live_teach_v1:' + code) draw(); });
-  setInterval(() => { const el = $('cd'); if (el && P.live) { if (P.live.game && P.live.open) draw(); else el.textContent = clock(left(P.live)); } }, 500);
+  setInterval(() => { const el = $('cd'); if (el && P.live) { if (P.live.game && P.live.open) draw(); else tbarTick(P.live); } }, 500);
   draw();
   return;
 }
@@ -309,7 +328,7 @@ function questionCard() {
   } else {
     input = `<div class="row" style="flex-wrap:nowrap"><input id="ans" type="${L.type === 'num' ? 'number' : 'text'}" ${L.type === 'num' ? 'inputmode="decimal" step="any"' : 'maxlength="24" autocapitalize="off"'} value="${esc(S.draft)}" placeholder="${L.type === 'num' ? 'Type a number' : 'One word'}"><button type="button" class="btn pri" data-send ${S.busy ? 'disabled' : ''}>${mine ? 'Update' : 'Send'}</button></div>`;
   }
-  return `<section class="card stack qhead"><div class="row between"><span class="label">${esc(TYPES[L.type] || '')}</span>${s != null ? `<span class="chip gold">⏱ <span class="mono" id="cd">${clock(s)}</span></span>` : ''}</div>
+  return `<section class="card stack qhead"><div class="row between"><span class="label">${esc(TYPES[L.type] || '')}</span></div>${s != null ? tbar(L, s, false) : ''}
     <h2>${esc(L.q)}</h2>${LC.ksStaff(L.ks)}${input}${mine ? `<p class="sent">✓ Sent: “${esc(mine.text)}”</p>` : ''}
     <p class="dim small" style="margin:0">Only your teacher sees your answer.</p></section>`;
 }
@@ -428,7 +447,7 @@ db.watchDoc('bc_live/' + code, d => {
   if (d && d.game && d.board && !d.board.length && !d.final && Object.keys(SD.done).length && !(before && before.board && !before.board.length)) { SD.pts = 0; SD.st = 0; SD.done = {}; saveSD(); }   // the teacher started a new Showdown
   wasOpen = d && d.open; S.seen = true; draw();   // buzz the phone only for a NEW question, not on page load
 }, e => { S.loaded = true; S.err = ERR(e); draw(); });
-setInterval(() => { const L = S.live; if (!L || !L.ends_at) return; const s = left(L), el = $('cd'); if (el) el.textContent = clock(s); if (s === 0 && L.open && draw.locked !== L.round) { draw.locked = L.round; draw(); } }, 500);
+setInterval(() => { const L = S.live; if (!L || !L.ends_at) return; const s = left(L); tbarTick(L); if (s === 0 && L.open && draw.locked !== L.round) { draw.locked = L.round; draw(); } }, 500);
 draw();
 })();
 </script>
