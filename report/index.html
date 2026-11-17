@@ -1096,6 +1096,82 @@ async function boot() {
 boot();
 })();
 </script>
+<p style="text-align:center;margin:10px 0 26px;font-size:14px"><a href="../privacy/" style="color:var(--muted,#9aa7bb)">Privacy</a></p>
+<script src="../msg/student-msg.js" defer></script>
+<script>
+// Avatar showcase on the player card (avatar step 5, 2026-11-16): the student's avatar (head and shoulders, fits the round spot) takes the icon's
+// place, tap it to open the Store; coins, points and the avatar rank under the XP bar. Skipped for guests and when the class has
+// avatars turned off (the old icon stays).
+(function(){
+  let tries = 0;
+  const show = () => {
+    const A = window.MTGAvatar, box = document.getElementById('avatar');
+    if (!A || !box || document.getElementById('report').hidden) return ++tries < 40 && setTimeout(show, 300);
+    if (A.off() || !A.signedIn()) return;
+    box.classList.add('av', 'hasav'); box.removeAttribute('aria-hidden'); box.setAttribute('role', 'button'); box.tabIndex = 0;
+    box.title = 'Your avatar: tap to change it or open the Store';
+    const draw = () => { box.innerHTML = A.svg({ label: 'Your avatar' }); box.dataset.idle = (A.look() || {}).idle || 'bounce'; const w = A.wallet(), k = A.rank();
+      document.getElementById('p-coins').textContent = '🪙 ' + w.coins.toLocaleString(); document.getElementById('p-pts').textContent = '★ ' + w.points.toLocaleString();
+      if (k && k.encores) { const lv = document.getElementById('p-level'); if (lv && !lv.querySelector('.enc2')) lv.insertAdjacentHTML('beforeend', ' <span class="enc2">' + (k.encores <= 5 ? '★'.repeat(k.encores) : '★' + k.encores) + '</span>'); }
+      const ed = document.getElementById('editav'); ed.hidden = false; ed.onclick = () => A.open();
+      // Today's quests and the daily streak (play more, 2026-11-16): from the avatar snippet
+      if (A.questsHtml) { let qb = document.getElementById('questbox'); if (!qb) { qb = document.createElement('section'); qb.id = 'questbox'; qb.className = 'box'; document.getElementById('next2').insertAdjacentElement('afterend', qb); }
+        qb.innerHTML = '<h2>🎯 Today\u2019s quests</h2><p class="sub">New ones every day at midnight. Each one pays ★ points for the Store.</p>' + A.questsHtml(); } };
+    box.dataset.act = ((window.MTGAvatar.look() || {}).dance) || 'groove'; setTimeout(() => { delete box.dataset.act; }, 3000);   // a dance when the page opens
+    draw();
+    box.onclick = () => A.open();
+    box.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); A.open(); } };
+    document.addEventListener('close', draw, true);   // redraw when the Store closes
+  };
+  addEventListener('load', show);
+  // practice time chip (from the shared time box): total and the Practice Hero tier
+  const tm = () => { const T = window.MTGTime; if (!T || !T.allTimeMin) return ++tries < 60 && setTimeout(tm, 400); const m = Math.round(T.allTimeMin() || 0), h = Math.floor(m / 60);
+    document.getElementById('p-time').textContent = '⏱ ' + (h ? h + 'h ' : '') + (m % 60) + 'm';
+    const tiers = [[6000, 'Legend'], [3000, 'Diamond'], [1500, 'Platinum'], [600, 'Gold'], [300, 'Silver'], [60, 'Bronze']], t = tiers.find(x => m >= x[0]);
+    document.getElementById('p-timetier').textContent = 'practiced' + (t ? ' · ' + t[1] + ' hero' : ''); };
+  addEventListener('load', tm);
+})();
+</script>
+<style>
+  .avatar.hasav { padding: 0; overflow: hidden; cursor: pointer; background: #1d2547; }
+  .avatar.hasav svg { width: 100%; height: 100%; display: block; }
+  .avwallet { margin: 6px 0 0; font-size: 14px; color: var(--muted, #a8b3d6); }
+  /* ---- My Report redesign (2026-11-16): the avatar's home ---- */
+  .player.hero2 { display: grid; grid-template-columns: minmax(240px, 38%) 1fr; gap: 22px; align-items: stretch; padding: 18px 22px; border-radius: 24px; position: relative; overflow: hidden;
+    background: radial-gradient(120% 120% at 15% 20%, rgba(124,156,255,.28), rgba(255,255,255,.03) 60%), var(--card, #182048); }
+  .hero2 .stage2 { position: relative; display: flex; align-items: flex-end; justify-content: center; min-height: 300px; }
+  .hero2 .beam2 { position: absolute; top: -30%; left: 50%; width: 90%; height: 130%; transform: translateX(-50%); pointer-events: none;
+    background: conic-gradient(from 180deg at 50% 0%, transparent 160deg, rgba(255,240,200,.14) 172deg, rgba(255,240,200,.22) 180deg, rgba(255,240,200,.14) 188deg, transparent 200deg); }
+  .hero2 .avatar { width: min(100%, 290px); height: auto; aspect-ratio: 100/120; border-radius: 0; border: 0; background: none; font-size: 90px; display: grid; place-items: center; box-shadow: none; position: relative; }
+  .hero2 .avatar.hasav { background: none; }
+  .hero2 .who { display: flex; flex-direction: column; justify-content: center; gap: 12px; min-width: 0; }
+  .hero2 h1 { font-size: 38px; line-height: 1.05; margin: 0; }
+  .hero2 .lvl { background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.12); border-radius: 16px; padding: 12px 14px; }
+  .hero2 .xp { height: 14px; }
+  .enc2 { color: #b07cff; font-weight: 900; }
+  .chips2 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .chip2 { background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.1); border-radius: 16px; padding: 10px 12px; display: flex; flex-direction: column; }
+  .chip2 b { font-size: 20px; white-space: nowrap; } .chip2 span { color: var(--muted, #a8b3d6); font-size: 12.5px; font-weight: 700; }
+  .editav { align-self: flex-start; border: 0; border-radius: 14px; padding: 12px 20px; font: inherit; font-weight: 900; font-size: 16px; cursor: pointer; background: linear-gradient(#ffd25a, #ffb020); color: #2a1a00; box-shadow: 0 4px 0 #b97800; }
+  .next2 { display: flex; align-items: center; gap: 16px; text-decoration: none; color: #fff; background: linear-gradient(120deg, #2f6bff, #7a3cff); border-radius: 22px; padding: 16px 20px; box-shadow: 0 10px 30px rgba(60,80,255,.3); }
+  .next2[hidden] { display: none; }
+  .next2 .ic { font-size: 40px; } .next2 .tx { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .next2 .k { font-size: 12px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; opacity: .85; } .next2 b { font-size: 21px; }
+  .next2 .pg { height: 10px; border-radius: 999px; background: rgba(255,255,255,.25); overflow: hidden; width: min(360px, 60vw); } .next2 .pg i { display: block; height: 100%; background: #fff; }
+  .next2 .go2 { margin-left: auto; background: #fff; color: #2a2f80; font-weight: 900; font-size: 18px; padding: 12px 22px; border-radius: 14px; box-shadow: 0 4px 0 rgba(0,0,0,.25); white-space: nowrap; }
+  .gtiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; margin-top: 12px; }
+  .gtile { display: flex; gap: 12px; align-items: center; text-align: left; font: inherit; color: inherit; background: rgba(255,255,255,.05); border: 2px solid rgba(255,255,255,.08); border-radius: 18px; padding: 12px; cursor: pointer; }
+  .gtile:hover { border-color: var(--gacc); } .gtile .gt { display: flex; flex-direction: column; } .gtile .gt b { font-size: 16px; } .gtile .gt span { color: var(--muted, #a8b3d6); font-size: 13px; }
+  .ring2 { width: 62px; height: 62px; position: relative; flex: none; } .ring2 svg { width: 100%; height: 100%; } .ring2 b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 14px; }
+  .back2 { font: inherit; font-weight: 800; color: inherit; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); border-radius: 999px; padding: 7px 14px; margin-bottom: 12px; cursor: pointer; }
+  @media (max-width: 760px) {
+    .player.hero2 { grid-template-columns: 1fr; padding: 12px; gap: 8px; }
+    .hero2 .stage2 { min-height: 0; height: 240px; } .hero2 .avatar { width: auto; height: 100%; }
+    .hero2 h1 { font-size: 28px; } .chips2 { grid-template-columns: repeat(2, 1fr); }
+    .next2 { flex-wrap: wrap; } .next2 .go2 { margin-left: 0; width: 100%; text-align: center; }
+  }
+  .avwallet b { color: #ffd166; }
+</style>
 <!-- MTG_AVATAR start: identical in every game, only data-mount changes. Master copy: Music Games/shared/mtg-avatar.snippet.html -->
 <style id="mtg-avatar-css">
 /* Avatar (build step 1, 2026-11-16): the drawing and moves come from the approved preview (Claude outputs/avatar-preview.html);
@@ -1701,9 +1777,9 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       none: '',
       round: `<g fill="none" stroke="${line}" stroke-width="1.3"><circle cx="42" cy="41" r="5.4"/><circle cx="58" cy="41" r="5.4"/><path d="M47.4 41 H52.6"/></g>`,
       square: `<g fill="none" stroke="${line}" stroke-width="1.3"><rect x="36" y="36.5" width="11.5" height="9" rx="2"/><rect x="52.5" y="36.5" width="11.5" height="9" rx="2"/><path d="M47.5 40 H52.5"/></g>`,
-      shades: `<defs><linearGradient id="${u}mir" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e3a8a"/><stop offset=".45" stop-color="#7c3aed"/><stop offset=".75" stop-color="#f97316"/><stop offset="1" stop-color="#fde68a"/></linearGradient></defs>`   // mirrored aviators (David 2026-11-16)
-        + `<g fill="url(#${u}mir)" stroke="#d4af37" stroke-width=".9" stroke-linejoin="round"><path d="M35.5 37.5 Q42 36 48.2 37.6 Q48.6 44.5 44 46.4 Q38.5 47.5 36 43.5 Q35 40.5 35.5 37.5Z"/><path d="M64.5 37.5 Q58 36 51.8 37.6 Q51.4 44.5 56 46.4 Q61.5 47.5 64 43.5 Q65 40.5 64.5 37.5Z"/></g>`
-        + `<path d="M48.2 38.2 Q50 36.9 51.8 38.2 M46.5 36.7 H53.5 M35.5 38 L31 38.6 M64.5 38 L69 38.6" fill="none" stroke="#d4af37" stroke-width=".9" stroke-linecap="round"/>`
+      shades: `<defs><linearGradient id="${u}mir" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f7fb"/><stop offset=".35" stop-color="#aeb8c8"/><stop offset=".55" stop-color="#5d6a80"/><stop offset=".8" stop-color="#dfe5ee"/><stop offset="1" stop-color="#8592a6"/></linearGradient></defs>`   // silver mirrored aviators (David 2026-11-16, silver 2026-11-17)
+        + `<g fill="url(#${u}mir)" stroke="#c4cbd6" stroke-width=".9" stroke-linejoin="round"><path d="M35.5 37.5 Q42 36 48.2 37.6 Q48.6 44.5 44 46.4 Q38.5 47.5 36 43.5 Q35 40.5 35.5 37.5Z"/><path d="M64.5 37.5 Q58 36 51.8 37.6 Q51.4 44.5 56 46.4 Q61.5 47.5 64 43.5 Q65 40.5 64.5 37.5Z"/></g>`
+        + `<path d="M48.2 38.2 Q50 36.9 51.8 38.2 M46.5 36.7 H53.5 M35.5 38 L31 38.6 M64.5 38 L69 38.6" fill="none" stroke="#c4cbd6" stroke-width=".9" stroke-linecap="round"/>`
         + `<path d="M37.6 40.2 L42.4 38.4 M38.4 42.6 L40.6 41.8 M53.8 40.2 L58.6 38.4 M54.6 42.6 L56.8 41.8" stroke="#fff" stroke-width="1" stroke-linecap="round" opacity=".75"/>`,
     };
     let glasses = G[L.glasses];
@@ -2455,82 +2531,6 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
 })();
 </script>
 <!-- MTG_AVATAR end -->
-<p style="text-align:center;margin:10px 0 26px;font-size:14px"><a href="../privacy/" style="color:var(--muted,#9aa7bb)">Privacy</a></p>
-<script src="../msg/student-msg.js" defer></script>
-<script>
-// Avatar showcase on the player card (avatar step 5, 2026-11-16): the student's avatar (head and shoulders, fits the round spot) takes the icon's
-// place, tap it to open the Store; coins, points and the avatar rank under the XP bar. Skipped for guests and when the class has
-// avatars turned off (the old icon stays).
-(function(){
-  let tries = 0;
-  const show = () => {
-    const A = window.MTGAvatar, box = document.getElementById('avatar');
-    if (!A || !box || document.getElementById('report').hidden) return ++tries < 40 && setTimeout(show, 300);
-    if (A.off() || !A.signedIn()) return;
-    box.classList.add('av', 'hasav'); box.removeAttribute('aria-hidden'); box.setAttribute('role', 'button'); box.tabIndex = 0;
-    box.title = 'Your avatar: tap to change it or open the Store';
-    const draw = () => { box.innerHTML = A.svg({ label: 'Your avatar' }); box.dataset.idle = (A.look() || {}).idle || 'bounce'; const w = A.wallet(), k = A.rank();
-      document.getElementById('p-coins').textContent = '🪙 ' + w.coins.toLocaleString(); document.getElementById('p-pts').textContent = '★ ' + w.points.toLocaleString();
-      if (k && k.encores) { const lv = document.getElementById('p-level'); if (lv && !lv.querySelector('.enc2')) lv.insertAdjacentHTML('beforeend', ' <span class="enc2">' + (k.encores <= 5 ? '★'.repeat(k.encores) : '★' + k.encores) + '</span>'); }
-      const ed = document.getElementById('editav'); ed.hidden = false; ed.onclick = () => A.open();
-      // Today's quests and the daily streak (play more, 2026-11-16): from the avatar snippet
-      if (A.questsHtml) { let qb = document.getElementById('questbox'); if (!qb) { qb = document.createElement('section'); qb.id = 'questbox'; qb.className = 'box'; document.getElementById('next2').insertAdjacentElement('afterend', qb); }
-        qb.innerHTML = '<h2>🎯 Today\u2019s quests</h2><p class="sub">New ones every day at midnight. Each one pays ★ points for the Store.</p>' + A.questsHtml(); } };
-    box.dataset.act = ((window.MTGAvatar.look() || {}).dance) || 'groove'; setTimeout(() => { delete box.dataset.act; }, 3000);   // a dance when the page opens
-    draw();
-    box.onclick = () => A.open();
-    box.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); A.open(); } };
-    document.addEventListener('close', draw, true);   // redraw when the Store closes
-  };
-  addEventListener('load', show);
-  // practice time chip (from the shared time box): total and the Practice Hero tier
-  const tm = () => { const T = window.MTGTime; if (!T || !T.allTimeMin) return ++tries < 60 && setTimeout(tm, 400); const m = Math.round(T.allTimeMin() || 0), h = Math.floor(m / 60);
-    document.getElementById('p-time').textContent = '⏱ ' + (h ? h + 'h ' : '') + (m % 60) + 'm';
-    const tiers = [[6000, 'Legend'], [3000, 'Diamond'], [1500, 'Platinum'], [600, 'Gold'], [300, 'Silver'], [60, 'Bronze']], t = tiers.find(x => m >= x[0]);
-    document.getElementById('p-timetier').textContent = 'practiced' + (t ? ' · ' + t[1] + ' hero' : ''); };
-  addEventListener('load', tm);
-})();
-</script>
-<style>
-  .avatar.hasav { padding: 0; overflow: hidden; cursor: pointer; background: #1d2547; }
-  .avatar.hasav svg { width: 100%; height: 100%; display: block; }
-  .avwallet { margin: 6px 0 0; font-size: 14px; color: var(--muted, #a8b3d6); }
-  /* ---- My Report redesign (2026-11-16): the avatar's home ---- */
-  .player.hero2 { display: grid; grid-template-columns: minmax(240px, 38%) 1fr; gap: 22px; align-items: stretch; padding: 18px 22px; border-radius: 24px; position: relative; overflow: hidden;
-    background: radial-gradient(120% 120% at 15% 20%, rgba(124,156,255,.28), rgba(255,255,255,.03) 60%), var(--card, #182048); }
-  .hero2 .stage2 { position: relative; display: flex; align-items: flex-end; justify-content: center; min-height: 300px; }
-  .hero2 .beam2 { position: absolute; top: -30%; left: 50%; width: 90%; height: 130%; transform: translateX(-50%); pointer-events: none;
-    background: conic-gradient(from 180deg at 50% 0%, transparent 160deg, rgba(255,240,200,.14) 172deg, rgba(255,240,200,.22) 180deg, rgba(255,240,200,.14) 188deg, transparent 200deg); }
-  .hero2 .avatar { width: min(100%, 290px); height: auto; aspect-ratio: 100/120; border-radius: 0; border: 0; background: none; font-size: 90px; display: grid; place-items: center; box-shadow: none; position: relative; }
-  .hero2 .avatar.hasav { background: none; }
-  .hero2 .who { display: flex; flex-direction: column; justify-content: center; gap: 12px; min-width: 0; }
-  .hero2 h1 { font-size: 38px; line-height: 1.05; margin: 0; }
-  .hero2 .lvl { background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.12); border-radius: 16px; padding: 12px 14px; }
-  .hero2 .xp { height: 14px; }
-  .enc2 { color: #b07cff; font-weight: 900; }
-  .chips2 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-  .chip2 { background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.1); border-radius: 16px; padding: 10px 12px; display: flex; flex-direction: column; }
-  .chip2 b { font-size: 20px; white-space: nowrap; } .chip2 span { color: var(--muted, #a8b3d6); font-size: 12.5px; font-weight: 700; }
-  .editav { align-self: flex-start; border: 0; border-radius: 14px; padding: 12px 20px; font: inherit; font-weight: 900; font-size: 16px; cursor: pointer; background: linear-gradient(#ffd25a, #ffb020); color: #2a1a00; box-shadow: 0 4px 0 #b97800; }
-  .next2 { display: flex; align-items: center; gap: 16px; text-decoration: none; color: #fff; background: linear-gradient(120deg, #2f6bff, #7a3cff); border-radius: 22px; padding: 16px 20px; box-shadow: 0 10px 30px rgba(60,80,255,.3); }
-  .next2[hidden] { display: none; }
-  .next2 .ic { font-size: 40px; } .next2 .tx { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-  .next2 .k { font-size: 12px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; opacity: .85; } .next2 b { font-size: 21px; }
-  .next2 .pg { height: 10px; border-radius: 999px; background: rgba(255,255,255,.25); overflow: hidden; width: min(360px, 60vw); } .next2 .pg i { display: block; height: 100%; background: #fff; }
-  .next2 .go2 { margin-left: auto; background: #fff; color: #2a2f80; font-weight: 900; font-size: 18px; padding: 12px 22px; border-radius: 14px; box-shadow: 0 4px 0 rgba(0,0,0,.25); white-space: nowrap; }
-  .gtiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; margin-top: 12px; }
-  .gtile { display: flex; gap: 12px; align-items: center; text-align: left; font: inherit; color: inherit; background: rgba(255,255,255,.05); border: 2px solid rgba(255,255,255,.08); border-radius: 18px; padding: 12px; cursor: pointer; }
-  .gtile:hover { border-color: var(--gacc); } .gtile .gt { display: flex; flex-direction: column; } .gtile .gt b { font-size: 16px; } .gtile .gt span { color: var(--muted, #a8b3d6); font-size: 13px; }
-  .ring2 { width: 62px; height: 62px; position: relative; flex: none; } .ring2 svg { width: 100%; height: 100%; } .ring2 b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 14px; }
-  .back2 { font: inherit; font-weight: 800; color: inherit; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); border-radius: 999px; padding: 7px 14px; margin-bottom: 12px; cursor: pointer; }
-  @media (max-width: 760px) {
-    .player.hero2 { grid-template-columns: 1fr; padding: 12px; gap: 8px; }
-    .hero2 .stage2 { min-height: 0; height: 240px; } .hero2 .avatar { width: auto; height: 100%; }
-    .hero2 h1 { font-size: 28px; } .chips2 { grid-template-columns: repeat(2, 1fr); }
-    .next2 { flex-wrap: wrap; } .next2 .go2 { margin-left: 0; width: 100%; text-align: center; }
-  }
-  .avwallet b { color: #ffd166; }
-</style>
 <!-- MTG_TIME start: identical in every game, only data-mount / data-place change. Master copy: Music Games/shared/mtg-time.snippet.html -->
 <script id="mtg-time" data-mount=".wrap > .top" data-place="append">
 /* Practice time box (added 2026-10-16). Shows "Today: N min" (every game added together) and "All time" with a
