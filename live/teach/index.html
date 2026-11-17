@@ -187,17 +187,20 @@ const G = () => { if (!S.g || S.g.code !== S.code) { let o = null; try { o = JSO
 const saveG = () => { try { localStorage.setItem(GK(), JSON.stringify(S.g)); } catch {} };
 const GT = 20;   // seconds per game question unless a timer is picked
 // with 🎭 Hide names on, the class screen's Top 5 and Curtain call say Player 1, 2… instead of names (2026-11-17)
-function topBoard() { return Object.entries(G().scores).map(([s, x]) => ({ n: x.n, s, p: x.p })).sort((a, b) => b.p - a.p).slice(0, 5).map((b, i) => S.curtain ? { ...b, n: 'Player ' + (i + 1), h: 1 } : b); }   // h = hide the avatar too (it is recognisable)
+// g = points won this round, m = places moved since the last round (+ up, - down; missing for a new name) (2026-11-17)
+function topBoard() { const pr = G().prev || {}; return Object.entries(G().scores).map(([s, x]) => ({ n: x.n, s, p: x.p, g: x.g || 0 })).sort((a, b) => b.p - a.p).map((b, i) => pr[b.s] != null ? { ...b, m: pr[b.s] - i } : b).slice(0, 5).map((b, i) => S.curtain ? { ...b, n: 'Player ' + (i + 1), h: 1 } : b); }   // h = hide the avatar too (it is recognisable)
 // score the round from each student's FIRST answer: right = 500 + up to 500 for speed, +100 per right answer in a row after the 2nd
 function scoreRound(L) {
   const g = G(); if (g.done[L.round]) return;
   const c = correct(), start = g.starts[L.round] || 0, dur = L.ends_at && start ? Math.max(5000, L.ends_at - start) : GT * 1000;
   const first = {}; S.ans.slice().sort((a, b) => (a.at || 0) - (b.at || 0)).forEach(a => { if (!first[a.sid]) first[a.sid] = a; });
   const seen = new Set(Object.keys(first));
+  g.prev = {}; Object.entries(g.scores).sort((a, b) => b[1].p - a[1].p).forEach(([sid], i) => { g.prev[sid] = i; });   // places before this round
+  Object.values(g.scores).forEach(x => { x.g = 0; });
   Object.values(first).forEach(a => {
     const x = g.scores[a.sid] || (g.scores[a.sid] = { n: a.name, p: 0, st: 0 }); x.n = a.name;
     const ok = c && a.text === c, secs = start ? Math.max(0, ((a.at || start) - start) / 1000) : dur / 2000;
-    if (ok) { x.st++; x.p += 500 + Math.round(500 * Math.max(0, 1 - secs / (dur / 1000))) + (x.st > 2 ? 100 : 0); } else x.st = 0;
+    if (ok) { x.st++; x.g = 500 + Math.round(500 * Math.max(0, 1 - secs / (dur / 1000))) + (x.st > 2 ? 100 : 0); x.p += x.g; } else x.st = 0;
   });
   Object.entries(g.scores).forEach(([sid, x]) => { if (!seen.has(sid)) x.st = 0; });
   g.done[L.round] = 1; saveG();
@@ -481,7 +484,7 @@ app.addEventListener('click', async e => {
     draw(); return;
   }
   if (act === 'game') { G().on = !G().on; saveG(); if (G().on) { S.comp.type = 'mc'; toast('Showdown on: pick the correct answer on every question.'); } draw(); return; }
-  if (act === 'gnew') { S.confirm = ''; const g = G(); g.scores = {}; g.qn = 0; g.done = {}; saveG(); if (L && L.game) upd({ board: [], final: false }); toast('New Showdown: scores reset.'); draw(); return; }
+  if (act === 'gnew') { S.confirm = ''; const g = G(); g.scores = {}; g.qn = 0; g.done = {}; g.prev = {}; saveG(); if (L && L.game) upd({ board: [], final: false }); toast('New Showdown: scores reset.'); draw(); return; }
   if (act === 'podium') { if (!L) return; if (L.open) await gameLock(L); return upd({ open: false, final: true, board: topBoard() }); }
   if (act === 'sheet') { studySheet(!!t.dataset.v); return; }
   if (act === 'askedAsk') { S.confirm = 'asked'; draw(); return; }
