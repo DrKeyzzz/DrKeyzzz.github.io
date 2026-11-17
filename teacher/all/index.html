@@ -494,9 +494,6 @@
       </div>
       <div id="adminacc" class="access" hidden></div>
       <div id="adminsum" hidden></div>
-      <div id="devfix" class="note" hidden style="margin-top:18px"><b>Developer scores:</b> rename every score posted under an old developer name to Maestro. <button class="btn ghost sm" type="button" id="devfixgo">Rename developer scores</button> <span id="devfixmsg"></span>
-        <br><b>Privacy move (one time):</b> copy every old score and practice time into its class, then remove the old practice rows that show a class code. Run it once, after the new rules are pasted and the games are published. <button class="btn ghost sm" type="button" id="movego">Move old scores</button> <span id="movemsg"></span>
-        <br><b>Transfer classes (one time):</b> move every class, test, practice record, result, feedback note and Live Class record from one of your Google accounts to the one you are signed in with. <button class="btn ghost sm" type="button" id="xfergo">Transfer classes</button> <span id="xfermsg"></span></div>
       <div id="newtestbox" hidden><button class="btn ghost sm" type="button" id="tback" style="margin-top:14px">← Back to Tests</button><iframe id="tframe" title="Create a test" style="width:100%;border:0;min-height:700px;margin-top:8px;background:transparent"></iframe></div>
       <div id="gradebar" class="opts" style="margin-top:14px" hidden>
         <button class="btn sm" type="button" id="anew">+ New assignment</button>
@@ -1050,7 +1047,7 @@ function render() {
   if (av) COLS.activity = { player: ACT_PLAYER_COLS, teacher: ACT_TEACHER_COLS }[$('actby').value] || ACT_VISIT_COLS;
   if (!ad) S.teacher = '';
   const tpg = ad && !!S.teacher;
-  $('upbox').hidden = !(ts || S.view === 'grades' || S.view === 'progress'); $('adminsum').hidden = !ad; $('adminacc').hidden = !ad || tpg; $('devfix').hidden = !ad || tpg || PREVIEW;
+  $('upbox').hidden = !(ts || S.view === 'grades' || S.view === 'progress'); $('adminsum').hidden = !ad; $('adminacc').hidden = !ad || tpg;
   const gv = S.view === 'grades'; if (gv) { gradePick(); renderGradeList(); }
   $('gradelist').hidden = $('gradelist2').hidden = $('gradebar').hidden = !gv;
   if (gv) { $('aout').closest('label').hidden = !S.gradeA; if (S.gradeA) $('aout').value = aOut(S.classes.find(x => x.code === S.code), S.gradeA); }
@@ -2415,102 +2412,6 @@ function wire() {
   // Practice time rows with a class code move inside the class, a name-only World row (w<scramble>_<sid>) keeps the student on
   // the World board, and the old row is deleted. World score boards start fresh. Collections already moved are remembered on
   // this computer (localStorage mtg_privacy_move_v1), so a second click only finishes what is left.
-  // One-time owner transfer (added 2026-11-17, David: school account -> Gmail). Changes only the owner fields (rules: ownerOnly),
-  // so students, codes, scores and dates stay as they are. Safe to run twice: the second run finds nothing left.
-  $('xfergo').onclick = async () => {
-    const msg = $('xfermsg'), to = S.email;
-    const from = (prompt('Move everything FROM which Google account? (the old one)', 'milnesda@eht.k12.nj.us') || '').trim().toLowerCase();
-    if (!from || from === to || !/^[^@\s]+@[^@\s]+$/.test(from)) return;
-    if (!confirm(`Move every class and record owned by ${from} to ${to}? ${from} will no longer see them.`)) return;
-    const cols = [['classes', 'ownerEmail'], ['tests', 'owner'], ['test_results', 'owner'], ['progress', 'owner'], ['scale_progress', 'owner'],
-      ['tidal_progress', 'owner'], ['rooftop_progress', 'owner'], ['listening_progress', 'owner'], ['brainwaves_progress', 'owner'],
-      ['game_feedback', 'owner'], ['bc_answers', 'owner'], ['bc_pulse', 'owner'], ['bc_private', 'owner'], ['bc_reports', 'owner'], ['sm_threads', 'owner']];
-    let n = 0; const skipped = []; msg.textContent = 'Working…';
-    await run(async ({ fs, db }) => {
-      for (const [col, f] of cols) {
-        let docs;
-        try { docs = (await fs.getDocs(fs.query(fs.collection(db, col), fs.where(f, '==', from)))).docs; }
-        catch (e) { skipped.push(col); continue; }
-        for (let i = 0; i < docs.length; i += 400) {
-          const b = fs.writeBatch(db);
-          docs.slice(i, i + 400).forEach(d => { const u = { [f]: to }; if (d.data().teacher === from) u.teacher = to; b.update(d.ref, u); });
-          await b.commit(); n += Math.min(400, docs.length - i);
-        }
-        msg.textContent = `Working… ${col} done (${n} moved so far)`;
-      }
-    }).then(() => { msg.textContent = `Done: ${n} item${n === 1 ? '' : 's'} moved to ${to}.` + (skipped.length ? ` Could not read: ${skipped.join(', ')}.` : '') + ' Reload to see your classes.'; },
-      e => { msg.textContent = `Stopped after ${n}: ${errText(e)}. Click again to finish the rest.`; });
-  };
-  $('movego').onclick = async () => {
-    const msg = $('movemsg');
-    if (!confirm('Move every old score and practice time into its class? Run this once, after the new rules are pasted and the games are published.')) return;
-    const cols = ['rhythm_scores', 'scale_scores', 'degree_scores', 'key_scores', 'nova_scores', 'tidal_scores', 'listening_scores', 'sight_scores',
-      'synapse_scores', 'intervals_scores', 'chords_scores', 'progressions_scores', 'scales_scores', 'pitch_scores', 'earshot_scores', 'genius_scores'];
-    let done = {}; try { done = JSON.parse(localStorage.getItem('mtg_privacy_move_v1') || '{}'); } catch {}
-    const save = () => { try { localStorage.setItem('mtg_privacy_move_v1', JSON.stringify(done)); } catch {} };
-    const worldId = (code, sid) => { let h = 0x811c9dc5; const k = 'mtg:' + code; for (let i = 0; i < k.length; i++) { h ^= k.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return 'w' + ('0000000' + h.toString(16)).slice(-8) + '_' + sid; };
-    let copied = 0, skipped = 0; msg.textContent = 'Working…';
-    try {
-      await run(async ({ fs, db }) => {
-        const classes = new Set((await fs.getDocs(fs.collection(db, 'classes'))).docs.map(d => d.id));
-        const flush = async ops => { for (let i = 0; i < ops.length; i += 400) { const b = fs.writeBatch(db); ops.slice(i, i + 400).forEach(o => o(b)); await b.commit(); } };
-        for (const col of cols) {
-          if (done[col]) continue;
-          const ops = [];
-          (await fs.getDocs(fs.collection(db, col))).forEach(x => {
-            const d = x.data(); if (d.dev) return;   // the developer's runs stay in the old place
-            const codes = [...new Set([d.class_code, ...(Array.isArray(d.class_codes) ? d.class_codes : [])].filter(c => c && classes.has(c)))];
-            if (!codes.length) { skipped++; return; }
-            for (const code of codes) {
-              const c = { ...d, class_code: code }; delete c.class_codes;
-              const id = col === 'genius_scores' ? code + '_' + d.sid : x.id;
-              ops.push(b => b.set(fs.doc(db, 'classes', code, col, id), c)); copied++;
-            }
-          });
-          await flush(ops); done[col] = new Date().toISOString(); save(); msg.textContent = `Working… ${col} done (${copied} copied so far)`;
-        }
-        if (!done.practice_time) {
-          const ops = [];
-          // a student who played since the publish already has new rows: add the old minutes to them
-          const add = (old, ex) => {
-            if (!ex) return old;
-            const o = { ...ex, total_min: num(old.total_min) + num(ex.total_min) };
-            if (old.week === ex.week) o.week_min = num(old.week_min) + num(ex.week_min);
-            if (old.day === ex.day) o.day_min = num(old.day_min) + num(ex.day_min);
-            return o;
-          };
-          for (const x of (await fs.getDocs(fs.collection(db, 'practice_time'))).docs) {
-            const d = x.data(); if (!d.class_code) continue;   // 'none_' and 'w…' rows are already name-only World rows
-            if (classes.has(d.class_code)) {
-              const cref = fs.doc(db, 'classes', d.class_code, 'practice_time', x.id), wref = fs.doc(db, 'practice_time', worldId(d.class_code, d.sid));
-              const [cs, ws] = await Promise.all([fs.getDoc(cref), fs.getDoc(wref)]);
-              const c = add(d, cs.exists() ? cs.data() : null), w = add({ ...d, class_code: '' }, ws.exists() ? ws.data() : null);
-              ops.push(b => b.set(cref, { ...c, class_code: d.class_code }));
-              ops.push(b => b.set(wref, { ...w, class_code: '' }));
-              copied++;
-            } else skipped++;
-            ops.push(b => b.delete(x.ref));
-          }
-          await flush(ops); done.practice_time = new Date().toISOString(); save();
-        }
-      });
-      msg.textContent = `Done: ${copied} copied into classes${skipped ? `, ${skipped} without a class left out (World boards start fresh)` : ''}.`;
-    } catch (e) { msg.textContent = `Stopped (${copied} copied): ${errText(e)}. Click again to finish what is left.`; }
-  };
-  $('devfixgo').onclick = async () => {
-    const old = (prompt('Old developer name, exactly as it shows on the boards:') || '').trim(), msg = $('devfixmsg');
-    if (!old || old === 'Maestro' || !confirm(`Rename every "${old}" score to Maestro?`)) return;
-    const cols = ['rhythm_scores', 'scale_scores', 'degree_scores', 'key_scores', 'nova_scores', 'tidal_scores', 'listening_scores', 'sight_scores',
-      'synapse_scores', 'intervals_scores', 'chords_scores', 'progressions_scores', 'scales_scores', 'pitch_scores', 'earshot_scores'];
-    let n = 0; msg.textContent = 'Working…';
-    try {
-      for (const col of [...cols, 'genius_scores']) {
-        const docs = await run(async ({ fs, db }) => (await fs.getDocs(fs.query(fs.collection(db, col), fs.where('name', '==', old)))).docs);
-        for (const d of docs) { await run(({ fs }) => col === 'genius_scores' ? fs.deleteDoc(d.ref) : fs.updateDoc(d.ref, { name: 'Maestro' })); n++; }
-      }
-      msg.textContent = `Done: ${n} score${n === 1 ? '' : 's'} changed.`;
-    } catch (e) { msg.textContent = `Stopped after ${n} score${n === 1 ? '' : 's'}: ${errText(e)}`; }
-  };
   $('adminsum').onclick = e => {
     if (e.target.closest('#tpback')) { S.teacher = ''; S.tp = null; render(); return; }
     const t = e.target.closest('[data-teacher]'); if (t) openTeacher(t.dataset.teacher);
