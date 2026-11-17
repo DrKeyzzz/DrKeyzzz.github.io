@@ -177,3 +177,14 @@ input[type=range] { width: 100%; accent-color: var(--gold); }
 .pqlist { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .pqlist li { border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 8px 10px; }
 .pqlist .q { margin: 0 0 4px; } .pqlist .rep { margin: 0; color: var(--mint); }
+
+/* Showdown after the reveal: one screen, no scrolling (2026-11-17) */
+.proj.sd-fit { height: 100vh; min-height: 0; overflow: hidden; gap: 14px; padding-bottom: 20px; }
+.proj.sd-fit h1 { font-size: clamp(26px, 3.4vw, 46px); margin: 0; }
+.sd-split { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.sd-split .sd-keys { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.sd-split .sd-key { min-height: 84px; }
+.sd-split .ksbox { width: min(100%, 360px); }
+.sd-split > .card { padding: 18px; }
+.sd-split .sd-row { padding: 6px 12px; }
+@media (max-width: 800px) { .sd-split { grid-template-columns: 1fr; } .proj.sd-fit { height: auto; overflow: visible; } }

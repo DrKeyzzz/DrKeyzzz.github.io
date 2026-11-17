@@ -256,8 +256,9 @@ if (SCREEN) {
       return `<div class="sd-key ${rev ? (i === L.reveal ? 'win' : 'dim') : ''}" style="cursor:default"><span class="sd-l">${'ABCDEF'[i]}</span><span class="sd-n">${NOTES[i]}</span>${esc(o)}${rev ? `<span class="sd-eq" style="width:${F.length ? Math.max(4, Math.round(100 * n / F.length)) : 4}%"></span><span class="mono" style="font-size:14px">${n}</span>` : ''}</div>`; }).join('');
     const dur = L.ends_at && L.updated_at ? Math.max(1, L.ends_at - L.updated_at) : 20000, p = s != null ? Math.max(0, Math.min(1, s * 1000 / dur)) : 0;
     const top = rev && board.length ? `<section class="card"><h2 style="margin:0 0 8px">Top 5</h2><div class="sd-top">${board.map((b, i) => `<div class="sd-row"><b>${i + 1}</b><span data-avs="${esc(b.s)}"></span>${esc(b.n)}<span class="sd-pp">${b.p.toLocaleString()}</span></div>`).join('')}</div></section>` : '';
-    return `<main class="proj"><div class="row between"><span class="label" style="font-size:18px">🏁 Showdown</span><span class="chip" style="font-size:18px">${F.length} answered</span>${rev ? '<span class="chip gold" style="font-size:18px">Time!</span>' : `<span class="sd-ring" style="--p:${p.toFixed(3)}"><b class="mono" id="cd">${s == null ? '' : Math.ceil(s)}</b></span>`}</div>
-      <h1>${esc(L.q)}</h1>${LC.ksStaff(L.ks)}<div class="sd-keys">${keys}</div>${top}</main>`;
+    // after the reveal the answers and the Top 5 sit side by side so the whole screen fits without scrolling (David, 2026-11-17)
+    return `<main class="proj${top ? ' sd-fit' : ''}"><div class="row between"><span class="label" style="font-size:18px">🏁 Showdown</span><span class="chip" style="font-size:18px">${F.length} answered</span>${rev ? '<span class="chip gold" style="font-size:18px">Time!</span>' : `<span class="sd-ring" style="--p:${p.toFixed(3)}"><b class="mono" id="cd">${s == null ? '' : Math.ceil(s)}</b></span>`}</div>
+      <h1>${esc(L.q)}</h1>${top ? `<div class="sd-split"><div class="stack">${LC.ksStaff(L.ks)}<div class="sd-keys">${keys}</div></div>${top}</div>` : `${LC.ksStaff(L.ks)}<div class="sd-keys">${keys}</div>`}</main>`;
   }
   // the Curtain call draws each star's own avatar (one read each, kept 10 minutes)
   const ccDraw = () => app.querySelectorAll('[data-cc]').forEach(el => { if (el.dataset.done || !window.MTGAvatar || !MTGAvatar.peer) return; el.dataset.done = 1;
