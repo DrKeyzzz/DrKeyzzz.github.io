@@ -155,6 +155,8 @@
 <style>
   body.embed { background: transparent; }
   body.embed .wrap { padding: 0 0 30px; max-width: none; }
+  #rescard .bar { cursor: pointer; border-radius: 10px; } #rescard .bar:hover { background: rgba(255,255,255,.05); }
+  .whopick { border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 10px 12px; }
 </style>
 </head>
 <body>
@@ -271,9 +273,16 @@ function roundCard() {
       ${PREVIEW ? '<button class="btn" type="button" data-act="sim">🤖 Pretend students answer</button>' : ''}
     </div>${L.game ? `<div class="row"><span class="chip gold">🏁 Showdown · question ${G().qn}</span>${(L.board || []).slice(0, 3).map((b, i) => `<span class="chip">${i + 1}. ${esc(S.curtain ? "Player " + (i + 1) : b.n)} · ${b.p}</span>`).join('')}<span class="grow"></span><button class="btn pri" type="button" data-act="podium">🎭 Curtain call</button>${S.confirm === 'gnew' ? '<button class="btn warn" type="button" data-act="gnew">Start a new Showdown (scores to 0)?</button>' : '<button class="btn" type="button" data-act="confirm" data-v="gnew">↺ New Showdown</button>'}</div>` : ''}</section>`;
 }
+// Click a bar to see who chose that answer (2026-11-17, David: "there are 3 wrong answers and I want to see who they are").
 function resultsCard() {
-  const c = correct();
-  return `<section class="card stack"><div class="row between"><h3>Live results</h3>${c ? `<span class="muted small">Correct answer: <b>${esc(c)}</b> (shown on the projector once you lock)</span>` : ''}</div>${results(S.live, latest(S.ans), { correct: c, hint: true })}</section>`;
+  const c = correct(), L = S.live, A = latest(S.ans), pick = S.pick && S.pick.round === S.round ? S.pick.o : '';
+  const choice = L && (L.type === 'mc' || L.type === 'yn');
+  const who = pick ? A.filter(a => String(a.text) === pick) : [];
+  const list = !pick ? '' : `<div class="whopick"><div class="row between"><b>${esc(pick)}${c && pick !== c ? ' <span class="chip no">wrong</span>' : c && pick === c ? ' <span class="chip ok">right</span>' : ''}</b><button type="button" class="btn sm" data-act="pickClose">Close</button></div>
+      ${S.curtain ? '<p class="muted small" style="margin:6px 0 0">Names are hidden (🎭). Lift the curtain to see who chose this.</p>'
+        : `<div class="namechips" style="margin-top:6px">${who.length ? who.map(a => `<span class="chip ${c && pick !== c ? 'no' : ''}">${esc(a.name)}</span>`).join('') : '<span class="muted small">Nobody chose this.</span>'}</div>`}</div>`;
+  return `<section class="card stack" id="rescard"><div class="row between"><h3>Live results</h3>${c ? `<span class="muted small">Correct answer: <b>${esc(c)}</b> (shown on the projector once you lock)</span>` : ''}</div>${results(S.live, A, { correct: c, hint: true })}
+    ${choice ? (list || '<p class="muted small" style="margin:0">Click an answer to see who chose it.</p>') : ''}</section>`;
 }
 // Curtain (2026-11-17, David): hides every student name on this screen (safe to project), and Spotlight / Compare go up with no
 // name. Answers become "Student 1, 2…" in the order they first answered; the teacher can lift it any time.
@@ -412,6 +421,8 @@ async function simulate() {
 }
 
 app.addEventListener('click', async e => {
+  const bar = e.target.closest('#rescard .bar');   // a result bar: list who chose it
+  if (bar) { const o = (bar.querySelector('.lab') || bar).textContent.replace(/^✓\s*/, '').trim(); S.pick = S.pick && S.pick.o === o ? null : { o, round: S.round }; draw(); return; }
   const t = e.target.closest('button'); if (!t) return;
   if (t.id === 'signin') { try { const { am, auth } = await LC.fbAuth(); await am.signInWithPopup(auth, new am.GoogleAuthProvider()); } catch (er) { toast(ERR(er)); } return; }
   const act = t.dataset.act, L = S.live; if (!act) return;
@@ -437,6 +448,7 @@ app.addEventListener('click', async e => {
   if (act === 'lock') { if (L.game && L.open) return gameLock(L); return upd(L.open ? { open: false, ends_at: null } : { open: true, ends_at: null }); }
   if (act === 'timer') return upd({ open: true, ends_at: at(Date.now() + Number(t.dataset.v) * 1000) });
   if (act === 'spotClear') return upd({ spot: [] });
+  if (act === 'pickClose') { S.pick = null; draw(); return; }
   if (act === 'curtain') { S.curtain = !S.curtain; try { localStorage.setItem('mtg_live_curtain_v1', S.curtain ? '1' : '0'); } catch (e) {}
     if (S.curtain && L && (L.spot || []).some(x => x.n)) upd({ spot: L.spot.map(x => ({ id: x.id, n: '', t: x.t })) });   // names come off the projector too
     draw(); return; }
