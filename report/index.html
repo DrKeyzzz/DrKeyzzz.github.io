@@ -1283,8 +1283,41 @@ boot();
 .mav-btn.ghost{background:transparent;color:#eef1fb;border-color:#34407a}
 .mav-dlg button:focus-visible{outline:3px solid #ffc85c;outline-offset:2px}
 @media (max-width:640px){.mav-wrap{flex-direction:column;padding:14px;gap:10px}.mav-left{flex:none;flex-direction:row;flex-wrap:wrap}.mav-big{height:150px;flex:0 0 120px}.mav-left .mav-btn{flex:1}.mav-lab{flex-basis:84px}}
+/* ---- the avatar on the game (perch, 2026-11-16): sits on the game's card or sign; legs swing, jumps on a right answer, slips on a miss ---- */
+.mav-perch{position:fixed;z-index:40;transform-origin:50% 77%;transition:transform .25s;-webkit-tap-highlight-color:transparent;pointer-events:none}
+.mav-perch .head,.mav-perch .root>path{pointer-events:auto;cursor:pointer}   /* only the head and body take a tap (opens the Store); legs never block the game */
+.mav-perch .av,.mav-perch .av svg{width:100%;height:100%;display:block}
+.mav-perch.mav-walk{transition:left 1.2s linear,top 1.2s linear}
+.mav-perch.mav-lift{transform:translateY(-16%)}
+.av[data-idle=sit]:not([data-act]) .leg-l{transform:rotate(16deg)}
+.av[data-idle=sit]:not([data-act]) .leg-r{transform:rotate(-16deg)}
+.av[data-idle=sit]:not([data-act]) .shin-l{animation:mav-p-swl .9s ease-in-out infinite alternate}
+.av[data-idle=sit]:not([data-act]) .shin-r{animation:mav-p-swr .9s ease-in-out -.45s infinite alternate}
+.av[data-idle=sit]:not([data-act]) .head{animation:mav-p-look 7s ease-in-out infinite}
+.av[data-idle=sit]:not([data-act]) .fore-r{animation:mav-p-tap 1.8s ease-in-out infinite alternate}
+@keyframes mav-p-swl{from{transform:rotate(-30deg)}to{transform:rotate(-4deg)}}
+@keyframes mav-p-swr{from{transform:rotate(4deg)}to{transform:rotate(30deg)}}
+@keyframes mav-p-look{0%,25%{transform:none}35%,50%{transform:rotate(-9deg) translateX(-1px)}60%,75%{transform:rotate(8deg) translateX(1px)}85%,100%{transform:none}}
+@keyframes mav-p-tap{from{transform:rotate(0)}to{transform:rotate(-12deg)}}
+.mav-perch.mav-jump{animation:mav-p-jump .9s ease-out}
+@keyframes mav-p-jump{0%{transform:none}14%{transform:translateY(4%) scaleY(.93)}45%{transform:translateY(-46%)}76%{transform:translateY(0)}86%{transform:translateY(3%) scaleY(.95)}100%{transform:none}}
+.mav-perch.mav-slip{animation:mav-p-slip 2s ease-in-out}
+.mav-perch.mav-slip .arm-l{animation:mav-p-al 2s ease-in-out!important}.mav-perch.mav-slip .arm-r{animation:mav-p-ar 2s ease-in-out!important}
+.mav-perch.mav-slip .fore-l,.mav-perch.mav-slip .fore-r,.mav-perch.mav-slip .shin-l,.mav-perch.mav-slip .shin-r,.mav-perch.mav-slip .head{animation:none!important}
+.mav-perch.mav-slip .leg-l{animation:mav-p-kl .25s ease-in-out .6s 3 alternate!important}.mav-perch.mav-slip .leg-r{animation:mav-p-kr .25s ease-in-out .6s 3 alternate!important}
+@keyframes mav-p-slip{0%{transform:none}12%{transform:rotate(-13deg)}24%{transform:rotate(10deg)}34%{transform:rotate(-5deg) translateY(6%)}46%,62%{transform:translateY(40%)}74%{transform:translateY(22%) rotate(4deg)}86%{transform:translateY(7%) rotate(-3deg)}100%{transform:none}}
+@keyframes mav-p-al{0%,8%{transform:none}14%{transform:rotate(120deg)}22%{transform:rotate(60deg)}30%{transform:rotate(140deg)}42%,64%{transform:rotate(168deg)}82%{transform:rotate(120deg)}100%{transform:none}}
+@keyframes mav-p-ar{0%,8%{transform:none}14%{transform:rotate(-60deg)}22%{transform:rotate(-130deg)}30%{transform:rotate(-80deg)}42%,64%{transform:rotate(-168deg)}82%{transform:rotate(-120deg)}100%{transform:none}}
+@keyframes mav-p-kl{from{transform:rotate(-14deg)}to{transform:rotate(16deg)}}
+@keyframes mav-p-kr{from{transform:rotate(14deg)}to{transform:rotate(-16deg)}}
+.mav-perch.mav-walk .leg-l{animation:mav-p-wl .35s ease-in-out infinite alternate!important}
+.mav-perch.mav-walk .leg-r{animation:mav-p-wl .35s ease-in-out infinite alternate-reverse!important}
+.mav-perch.mav-walk .arm-l{animation:mav-p-wa .35s ease-in-out infinite alternate!important}.mav-perch.mav-walk .arm-r{animation:mav-p-wa .35s ease-in-out infinite alternate-reverse!important}
+@keyframes mav-p-wl{from{transform:rotate(-16deg)}to{transform:rotate(16deg)}}
+@keyframes mav-p-wa{from{transform:rotate(-14deg)}to{transform:rotate(14deg)}}
+@media (prefers-reduced-motion:reduce){.mav-perch,.mav-perch *{animation:none!important;transition:none!important}}
 </style>
-<script id="mtg-avatar" data-mount=".wrap > .top">
+<script id="mtg-avatar" data-mount=".wrap > .top" data-perch="">
 /* Avatar, build step 1 (added 2026-11-16; spec: Claude outputs/avatar-spec.md). A small cartoon avatar sits right after the
    Music Theory Academy and My Report pills in every game. Tap it to change how it looks (the free Look parts). It reacts to the
    game's own 'mtghist' events: a right answer = happy move, a miss = shrug, a finished run = dance. No hooks inside the games.
@@ -1548,11 +1581,11 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     const leg = s => { const l = s === 'l', hx = l ? 45 : 55, kx = l ? 44.5 : 55.5, fx = l ? 43.5 : 56.5;
       return `<g class="leg-${s}"><path d="M${hx} 90 L${kx} 99" stroke="${pc}" stroke-width="8.5" stroke-linecap="round"/><g class="shin-${s}"><path d="M${kx} 99 L${kx} 105" stroke="${pc}" stroke-width="7.8" stroke-linecap="round"/><ellipse cx="${fx}" cy="108" rx="6" ry="3.3" fill="${shoe}"/><path d="M${fx - 5.5} 109 H${fx + 5.5}" stroke="${stripe}" stroke-width="1.1"/></g></g>`; };
     const vb = o.crop ? '18 4 64 64' : '0 0 100 120';
-    return `<svg viewBox="${vb}" role="img" aria-label="${o.label || 'Your avatar'}"><defs>${defs}</defs>${bg}${o.crop ? '' : platform(rank)}
+    return `<svg viewBox="${vb}" role="img" aria-label="${o.label || 'Your avatar'}"><defs>${defs}</defs>${bg}${o.crop || o.bare ? '' : platform(rank)}
   <g class="root">${behind}${back}${leg('l')}${leg('r')}<rect x="40" y="86" width="20" height="7" rx="3" fill="${pc}"/><rect x="45.5" y="54" width="9" height="7" fill="${dk}"/><path d="${torsoD}" fill="${topFill}"/>${extra}
   <g class="head">${ears}${face}${blush}${eyes}${nose}${M[L.mouth]}${front}${glasses}${headX}${brows}${hat}</g>
-  ${gSide}${arm('l')}${arm('r')}</g>
-  ${o.crop ? '' : `<g class="pet">${PT[L.pet]}</g>`}</svg>`;
+  ${o.bare ? '' : gSide}${arm('l')}${arm('r')}</g>
+  ${o.crop || o.bare ? '' : `<g class="pet">${PT[L.pet]}</g>`}</svg>`;
   }
 
   // ---------- who is playing (shared sign-in, same ids as the Practice time box) ----------
@@ -1747,6 +1780,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     corner.title = P ? 'Rank ' + (r + 1) + ': ' + RANKS[r][1] + '. Click to change your avatar or open the Store' : corner.title;
     corner.dataset.idle = look.idle;
     if (dlg && dlg.open) { drawBig(); drawWallet(); }
+    perchDraw();
   }
   // a small "+12 ★" that floats up from the avatar
   function pop(txt, color){
@@ -1782,7 +1816,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   addEventListener('mtghist', function(e){
     var d = e.detail || {};
     if (d.type === 'note') {
-      act(d.ok ? look.happy : look.aww);
+      act(d.ok ? look.happy : look.aww); perchDo(d.ok ? 'right' : 'miss');
       var now = Date.now();
       if (lastAns && now - lastAns < 120000) playMs += now - lastAns;
       lastAns = now;
@@ -1794,7 +1828,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       earn(pts, coins);
       if (coins && P) pop('+' + coins + ' 🪙', '#ffd166');
     } else if (d.type === 'run') {
-      act(look.dance);
+      act(look.dance); perchDo('run');
       var r = d.r || {}, L = Math.round(+r.level || 0);
       if (L > 0) lvl = Math.max(1, Math.min(9, L));
       var bonus = 10 * lvl + (/[?&]test=/.test(location.search) ? 50 : 0);
@@ -1807,6 +1841,88 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       runPts = 0;
     }
   });
+
+  // ---------- the avatar on the game (perch, 2026-11-16) ----------
+  // data-perch on this script = the spots to try, "selector|mode" separated by ";;" (mode sit-r / sit-l / sit-c = sits on the top edge
+  // near the right / left / middle; stand = stands on it, like a map dot; beside-l / beside-r = stands in the margin next to it, feet
+  // level with its bottom; at:0.2,0.6 = stands with its feet at that spot inside it, e.g. on a table). The first visible spot with room wins. It never covers
+  // buttons, pictures or text (checked with elementFromPoint); with no good spot the avatar is only in the corner, as before.
+  // The corner head stays and still opens the Store. Store button "On the game" = localStorage mtg_avatar_perch_v1 ('0' = corner only).
+  var PERCH = ((me && me.getAttribute('data-perch')) || '').split(';;').map(function(x){ x = x.split('|'); return x[0] && x[0].trim() ? { sel: x[0].trim(), mode: (x[1] || 'sit-r').trim() } : null; }).filter(Boolean);
+  var PK = 'mtg_avatar_perch_v1', perch = null, pAv = null, pSpot = null, pBusy = 0;
+  function perchWanted(){ try { return localStorage.getItem(PK) !== '0'; } catch(e){ return true; } }
+  function perchLabel(){ return perchWanted() ? '🪑 On the game: on' : '🪑 On the game: off'; }
+  function pStand(m){ return m === 'stand' || m === 'beside-l' || m === 'beside-r' || m.slice(0, 3) === 'at:'; }
+  function pSize(){ return innerWidth < 600 ? 60 : innerWidth < 1100 ? 78 : 92; }
+  function perchDraw(){
+    if (!perch) return;
+    pAv.innerHTML = avatar(look, { bare: 1, label: 'Your avatar' });
+    if (!pAv.dataset.act && !perch.classList.contains('mav-lift')) pAv.dataset.idle = pSpot && pStand(pSpot.m) ? look.idle : 'sit';
+  }
+  function perchStart(){
+    if (perch || !PERCH.length || OFF) return;
+    perch = document.createElement('div'); perch.className = 'mav-perch'; perch.style.display = 'none';
+    perch.title = 'Your avatar: click to change how it looks'; perch.innerHTML = '<div class="av" data-idle="sit"></div>'; pAv = perch.firstChild;
+    perch.addEventListener('click', openBuilder);
+    document.body.appendChild(perch); perchDraw(); perchPlace();
+    setInterval(perchPlace, 600); addEventListener('resize', perchPlace); addEventListener('scroll', perchPlace, { passive: true });
+  }
+  function pFree(x, y, t, own){   // true when nothing a student needs is under this point
+    var el = document.elementFromPoint(x, y);
+    if (!el || el === document.body || el === document.documentElement) return true;
+    if (own && t.contains(el)) return true;
+    if (el.tagName === 'CANVAS' && el.offsetWidth >= innerWidth * .9 && el.offsetHeight >= innerHeight * .9) return true;   // a full-page background picture
+    if (el.closest('button,a,input,select,textarea,label,canvas,video,img,svg,iframe,[role=button],[contenteditable],.mav-corner')) return false;
+    var rg = document.createRange();   // words: only where the letters really are, not the whole width of a paragraph
+    for (var n = el.firstChild; n; n = n.nextSibling) if (n.nodeType === 3 && n.textContent.trim()) {
+      rg.selectNodeContents(n); var rs = rg.getClientRects();
+      for (var i = 0; i < rs.length; i++) if (x >= rs[i].left - 6 && x <= rs[i].right + 6 && y >= rs[i].top - 6 && y <= rs[i].bottom + 6) return false;
+    }
+    return true;
+  }
+  function perchPlace(){
+    if (!perch || pBusy) return;
+    var w = pSize(), h = Math.round(w * 1.2), spot = null, x = 0, y = 0;
+    if (perchWanted() && !OFF) {
+      perch.style.visibility = 'hidden';
+      for (var i = 0; i < PERCH.length && !spot; i++) {
+        var list; try { list = document.querySelectorAll(PERCH[i].sel); } catch(e){ list = []; }
+        for (var j = 0; j < list.length && !spot; j++) {
+          var t = list[j], r = t.getBoundingClientRect(), m = PERCH[i].mode, st = pStand(m);
+          if (!r.width || !r.height) continue;
+          if (m.slice(0, 3) === 'at:') { var f = m.slice(3).split(','); x = r.left + r.width * +f[0] - w / 2; y = r.top + r.height * +f[1] - h * 111 / 120; }
+          else if (m === 'beside-l' || m === 'beside-r') { x = m === 'beside-l' ? r.left - w - 6 : r.right + 6; y = r.bottom - h * 111 / 120; }
+          else if (st) { x = r.left + r.width / 2 - w / 2; y = r.top + r.height * .25 - h * 111 / 120; }   // feet near its top, so its label still shows
+          else { if (r.width < w * 1.6) continue; x = m === 'sit-l' ? r.left + 14 : m === 'sit-c' ? r.left + r.width / 2 - w / 2 : r.right - w - 14; y = r.top - h * 92 / 120; }
+          if (y < 2 || x < 2 || x + w > innerWidth - 2 || y + h > innerHeight) continue;
+          var top = document.elementFromPoint(Math.min(innerWidth - 1, Math.max(0, r.left + r.width / 2)), Math.min(innerHeight - 1, Math.max(0, r.top + Math.min(8, r.height / 2))));
+          if (!top || !(t === top || t.contains(top))) continue;   // a pop-up covers the game: not here
+          var ok = true, cols = [.22, .5, .78], rows = st ? [.08, .35, .6] : [.06, .3, .55, .8, .95];
+          for (var a = 0; a < cols.length && ok; a++) for (var b = 0; b < rows.length && ok; b++) if (!pFree(x + w * cols[a], y + h * rows[b], t, m === 'stand' || (!st && rows[b] > .77))) ok = false;   // sitting: the legs may hang over the spot itself
+          if (ok) spot = { t: t, m: m };
+        }
+      }
+      perch.style.visibility = '';
+    }
+    if (!spot) { perch.style.display = 'none'; pSpot = null; return; }   // no room, or a pop-up covers the game: corner only
+    var walk = pSpot && perch.style.display !== 'none' && spot.m === 'stand' && pSpot.m === 'stand' && spot.t !== pSpot.t;
+    if (walk) { perch.classList.add('mav-walk'); pBusy = 1; setTimeout(function(){ perch.classList.remove('mav-walk'); pBusy = 0; }, 1250); }
+    var was = pSpot; pSpot = spot;
+    perch.style.display = ''; perch.style.width = w + 'px'; perch.style.height = h + 'px';
+    perch.style.left = Math.round(x) + 'px'; perch.style.top = Math.round(y) + 'px';
+    if (!was || was.m !== spot.m) perchDraw();
+  }
+  function perchDo(kind){
+    if (!perch || !pSpot || perch.style.display === 'none' || pBusy) return;
+    var mv = kind === 'right' ? look.happy : kind === 'miss' ? look.aww : look.dance;
+    function pAct(m, ms){ delete pAv.dataset.act; void pAv.offsetWidth; pAv.dataset.act = m; setTimeout(function(){ delete pAv.dataset.act; }, ms || LEN[m] || 1000); }
+    function cls(c, ms, done){ perch.classList.remove(c); void perch.offsetWidth; perch.classList.add(c); pBusy = 1; setTimeout(function(){ perch.classList.remove(c); pBusy = 0; if (done) done(); }, ms); }
+    if (pStand(pSpot.m)) { pAct(mv); return; }
+    if (kind === 'right') { cls('mav-jump', 900); pAct(mv, 800); }
+    else if (kind === 'miss') cls('mav-slip', 2000, function(){ pAct('scratch'); });
+    else { pAv.dataset.idle = look.idle; perch.classList.add('mav-lift'); pAct(mv, 3000); pBusy = 1;
+      setTimeout(function(){ perch.classList.remove('mav-lift'); pBusy = 0; perchDraw(); }, 3100); }
+  }
 
   // ---------- the Store (build step 3): tap the corner avatar ----------
   // Look = the free face, hair and colors. The other tabs sell items: everyday ones for coins (c), dream ones for points (p).
@@ -1912,6 +2028,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
           drawAll(); note = '🎭 Encore ' + encMark(W.encores) + '! The crowd goes wild. Climb again!'; render(); play(look.dance); note = ''; return;
         }
         if (b.dataset.do === 'random') { var keep = {}; Object.keys(DEF).forEach(function(k){ if (!/^(skin|face|eyes|brows|nose|mouth|hair|hairC|cover|glasses|topC|pantC)$/.test(k)) keep[k] = draft[k]; }); draft = Object.assign(randomLook(), keep); trying = null; render(); return; }
+        if (b.dataset.do === 'perch') { try { localStorage.setItem(PK, perchWanted() ? '0' : '1'); } catch(e){} b.textContent = perchLabel(); perchPlace(); return; }
         if (b.dataset.do === 'try') { play(pick([draft.happy, draft.aww, draft.dance])); return; }
         if (b.dataset.do === 'save') { look = wearOwned(clean(draft)); saveLocal(); sendOnline(); drawAll(); dlg.close(); act(look.happy); return; }
         if (b.dataset.do === 'close') dlg.close();
@@ -1919,7 +2036,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     }
     draft = Object.assign({}, look); trying = null; note = '';
     dlg.innerHTML = '<div class="mav-wrap"><div class="mav-left"><div class="mav-big av"></div>'
-      + '<button type="button" class="mav-btn ghost" data-do="try">▶ Try a move</button><button type="button" class="mav-btn ghost" data-do="random">🎲 Random look</button></div>'
+      + '<button type="button" class="mav-btn ghost" data-do="try">▶ Try a move</button><button type="button" class="mav-btn ghost" data-do="random">🎲 Random look</button>'
+      + (PERCH.length ? '<button type="button" class="mav-btn ghost" data-do="perch" title="Show your avatar sitting on the game, or only in the corner">' + perchLabel() + '</button>' : '') + '</div>'
       + '<div class="mav-right"><h2>Your avatar</h2>'
       + (P ? '<div class="mav-wallet"><span title="Coins: 1 for every minute you play, up to 60 a day">🪙 <b class="mav-c"></b> coins</span><span title="Points: right answers and finished runs; harder levels pay more">★ <b class="mav-p"></b> points</span></div>'
            : '<p class="mav-sub">Guest avatar: <b>sign in to keep it</b> and to earn coins and points for the Store.</p>')
@@ -1945,7 +2063,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     }).catch(function(){ cb(false); }); } catch(e){ cb(false); }
   }
   var OFF = false;
-  function start(){ if (OFF) return true; if (!place()) return false; drawAll(); return true; }
+  function start(){ if (OFF) return true; if (!place()) return false; drawAll(); perchStart(); return true; }
   avatarsOff(function(off){
     if (off) { OFF = true; P = null; corner.remove(); return; }   // P = null: no earning, no saving
     if (!start()) { var tries = 0, iv = setInterval(function(){ if (start() || ++tries > 40) clearInterval(iv); }, 250); }   // pages that build their header late
