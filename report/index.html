@@ -2602,7 +2602,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     });
   }
   window.MTGAvatar = { draw: function(L, o){ return avatar(clean(Object.assign({}, DEF, L)), o || {}); }, peer: peer, badge: badge, off: function(){ return OFF; }, signedIn: function(){ return !!P; }, rank: function(){ return P ? { n: rankNow() + 1, name: RANKS[rankNow()][1], encores: W.encores || 0 } : null; },
-    wallet: function(){ return { coins: W.coins, points: W.points }; }, look: function(){ return Object.assign({}, look); }, svg: function(o){ o = o || {}; if (o.rank == null && P) o.rank = rankNow(); return avatar(look, o); }, open: openBuilder, quests: questsInfo, questsHtml: questsHtml };
+    wallet: function(){ return { coins: W.coins, points: W.points }; }, look: function(){ return Object.assign({}, look); }, svg: function(o){ o = o || {}; if (o.rank == null && P) o.rank = rankNow(); return avatar(look, o); }, open: openBuilder, quests: questsInfo, questsHtml: questsHtml,
+    award: function(pts, why){ pts = Math.max(0, Math.min(2000, Math.round(+pts || 0))); if (!P || !pts) return false; earn(pts, 0); pop('+' + pts + ' ★' + (why ? ' · ' + why : ''), '#ffd166'); return true; } };   // Live Class Showdown rewards (2026-11-17)
 
 })();
 </script>
