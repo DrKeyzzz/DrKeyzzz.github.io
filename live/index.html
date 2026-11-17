@@ -383,10 +383,46 @@ function spotCard() {
   return L.spot.map((x, i) => `<section class="spotcard"><div class="row between"><span class="label" style="color:var(--gold)">★ Spotlight</span><span>${x.n ? `${esc(x.a || '')} <b>${esc(x.n)}</b>` : '<span class="muted">A classmate</span>'}</span></div>
     <p class="txt">${esc(x.t)}</p><div class="reacts">${REACTS.map(e => `<button type="button" class="${my && my.to === i && my.e === e ? 'on' : ''}" data-react="${e}" data-to="${i}" aria-label="React ${e}">${e}</button>`).join('')}</div></section>`).join('');
 }
+// ---------- My answer sheet (2026-11-17): every question this device saw in this class, my answer and, once the teacher locks,
+// the right one (bc_live.reveal). localStorage mtg_live_sheet_v1:<sid>:<code>, up to 100. '📄 Download my answers' = a page to Save as PDF.
+const SHK = 'mtg_live_sheet_v1:' + sid + ':' + code;
+const SH = (() => { try { return JSON.parse(localStorage.getItem(SHK) || '[]'); } catch { return []; } })();
+const saveSH = () => { try { localStorage.setItem(SHK, JSON.stringify(SH.slice(-100))); } catch {} };
+function shSee(L, mine) {
+  if (!L || !L.q || !L.round || L.type === 'emoji') return;
+  let e = SH.find(x => x.round === L.round);
+  if (!e) { e = { round: L.round, q: L.q, type: L.type, opts: L.type === 'mc' ? L.opts || [] : null, ks: L.ks != null ? L.ks : null, mine: '', right: '', at: Date.now() }; SH.push(e); }
+  if (mine != null) e.mine = mine;
+  if (L.reveal != null && !L.open) e.right = L.type === 'yn' ? ['Yes', 'No'][L.reveal] || '' : (L.opts || [])[L.reveal] || '';
+  saveSH();
+}
+function mySheet() {
+  if (!SH.length) return;
+  const marked = SH.filter(x => x.right), got = marked.filter(x => x.mine === x.right).length;
+  const days = []; SH.forEach(x => { const d = new Date(x.at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }); if (!days.includes(d)) days.push(d); });
+  const qs = SH.map(x => { const ok = x.right && x.mine === x.right, bad = x.right && x.mine !== x.right;
+    return `<li class="${ok ? 'ok' : bad ? 'bad' : ''}"><p class="q">${esc(x.q)}</p>${LC.ksStaff(x.ks)}${x.opts ? `<ol type="A" class="opts">${x.opts.map(o => `<li class="${o === x.right ? 'r' : ''} ${o === x.mine && o !== x.right ? 'w' : ''}">${esc(o)}</li>`).join('')}</ol>` : ''}
+      <p class="me">Your answer: <b>${x.mine ? esc(x.mine) : '<i>no answer</i>'}</b> ${ok ? '<span class="tag g">✓ Right</span>' : bad ? '<span class="tag r">✗ Not quite</span>' : ''}</p>
+      ${bad ? `<p class="me">Right answer: <b>${esc(x.right)}</b></p>` : ''}</li>`; }).join('');
+  const w = window.open('', '_blank'); if (!w) { toast('Allow pop-ups for this page, then try again.'); return; }
+  w.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>My answers · ${esc(p.className || code)}</title><style>
+    body{font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:#141d2c;background:#fff;max-width:760px;margin:24px auto;padding:0 20px}
+    h1{font-size:26px;margin:0}.sub{color:#5b6784;margin:4px 0 20px}button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 16px;background:#2b5bd7;color:#fff;cursor:pointer;margin-bottom:16px}
+    ol.qs>li{margin:0 0 16px;padding:8px 12px;border-left:4px solid #d5dae6;break-inside:avoid}ol.qs>li.ok{border-color:#2e9e5b}ol.qs>li.bad{border-color:#d0453a}
+    .q{font-weight:700;margin:0 0 6px}.opts{margin:4px 0}.opts .r{font-weight:700;color:#1f7a45}.opts .w{text-decoration:line-through;color:#b2382f}.me{margin:4px 0}
+    .tag{font-size:13px;font-weight:800;border-radius:6px;padding:1px 6px}.tag.g{background:#dff3e6;color:#1f7a45}.tag.r{background:#fbe1de;color:#b2382f}
+    .ksbox{width:230px;margin:4px 0 6px}.ksbox svg{display:block;width:100%;height:auto}.foot{color:#5b6784;font-size:13px;margin-top:24px}
+    @media print{button{display:none}body{margin:0 auto}}</style></head><body><button onclick="print()">📄 Save as PDF</button>
+    <h1>My answers</h1><p class="sub">${esc(name)} · ${esc(p.className || code)} · ${esc(days.join(', '))}${marked.length ? ` · ${got} of ${marked.length} right` : ''}</p>
+    <ol class="qs">${qs}</ol><p class="foot">Questions your teacher didn't mark show no ✓ or ✗. Music Theory Academy · musictheoryacademy.org</p>
+    <script>setTimeout(function(){print()},400)<\/script></body></html>`);
+  w.document.close();
+}
 function histCard() {
   const L = S.live;
   const H = ME.hist.filter(h => h.code === code && (!L || h.round !== L.round)).slice(-8).reverse();
-  return `<section class="card stack"><h3>My answers</h3>${H.length ? `<ul class="hist">${H.map(h => `<li><div class="q">${esc(h.q)}</div><div>${esc(h.text)}</div></li>`).join('')}</ul>` : '<p class="muted empty small">Your past answers show up here (on this device).</p>'}</section>`;
+  const sh = SH.length ? `<div class="row"><button type="button" class="btn sm pri" data-act="mysheet">📄 Download my answers</button>${S.shClear ? '<button type="button" class="btn sm" data-act="shclear2">Yes, clear</button>' : '<button type="button" class="btn sm" data-act="shclear">Clear</button>'}</div><p class="dim small" style="margin:0">${SH.length} question${SH.length === 1 ? '' : 's'} saved on this device, with what you got wrong once your teacher locks each one.</p>` : '';
+  return `<section class="card stack"><h3>My answers</h3>${sh}${H.length ? `<ul class="hist">${H.map(h => `<li><div class="q">${esc(h.q)}</div><div>${esc(h.text)}</div></li>`).join('')}</ul>` : '<p class="muted empty small">Your past answers show up here (on this device).</p>'}</section>`;
 }
 function helpCard() {
   const saved = savedOf(p);
@@ -421,13 +457,16 @@ async function send(text) {
   try {
     await db.add('bc_answers', d);
     ME.hist = ME.hist.filter(h => !(h.round === L.round && h.code === code)).concat({ round: L.round, code, q: L.q, text, at: Date.now() }).slice(-60);
-    saveMe(); toast(mine ? 'Answer updated.' : 'Sent!');
+    saveMe(); shSee(L, text); toast(mine ? 'Answer updated.' : 'Sent!');
   } catch (e) { S.err = ERR(e); }
   S.busy = false; draw();
 }
 
 app.addEventListener('click', async e => {
   const t = e.target.closest('button'); if (!t) return;
+  if (t.dataset.act === 'mysheet') { mySheet(); return; }
+  if (t.dataset.act === 'shclear') { S.shClear = true; draw(); return; }
+  if (t.dataset.act === 'shclear2') { S.shClear = false; SH.length = 0; saveSH(); toast('Cleared.'); draw(); return; }
   if (t.dataset.pick != null) return send(t.dataset.pick);
   if (t.hasAttribute('data-send')) return send($('ans') ? $('ans').value : '');
   if (t.dataset.react) {
@@ -461,6 +500,7 @@ app.addEventListener('keydown', e => { if (e.target.id === 'ans' && e.key === 'E
 let wasOpen = null;
 db.watchDoc('bc_live/' + code, d => {
   const before = S.live; S.live = d; S.loaded = true;
+  if (d && d.q) { const m = mineFor(d.round); shSee(d, m ? m.text : null); }
   if (d && d.q && S.seen && (!before || before.round !== d.round)) { try { navigator.vibrate && navigator.vibrate(60); } catch {} }
   if (d && d.game && d.round && !SD.seen[d.round]) { SD.seen[d.round] = Date.now(); saveSD(); }
   if (d && d.game && d.board && !d.board.length && !d.final && Object.keys(SD.done).length && !(before && before.board && !before.board.length)) { SD.pts = 0; SD.st = 0; SD.done = {}; saveSD(); }   // the teacher started a new Showdown

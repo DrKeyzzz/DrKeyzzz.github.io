@@ -201,6 +201,9 @@ function scoreRound(L) {
   Object.entries(g.scores).forEach(([sid, x]) => { if (!seen.has(sid)) x.st = 0; });
   g.done[L.round] = 1; saveG();
 }
+// the right choice as a number for bc_live.reveal (multiple choice: its place; yes/no: Yes 0, No 1), so students' phones can mark
+// their own answer sheets after the lock (2026-11-17). Short answers have no reveal.
+const revealIdx = L => { const c = correct(); if (!c) return null; const i = L.type === 'mc' ? (L.opts || []).indexOf(c) : L.type === 'yn' ? ['Yes', 'No'].indexOf(c) : -1; return i >= 0 ? i : null; };
 async function gameLock(L) {
   scoreRound(L);
   const c = correct(), idx = (L.opts || []).indexOf(c);
@@ -358,11 +361,11 @@ const saveAsked = l => { try { localStorage.setItem(AK(), JSON.stringify(l.slice
 function askedCard() {
   const l = asked();
   return `<section class="card stack"><div class="row between"><h2 style="margin:0">📝 Questions asked <span class="chip">${l.length}</span></h2>
-    ${l.length ? `<div class="row"><button class="btn sm pri" data-act="sheet">📄 Generate PDF</button>${S.confirm === 'asked' ? '<button class="btn sm" data-act="askedClear" style="background:#c0392b;color:#fff">Yes, clear</button>' : '<button class="btn sm" data-act="askedAsk">Clear</button>'}</div>` : ''}</div>
+    ${l.length ? `<div class="row"><button class="btn sm pri" data-act="sheet" data-v="1" title="Questions, then an answer key on its own page">📄 PDF with answers</button><button class="btn sm" data-act="sheet" title="Questions only, no answers">📄 Questions only</button>${S.confirm === 'asked' ? '<button class="btn sm" data-act="askedClear" style="background:#c0392b;color:#fff">Yes, clear</button>' : '<button class="btn sm" data-act="askedAsk">Clear</button>'}</div>` : ''}</div>
     ${l.length ? `<ol class="stack" style="margin:0;padding-left:22px;max-height:300px;overflow:auto;gap:6px">${l.map((x, i) => `<li><div class="row between" style="align-items:flex-start;flex-wrap:nowrap"><span>${esc(x.q)}${x.correct ? ` <span class="muted small">→ ${esc(x.correct)}</span>` : ''}</span><button class="btn sm" data-act="askedDel" data-v="${i}" title="Leave this one off the study sheet" aria-label="Remove">✕</button></div></li>`).join('')}</ol>`
-      : '<p class="muted small" style="margin:0">Every question you post shows up here. At the end, Generate PDF makes a study sheet to post on Google Classroom.</p>'}</section>`;
+      : '<p class="muted small" style="margin:0">Every question you post shows up here. At the end, make a PDF study sheet (with or without answers) to post on Google Classroom.</p>'}</section>`;
 }
-function studySheet() {
+function studySheet(withKey) {
   const l = asked(); if (!l.length) return;
   const cls = (S.classes.find(c => c.code === S.code) || {}).name || S.code, day = new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
   const qs = l.map((x, i) => `<li><p class="q">${esc(x.q)}</p>${ksStaff(x.ks)}${x.type === 'mc' && x.opts ? `<ol type="A" class="opts">${x.opts.map(o => `<li>${esc(o)}</li>`).join('')}</ol>`
@@ -380,7 +383,7 @@ function studySheet() {
     @media print{.bar{display:none}body{margin:0 auto}}</style></head><body>
     <div class="bar"><button onclick="print()">📄 Save as PDF</button></div>
     <h1>Study sheet</h1><p class="sub">${esc(cls)} · Live Class · ${esc(day)} · ${l.length} question${l.length === 1 ? '' : 's'}</p>
-    <ol class="qs">${qs}</ol><section class="key"><h2>Answers</h2><ol>${key}</ol></section>
+    <ol class="qs">${qs}</ol>${withKey ? `<section class="key"><h2>Answers</h2><ol>${key}</ol></section>` : ''}
     <p class="foot">Music Theory Academy · musictheoryacademy.org</p>
     <script>setTimeout(function(){print()},400)<\/script></body></html>`);
   w.document.close();
@@ -411,6 +414,8 @@ async function post() {
   const opts = c.opts.map(o => o.trim().slice(0, 60)).filter(Boolean);
   if (c.type === 'mc' && opts.length < 2) { toast('Add at least two options.'); return; }
   if (G().on && (c.type !== 'mc' || !opts.includes(c.correct))) { toast('Showdown needs a multiple-choice question with its correct answer picked.'); return; }
+  const old = S.live;
+  if (old && old.q && !old.game && old.reveal == null && revealIdx(old) != null) { try { await upd({ open: false, reveal: revealIdx(old) }); await new Promise(r => setTimeout(r, 1200)); } catch {} }
   const round = LC.roundId();
   const d = { round, q, type: c.type, skills: (c.skills || []).slice(0, 20), open: true, ends_at: c.timer ? at(Date.now() + c.timer * 1000) : null, spot: [], updated_at: NOW };
   if (c.type === 'mc') d.opts = opts;
@@ -477,7 +482,7 @@ app.addEventListener('click', async e => {
   if (act === 'game') { G().on = !G().on; saveG(); if (G().on) { S.comp.type = 'mc'; toast('Showdown on: pick the correct answer on every question.'); } draw(); return; }
   if (act === 'gnew') { S.confirm = ''; const g = G(); g.scores = {}; g.qn = 0; g.done = {}; saveG(); if (L && L.game) upd({ board: [], final: false }); toast('New Showdown: scores reset.'); draw(); return; }
   if (act === 'podium') { if (!L) return; if (L.open) await gameLock(L); return upd({ open: false, final: true, board: topBoard() }); }
-  if (act === 'sheet') { studySheet(); return; }
+  if (act === 'sheet') { studySheet(!!t.dataset.v); return; }
   if (act === 'askedAsk') { S.confirm = 'asked'; draw(); return; }
   if (act === 'askedClear') { S.confirm = ''; saveAsked([]); toast('List cleared.'); draw(); return; }
   if (act === 'askedDel') { const l = asked(); l.splice(Number(t.dataset.v), 1); saveAsked(l); draw(); return; }
@@ -488,7 +493,7 @@ app.addEventListener('click', async e => {
   if (act === 'kspick') { const q = ksQuestion(Number(t.dataset.v), S.ksm.minor, S.ksm.style); S.comp = { ...q, timer: S.comp.timer }; toast('Question filled in. Check it, then Post.'); draw(); return; }
   if (act === 'ksclear') { S.comp.ks = null; draw(); return; }
   if (!L) return;
-  if (act === 'lock') { if (L.game && L.open) return gameLock(L); return upd(L.open ? { open: false, ends_at: null } : { open: true, ends_at: null }); }
+  if (act === 'lock') { if (L.game && L.open) return gameLock(L); return upd(L.open ? { open: false, ends_at: null, reveal: revealIdx(L) } : { open: true, ends_at: null, reveal: null }); }
   if (act === 'timer') return upd({ open: true, ends_at: at(Date.now() + Number(t.dataset.v) * 1000) });
   if (act === 'spotClear') return upd({ spot: [] });
   if (act === 'pickClose') { S.pick = null; draw(); return; }
@@ -534,7 +539,7 @@ app.addEventListener('change', e => {
 setInterval(() => {
   const L = S.live; if (!L || !L.q || !L.ends_at) return;
   const s = left(L), el = $('cd'); if (el) el.textContent = clock(s);
-  if (s === 0 && L.open && start.locking !== L.round) { start.locking = L.round; if (L.game) gameLock(L); else upd({ open: false }); }
+  if (s === 0 && L.open && start.locking !== L.round) { start.locking = L.round; if (L.game) gameLock(L); else upd({ open: false, reveal: revealIdx(L) }); }
 }, 500);
 start();
 })();
