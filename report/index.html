@@ -1248,6 +1248,65 @@ boot();
 .av[data-act=kickstep] .root{animation:mav-h-small .375s 8}
 @keyframes mav-d-kl{0%,50%,100%{transform:none}25%{transform:rotate(55deg)}}@keyframes mav-d-kr{0%,50%,100%{transform:none}75%{transform:rotate(-55deg)}}
 @keyframes mav-d-ksl{0%,50%,100%{transform:none}12%{transform:rotate(-60deg)}25%{transform:rotate(0)}}@keyframes mav-d-ksr{0%,50%,100%{transform:none}62%{transform:rotate(60deg)}75%{transform:rotate(0)}}
+/* ---- new moves (2026-11-16, David: develop more moves) ---- */
+/* dances, 3 s */
+.av[data-act=airguitar] .arm-l{animation:mav-n-agl 3s}.av[data-act=airguitar] .fore-l{animation:mav-n-agfl 3s}
+.av[data-act=airguitar] .arm-r{animation:mav-n-strum .25s ease-in-out 12 alternate}.av[data-act=airguitar] .fore-r{animation:mav-n-agfr 3s}
+.av[data-act=airguitar] .head{animation:mav-n-bang .5s ease-in-out 6}.av[data-act=airguitar] .root{animation:mav-n-dip .5s ease-in-out 6}
+.av[data-act=airguitar] .leg-l{animation:mav-n-kickl 1.5s ease-in-out 2}.av[data-act=airguitar] .shin-l{animation:mav-n-kicksl 1.5s ease-in-out 2}
+@keyframes mav-n-agl{0%,100%{transform:rotate(-35deg)}}@keyframes mav-n-agfl{0%,100%{transform:rotate(-70deg)}}
+@keyframes mav-n-strum{from{transform:rotate(-30deg)}to{transform:rotate(5deg)}}@keyframes mav-n-agfr{0%,100%{transform:rotate(-40deg)}}
+@keyframes mav-n-bang{0%,100%{transform:none}40%{transform:rotate(8deg) translateY(2px)}}@keyframes mav-n-dip{0%,100%{transform:none}50%{transform:translateY(3px)}}
+@keyframes mav-n-kickl{0%,100%{transform:none}50%{transform:rotate(25deg)}}@keyframes mav-n-kicksl{0%,100%{transform:none}50%{transform:rotate(-40deg)}}
+.av[data-act=conductor] .arm-r{animation:mav-n-car 1s ease-in-out 3}.av[data-act=conductor] .fore-r{animation:mav-n-cfr .5s ease-in-out 6 alternate}
+.av[data-act=conductor] .arm-l{animation:mav-n-cal 1s ease-in-out 3}.av[data-act=conductor] .fore-l{animation:mav-n-cfl .5s ease-in-out 6 alternate}
+.av[data-act=conductor] .head{animation:mav-n-sway 1s ease-in-out 3}.av[data-act=conductor] .root{animation:mav-n-rise 1s ease-in-out 3}
+@keyframes mav-n-car{0%,100%{transform:rotate(-110deg)}25%{transform:rotate(-150deg)}50%{transform:rotate(-80deg)}75%{transform:rotate(-130deg)}}
+@keyframes mav-n-cal{0%,100%{transform:rotate(100deg)}50%{transform:rotate(130deg)}}
+@keyframes mav-n-cfr{from{transform:rotate(-25deg)}to{transform:rotate(25deg)}}@keyframes mav-n-cfl{from{transform:rotate(20deg)}to{transform:rotate(-20deg)}}
+@keyframes mav-n-sway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}@keyframes mav-n-rise{0%,100%{transform:none}50%{transform:translateY(-3px)}}
+.av[data-act=jacks] .root{animation:mav-n-jump .5s ease-in-out 6}
+.av[data-act=jacks] .arm-l{animation:mav-n-jal .5s ease-in-out 6}.av[data-act=jacks] .arm-r{animation:mav-n-jar .5s ease-in-out 6}
+.av[data-act=jacks] .leg-l{animation:mav-n-jll .5s ease-in-out 6}.av[data-act=jacks] .leg-r{animation:mav-n-jlr .5s ease-in-out 6}
+@keyframes mav-n-jump{0%,100%{transform:none}50%{transform:translateY(-9px)}}
+@keyframes mav-n-jal{0%,100%{transform:none}50%{transform:rotate(165deg)}}@keyframes mav-n-jar{0%,100%{transform:none}50%{transform:rotate(-165deg)}}
+@keyframes mav-n-jll{0%,100%{transform:none}50%{transform:rotate(22deg)}}@keyframes mav-n-jlr{0%,100%{transform:none}50%{transform:rotate(-22deg)}}
+.av[data-act=raiseroof] .arm-l{animation:mav-n-rrl .5s ease-in-out 6}.av[data-act=raiseroof] .fore-l{animation:mav-n-rrfl 3s}
+.av[data-act=raiseroof] .arm-r{animation:mav-n-rrr .5s ease-in-out 6}.av[data-act=raiseroof] .fore-r{animation:mav-n-rrfr 3s}
+.av[data-act=raiseroof] .root{animation:mav-n-dip .5s ease-in-out 6}.av[data-act=raiseroof] .head{animation:mav-n-bang .5s ease-in-out 6}
+@keyframes mav-n-rrl{0%,100%{transform:rotate(120deg)}50%{transform:rotate(160deg)}}@keyframes mav-n-rrr{0%,100%{transform:rotate(-120deg)}50%{transform:rotate(-160deg)}}
+@keyframes mav-n-rrfl{0%,100%{transform:rotate(-80deg)}}@keyframes mav-n-rrfr{0%,100%{transform:rotate(80deg)}}
+.av[data-act=shuffle] .root{animation:mav-n-slide .5s ease-in-out 6 alternate}
+.av[data-act=shuffle] .leg-l{animation:mav-n-shl .25s ease-in-out 12 alternate}.av[data-act=shuffle] .shin-l{animation:mav-n-shsl .25s ease-in-out 12 alternate}
+.av[data-act=shuffle] .leg-r{animation:mav-n-shr .25s ease-in-out 12 alternate-reverse}.av[data-act=shuffle] .shin-r{animation:mav-n-shsr .25s ease-in-out 12 alternate-reverse}
+.av[data-act=shuffle] .arm-l{animation:mav-n-sal .5s ease-in-out 6 alternate}.av[data-act=shuffle] .arm-r{animation:mav-n-sar .5s ease-in-out 6 alternate}
+@keyframes mav-n-slide{from{transform:translateX(-4px)}to{transform:translateX(4px)}}
+@keyframes mav-n-shl{from{transform:none}to{transform:rotate(28deg)}}@keyframes mav-n-shsl{from{transform:none}to{transform:rotate(-35deg)}}
+@keyframes mav-n-shr{from{transform:none}to{transform:rotate(-28deg)}}@keyframes mav-n-shsr{from{transform:none}to{transform:rotate(35deg)}}
+@keyframes mav-n-sal{from{transform:rotate(20deg)}to{transform:rotate(60deg)}}@keyframes mav-n-sar{from{transform:rotate(-60deg)}to{transform:rotate(-20deg)}}
+.av[data-act=drumsolo] .arm-l{animation:mav-n-dl .3s ease-in-out 10 alternate}.av[data-act=drumsolo] .fore-l{animation:mav-n-dfl .3s ease-in-out 10 alternate}
+.av[data-act=drumsolo] .arm-r{animation:mav-n-dr .3s ease-in-out 10 alternate-reverse}.av[data-act=drumsolo] .fore-r{animation:mav-n-dfr .3s ease-in-out 10 alternate-reverse}
+.av[data-act=drumsolo] .head{animation:mav-n-bang .3s ease-in-out 10}.av[data-act=drumsolo] .root{animation:mav-n-dip .6s ease-in-out 5}
+@keyframes mav-n-dl{from{transform:rotate(-20deg)}to{transform:rotate(-55deg)}}@keyframes mav-n-dfl{from{transform:rotate(-30deg)}to{transform:rotate(-90deg)}}
+@keyframes mav-n-dr{from{transform:rotate(20deg)}to{transform:rotate(55deg)}}@keyframes mav-n-dfr{from{transform:rotate(30deg)}to{transform:rotate(90deg)}}
+/* right-answer moves, under 1 s */
+.av[data-act=clap] .arm-l{animation:mav-n-cpl .4s ease-in-out 2}.av[data-act=clap] .fore-l{animation:mav-n-cpfl .4s ease-in-out 2}
+.av[data-act=clap] .arm-r{animation:mav-n-cpr .4s ease-in-out 2}.av[data-act=clap] .fore-r{animation:mav-n-cpfr .4s ease-in-out 2}.av[data-act=clap] .root{animation:mav-n-dip .4s 2}
+@keyframes mav-n-cpl{0%,100%{transform:rotate(-20deg)}50%{transform:rotate(-55deg)}}@keyframes mav-n-cpfl{0%,100%{transform:rotate(-50deg)}50%{transform:rotate(-75deg)}}
+@keyframes mav-n-cpr{0%,100%{transform:rotate(20deg)}50%{transform:rotate(55deg)}}@keyframes mav-n-cpfr{0%,100%{transform:rotate(50deg)}50%{transform:rotate(75deg)}}
+.av[data-act=starjump] .root{animation:mav-n-sj .8s ease-out}.av[data-act=starjump] .arm-l{animation:mav-n-sjal .8s}.av[data-act=starjump] .arm-r{animation:mav-n-sjar .8s}
+.av[data-act=starjump] .leg-l{animation:mav-n-sjll .8s}.av[data-act=starjump] .leg-r{animation:mav-n-sjlr .8s}
+@keyframes mav-n-sj{0%,100%{transform:none}20%{transform:translateY(3px)}50%{transform:translateY(-14px)}}
+@keyframes mav-n-sjal{0%,100%{transform:none}50%{transform:rotate(140deg)}}@keyframes mav-n-sjar{0%,100%{transform:none}50%{transform:rotate(-140deg)}}
+@keyframes mav-n-sjll{0%,100%{transform:none}50%{transform:rotate(30deg)}}@keyframes mav-n-sjlr{0%,100%{transform:none}50%{transform:rotate(-30deg)}}
+.av[data-act=pointup] .arm-r{animation:mav-n-pu .9s}.av[data-act=pointup] .fore-r{animation:mav-n-pfu .9s}.av[data-act=pointup] .head{animation:mav-n-lu .9s}.av[data-act=pointup] .arm-l{animation:mav-h-hipl .9s}.av[data-act=pointup] .fore-l{animation:mav-h-hipfl .9s}
+@keyframes mav-n-pu{0%,100%{transform:none}25%,80%{transform:rotate(-170deg)}}@keyframes mav-n-pfu{0%,100%{transform:none}25%,80%{transform:rotate(-5deg)}}
+@keyframes mav-n-lu{0%,100%{transform:none}25%,80%{transform:rotate(-6deg) translateY(-1px)}}
+/* idles (loop while standing still) */
+.av[data-idle=tap]:not([data-act]) .shin-r{animation:mav-n-tap .5s ease-in-out infinite}.av[data-idle=tap]:not([data-act]) .head{animation:mav-n-nod 1s ease-in-out infinite}
+@keyframes mav-n-tap{0%,100%{transform:none}50%{transform:rotate(-18deg)}}@keyframes mav-n-nod{0%,100%{transform:none}50%{transform:rotate(4deg) translateY(1px)}}
+.av[data-idle=look]:not([data-act]) .head{animation:mav-n-look 5s ease-in-out infinite}.av[data-idle=look]:not([data-act]) .root{animation:mav-i-dip 1.2s ease-in-out infinite alternate}
+@keyframes mav-n-look{0%,20%{transform:none}30%,45%{transform:rotate(-10deg)}55%,70%{transform:rotate(10deg)}80%,100%{transform:none}}
 /* students whose device asks for less motion: no bouncing, just a small nod */
 @media (prefers-reduced-motion:reduce){
   .av *{animation:none!important}
@@ -1517,7 +1576,12 @@ boot();
     {id:'none',slot:'outfit',name:'My own clothes',ic:'👕',free:1},{id:'dj',slot:'outfit',name:'DJ',ic:'🎧',c:120},{id:'pirate',slot:'outfit',name:'Pirate',ic:'🏴‍☠️',c:150},
     {id:'rockstar',slot:'outfit',name:'Rock Star',ic:'🤘',c:200},{id:'hero',slot:'outfit',name:'Super Hero',ic:'⚡',p:600},{id:'astronaut',slot:'outfit',name:'Astronaut',ic:'🚀',p:900},
     {id:'robot',slot:'outfit',name:'Robot',ic:'🤖',p:1500},{id:'wizard',slot:'outfit',name:'Wizard',ic:'🧙',p:2000},
-    {id:'step',slot:'idle',name:'Side step',ic:'👟',c:100},{id:'kick',slot:'happy',name:'Kick',ic:'🦵',c:45},{id:'kickstep',slot:'dance',name:'Kick Step',ic:'🦶',p:800},
+    {id:'step',slot:'idle',name:'Side step',ic:'👟',c:100},
+    // new moves (2026-11-16)
+    {id:'airguitar',slot:'dance',name:'Air Guitar',ic:'🎸',p:600},{id:'conductor',slot:'dance',name:'Conductor',ic:'🪄',p:500},{id:'jacks',slot:'dance',name:'Jumping Jacks',ic:'⭐',c:140},
+    {id:'raiseroof',slot:'dance',name:'Raise the Roof',ic:'🙌',c:120},{id:'shuffle',slot:'dance',name:'Shuffle',ic:'👟',p:450},{id:'drumsolo',slot:'dance',name:'Drum Solo',ic:'🥁',c:150},
+    {id:'clap',slot:'happy',name:'Clap',ic:'👏',c:35},{id:'starjump',slot:'happy',name:'Star Jump',ic:'🌟',c:60},{id:'pointup',slot:'happy',name:'Point Up',ic:'☝️',c:40},
+    {id:'tap',slot:'idle',name:'Foot Tap',ic:'🦶',c:50},{id:'look',slot:'idle',name:'Look Around',ic:'👀',c:60},{id:'kick',slot:'happy',name:'Kick',ic:'🦵',c:45},{id:'kickstep',slot:'dance',name:'Kick Step',ic:'🦶',p:800},
     // Encore-only items (step 5): yours after that many Encores
     {id:'encjacket',slot:'top',name:'Encore Jacket',ic:'🎭',enc:1}, {id:'ovation',slot:'dance',name:'Standing Ovation',ic:'👏',enc:2},
     {id:'spotlight',slot:'bg',name:'Spotlight',ic:'🔦',enc:3}, {id:'goldmic',slot:'gear',name:'Golden Mic',ic:'🎤',enc:4},
@@ -1928,7 +1992,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   }
 
   // ---------- moves: right answer = happy move, miss = shrug (never sad), finished run = dance ----------
-  var LEN = { ovation: 3000, hop: 700, fistpump: 800, spin: 800, shrug: 900, scratch: 1000, facepalm: 1100, kick: 800, kickstep: 3000, groove: 3000, wave: 3000, robot: 3000, disco: 3000, spinout: 3000 }, actT = 0;
+  var LEN = { ovation: 3000, airguitar: 3000, conductor: 3000, jacks: 3000, raiseroof: 3000, shuffle: 3000, drumsolo: 3000, clap: 800, starjump: 800, pointup: 900, hop: 700, fistpump: 800, spin: 800, shrug: 900, scratch: 1000, facepalm: 1100, kick: 800, kickstep: 3000, groove: 3000, wave: 3000, robot: 3000, disco: 3000, spinout: 3000 }, actT = 0;
   function act(move){
     clearTimeout(actT); delete corner.dataset.act; void corner.offsetWidth; corner.dataset.act = move;
     actT = setTimeout(function(){ delete corner.dataset.act; }, LEN[move] || 1000);
