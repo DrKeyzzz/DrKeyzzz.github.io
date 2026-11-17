@@ -278,7 +278,14 @@ const base = () => ({ class_code: code, owner: p.classOwner, sid, name });
 function pulse() {
   return db.set('bc_pulse/' + ME.key, { ...base(), lost: !!ME.lost, conf: ME.conf | 0 || 3, at: NOW }).catch(e => { S.err = ERR(e); draw(); });
 }
-pulse();   // tells the teacher you have joined
+// I'm lost (2026-11-17, David: "they are going nuts with it"): one tap turns it on; only the teacher can clear it. The student's
+// own pulse doc (read by its secret key) says when the teacher cleared it. The first look decides before joining, so an old
+// "lost" from last time isn't sent again after the teacher already cleared it.
+let pulsed = false;
+db.watchDoc('bc_pulse/' + ME.key, d => {
+  if (d && d.lost === false && ME.lost) { ME.lost = false; saveMe(); draw(); }
+  if (!pulsed) { pulsed = true; pulse(); }   // tells the teacher you have joined
+}, () => { if (!pulsed) { pulsed = true; pulse(); } });
 
 function mineFor(round) { return ME.hist.find(h => h.round === round && h.code === code); }
 
@@ -348,7 +355,7 @@ function helpCard() {
   const saved = savedOf(p);
   return `<section class="card stack">
     <div class="row between"><b>${esc(p.icon || '')} ${esc(name)}</b>${saved.length > 1 ? `<select id="cls" aria-label="Class" style="width:auto">${saved.map(c => `<option value="${esc(c.code)}" ${c.code === code ? 'selected' : ''}>${esc(c.name || c.code)}</option>`).join('')}</select>` : `<span class="muted small">${esc(p.className || code)}</span>`}</div>
-    <button type="button" class="btn lost ${ME.lost ? 'on' : ''}" id="lost" aria-pressed="${!!ME.lost}">${ME.lost ? '😵 I\'m lost (tap to undo)' : '🙋 I\'m lost'}</button>
+    <button type="button" class="btn lost ${ME.lost ? 'on' : ''}" id="lost" aria-pressed="${!!ME.lost}"${ME.lost ? ' disabled' : ''}>${ME.lost ? '😵 Your teacher knows. They\'ll clear it when they\'ve helped.' : '🙋 I\'m lost'}</button>
     <label class="f" for="conf">How sure do you feel? <b class="mono" style="color:var(--ink)" id="confv">${ME.conf} / 5</b><input type="range" id="conf" min="1" max="5" value="${ME.conf}"></label>
     <p class="dim small" style="margin:0">Only your teacher sees these.</p></section>
   <section class="card stack"><h3>Ask your teacher privately</h3><textarea id="pq" maxlength="280" rows="3" placeholder="Nobody else will see this."></textarea><button type="button" class="btn" id="sendpq">Send privately</button></section>`;
@@ -393,7 +400,7 @@ app.addEventListener('click', async e => {
     db.set(`bc_live/${code}/reacts/${L.round}_${sid}`, { round: L.round, to, e: e2, at: NOW }).catch(er => { S.err = ERR(er); draw(); });
     return;
   }
-  if (t.id === 'lost') { ME.lost = !ME.lost; saveMe(); draw(); pulse(); return; }
+  if (t.id === 'lost') { if (ME.lost) return; ME.lost = true; saveMe(); draw(); pulse(); return; }   // one tap; the teacher clears it
   if (t.id === 'sendpq') {
     const v = $('pq').value.trim().slice(0, 280); if (!v) return;
     t.disabled = true;

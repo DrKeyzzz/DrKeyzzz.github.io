@@ -295,7 +295,8 @@ function pulseCard() {
   const got = new Set(S.ans.map(a => a.sid)), un = S.live && S.live.q ? P.filter(x => !got.has(x.sid)) : [];
   return `<section class="card stack"><h3>Class pulse</h3>
     <div><div class="row between"><span class="label">"I'm lost"</span><b class="mono">${lost.length} of ${P.length}</b></div><div class="meter rose" style="margin-top:6px"><i style="width:${P.length ? 100 * lost.length / P.length : 0}%"></i></div>
-      ${lost.length ? `<div class="namechips" style="margin-top:8px">${lost.map(x => `<span class="chip no">${esc(x.name)}</span>`).join('')}</div>` : ''}</div>
+      ${lost.length ? `<div class="namechips" style="margin-top:8px">${lost.map(x => `<button type="button" class="chip no" data-act="unlost" data-id="${esc(x.id)}" title="Clear ${esc(x.name)}'s I'm lost">${esc(x.name)} ✕</button>`).join('')}
+        <button type="button" class="btn sm" data-act="unlost" data-id="*">Clear all</button></div><p class="dim small" style="margin:6px 0 0">Students can tap "I'm lost" once; it stays on until you clear it.</p>` : ''}</div>
     <div><div class="row between"><span class="label">Confidence</span><b class="mono">${P.length ? avg.toFixed(1) : '–'} / 5</b></div><div class="meter vio" style="margin-top:6px"><i style="width:${avg * 20}%"></i></div></div>
     ${S.live && S.live.q ? `<div><span class="label">Not answered yet</span><div class="namechips" style="margin-top:6px">${un.length ? un.map(x => `<span class="chip">${esc(x.name)}</span>`).join('') : P.length ? '<span class="chip ok">Everyone is in</span>' : '<span class="muted small">Nobody has joined yet.</span>'}</div></div>` : ''}
     <p class="dim small" style="margin:0">Students who opened Live Class in the last 3 hours.</p></section>`;
@@ -407,6 +408,12 @@ app.addEventListener('click', async e => {
   if (act !== 'confirm' && act !== 'del' && act !== 'end') S.confirm = '';
   if (act === 'confirm') { S.confirm = S.confirm === t.dataset.v ? '' : t.dataset.v; draw(); return; }
   if (act === 'post') return post();
+  if (act === 'unlost') {   // 2026-11-17: only the teacher clears "I'm lost"
+    const ids = t.dataset.id === '*' ? recent().filter(x => x.lost).map(x => x.id) : [t.dataset.id];
+    for (const id of ids) { const x = S.pulses.find(y => y.id === id); if (!x) continue;
+      try { await db.set('bc_pulse/' + id, { class_code: x.class_code, owner: x.owner, sid: x.sid, name: x.name, lost: false, conf: x.conf || 3, at: NOW }); x.lost = false; } catch (e) { toast(ERR(e)); } }
+    draw(); return;
+  }
   if (act === 'game') { G().on = !G().on; saveG(); if (G().on) { S.comp.type = 'mc'; toast('Showdown on: pick the correct answer on every question.'); } draw(); return; }
   if (act === 'gnew') { S.confirm = ''; const g = G(); g.scores = {}; g.qn = 0; g.done = {}; saveG(); if (L && L.game) upd({ board: [], final: false }); toast('New Showdown: scores reset.'); draw(); return; }
   if (act === 'podium') { if (!L) return; if (L.open) await gameLock(L); return upd({ open: false, final: true, board: topBoard() }); }
