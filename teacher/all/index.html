@@ -914,8 +914,10 @@ const actMin = s => s == null ? '<span style="color:var(--muted)">–</span>' : 
 const actAns = r => r.answers == null ? '<span style="color:var(--muted)">–</span>' : r.answers ? `${esc(r.answers)} · ${accCell(r.acc)}` : '0';
 const actParts = ids => ids.map(a => BW_NAME[a] || a).join(', ');   // Brainwaves area ids (synapse, intervals, …) to their names
 const actLive = r => r.seenMs && Date.now() - r.seenMs < 210000;   // updated in the last 3½ minutes (the page sends every 3)
+// the developer (signed in as "Maestro" + any initial) shows as Maestro with the DEV tag, like on the leaderboards
+const actName = n => /^\s*maestro\b/i.test(String(n || '')) ? 'Maestro <span class="devtag" title="The developer (you)">DEV</span>' : esc(n);
 const ACT_VISIT_COLS = [
-  { k: 'dateMs', h: 'Started', t: 'n', f: r => esc(fmtDate(r.dateMs)) }, { k: 'name', h: 'Who', t: 's', f: r => r.guest ? '<span style="color:var(--muted)">Guest</span>' : esc(r.name) },
+  { k: 'dateMs', h: 'Started', t: 'n', f: r => esc(fmtDate(r.dateMs)) }, { k: 'name', h: 'Who', t: 's', f: r => r.guest ? '<span style="color:var(--muted)">Guest</span>' : actName(r.name) },
   { k: 'teacher', h: 'Teacher · class', t: 's', f: actTC }, { k: 'game', h: 'Game', t: 'g' },
   { k: 'partsTxt', h: 'Areas', t: 's', f: r => r.partsTxt ? esc(r.partsTxt) : '<span style="color:var(--muted)">–</span>' },
   { k: 'page_s', h: 'On screen', t: 'n', num: 1, f: r => actMin(r.page_s) }, { k: 'play_s', h: 'Playing', t: 'n', num: 1, f: r => actMin(r.play_s) },
@@ -971,7 +973,7 @@ function actTeachOpts(rows) {   // the Teacher filter lists the teachers in the 
   sel.value = v && (v === '~none' || seen[v]) ? v : '';
 }
 const ACT_PLAYER_COLS = [
-  { k: 'name', h: 'Who', t: 's', f: r => r.guest ? '<span style="color:var(--muted)">All guests</span>' : esc(r.name) },
+  { k: 'name', h: 'Who', t: 's', f: r => r.guest ? '<span style="color:var(--muted)">All guests</span>' : actName(r.name) },
   { k: 'teacher', h: 'Teacher · class', t: 's', f: actTC },
   { k: 'visits', h: 'Visits', t: 'n', num: 1 }, { k: 'page_s', h: 'On screen', t: 'n', num: 1, f: r => actMin(r.page_s) }, { k: 'play_s', h: 'Playing', t: 'n', num: 1, f: r => actMin(r.play_s) },
   { k: 'answers', h: 'Answers', t: 'n', num: 1, f: actAns }, { k: 'gamesTxt', h: 'Games', t: 's' },
