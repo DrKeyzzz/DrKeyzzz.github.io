@@ -495,7 +495,8 @@
       <div id="adminacc" class="access" hidden></div>
       <div id="adminsum" hidden></div>
       <div id="devfix" class="note" hidden style="margin-top:18px"><b>Developer scores:</b> rename every score posted under an old developer name to Maestro. <button class="btn ghost sm" type="button" id="devfixgo">Rename developer scores</button> <span id="devfixmsg"></span>
-        <br><b>Privacy move (one time):</b> copy every old score and practice time into its class, then remove the old practice rows that show a class code. Run it once, after the new rules are pasted and the games are published. <button class="btn ghost sm" type="button" id="movego">Move old scores</button> <span id="movemsg"></span></div>
+        <br><b>Privacy move (one time):</b> copy every old score and practice time into its class, then remove the old practice rows that show a class code. Run it once, after the new rules are pasted and the games are published. <button class="btn ghost sm" type="button" id="movego">Move old scores</button> <span id="movemsg"></span>
+        <br><b>Transfer classes (one time):</b> move every class, test, practice record, result, feedback note and Live Class record from one of your Google accounts to the one you are signed in with. <button class="btn ghost sm" type="button" id="xfergo">Transfer classes</button> <span id="xfermsg"></span></div>
       <div id="newtestbox" hidden><button class="btn ghost sm" type="button" id="tback" style="margin-top:14px">← Back to Tests</button><iframe id="tframe" title="Create a test" style="width:100%;border:0;min-height:700px;margin-top:8px;background:transparent"></iframe></div>
       <div id="gradebar" class="opts" style="margin-top:14px" hidden>
         <button class="btn sm" type="button" id="anew">+ New assignment</button>
@@ -2414,6 +2415,32 @@ function wire() {
   // Practice time rows with a class code move inside the class, a name-only World row (w<scramble>_<sid>) keeps the student on
   // the World board, and the old row is deleted. World score boards start fresh. Collections already moved are remembered on
   // this computer (localStorage mtg_privacy_move_v1), so a second click only finishes what is left.
+  // One-time owner transfer (added 2026-11-17, David: school account -> Gmail). Changes only the owner fields (rules: ownerOnly),
+  // so students, codes, scores and dates stay as they are. Safe to run twice: the second run finds nothing left.
+  $('xfergo').onclick = async () => {
+    const msg = $('xfermsg'), to = S.email;
+    const from = (prompt('Move everything FROM which Google account? (the old one)', 'milnesda@eht.k12.nj.us') || '').trim().toLowerCase();
+    if (!from || from === to || !/^[^@\s]+@[^@\s]+$/.test(from)) return;
+    if (!confirm(`Move every class and record owned by ${from} to ${to}? ${from} will no longer see them.`)) return;
+    const cols = [['classes', 'ownerEmail'], ['tests', 'owner'], ['test_results', 'owner'], ['progress', 'owner'], ['scale_progress', 'owner'],
+      ['tidal_progress', 'owner'], ['rooftop_progress', 'owner'], ['listening_progress', 'owner'], ['brainwaves_progress', 'owner'],
+      ['game_feedback', 'owner'], ['bc_answers', 'owner'], ['bc_pulse', 'owner'], ['bc_private', 'owner'], ['bc_reports', 'owner'], ['sm_threads', 'owner']];
+    let n = 0; const skipped = []; msg.textContent = 'Working…';
+    await run(async ({ fs, db }) => {
+      for (const [col, f] of cols) {
+        let docs;
+        try { docs = (await fs.getDocs(fs.query(fs.collection(db, col), fs.where(f, '==', from)))).docs; }
+        catch (e) { skipped.push(col); continue; }
+        for (let i = 0; i < docs.length; i += 400) {
+          const b = fs.writeBatch(db);
+          docs.slice(i, i + 400).forEach(d => { const u = { [f]: to }; if (d.data().teacher === from) u.teacher = to; b.update(d.ref, u); });
+          await b.commit(); n += Math.min(400, docs.length - i);
+        }
+        msg.textContent = `Working… ${col} done (${n} moved so far)`;
+      }
+    }).then(() => { msg.textContent = `Done: ${n} item${n === 1 ? '' : 's'} moved to ${to}.` + (skipped.length ? ` Could not read: ${skipped.join(', ')}.` : '') + ' Reload to see your classes.'; },
+      e => { msg.textContent = `Stopped after ${n}: ${errText(e)}. Click again to finish the rest.`; });
+  };
   $('movego').onclick = async () => {
     const msg = $('movemsg');
     if (!confirm('Move every old score and practice time into its class? Run this once, after the new rules are pasted and the games are published.')) return;
