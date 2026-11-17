@@ -372,8 +372,10 @@ html[data-skin="day"] .newbar { box-shadow: 0 10px 24px -14px rgba(23, 35, 58, .
         <p class="cls" id="p-class"></p>
         <div class="lvl"><b id="p-level"></b><div class="xp" id="p-xpbar"><i id="p-xp"></i></div><small id="p-xptext"></small></div>
         <div class="chips2">
-          <div class="chip2"><b>🔥 <span id="p-streak">0 days</span></b><span>in a row</span></div>
-          <div class="chip2"><b id="p-time">⏱ –</b><span id="p-timetier">practiced</span></div>
+          <!-- tidy 2026-11-17: streak and time chips hidden (the quests line and the ⏱ box already say them); badges chip added -->
+          <div class="chip2" hidden><b>🔥 <span id="p-streak">0 days</span></b><span>in a row</span></div>
+          <div class="chip2" hidden><b id="p-time">⏱ –</b><span id="p-timetier">practiced</span></div>
+          <div class="chip2"><b>🏅 <span id="p-badges">–</span></b><span>badges</span></div>
           <div class="chip2"><b id="p-coins">🪙 –</b><span>coins to spend</span></div>
           <div class="chip2"><b id="p-pts">★ –</b><span>Stars to spend</span></div>
         </div>
@@ -385,7 +387,7 @@ html[data-skin="day"] .newbar { box-shadow: 0 10px 24px -14px rgba(23, 35, 58, .
     <button class="newbar" id="newbar" type="button" hidden></button>
     <nav class="tabs" role="tablist" aria-label="Games" id="tabs"></nav>
     <section class="panel" id="panel" role="tabpanel"></section>
-    <p class="note" id="note">Tap a badge to see what it's for.</p>
+    <p class="note" id="note">Tap a badge to see what it's for. The dots under a badge are its level: Bronze, Silver, Gold, Platinum, Diamond.</p>
   </div>
 </div>
 <div class="tipcard" id="tip" role="tooltip" hidden></div>
@@ -885,14 +887,8 @@ function allPanel(ctx) {
   const sum = X.correct || earned.length ? `You're a <b>${esc(RANKS[rank][1])}</b> with <b>${fmt(xp)} XP</b> and <b>${earned.length} badge${earned.length === 1 ? '' : 's'}</b>${X.streak > 1 ? `. Best streak: <b>${X.streak} days</b>` : ''}.`
     : 'Play any game while you\'re signed in and your best moments show up here.';
   return `
-    ${heroHTML(news(ctx, GAMES), sum)}
+    ${(n => n.length ? heroHTML(n, sum) : '')(news(ctx, GAMES))}
     ${geniusBox(ctx.sid)}
-    <div class="trophies">
-      <div class="trophy best"><span class="k">Music rank</span><span class="v" style="font-size:22px">${esc(RANKS[rank][1])}</span><span class="n">Rank ${rank + 1} of ${RANKS.length}</span></div>
-      <div class="trophy"><span class="k">Total XP</span><span class="v">${fmt(xp)}</span><span class="n">${rank + 1 < RANKS.length ? esc(nextRankText(rank, xp)) : 'Top rank! 👑'}</span></div>
-      <div class="trophy"><span class="k">Badges</span><span class="v">${earned.length} / ${everything.length}</span><span class="n">${everything.filter(b => !b.def.special && b.tier >= 3).length} Gold or better</span></div>
-      <div class="trophy"><span class="k">Right answers</span><span class="v">${fmt(X.correct)}</span><span class="n">${fmt(X.minutes)} minutes practiced</span></div>
-    </div>
     ${(() => { const ups = GAMES.flatMap(g => improvements(ctx.T[g.id]).map(x => ({ ...x, g }))).sort((a, b) => b.d - a.d).slice(0, 4);
       return ups.length ? `<div class="box good"><h2>📈 This week's level-ups</h2>${ups.map(x => `<div class="win"><span class="ic" aria-hidden="true">📈</span><b>+${x.d}% in ${esc(x.lab)}</b><span class="stars" style="font-size:13px;color:var(--muted);letter-spacing:0">${esc(x.g.name)}</span><span class="s">Now ${x.now}% right. Keep it up!</span></div>`).join('')}</div>` : ''; })()}
     ${rare.length ? `<div class="shelfbox"><div class="hd"><h2>Your rarest badges</h2><span class="count">Your highest levels</span></div><div class="shelf">${rare.map(b => medal(b, true)).join('')}</div></div>` : ''}
@@ -1054,6 +1050,7 @@ async function boot() {
   }
   const render = () => {
     ctx = compute(); ctx.sid = sidOf(p);
+    { const ev = GAMES.flatMap(g => ctx.perGame[g.id]).concat(ctx.all), b = $('p-badges'); if (b) b.textContent = ev.filter(x => x.tier > 0).length + ' / ' + ev.length; }
     const { xp, rank } = ctx, lo = RANKS[rank][0], hi = rank + 1 < RANKS.length ? RANKS[rank + 1][0] : null;
     $('p-level').innerHTML = `<span class="ranktag">RANK ${rank + 1} · ${esc(RANKS[rank][1].toUpperCase())}</span>`;
     $('p-xp').style.width = (hi ? Math.round(100 * (xp - lo) / (hi - lo)) : 100) + '%';
@@ -1146,7 +1143,8 @@ boot();
   .hero2 .lvl { background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.12); border-radius: 16px; padding: 12px 14px; }
   .hero2 .xp { height: 14px; }
   .enc2 { color: #b07cff; font-weight: 900; }
-  .chips2 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .chips2 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .chip2[hidden] { display: none; }
   .chip2 { background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.1); border-radius: 16px; padding: 10px 12px; display: flex; flex-direction: column; }
   .chip2 b { font-size: 20px; white-space: nowrap; } .chip2 span { color: var(--muted, #a8b3d6); font-size: 12.5px; font-weight: 700; }
   .editav { align-self: flex-start; border: 0; border-radius: 14px; padding: 12px 20px; font: inherit; font-weight: 900; font-size: 16px; cursor: pointer; background: linear-gradient(#ffd25a, #ffb020); color: #2a1a00; box-shadow: 0 4px 0 #b97800; }
@@ -1164,7 +1162,7 @@ boot();
   @media (max-width: 760px) {
     .player.hero2 { grid-template-columns: 1fr; padding: 12px; gap: 8px; }
     .hero2 .stage2 { min-height: 0; height: 240px; } .hero2 .avatar { width: auto; height: 100%; }
-    .hero2 h1 { font-size: 28px; } .chips2 { grid-template-columns: repeat(2, 1fr); }
+    .hero2 h1 { font-size: 28px; } .chips2 { grid-template-columns: repeat(3, 1fr); gap: 6px; } .chip2 { padding: 8px 8px; } .chip2 b { font-size: 16px; } .chip2 span { font-size: 11px; }
     .next2 { flex-wrap: wrap; } .next2 .go2 { margin-left: 0; width: 100%; text-align: center; }
   }
   .avwallet b { color: #ffd166; }
