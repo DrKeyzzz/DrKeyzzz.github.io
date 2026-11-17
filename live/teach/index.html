@@ -172,7 +172,7 @@ let toastT = 0;
 const toast = t => { $('toast').textContent = t; clearTimeout(toastT); toastT = setTimeout(() => { $('toast').textContent = ''; }, 2600); };
 const ago = ms => { const s = Math.round((Date.now() - (ms || Date.now())) / 1000); return s < 60 ? 'just now' : s < 3600 ? Math.round(s / 60) + ' min ago' : Math.round(s / 3600) + ' h ago'; };
 
-const S = { email: '', classes: [], code: '', live: null, ans: [], pulses: [], priv: [], err: '', confirm: '', sort: 'new', offs: [], offA: null, round: '',
+const S = { email: '', classes: [], code: '', live: null, ans: [], pulses: [], priv: [], err: '', confirm: '', sort: 'first', offs: [], offA: null, round: '',
   comp: { type: 'mc', q: '', opts: ['', '', '', ''], correct: '', timer: 0, skills: [], ks: null }, g: null,
   ksm: { open: false, minor: false, style: 'name' } };   // the 🎼 Key signature maker (2026-11-17)
 const TK = () => 'mtg_live_teach_v1:' + S.code;    // the correct answer stays on this computer (the projector reads it)
@@ -278,13 +278,19 @@ function resultsCard() {
 function answersCard() {
   const L = S.live, A = latest(S.ans), spot = L.spot || [];
   const isSpot = a => spot.some(x => x.id === a.id);
-  const by = { new: (a, b) => (b.at || 0) - (a.at || 0), name: (a, b) => a.name.localeCompare(b.name) };
-  A.sort(by[S.sort]);
+  // Who answered first (2026-11-17, David): each student's FIRST answer time this round (an edit later doesn't move them back)
+  const firstAt = {}; S.ans.forEach(a => { const t = a.at || Infinity; if (!(a.sid in firstAt) || t < firstAt[a.sid]) firstAt[a.sid] = t; });
+  const order = Object.keys(firstAt).sort((x, y) => firstAt[x] - firstAt[y]), place = Object.fromEntries(order.map((sid, i) => [sid, i + 1])), t0 = firstAt[order[0]];
+  const ord = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
+  const placeTag = a => { const n = place[a.sid]; if (!n) return ''; const gap = n > 1 && isFinite(firstAt[a.sid]) && isFinite(t0) ? ` · +${Math.max(0, Math.round((firstAt[a.sid] - t0) / 100) / 10)} s` : '';
+    return `<span class="chip ${n === 1 ? 'ok' : ''}" title="Order of first answers">${n === 1 ? '🥇 ' : n === 2 ? '🥈 ' : n === 3 ? '🥉 ' : ''}${ord(n)}${gap}</span>`; };
+  const by = { first: (a, b) => (place[a.sid] || 1e9) - (place[b.sid] || 1e9), new: (a, b) => (b.at || 0) - (a.at || 0), name: (a, b) => a.name.localeCompare(b.name) };
+  A.sort(by[S.sort] || by.first);
   return `<section class="card stack">
     <div class="row between"><h3>Answers <span class="muted small">(only you can see these)</span></h3>
-      <label class="row muted small" style="gap:6px">Sort <select id="sort" style="width:auto">${[['new', 'Newest'], ['name', 'Name']].map(([v, l]) => `<option value="${v}" ${S.sort === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
+      <label class="row muted small" style="gap:6px">Sort <select id="sort" style="width:auto">${[['first', 'First to answer'], ['new', 'Newest'], ['name', 'Name']].map(([v, l]) => `<option value="${v}" ${S.sort === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
     ${A.length ? `<div class="grid">${A.map(a => { const sp = isSpot(a);
-      return `<article class="ans ${sp ? 'spot' : ''}"><header><span style="font-size:22px">${esc(a.avatar || '🙂')}</span><div style="min-width:0;flex:1"><b>${esc(a.name)}</b><span class="t">${ago(a.at)}</span></div>${a.flag ? '<span class="chip flag">Check</span>' : ''}${sp ? '<span class="chip gold">★</span>' : ''}</header>
+      return `<article class="ans ${sp ? 'spot' : ''}"><header><span style="font-size:22px">${esc(a.avatar || '🙂')}</span><div style="min-width:0;flex:1"><b>${esc(a.name)}</b><span class="t">${ago(a.at)}</span></div>${placeTag(a)}${a.flag ? '<span class="chip flag">Check</span>' : ''}${sp ? '<span class="chip gold">★</span>' : ''}</header>
       <p class="txt">${esc(a.text)}</p>
       <footer>${sp ? '' : `<button class="btn sm" type="button" data-act="spot" data-id="${esc(a.id)}">★ Spotlight</button><button class="btn sm" type="button" data-act="spot" data-id="${esc(a.id)}" data-anon="1">★ No name</button>${spot.length === 1 ? `<button class="btn sm" type="button" data-act="spot" data-id="${esc(a.id)}" data-add="1">+ Compare</button>` : ''}`}
         ${S.confirm === 'del:' + a.sid ? `<button class="btn sm warn" type="button" data-act="del" data-sid="${esc(a.sid)}">Delete?</button>` : `<button class="btn sm" type="button" data-act="confirm" data-v="del:${esc(a.sid)}" aria-label="Delete answer">🗑</button>`}</footer></article>`; }).join('')}</div>` : '<p class="muted empty">No answers yet.</p>'}
