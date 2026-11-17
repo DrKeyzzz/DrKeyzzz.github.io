@@ -1,0 +1,1485 @@
+rules_version = '2';
+
+// Firestore security rules for Music Theory Games:
+//   Rhythm Dictation Trainer  https://drkeyzzz.github.io/rhythm-trainer/
+//   Scale Quest               https://drkeyzzz.github.io/scale-quest/
+//   Tidal Tones               https://drkeyzzz.github.io/tidal-tones/
+//   Rooftop Runner            https://drkeyzzz.github.io/rooftop-runner/
+//   Earshot Saloon            https://drkeyzzz.github.io/earshot-saloon/
+//   Brainwaves                https://drkeyzzz.github.io/brainwaves/
+//   Critical Listening Lab    https://drkeyzzz.github.io/critical-listening-lab/
+//   Home page                 https://drkeyzzz.github.io/  (teacher/ sets each class's hub_assignment)
+// All the games share this project, its classes and teacher sign-in.
+// The SAME file lives in every game's GitHub repo; keep them identical.
+// Paste this into Firebase → Firestore Database → Rules, then click Publish.
+// The admin emails below can manage the World leaderboard (every score).
+// Any teacher who signs in with Google can create classes and manage only their own.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+    // TEACHERS: only teachers can create or manage classes and use the teacher dashboards.
+    // Students share the school's email domain, so this is what keeps them out.
+    // A teacher is an admin (so the admin can never be locked out) or is in the `teachers` collection:
+    // approved by the admin in a dashboard's ADMIN tab, or joined on their own with a school email (schoolEmail).
+    function isTeacher() {
+      return signedIn() && (exists(/databases/$(database)/documents/teachers/$(request.auth.token.email))
+        || isAdmin());
+    }
+    // DEVELOPER SCORES: only the admin, signed in with Google, can post as "Maestro" or mark a score
+    // dev: true. Developer scores show on every class's board with a DEV badge.
+    function devOk(d) {
+      return (!('dev' in d) && !d.name.lower().matches('maestro.*')) || isAdmin();
+    }
+    // The admin may rename a score to "Maestro" (renaming the old developer scores); nothing else changes.
+    function devRename() {
+      return isAdmin() && request.resource.data.name == 'Maestro'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']);
+    }
+    // PLAYER ICONS: a score may carry the player's icon, but only one from the games' icon set.
+    function iconOk(d) {
+      return !('icon' in d) || d.icon in ['🎹', '🎸', '🎺', '🪊', '🎷', '🥁', '🎻', '🪕', '🎤', '🎧', '🎼', '𝄢', '🎵', '🪘', '🪗', '⭐', '🔥', '🚀'];
+    }
+    // STUDENTS IN 2–3 CLASSES: a score may also list all their classes (main class first), so it shows on
+    // each class's board. Every listed class must exist.
+    function classCodesOk(d) {
+      return !('class_codes' in d) || (d.class_codes is list
+        && d.class_codes.size() >= 2 && d.class_codes.size() <= 3
+        && d.class_codes[0] == d.get('class_code', '')
+        && d.class_codes[1] is string && exists(/databases/$(database)/documents/classes/$(d.class_codes[1]))
+        && (d.class_codes.size() < 3 || (d.class_codes[2] is string && exists(/databases/$(database)/documents/classes/$(d.class_codes[2])))));
+    }
+    // a teacher may delete a score from any of the classes it's tagged with
+    function ownsAnyClass(r) {
+      return ownsClass(r.get('class_code', ''))
+        || ('class_codes' in r && r.class_codes is list && r.class_codes.size() >= 2
+            && (ownsClass(r.class_codes[1]) || (r.class_codes.size() > 2 && ownsClass(r.class_codes[2]))));
+    }
+    // ADMINS are listed in the `admins` collection (doc id = their Google email), added by hand in the
+    // Firebase Console, so no email is written in the games' code.
+    function isAdmin() {
+      return signedIn() && exists(/databases/$(database)/documents/admins/$(request.auth.token.email));
+    }
+    // The admin list: a signed-in teacher can check only their own entry; nobody can change it from a game.
+    match /admins/{email} {
+      allow get: if signedIn() && request.auth.token.email == email;
+      allow list, write: if false;
+    }
+    function ownsClass(code) {
+      return isTeacher() && code != ''
+        && exists(/databases/$(database)/documents/classes/$(code))
+        && get(/databases/$(database)/documents/classes/$(code)).data.ownerEmail == request.auth.token.email;
+    }
+
+    // SCHOOL EMAILS: a Google address with only letters (and . _ -) before the @ on a k12.xx.us or .edu domain.
+    // Student addresses have numbers in them (or "stu" in the domain), so they don't count and must ask instead.
+    function schoolEmail(e) {
+      return e.matches('^[a-z._-]+@([a-z0-9-]+[.])*(k12[.][a-z][a-z][.]us|edu)$') && !e.matches('.*@.*stu.*');
+    }
+    // Approved teachers (document ID = their Google email). The admin adds or removes them; a teacher with a
+    // school email may add themselves once (approved_by 'self') unless the admin blocked that address.
+    match /teachers/{email} {
+      allow read: if isAdmin() || (signedIn() && request.auth.token.email == email);
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['name', 'school', 'approved_at', 'approved_by'])
+        && request.resource.data.name is string && request.resource.data.name.size() <= 60
+        && request.resource.data.school is string && request.resource.data.school.size() <= 80;
+      allow create: if signedIn() && request.auth.token.email == email && schoolEmail(email)
+        && !exists(/databases/$(database)/documents/teacher_blocks/$(email))
+        && request.resource.data.keys().hasOnly(['name', 'school', 'approved_at', 'approved_by'])
+        && request.resource.data.name is string && request.resource.data.name.size() >= 2 && request.resource.data.name.size() <= 60
+        && request.resource.data.school is string && request.resource.data.school.size() <= 80
+        && request.resource.data.approved_by == 'self' && request.resource.data.approved_at == request.time;
+      allow delete: if isAdmin();
+    }
+    // Addresses the admin removed and blocked: they can't add themselves again (they can still ask).
+    match /teacher_blocks/{email} {
+      allow read, write: if isAdmin();
+    }
+
+    // Requests for teacher access. Anyone signed in can ask once for themselves; the admin approves or denies.
+    match /teacher_requests/{email} {
+      allow read: if isAdmin() || (signedIn() && request.auth.token.email == email);
+      allow create: if signedIn() && request.auth.token.email == email
+        && request.resource.data.keys().hasOnly(['email', 'name', 'school', 'note', 'created_at'])
+        && request.resource.data.email == email
+        && request.resource.data.name is string && request.resource.data.name.size() >= 2 && request.resource.data.name.size() <= 60
+        && request.resource.data.school is string && request.resource.data.school.size() <= 80
+        && request.resource.data.note is string && request.resource.data.note.size() <= 300
+        && request.resource.data.created_at == request.time;
+      allow delete: if isAdmin() || (signedIn() && request.auth.token.email == email);
+    }
+
+    // Classes: anyone can look up a code; teachers manage their own.
+    match /classes/{code} {
+      // PRIVACY 2026-10-26: anyone may check one code exists (get); only the admin, or a teacher
+      // listing their own classes, may list. Nobody can pull every class code.
+      allow get: if true;
+      allow list: if isAdmin() || (isTeacher() && resource.data.ownerEmail == request.auth.token.email);
+
+      allow create: if isTeacher()
+        && code.matches('^[A-Z0-9]{6,7}$')   // PRIVACY 2026-10-26: new codes are 6–7 characters (random 6, or a teacher's own); older 4–5 character codes keep working
+        && request.resource.data.keys().hasOnly(['name', 'ownerEmail', 'created_at', 'assignment', 'scale_assignment', 'tidal_assignment', 'rooftop_assignment', 'hub_assignment', 'hub_assignments', 'grade_out_of', 'listen_assignment', 'skills', 'bc_goal', 'sm_on', 'sm_blocked', 'avatars_off'])
+        && bcClassFieldsOk(request.resource.data)
+        && request.resource.data.ownerEmail == request.auth.token.email
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 40
+        && request.resource.data.created_at == request.time;
+
+      allow update: if isTeacher()
+        && resource.data.ownerEmail == request.auth.token.email
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'assignment', 'scale_assignment', 'tidal_assignment', 'rooftop_assignment', 'hub_assignment', 'hub_assignments', 'grade_out_of', 'listen_assignment', 'skills', 'bc_goal', 'sm_on', 'sm_blocked', 'avatars_off'])
+        && bcClassFieldsOk(request.resource.data)
+        && (!('sm_on' in request.resource.data) || request.resource.data.sm_on is bool)
+        && (!('avatars_off' in request.resource.data) || request.resource.data.avatars_off is bool)   // student avatars off for this class (2026-11-16)
+        && (!('sm_blocked' in request.resource.data) || (request.resource.data.sm_blocked is list && request.resource.data.sm_blocked.size() <= 200))
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 40;
+
+      allow delete: if isAdmin() || (isTeacher() && resource.data.ownerEmail == request.auth.token.email);
+    }
+
+    // Ended assignment grade rows are private, unlike the parent class document.
+    match /classes/{code}/assignment_grades/{assignmentId} {
+      allow get: if ownsClass(code);
+      allow create: if ownsClass(code)
+        && request.resource.data.keys().hasOnly(['tasks', 'rows'])
+        && request.resource.data.tasks is list
+        && request.resource.data.rows is list;
+      allow delete: if ownsClass(code);
+    }
+
+    // Practice progress: one summary per student per day. Students write their own;
+    // only the class's teacher (or the admin) can read it.
+    match /progress/{docId} {
+      allow read: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+
+      allow create, update: if request.resource.data.keys().hasOnly(['class_code', 'owner', 'date', 'sid', 'student', 'rhythms', 'slots', 'correct', 'adj', 'plays', 'extra', 'pool', 'minutes', 'first_at', 'last_at', 'score', 'goal', 'skills', 'ts', 'levels', 'missed', 'challenges', 'updated_at'])
+        && request.resource.data.class_code is string
+        && exists(/databases/$(database)/documents/classes/$(request.resource.data.class_code))
+        && get(/databases/$(database)/documents/classes/$(request.resource.data.class_code)).data.ownerEmail == request.resource.data.owner
+        && docId == request.resource.data.class_code + '_' + request.resource.data.date + '_' + request.resource.data.sid
+        && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.sid.matches('^[a-z]{2,16}$')
+        && request.resource.data.student is string && request.resource.data.student.size() <= 24
+        && (!request.resource.data.student.lower().matches('maestro.*') || isAdmin())   // only the developer can be Maestro
+        && request.resource.data.rhythms is int && request.resource.data.rhythms >= 0 && request.resource.data.rhythms <= 5000
+        && request.resource.data.minutes is int && request.resource.data.minutes >= 0 && request.resource.data.minutes <= 1440
+        && request.resource.data.score is int && request.resource.data.score >= 0 && request.resource.data.score <= 100
+        && request.resource.data.updated_at == request.time;
+
+      allow delete: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+    }
+
+    // Scores: anyone can see them and add one in the right shape; nobody can edit them.
+    match /rhythm_scores/{scoreId} {
+      allow read: if isAdmin() || resource.data.dev == true;   // OLD list (locked 2026-10-29): only the developer's rows stay public; scores now live in classes/<code>/
+
+      allow create: if request.resource.data.keys().hasOnly(['name', 'level', 'class_code', 'score', 'correct', 'total', 'extra_listens', 'time_sec', 'created_at', 'dev', 'icon', 'class_codes'])
+        && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 2 && request.resource.data.name.size() <= 24
+        && request.resource.data.level in ['beginner', 'beginner16', 'easy', 'hard', 'extreme']
+        && request.resource.data.get('class_code', '') is string
+        && (request.resource.data.get('class_code', '') == ''
+            || exists(/databases/$(database)/documents/classes/$(request.resource.data.class_code)))
+        && request.resource.data.score is number
+        && request.resource.data.score >= 0 && request.resource.data.score <= 100
+        && request.resource.data.correct is int && request.resource.data.total is int
+        && request.resource.data.correct >= 0 && request.resource.data.correct <= request.resource.data.total
+        && request.resource.data.total >= 1 && request.resource.data.total <= 200
+        && request.resource.data.extra_listens is int
+        && request.resource.data.extra_listens >= 0 && request.resource.data.extra_listens <= 100
+        && request.resource.data.time_sec is int
+        && request.resource.data.time_sec >= 1 && request.resource.data.time_sec <= 36000
+        && request.resource.data.created_at == request.time;
+
+      allow update: if devRename();
+
+      // The admin can delete any score; a teacher can delete scores in their own classes.
+      allow delete: if isAdmin() || ownsAnyClass(resource.data);
+    }
+  
+
+    // ================= Scale Quest =================
+    // CHAOS scores: anyone can see them and add a finished 20-question run; nobody can edit them.
+    match /scale_scores/{scoreId} {
+      allow read: if isAdmin() || resource.data.dev == true;   // OLD list (locked 2026-10-29): only the developer's rows stay public; scores now live in classes/<code>/
+      allow create: if scaleScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if devRename();
+      allow delete: if isAdmin() || ownsAnyClass(resource.data);
+    }
+
+    // Scale Quest SCALE DEGREES CHAOS runs: same shape as scale_scores, on their own board.
+    match /degree_scores/{scoreId} {
+      allow read: if isAdmin() || resource.data.dev == true;   // OLD list (locked 2026-10-29): only the developer's rows stay public; scores now live in classes/<code>/
+      allow create: if scaleScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if devRename();
+      allow delete: if isAdmin() || ownsAnyClass(resource.data);
+    }
+
+    // Scale Quest KEY SIGNATURES CHAOS runs: same shape as scale_scores, on their own board.
+    match /key_scores/{scoreId} {
+      allow read: if isAdmin() || resource.data.dev == true;   // OLD list (locked 2026-10-29): only the developer's rows stay public; scores now live in classes/<code>/
+      allow create: if scaleScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if devRename();
+      allow delete: if isAdmin() || ownsAnyClass(resource.data);
+    }
+
+    // Practice progress: one summary per student per day. Only the class's teacher (or the admin) can read it.
+    match /scale_progress/{docId} {
+      allow read: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+
+      allow create, update: if request.resource.data.keys().hasOnly(['class_code', 'owner', 'date', 'sid', 'student', 'questions', 'correct', 'minutes', 'first_at', 'last_at', 'goal', 'by_key', 'types', 'missed', 'chaos', 'best_chaos', 'nova', 'updated_at'])
+        && request.resource.data.class_code is string
+        && exists(/databases/$(database)/documents/classes/$(request.resource.data.class_code))
+        && get(/databases/$(database)/documents/classes/$(request.resource.data.class_code)).data.ownerEmail == request.resource.data.owner
+        && docId == request.resource.data.class_code + '_' + request.resource.data.date + '_' + request.resource.data.sid
+        && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.sid.matches('^[a-z]{2,16}$')
+        && request.resource.data.student is string && request.resource.data.student.size() <= 24
+        && (!request.resource.data.student.lower().matches('maestro.*') || isAdmin())   // only the developer can be Maestro
+        && request.resource.data.questions is int && request.resource.data.questions >= 0 && request.resource.data.questions <= 10000
+        && request.resource.data.correct is int && request.resource.data.correct >= 0 && request.resource.data.correct <= request.resource.data.questions
+        && request.resource.data.minutes is int && request.resource.data.minutes >= 0 && request.resource.data.minutes <= 1440
+        && request.resource.data.updated_at == request.time;
+
+      allow delete: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+    }
+
+    // A finished 20-question CHAOS run: score = points × key bonus (1.0 + 0.1 per extra key).
+    function scaleScore(d) {
+      return d.keys().hasOnly(['name', 'class_code', 'score', 'points', 'streak', 'accuracy', 'questions', 'key_count', 'key_list', 'created_at', 'dev', 'icon', 'class_codes'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 24
+        && d.get('class_code', '') is string
+        && (d.get('class_code', '') == '' || exists(/databases/$(database)/documents/classes/$(d.class_code)))
+        && d.questions == 20
+        && d.key_count is int && d.key_count >= 1 && d.key_count <= 15
+        && d.points is int && d.points >= 0 && d.points <= 4650
+        && d.score is int
+        && d.score >= d.points * (9 + d.key_count) / 10 - 1
+        && d.score <= d.points * (9 + d.key_count) / 10 + 1
+        && d.streak is int && d.streak >= 0 && d.streak <= 20
+        && d.accuracy is int && d.accuracy >= 0 && d.accuracy <= 100
+        && d.key_list is string && d.key_list.size() <= 60
+        && d.created_at == request.time;
+    }
+  
+
+    // SUPERNOVA runs (all 150 scales, 20 questions, 2 hearts). Anyone can see them; a run is added once, never edited.
+    match /nova_scores/{scoreId} {
+      allow read: if isAdmin() || resource.data.dev == true;   // OLD list (locked 2026-10-29): only the developer's rows stay public; scores now live in classes/<code>/
+      allow create: if novaScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if devRename();
+      allow delete: if isAdmin() || ownsAnyClass(resource.data);
+    }
+
+    // reached = questions answered; finished = all 20 with a heart left. score = points x 2.4 (the 15-scale bonus).
+    function novaScore(d) {
+      return d.keys().hasOnly(['name', 'class_code', 'score', 'points', 'streak', 'accuracy', 'reached', 'finished', 'created_at', 'dev', 'icon', 'class_codes'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 24
+        && d.get('class_code', '') is string
+        && (d.get('class_code', '') == '' || exists(/databases/$(database)/documents/classes/$(d.class_code)))
+        && d.reached is int && d.reached >= 1 && d.reached <= 20
+        && d.finished is bool && (d.finished == false || d.reached == 20)
+        && d.points is int && d.points >= 0 && d.points <= 4650
+        && d.score is int
+        && d.score >= d.points * 24 / 10 - 1
+        && d.score <= d.points * 24 / 10 + 1
+        && d.streak is int && d.streak >= 0 && d.streak <= d.reached
+        && d.accuracy is int && d.accuracy >= 0 && d.accuracy <= 100
+        && d.created_at == request.time;
+    }
+
+    // ================= Tidal Tones =================
+    // Leaderboard runs: anyone can see them and add one in the right shape; nobody can edit them.
+    match /tidal_scores/{scoreId} {
+      allow read: if isAdmin() || resource.data.dev == true;   // OLD list (locked 2026-10-29): only the developer's rows stay public; scores now live in classes/<code>/
+      allow create: if tidalScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if devRename();
+      allow delete: if isAdmin() || ownsAnyClass(resource.data);
+    }
+
+    // Practice progress: one summary per student per day. Only the class's teacher (or the admin) can read it.
+    match /tidal_progress/{docId} {
+      allow read: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+
+      allow create, update: if request.resource.data.keys().hasOnly(['class_code', 'owner', 'date', 'sid', 'student', 'answers', 'correct', 'minutes', 'first_at', 'last_at', 'games', 'best_score', 'best_level', 'by_game', 'missed', 'runs', 'goal', 'updated_at'])
+        && request.resource.data.class_code is string
+        && exists(/databases/$(database)/documents/classes/$(request.resource.data.class_code))
+        && get(/databases/$(database)/documents/classes/$(request.resource.data.class_code)).data.ownerEmail == request.resource.data.owner
+        && docId == request.resource.data.class_code + '_' + request.resource.data.date + '_' + request.resource.data.sid
+        && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.sid.matches('^[a-z]{2,16}$')
+        && request.resource.data.student is string && request.resource.data.student.size() <= 24
+        && (!request.resource.data.student.lower().matches('maestro.*') || isAdmin())   // only the developer can be Maestro
+        && request.resource.data.answers is int && request.resource.data.answers >= 0 && request.resource.data.answers <= 20000
+        && request.resource.data.correct is int && request.resource.data.correct >= 0 && request.resource.data.correct <= request.resource.data.answers
+        && request.resource.data.minutes is int && request.resource.data.minutes >= 0 && request.resource.data.minutes <= 1440
+        && request.resource.data.updated_at == request.time;
+
+      allow delete: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+    }
+
+    // Brainwaves (https://drkeyzzz.github.io/brainwaves/): one practice summary per student per class per day,
+    // every brain area together, plus by_area { <area id>: [right, answers] }. Students write their own; only the teacher (or the admin) reads it.
+    match /brainwaves_progress/{docId} {
+      allow read: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+
+      allow create, update: if request.resource.data.keys().hasOnly(['class_code', 'owner', 'date', 'sid', 'student', 'answers', 'correct', 'minutes', 'first_at', 'last_at', 'by_area', 'updated_at'])
+        && request.resource.data.class_code is string
+        && exists(/databases/$(database)/documents/classes/$(request.resource.data.class_code))
+        && get(/databases/$(database)/documents/classes/$(request.resource.data.class_code)).data.ownerEmail == request.resource.data.owner
+        && docId == request.resource.data.class_code + '_' + request.resource.data.date + '_' + request.resource.data.sid
+        && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.sid.matches('^[a-z]{2,16}$')
+        && request.resource.data.student is string && request.resource.data.student.size() <= 24
+        && (!request.resource.data.student.lower().matches('maestro.*') || isAdmin())   // only the developer can be Maestro
+        && request.resource.data.answers is int && request.resource.data.answers >= 0 && request.resource.data.answers <= 20000
+        && request.resource.data.correct is int && request.resource.data.correct >= 0 && request.resource.data.correct <= request.resource.data.answers
+        && request.resource.data.minutes is int && request.resource.data.minutes >= 0 && request.resource.data.minutes <= 1440
+        && request.resource.data.by_area is map && request.resource.data.by_area.keys().hasOnly(['synapse', 'intervals', 'chords', 'progressions', 'scales', 'voice', 'tuner', 'pitch'])
+        && request.resource.data.updated_at == request.time;
+
+      allow delete: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+    }
+
+    // Critical Listening Lab (https://drkeyzzz.github.io/critical-listening-lab/): one summary per student
+    // per day. Students write their own; only the class's teacher (or the admin) can read it.
+    match /listening_progress/{docId} {
+      allow read: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+
+      allow create, update: if request.resource.data.keys().hasOnly(['class_code', 'owner', 'date', 'sid', 'student', 'minutes', 'goal', 'rounds', 'correct', 'sessions', 'xp', 'levels', 'games', 'rounds_by', 'first_at', 'last_at', 'updated_at'])
+        && request.resource.data.class_code is string
+        && exists(/databases/$(database)/documents/classes/$(request.resource.data.class_code))
+        && get(/databases/$(database)/documents/classes/$(request.resource.data.class_code)).data.ownerEmail == request.resource.data.owner
+        && docId == request.resource.data.class_code + '_' + request.resource.data.date + '_' + request.resource.data.sid
+        && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.sid.matches('^[a-z]{2,16}$')
+        && request.resource.data.student is string && request.resource.data.student.size() <= 24
+        && (!request.resource.data.student.lower().matches('maestro.*') || isAdmin())   // only the developer can be Maestro
+        && request.resource.data.minutes is int && request.resource.data.minutes >= 0 && request.resource.data.minutes <= 1440
+        && request.resource.data.rounds is int && request.resource.data.rounds >= 0 && request.resource.data.rounds <= 20000
+        && request.resource.data.correct is int && request.resource.data.correct >= 0 && request.resource.data.correct <= request.resource.data.rounds
+        && request.resource.data.levels is map && request.resource.data.levels.size() <= 20
+        && request.resource.data.games is map && request.resource.data.games.size() <= 20
+        && request.resource.data.updated_at == request.time;
+
+      allow delete: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+    }
+
+    // Critical Listening Lab leaderboard: one row per finished 10-round session (Beat Recreate: 6).
+    // Anyone can see them and add one in the right shape; nobody can edit them.
+    match /listening_scores/{scoreId} {
+      allow read: if isAdmin() || resource.data.dev == true;   // OLD list (locked 2026-10-29): only the developer's rows stay public; scores now live in classes/<code>/
+      allow create: if listenScore(request.resource.data) && devOk(request.resource.data);
+      allow update: if devRename();
+      allow delete: if isAdmin() || ownsClass(resource.data.get('class_code', ''));
+    }
+    function listenScore(d) {
+      return d.keys().hasOnly(['name', 'class_code', 'game', 'score', 'acc', 'level', 'rounds', 'created_at', 'dev'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 24
+        && d.get('class_code', '') is string
+        && (d.get('class_code', '') == '' || exists(/databases/$(database)/documents/classes/$(d.class_code)))
+        && d.game in ['filter', 'peak', 'eq', 'gain', 'comp', 'pan', 'space', 'tone', 'beat']
+        && d.score is int && d.score >= 0 && d.score <= 100000
+        && d.acc is int && d.acc >= 0 && d.acc <= 100
+        && d.level is int && d.level >= 1 && d.level <= 20
+        && d.rounds is int && d.rounds >= 1 && d.rounds <= 30
+        && d.created_at == request.time;
+    }
+
+    function tidalScore(d) {
+      return d.keys().hasOnly(['name', 'class_code', 'score', 'hits', 'acc', 'level', 'mode', 'diff', 'clef', 'answer', 'names', 'created_at', 'dev', 'icon', 'class_codes'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 24
+        && d.get('class_code', '') is string
+        && (d.get('class_code', '') == '' || exists(/databases/$(database)/documents/classes/$(d.class_code)))
+        && d.score is int && d.score >= 0 && d.score <= 2000000
+        && d.hits is int && d.hits >= 0 && d.hits <= 10000
+        && d.acc is int && d.acc >= 0 && d.acc <= 100
+        && d.level is int && d.level >= 0 && d.level <= 1000
+        && d.mode in ['arcade', 'sprint']
+        && d.diff in ['easy', 'medium', 'hard', 'expert', 'custom']
+        && d.clef in ['treble', 'bass', 'alto', 'grand']
+        && d.answer in ['names', 'any', 'exact', 'intervals']
+        && d.names in ['letters', 'solfege']
+        && d.created_at == request.time;
+    }
+
+    // ================= Rooftop Sight-Reading Runner =================
+    // Leaderboard runs: anyone can see them and add one in the right shape; nobody can edit them.
+    match /sight_scores/{scoreId} {
+      allow read: if isAdmin() || resource.data.dev == true;   // OLD list (locked 2026-10-29): only the developer's rows stay public; scores now live in classes/<code>/
+      allow create: if sightScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if devRename();
+      allow delete: if isAdmin() || ownsAnyClass(resource.data);
+    }
+
+    // Practice progress: one summary per student per day. Only the class's teacher (or the admin) can read it.
+    match /rooftop_progress/{docId} {
+      allow read: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+
+      allow create, update: if request.resource.data.keys().hasOnly(['class_code', 'owner', 'date', 'sid', 'student', 'answers', 'correct', 'minutes', 'first_at', 'last_at', 'games', 'best_score', 'best_level', 'by_game', 'missed', 'runs', 'goal', 'updated_at'])
+        && request.resource.data.class_code is string
+        && exists(/databases/$(database)/documents/classes/$(request.resource.data.class_code))
+        && get(/databases/$(database)/documents/classes/$(request.resource.data.class_code)).data.ownerEmail == request.resource.data.owner
+        && docId == request.resource.data.class_code + '_' + request.resource.data.date + '_' + request.resource.data.sid
+        && request.resource.data.date.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && request.resource.data.sid.matches('^[a-z]{2,16}$')
+        && request.resource.data.student is string && request.resource.data.student.size() <= 24
+        && (!request.resource.data.student.lower().matches('maestro.*') || isAdmin())   // only the developer can be Maestro
+        && request.resource.data.answers is int && request.resource.data.answers >= 0 && request.resource.data.answers <= 50000
+        && request.resource.data.correct is int && request.resource.data.correct >= 0 && request.resource.data.correct <= request.resource.data.answers
+        && request.resource.data.minutes is int && request.resource.data.minutes >= 0 && request.resource.data.minutes <= 1440
+        && request.resource.data.updated_at == request.time;
+
+      allow delete: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+    }
+
+    function sightScore(d) {
+      return d.keys().hasOnly(['name', 'class_code', 'score', 'hits', 'acc', 'level', 'bpm', 'diff', 'style', 'clef', 'instrument', 'created_at', 'dev', 'icon', 'class_codes'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 24
+        && d.get('class_code', '') is string
+        && (d.get('class_code', '') == '' || exists(/databases/$(database)/documents/classes/$(d.class_code)))
+        && d.score is int && d.score >= 0 && d.score <= 5000000
+        && d.hits is int && d.hits >= 0 && d.hits <= 100000
+        && d.acc is int && d.acc >= 0 && d.acc <= 100
+        && d.level is int && d.level >= 1 && d.level <= 1000
+        && d.bpm is int && d.bpm >= 40 && d.bpm <= 400
+        && d.diff in ['easy', 'medium', 'hard', 'expert']
+        && d.style in ['midi', 'keys', 'rhythm', 'live']
+        && d.clef in ['treble', 'bass', 'alto', 'treble8', 'none']
+        && d.get('instrument', '') is string && d.get('instrument', '').size() <= 24
+        && d.created_at == request.time;
+    }
+
+    // ================= Brainwaves progress (Synapse, Intervals, Pick a Voice) =================
+    // Which levels a student has finished, so their progress follows them to any computer. Document ID = class code (or 'none') + '_' + first name and initial.
+    match /earbrain_progress/{docId} {
+      allow get: if true;            // PRIVACY 2026-10-29: a game reads its own doc by ID; nobody can list everyone's
+      allow list: if isAdmin();
+      allow create, update: if docId.size() <= 60 && earbrainProgress(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    function earbrainProgress(d) {
+      return d.keys().hasOnly(['name', 'class_code', 'synapse', 'intervals', 'voice', 'chords', 'progressions', 'scales', 'pitch', 'updated_at'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 24
+        && d.class_code is string && d.class_code.size() <= 12
+        && d.synapse is list && d.synapse.size() <= 12
+        && d.get('intervals', []) is list && d.get('intervals', []).size() <= 12
+        && d.get('voice', []) is list && d.get('voice', []).size() <= 12
+        && d.get('chords', []) is list && d.get('chords', []).size() <= 12
+        && d.get('progressions', []) is list && d.get('progressions', []).size() <= 12
+        && d.get('scales', []) is list && d.get('scales', []).size() <= 12
+        && d.get('pitch', []) is list && d.get('pitch', []).size() <= 12
+        && d.updated_at == request.time;
+    }
+
+    // ================= Synapse =================
+    // Leaderboard runs: anyone can see them and add one in the right shape; nobody can edit them.
+    match /synapse_scores/{scoreId} {
+      allow read: if isAdmin() || resource.data.dev == true;   // OLD list (locked 2026-10-29): only the developer's rows stay public; scores now live in classes/<code>/
+      allow create: if synapseScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if devRename();
+      allow delete: if isAdmin() || ownsAnyClass(resource.data);
+    }
+
+    // A finished run: score (speed and floor weighted), rounds played, deepest floor (1-6), accuracy %, tightest cents x10, best streak.
+    function synapseScore(d) {
+      return d.keys().hasOnly(['name', 'class_code', 'score', 'rounds', 'floor', 'acc', 'tight', 'streak', 'created_at', 'dev', 'icon', 'class_codes'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 24
+        && d.get('class_code', '') is string
+        && (d.get('class_code', '') == '' || exists(/databases/$(database)/documents/classes/$(d.class_code)))
+        && d.score is int && d.score >= 0 && d.score <= 100000000
+        && d.rounds is int && d.rounds >= 1 && d.rounds <= 10000
+        && d.floor is int && d.floor >= 1 && d.floor <= 6
+        && d.acc is int && d.acc >= 0 && d.acc <= 100
+        && d.tight is int && d.tight >= 10 && d.tight <= 600
+        && d.streak is int && d.streak >= 0 && d.streak <= 10000
+        && d.created_at == request.time;
+    }
+
+    // ================= Brainwaves: Intervals =================
+    match /intervals_scores/{scoreId} {
+      allow read: if isAdmin() || resource.data.dev == true;   // OLD list (locked 2026-10-29): only the developer's rows stay public; scores now live in classes/<code>/
+      allow create: if intervalsScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if devRename();
+      allow delete: if isAdmin() || ownsAnyClass(resource.data);
+    }
+
+    // A finished run: score, rounds played, deepest level (1-6), accuracy %, best streak.
+    function intervalsScore(d) {
+      return d.keys().hasOnly(['name', 'class_code', 'score', 'rounds', 'floor', 'acc', 'streak', 'created_at', 'dev', 'icon', 'class_codes'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 24
+        && d.get('class_code', '') is string
+        && (d.get('class_code', '') == '' || exists(/databases/$(database)/documents/classes/$(d.class_code)))
+        && d.score is int && d.score >= 0 && d.score <= 100000000
+        && d.rounds is int && d.rounds >= 1 && d.rounds <= 10000
+        && d.floor is int && d.floor >= 1 && d.floor <= 6
+        && d.acc is int && d.acc >= 0 && d.acc <= 100
+        && d.streak is int && d.streak >= 0 && d.streak <= 10000
+        && d.created_at == request.time;
+    }
+
+    // ================= Brainwaves: Chord Colors =================
+    match /chords_scores/{scoreId} {
+      allow read: if isAdmin() || resource.data.dev == true;   // OLD list (locked 2026-10-29): only the developer's rows stay public; scores now live in classes/<code>/
+      allow create: if chordsScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if devRename();
+      allow delete: if isAdmin() || ownsAnyClass(resource.data);
+    }
+
+    // A finished run: score, rounds played, deepest level (1-8), accuracy %, best streak.
+    function chordsScore(d) {
+      return d.keys().hasOnly(['name', 'class_code', 'score', 'rounds', 'floor', 'acc', 'streak', 'created_at', 'dev', 'icon', 'class_codes'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 24
+        && d.get('class_code', '') is string
+        && (d.get('class_code', '') == '' || exists(/databases/$(database)/documents/classes/$(d.class_code)))
+        && d.score is int && d.score >= 0 && d.score <= 100000000
+        && d.rounds is int && d.rounds >= 1 && d.rounds <= 10000
+        && d.floor is int && d.floor >= 1 && d.floor <= 8
+        && d.acc is int && d.acc >= 0 && d.acc <= 100
+        && d.streak is int && d.streak >= 0 && d.streak <= 10000
+        && d.created_at == request.time;
+    }
+
+    // ================= Brainwaves: Progressions =================
+    match /progressions_scores/{scoreId} {
+      allow read: if isAdmin() || resource.data.dev == true;   // OLD list (locked 2026-10-29): only the developer's rows stay public; scores now live in classes/<code>/
+      allow create: if progressionsScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if devRename();
+      allow delete: if isAdmin() || ownsAnyClass(resource.data);
+    }
+
+    // A finished run: score, rounds played, deepest level (1-8), accuracy %, best streak.
+    function progressionsScore(d) {
+      return d.keys().hasOnly(['name', 'class_code', 'score', 'rounds', 'floor', 'acc', 'streak', 'created_at', 'dev', 'icon', 'class_codes'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 24
+        && d.get('class_code', '') is string
+        && (d.get('class_code', '') == '' || exists(/databases/$(database)/documents/classes/$(d.class_code)))
+        && d.score is int && d.score >= 0 && d.score <= 100000000
+        && d.rounds is int && d.rounds >= 1 && d.rounds <= 10000
+        && d.floor is int && d.floor >= 1 && d.floor <= 8
+        && d.acc is int && d.acc >= 0 && d.acc <= 100
+        && d.streak is int && d.streak >= 0 && d.streak <= 10000
+        && d.created_at == request.time;
+    }
+
+    // ================= Brainwaves: Scales and modes =================
+    match /scales_scores/{scoreId} {
+      allow read: if isAdmin() || resource.data.dev == true;   // OLD list (locked 2026-10-29): only the developer's rows stay public; scores now live in classes/<code>/
+      allow create: if scalesScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if devRename();
+      allow delete: if isAdmin() || ownsAnyClass(resource.data);
+    }
+
+    // A finished run: score, rounds played, deepest level (1-8), accuracy %, best streak.
+    function scalesScore(d) {
+      return d.keys().hasOnly(['name', 'class_code', 'score', 'rounds', 'floor', 'acc', 'streak', 'created_at', 'dev', 'icon', 'class_codes'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 24
+        && d.get('class_code', '') is string
+        && (d.get('class_code', '') == '' || exists(/databases/$(database)/documents/classes/$(d.class_code)))
+        && d.score is int && d.score >= 0 && d.score <= 100000000
+        && d.rounds is int && d.rounds >= 1 && d.rounds <= 10000
+        && d.floor is int && d.floor >= 1 && d.floor <= 8
+        && d.acc is int && d.acc >= 0 && d.acc <= 100
+        && d.streak is int && d.streak >= 0 && d.streak <= 10000
+        && d.created_at == request.time;
+    }
+
+    // ================= Brainwaves: Perfect Pitch (added 2026-10-26) =================
+    // A finished run: score, rounds, deepest level (1-9; level 9 is Ultimate, with the Distractors), accuracy %, best streak.
+    match /pitch_scores/{scoreId} {
+      allow read: if isAdmin() || resource.data.dev == true;   // OLD list (locked 2026-10-29): only the developer's rows stay public; scores now live in classes/<code>/
+      allow create: if pitchScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if devRename();
+      allow delete: if isAdmin() || ownsAnyClass(resource.data);
+    }
+
+    function pitchScore(d) {
+      return d.keys().hasOnly(['name', 'class_code', 'score', 'rounds', 'floor', 'acc', 'streak', 'created_at', 'dev', 'icon', 'class_codes'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 24
+        && d.get('class_code', '') is string
+        && (d.get('class_code', '') == '' || exists(/databases/$(database)/documents/classes/$(d.class_code)))
+        && d.score is int && d.score >= 0 && d.score <= 100000000
+        && d.rounds is int && d.rounds >= 1 && d.rounds <= 10000
+        && d.floor is int && d.floor >= 1 && d.floor <= 9
+        && d.acc is int && d.acc >= 0 && d.acc <= 100
+        && d.streak is int && d.streak >= 0 && d.streak <= 10000
+        && d.created_at == request.time;
+    }
+
+    // ================= Earshot Saloon =================
+    // Leaderboard runs: anyone can see them and add one in the right shape; nobody can edit them.
+    match /earshot_scores/{scoreId} {
+      allow read: if isAdmin() || resource.data.dev == true;   // OLD list (locked 2026-10-29): only the developer's rows stay public; scores now live in classes/<code>/
+      allow create: if earshotScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if devRename();
+      allow delete: if isAdmin() || ownsAnyClass(resource.data);
+    }
+
+    // A finished trail run: score = the chips cashed out (or half the best bankroll after going bust).
+    function earshotScore(d) {
+      return d.keys().hasOnly(['name', 'class_code', 'score', 'hands', 'acc', 'town', 'outlaws', 'busted', 'diff', 'clef', 'created_at', 'dev', 'icon', 'class_codes'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 24
+        && d.get('class_code', '') is string
+        && (d.get('class_code', '') == '' || exists(/databases/$(database)/documents/classes/$(d.class_code)))
+        && d.score is int && d.score >= 0 && d.score <= 100000000
+        && d.hands is int && d.hands >= 1 && d.hands <= 10000
+        && d.acc is int && d.acc >= 0 && d.acc <= 100
+        && d.town is int && d.town >= 1 && d.town <= 1000
+        && d.outlaws is int && d.outlaws >= 0 && d.outlaws <= 1000
+        && d.busted is bool
+        && d.diff in ['newbie', 'easy', 'medium', 'hard', 'expert']
+        && d.clef in ['treble', 'bass', 'mixed']
+        && d.created_at == request.time;
+    }
+
+    // Wanted posters: each signed-in student's lassoed outlaws, saved online so the poster wall
+    // follows them to any computer. Document ID = class code (or 'none') + '_' + first name and initial.
+    match /earshot_posters/{docId} {
+      allow get: if true;            // PRIVACY 2026-10-29: read by ID only; no listing
+      allow list: if isAdmin();
+      allow create, update: if earshotPosters(docId, request.resource.data)
+        && (!request.resource.data.name.lower().matches('maestro.*') || isAdmin());   // only the developer can be Maestro
+      allow delete: if isAdmin() || ownsClass(resource.data.get('class_code', ''));
+    }
+
+    function earshotPosters(id, d) {
+      return d.keys().hasOnly(['name', 'class_code', 'sid', 'caught', 'seen', 'updated_at'])
+        && d.name is string && d.name.size() >= 2 && d.name.size() <= 24
+        && d.class_code is string
+        && (d.class_code == '' || exists(/databases/$(database)/documents/classes/$(d.class_code)))
+        && d.sid is string && d.sid.matches('^[a-z]{2,16}$')
+        && (id == d.class_code + '_' + d.sid || (d.class_code == '' && id == 'none_' + d.sid))
+        && d.caught is map && d.caught.keys().hasOnly(['m2', 'M2', 'm3', 'M3', 'P4', 'TT', 'P5', 'm6', 'M6', 'm7', 'M7', 'P8']) && outlawCounts(d.caught)
+        && d.seen is map && d.seen.keys().hasOnly(['m2', 'M2', 'm3', 'M3', 'P4', 'TT', 'P5', 'm6', 'M6', 'm7', 'M7', 'P8'])
+        && d.updated_at == request.time;
+    }
+    // how many times each Interval Outlaw has been lassoed (whole numbers, 0 or more)
+    function outlawCounts(m) {
+      return m.get('m2', 0) is int && m.get('m2', 0) >= 0 && m.get('m2', 0) <= 100000
+        && m.get('M2', 0) is int && m.get('M2', 0) >= 0 && m.get('M2', 0) <= 100000
+        && m.get('m3', 0) is int && m.get('m3', 0) >= 0 && m.get('m3', 0) <= 100000
+        && m.get('M3', 0) is int && m.get('M3', 0) >= 0 && m.get('M3', 0) <= 100000
+        && m.get('P4', 0) is int && m.get('P4', 0) >= 0 && m.get('P4', 0) <= 100000
+        && m.get('TT', 0) is int && m.get('TT', 0) >= 0 && m.get('TT', 0) <= 100000
+        && m.get('P5', 0) is int && m.get('P5', 0) >= 0 && m.get('P5', 0) <= 100000
+        && m.get('m6', 0) is int && m.get('m6', 0) >= 0 && m.get('m6', 0) <= 100000
+        && m.get('M6', 0) is int && m.get('M6', 0) >= 0 && m.get('M6', 0) <= 100000
+        && m.get('m7', 0) is int && m.get('m7', 0) >= 0 && m.get('m7', 0) <= 100000
+        && m.get('M7', 0) is int && m.get('M7', 0) >= 0 && m.get('M7', 0) <= 100000
+        && m.get('P8', 0) is int && m.get('P8', 0) >= 0 && m.get('P8', 0) <= 100000;
+    }
+
+    // ================= Feedback =================
+    // Any student or guest can send one short note from the Feedback button in a game. Nobody can edit it.
+    // Only the admin, or the teacher who owns the sender's class, can read or delete it.
+    // FEEDBACK LIMIT (2026-11-17, David: "feedback limiting as well"): every note names its device's gate (a random 20-character id the
+    // browser keeps, not linked to the student) and writes fb_gate/<gate> = { at } in the same batch; a gate can be written again
+    // only 60 s later. Honest limit: a script can make new gate ids; App Check (security review M2) is the real fix for scripts.
+    match /fb_gate/{gate} {
+      allow get, list: if false;
+      allow create: if gate.matches('^[a-z0-9]{20}$') && request.resource.data.keys().hasOnly(['at']) && request.resource.data.at == request.time;
+      allow update: if request.resource.data.keys().hasOnly(['at']) && request.resource.data.at == request.time
+        && request.time > resource.data.at + duration.value(60, 's');
+    }
+    match /game_feedback/{noteId} {
+      allow read: if isAdmin();   // only the admin reads feedback (David, 2026-11-16); teachers no longer see it
+      allow create: if feedbackOk(request.resource.data) && classCodesOk(request.resource.data)
+        && request.resource.data.get('gate', '') is string && request.resource.data.get('gate', '').matches('^[a-z0-9]{20}$')
+        && getAfter(/databases/$(database)/documents/fb_gate/$(request.resource.data.gate)).data.at == request.time;
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    function feedbackOk(d) {
+      return d.keys().hasOnly(['game', 'text', 'name', 'class_code', 'class_codes', 'owner', 'created_at', 'key', 'sid', 'gate'])
+        && (!('key' in d) || (d.key is string && d.key.matches('^[a-z0-9]{20}$')))   // device key, so a reply can be private (2026-11-16)
+        && (!('sid' in d) || (d.sid is string && d.sid.matches('^[a-z]{0,16}$')))
+        && d.game in ['scale-quest', 'tidal-tones', 'earshot-saloon', 'rhythm-trainer', 'rooftop-runner', 'ear-brain', 'hub', 'critical-listening-lab']
+        && d.text is string && d.text.size() >= 3 && d.text.size() <= 300
+        && d.name is string && d.name.size() <= 24
+        && (!d.name.lower().matches('maestro.*') || isAdmin())   // only the developer can be Maestro
+        && d.class_code is string && d.owner is string && d.owner.size() <= 100
+        && (d.class_code == ''
+          ? d.owner == ''
+          : (exists(/databases/$(database)/documents/classes/$(d.class_code))
+             && get(/databases/$(database)/documents/classes/$(d.class_code)).data.ownerEmail == d.owner))
+        && d.created_at == request.time;
+    }
+
+
+    // ================= Practice time (added 2026-10-16) =================
+    // One document per student per class: practice_time/<class code or 'none'>_<sid>. The shared Practice time box in every
+    // game adds the student's new whole minutes at most once a minute, at most 30 minutes per write. Anyone can read it (it's
+    // the Practice Time leaderboard). total_min only goes up, by 0–30 per write; week_min and day_min go up by 0–30, or start
+    // over (at most 30) when the week or day changes. Only the admin or the class's teacher can delete one.
+    match /practice_time/{docId} {
+      // SECURITY H4 (2026-11-17): the top level holds only World board rows with no class code (classes keep theirs inside the class),
+      // so listing it leaks no class codes. H3: the name never changes and updates are at least 50 s apart (the time box writes once a minute).
+      allow read: if true;
+      allow create: if practiceOk(docId, request.resource.data) && request.resource.data.class_code == ''
+        && request.resource.data.total_min <= 30
+        && request.resource.data.week_min <= 30 && request.resource.data.day_min <= 30;
+      allow update: if practiceOk(docId, request.resource.data) && request.resource.data.class_code == ''
+        && request.resource.data.sid == resource.data.sid && request.resource.data.class_code == resource.data.class_code
+        && request.resource.data.name.lower() == resource.data.name.lower() && request.time > resource.data.updated_at + duration.value(50, 's')
+        && request.resource.data.total_min >= resource.data.total_min
+        && request.resource.data.total_min <= resource.data.total_min + 30
+        && periodOk(request.resource.data.week, request.resource.data.week_min, resource.data.week, resource.data.week_min)
+        && periodOk(request.resource.data.day, request.resource.data.day_min, resource.data.day, resource.data.day_min);
+      allow delete: if isAdmin() || ownsClass(resource.data.get('class_code', ''));
+    }
+
+    function practiceOk(docId, d) {
+      return d.keys().hasOnly(['name', 'sid', 'class_code', 'total_min', 'week', 'week_min', 'day', 'day_min', 'updated_at'])
+        && d.keys().hasAll(['name', 'sid', 'class_code', 'total_min', 'week', 'week_min', 'day', 'day_min', 'updated_at'])
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 24
+        && (!d.name.lower().matches('maestro.*') || isAdmin())   // only the developer can be Maestro
+        && d.sid is string && d.sid.matches('^[a-z]{2,16}$')
+        && d.class_code is string
+        && ((d.class_code == '' && (docId == 'none_' + d.sid || docId.matches('^w[0-9a-f]{8}_' + d.sid + '$')))
+            || (d.class_code != '' && docId == d.class_code + '_' + d.sid
+                && exists(/databases/$(database)/documents/classes/$(d.class_code))))
+        && d.total_min is int && d.total_min >= 0
+        && d.week is string && d.week.matches('^[0-9]{4}-W[0-9]{2}$')
+        && d.week_min is int && d.week_min >= 0 && d.week_min <= 10080
+        && d.day is string && d.day.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && d.day_min is int && d.day_min >= 0 && d.day_min <= 1440
+        && d.updated_at == request.time;
+    }
+    // a week or day total: the same period goes up by 0–30; a new period starts over at 0–30
+    function periodOk(p, n, oldP, oldN) {
+      return (p == oldP && n >= oldN && n <= oldN + 30) || (p != oldP && n <= 30);
+    }
+
+
+    // ================= Avatars (added 2026-11-16, build step 1; coins and points step 2) =================
+    // avatars/<active class code or none>_<sid>: one student's avatar { look: map of slot -> short word or small number
+    // (<= 30 keys), sid, coins, points, coin_day, coins_today, owned (Store items, <= 300), updated_at }. No names. Anyone may read one (it is only a cartoon
+    // and two counters); the student's device writes it (same honest limit as practice_time: no sign-in). Coins and points arrive
+    // as increments: at most +30 coins and +600 points per write, and 60 coins a day. Going down is allowed (the Store spends them).
+    function avatarOk(docId, d) {
+      return d.keys().hasOnly(['look', 'sid', 'coins', 'points', 'coin_day', 'coins_today', 'owned', 'encores', 'encore_xp', 'rank', 'updated_at'])
+        && d.get('rank', 0) is int && d.get('rank', 0) >= 0 && d.get('rank', 0) <= 9
+        && d.get('encores', 0) is int && d.get('encores', 0) >= 0 && d.get('encores', 0) <= 99 && d.get('encore_xp', 0) is int && d.get('encore_xp', 0) >= 0
+        && d.get('owned', []) is list && d.get('owned', []).size() <= 300
+        && d.sid is string && d.sid.matches('^[a-z]{2,16}$')
+        && docId.matches('^[A-Za-z0-9]{1,20}_' + d.sid + '$')
+        && d.look is map && d.look.size() <= 30
+        && d.get('coins', 0) is int && d.get('coins', 0) >= 0
+        && d.get('points', 0) is int && d.get('points', 0) >= 0
+        && d.get('coins_today', 0) is int && d.get('coins_today', 0) >= 0 && d.get('coins_today', 0) <= 60
+        && d.get('coin_day', '2000-01-01') is string && d.get('coin_day', '2000-01-01').matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$')
+        && d.updated_at == request.time;
+    }
+    match /avatars/{docId} {
+      allow get: if true;
+      allow create: if avatarOk(docId, request.resource.data)
+        && request.resource.data.get('coins', 0) <= 30 && request.resource.data.get('points', 0) <= 600 && request.resource.data.get('encores', 0) <= 1;
+      allow update: if avatarOk(docId, request.resource.data)
+        && request.resource.data.sid == resource.data.sid
+        && request.resource.data.get('coins', 0) <= resource.data.get('coins', 0) + 30
+        && request.resource.data.get('points', 0) <= resource.data.get('points', 0) + 600
+        && request.resource.data.get('encores', 0) <= resource.data.get('encores', 0) + 1;   // one Encore at a time
+      allow delete: if isAdmin();
+    }
+
+    // ================= Activity log (added 2026-11-01; time and progress 2026-11-02) =================
+    // activity/<random id>: one record each time a game is opened (created once per game per browser tab, after 20 s)
+    // { name ('Guest' or first name + last initial), sid ('' for guests), class_code (active class or ''), game, device, at,
+    //   answers, correct, rounds, best, level, page_s, play_s, seen, parts (optional, added 2026-11-03: the Brainwaves areas
+    //   played, ids joined by commas) }. The visit's page updates only the counters, parts and seen
+    //   (every 3 min and when it closes): they can only go up, by sensible amounts. Anyone can add or update one (guests
+    //   too, no sign-in); only the admin can read them (dashboard Activity tab) or delete them.
+    function actCountsOk(d) {
+      return d.answers is int && d.answers >= 0 && d.answers <= 100000
+        && d.correct is int && d.correct >= 0 && d.correct <= d.answers
+        && d.rounds is int && d.rounds >= 0 && d.rounds <= 10000
+        && d.best is int && d.best >= 0 && d.best <= 1000000000
+        && d.level is int && d.level >= 0 && d.level <= 10000
+        && d.page_s is int && d.page_s >= 0 && d.page_s <= 86400
+        && d.play_s is int && d.play_s >= 0 && d.play_s <= 86400;
+    }
+    function actPartsOk(d) {
+      return !('parts' in d) || (d.parts is string && d.parts.size() <= 120);
+    }
+    match /activity/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['name', 'sid', 'class_code', 'game', 'device', 'at', 'seen',
+            'answers', 'correct', 'rounds', 'best', 'level', 'page_s', 'play_s', 'parts'])
+        && request.resource.data.keys().hasAll(['name', 'sid', 'class_code', 'game', 'device', 'at', 'seen',
+            'answers', 'correct', 'rounds', 'best', 'level', 'page_s', 'play_s'])
+        && request.resource.data.name is string && request.resource.data.name.size() >= 1 && request.resource.data.name.size() <= 24
+        && request.resource.data.sid is string && request.resource.data.sid.matches('^[a-z]{0,16}$')
+        && request.resource.data.class_code is string && request.resource.data.class_code.size() <= 20
+        && request.resource.data.game in ['tidal', 'rooftop', 'rhythm', 'scale', 'earshot', 'brainwaves', 'listen', 'genius']
+        && request.resource.data.device is string && request.resource.data.device.size() <= 40
+        && request.resource.data.at == request.time && request.resource.data.seen == request.time
+        && actCountsOk(request.resource.data) && actPartsOk(request.resource.data)
+        && request.resource.data.page_s <= 600 && request.resource.data.answers <= 1000;
+      allow update: if request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['answers', 'correct', 'rounds', 'best', 'level', 'page_s', 'play_s', 'seen', 'parts'])
+        && 'page_s' in resource.data && actCountsOk(request.resource.data) && actPartsOk(request.resource.data)
+        && request.resource.data.seen == request.time
+        && request.resource.data.answers >= resource.data.answers && request.resource.data.answers <= resource.data.answers + 5000
+        && request.resource.data.correct >= resource.data.correct
+        && request.resource.data.rounds >= resource.data.rounds
+        && request.resource.data.best >= resource.data.best && request.resource.data.level >= resource.data.level
+        && request.resource.data.page_s >= resource.data.page_s && request.resource.data.page_s <= resource.data.page_s + 3600
+        && request.resource.data.play_s >= resource.data.play_s && request.resource.data.play_s <= resource.data.play_s + 3600;
+      // a teacher reads the visits in their own classes (2026-11-16, Activity tab; the dashboard asks one class at a time,
+      // where class_code == <code>, so the rule can check the owner); the admin reads and deletes everything
+      allow read: if isAdmin() || ownsClass(resource.data.get('class_code', ''));
+      allow delete: if isAdmin();
+    }
+
+
+    // ================= Music Theory Super Genius leaderboard (added 2026-10-22) =================
+    // One document per student per class: genius_scores/<class code or 'none'>_<sid>, the student's best flight
+    // (correct = right answers 0-20, lives left 0-3, flight time in ms, rank = ranks earned 0-3). Anyone can read it
+    // (the leaderboard). It can only be replaced by a better flight: more right, or as many right with more lives
+    // left, or the same with a faster time. Only the admin or the class's teacher can delete one.
+    match /genius_scores/{docId} {
+      allow read: if isAdmin() || resource.data.dev == true;   // OLD list (locked 2026-10-29): only the developer's rows stay public; scores now live in classes/<code>/
+      allow create: if geniusOk(docId, request.resource.data);
+      allow update: if geniusOk(docId, request.resource.data) && request.resource.data.name.lower() == resource.data.name.lower()   // SECURITY H3 (2026-11-17)
+        && request.resource.data.sid == resource.data.sid && request.resource.data.class_code == resource.data.class_code
+        && geniusBetter(request.resource.data, resource.data);
+      allow delete: if isAdmin() || ownsClass(resource.data.get('class_code', ''));
+    }
+
+    function geniusOk(docId, d) {
+      return d.keys().hasOnly(['name', 'sid', 'class_code', 'correct', 'lives', 'ms', 'rank', 'updated_at'])
+        && d.keys().hasAll(['name', 'sid', 'class_code', 'correct', 'lives', 'ms', 'rank', 'updated_at'])
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 24
+        && (!d.name.lower().matches('maestro.*') || isAdmin())   // only the developer can be Maestro
+        && d.sid is string && d.sid.matches('^[a-z]{2,16}$')
+        && d.class_code is string
+        && ((d.class_code == '' && docId == 'none_' + d.sid)
+            || (d.class_code != '' && docId == d.class_code + '_' + d.sid
+                && exists(/databases/$(database)/documents/classes/$(d.class_code))))
+        && d.correct is int && d.correct >= 0 && d.correct <= 20
+        && d.lives is int && d.lives >= 0 && d.lives <= 3
+        && d.ms is int && d.ms >= 0 && d.ms <= 86400000
+        && d.rank is int && d.rank >= 0 && d.rank <= 3
+        && d.updated_at == request.time;
+    }
+    function geniusBetter(n, o) {
+      return n.correct > o.correct || (n.correct == o.correct && (n.lives > o.lives || (n.lives == o.lives && n.ms < o.ms)));
+    }
+
+    // ================= Teacher messages (added 2026-10-18) =================
+    // One private conversation per teacher with the admin. teacher_threads/<teacher's email> is the summary (last line,
+    // unread counts); its messages subcollection holds the messages. Only the admin and that teacher can read them.
+    // Each side writes only its own side: a teacher sends as 'teacher' (unread_admin goes up by 1) and clears its own
+    // unread_teacher; the admin is the mirror image. Only the admin can delete a message or a whole conversation.
+    function isThreadTeacher(email) {
+      return isTeacher() && request.auth.token.email == email;
+    }
+    function threadOk(email, d) {
+      return d.keys().hasOnly(['email', 'name', 'school', 'last_at', 'last_text', 'last_from', 'unread_admin', 'unread_teacher'])
+        && d.keys().hasAll(['email', 'name', 'school', 'last_at', 'last_text', 'last_from', 'unread_admin', 'unread_teacher'])
+        && d.email == email
+        && d.name is string && d.name.size() <= 60 && d.school is string && d.school.size() <= 80
+        && d.last_at is timestamp && d.last_text is string && d.last_text.size() <= 120
+        && d.last_from in ['admin', 'teacher']
+        && d.unread_admin is int && d.unread_admin >= 0 && d.unread_admin <= 999
+        && d.unread_teacher is int && d.unread_teacher >= 0 && d.unread_teacher <= 999;
+    }
+    // What one side (me = 'admin' or 'teacher') may change: its own unread count only drops to 0; the other side's count
+    // stays or goes up by 1, and only together with a new last line (last_at = now, last_from = me). The admin may also
+    // change last_text alone (after deleting a message).
+    function threadSide(n, o, me, mine, theirs) {
+      return (n[mine] == o[mine] || n[mine] == 0)
+        && (n[theirs] == o[theirs] || (n[theirs] == o[theirs] + 1 && n.last_at == request.time))
+        && (n.last_at == o.last_at || (n.last_at == request.time && n.last_from == me))
+        && (n.last_from == o.last_from || n.last_from == me)
+        && (n.last_text == o.last_text || n.last_at == request.time || me == 'admin');
+    }
+    match /teacher_threads/{email} {
+      allow read: if isAdmin() || isThreadTeacher(email);
+      allow create: if threadOk(email, request.resource.data) && request.resource.data.last_at == request.time
+        && ((isAdmin() && request.resource.data.last_from == 'admin'
+              && request.resource.data.unread_admin == 0 && request.resource.data.unread_teacher <= 1)
+          || (isThreadTeacher(email) && request.resource.data.last_from == 'teacher'
+              && request.resource.data.unread_teacher == 0 && request.resource.data.unread_admin <= 1));
+      allow update: if threadOk(email, request.resource.data)
+        && ((isAdmin() && threadSide(request.resource.data, resource.data, 'admin', 'unread_admin', 'unread_teacher'))
+          || (isThreadTeacher(email) && threadSide(request.resource.data, resource.data, 'teacher', 'unread_teacher', 'unread_admin')
+            // LIMIT (2026-11-17): a teacher's messages at least 5 s apart (reading, which leaves last_at alone, is never limited)
+            && (request.resource.data.last_at == resource.data.last_at || request.time > resource.data.last_at + duration.value(5, 's'))));
+      allow delete: if isAdmin();
+
+      match /messages/{msgId} {
+        allow read: if isAdmin() || isThreadTeacher(email);
+        allow create: if request.resource.data.keys().hasOnly(['from', 'text', 'at'])
+          && request.resource.data.keys().hasAll(['from', 'text', 'at'])
+          && request.resource.data.text is string
+          && request.resource.data.text.size() >= 1 && request.resource.data.text.size() <= 1000
+          && request.resource.data.at == request.time
+          && ((request.resource.data.from == 'admin' && isAdmin())
+            || (request.resource.data.from == 'teacher' && isThreadTeacher(email)));
+        allow update: if false;
+        allow delete: if isAdmin();
+      }
+    }
+
+
+    // ================= Teacher Board (added 2026-10-18) =================
+    // Every approved teacher (and the admin) can read and post. Posts and replies are plain text, 1-1000 characters,
+    // signed with the poster's own email. Only the admin can pin a post or make it an announcement. Nobody edits text.
+    // Anyone may bump a post's last_at/reply_count by exactly one reply (+1 with a new reply, -1 when one is deleted).
+    // The author or the admin deletes a post or a reply; a post's author may also delete its replies (to delete the post).
+    function boardAuthorOk(d) {
+      return d.author_email == request.auth.token.email
+        && d.author_name is string && d.author_name.size() >= 1 && d.author_name.size() <= 60
+        && d.author_school is string && d.author_school.size() <= 80
+        && d.text is string && d.text.size() >= 1 && d.text.size() <= 1000;
+    }
+    match /teacher_board/{postId} {
+      allow read: if isTeacher();
+      allow create: if isTeacher() && boardAuthorOk(request.resource.data)
+        && request.resource.data.keys().hasOnly(['author_email', 'author_name', 'author_school', 'text', 'pinned', 'announce', 'created_at', 'last_at', 'reply_count'])
+        && request.resource.data.keys().hasAll(['author_email', 'author_name', 'author_school', 'text', 'pinned', 'announce', 'created_at', 'last_at', 'reply_count'])
+        && request.resource.data.pinned is bool && request.resource.data.announce is bool
+        && (isAdmin() || (request.resource.data.pinned == false && request.resource.data.announce == false))
+        && request.resource.data.created_at == request.time && request.resource.data.last_at == request.time
+        && request.resource.data.reply_count == 0;
+      allow update: if isTeacher()
+        && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['last_at', 'reply_count'])
+              && request.resource.data.reply_count == resource.data.reply_count + 1
+              && request.resource.data.last_at == request.time)
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reply_count'])
+              && request.resource.data.reply_count == resource.data.reply_count - 1
+              && request.resource.data.reply_count >= 0)
+          || (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['pinned', 'announce'])
+              && request.resource.data.pinned is bool && request.resource.data.announce is bool));
+      allow delete: if isAdmin() || (isTeacher() && resource.data.author_email == request.auth.token.email);
+
+      match /replies/{replyId} {
+        allow read: if isTeacher();
+        allow create: if isTeacher() && boardAuthorOk(request.resource.data)
+          && request.resource.data.keys().hasOnly(['author_email', 'author_name', 'author_school', 'text', 'at'])
+          && request.resource.data.keys().hasAll(['author_email', 'author_name', 'author_school', 'text', 'at'])
+          && request.resource.data.at == request.time
+          && exists(/databases/$(database)/documents/teacher_board/$(postId));
+        allow update: if false;
+        allow delete: if isAdmin() || (isTeacher() && (resource.data.author_email == request.auth.token.email
+          || get(/databases/$(database)/documents/teacher_board/$(postId)).data.author_email == request.auth.token.email));
+      }
+    }
+
+
+    // ================= Tests =================
+    // A teacher publishes a test for a class (a game, its settings, how it is graded, how many tries).
+    // Anyone can read a test (students need it to start). Only the teacher who owns the class can create, change or delete it.
+    match /tests/{testId} {
+      // SECURITY H4 (2026-11-17): a test opens by id for anyone (games, ?test=<id>), but listing needs the class: a query must say
+      // where class_code == <code> (home page, My Report, dashboards, the Lab), so nobody can download every test with its teacher's email.
+      allow get: if true;
+      allow list: if isAdmin() || (resource.data.class_code is string && resource.data.class_code != ''
+        && exists(/databases/$(database)/documents/classes/$(resource.data.class_code)));
+      allow create: if ownsClass(request.resource.data.class_code) && testOk(request.resource.data)
+        && request.resource.data.owner == request.auth.token.email;
+      allow update: if ownsClass(resource.data.class_code) && testOk(request.resource.data)
+        && request.resource.data.class_code == resource.data.class_code && request.resource.data.owner == resource.data.owner;
+      allow delete: if isAdmin() || ownsClass(resource.data.class_code);
+    }
+
+    function testOk(d) {
+      return d.keys().hasOnly(['name', 'game', 'class_code', 'owner', 'settings', 'grade', 'tries', 'open', 'opens_at', 'closes_at', 'created_at', 'out_of'])
+        && (!('out_of' in d) || (d.out_of is int && d.out_of >= 1 && d.out_of <= 1000))   // grade shown as points out of this
+        && (!('opens_at' in d) || d.opens_at is timestamp) && (!('closes_at' in d) || d.closes_at is timestamp)
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 60
+        && d.game in ['scale', 'tidal', 'rooftop', 'rhythm', 'earshot', 'synapse', 'listen']
+        && d.grade in ['acc', 'score']
+        && d.tries is int && d.tries >= 0 && d.tries <= 20
+        && d.open is bool && d.settings is map && d.owner is string && d.class_code is string
+        && d.created_at is timestamp;
+    }
+
+    // One result per student per test (document ID = testId_sid). A student's game starts a try (tries + 1) and later
+    // posts the best result of the tries. Anyone can read a single result (a student reads their own); only the teacher who
+    // owns the test can list them all or delete one (which gives that student their tries back).
+    match /test_results/{resultId} {
+      allow get: if true;
+      allow list: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+      allow create: if resultOk(request.resource.data) && resultId == request.resource.data.test + '_' + request.resource.data.sid
+        && request.resource.data.tries == 1 && request.resource.data.best == 0
+        && request.resource.data.best_acc == 0 && request.resource.data.best_score == 0;
+      allow update: if resultOk(request.resource.data) && resultId == request.resource.data.test + '_' + request.resource.data.sid
+        && request.resource.data.test == resource.data.test && request.resource.data.sid == resource.data.sid
+        && request.resource.data.student.lower() == resource.data.student.lower()
+        // SECURITY H1 (2026-11-17): the best is the test's own measure (accuracy, or score for a points test), so best_acc and
+        // best_score can't be set apart from it. The real fix is the device sign-in (step 2): only that device may change it.
+        && request.resource.data.best == (testDoc(request.resource.data.test).grade == 'score' ? request.resource.data.best_score : request.resource.data.best_acc)
+        && ((request.resource.data.tries == resource.data.tries + 1 && request.resource.data.best == resource.data.best
+              && request.resource.data.best_acc == resource.data.best_acc && request.resource.data.best_score == resource.data.best_score)
+            || (request.resource.data.tries == resource.data.tries && request.resource.data.best >= resource.data.best));
+      allow delete: if isAdmin() || (isTeacher() && resource.data.owner == request.auth.token.email);
+    }
+
+    function testDoc(id) {
+      return get(/databases/$(database)/documents/tests/$(id)).data;
+    }
+    function resultOk(d) {
+      return d.keys().hasOnly(['test', 'class_code', 'owner', 'game', 'sid', 'student', 'tries', 'best', 'best_acc', 'best_score', 'updated_at'])
+        && d.test is string && d.test.size() >= 1 && d.test.size() <= 40
+        && exists(/databases/$(database)/documents/tests/$(d.test))
+        && testDoc(d.test).open == true
+        && (!('opens_at' in testDoc(d.test)) || testDoc(d.test).opens_at <= request.time)
+        && (!('closes_at' in testDoc(d.test)) || testDoc(d.test).closes_at >= request.time)
+        && testDoc(d.test).class_code == d.class_code && testDoc(d.test).owner == d.owner && testDoc(d.test).game == d.game
+        && (testDoc(d.test).tries == 0 || d.tries <= testDoc(d.test).tries)
+        && d.sid is string && d.sid.matches('^[a-z]{2,16}$')
+        && d.student is string && d.student.size() <= 24
+        && (!d.student.lower().matches('maestro.*') || isAdmin())   // only the developer can be Maestro
+        && d.tries is int && d.tries >= 1 && d.tries <= 100
+        && d.best is int && d.best >= 0 && d.best <= 1000000
+        && d.best_acc is int && d.best_acc >= 0 && d.best_acc <= 100
+        && d.best_score is int && d.best_score >= 0 && d.best_score <= 1000000
+        && d.updated_at == request.time;
+    }
+
+
+    // ONE TIME MOVE (2026-10-29): the admin may create class copies, World runs and practice rows with their original dates
+    // and totals (the dashboard's "Move old scores" button). Everyone else goes through the checks below.
+    match /classes/{code}/{col}/{docId} {
+      allow create: if isAdmin() && col in ['rhythm_scores', 'scale_scores', 'degree_scores', 'key_scores', 'nova_scores', 'tidal_scores',
+        'listening_scores', 'sight_scores', 'synapse_scores', 'intervals_scores', 'chords_scores', 'progressions_scores', 'scales_scores',
+        'pitch_scores', 'earshot_scores', 'genius_scores', 'practice_time'];
+      allow update: if isAdmin() && col == 'practice_time';   // adds old minutes to a row started since the publish
+    }
+    match /world_scores/{game}/runs/{scoreId} {
+      allow create: if isAdmin();
+    }
+    match /practice_time/{docId} {
+      allow create, update: if isAdmin() && (docId.matches('^none_[a-z]{2,16}$') || docId.matches('^w[0-9a-f]{8}_[a-z]{2,16}$'));
+    }
+
+    // ONE TIME OWNER TRANSFER (2026-11-17): the admin may move a teacher's classes and records to another of their Google
+    // accounts (dashboard Admin tab, "Transfer classes"). Only the owner fields change; nothing else in the document.
+    function ownerOnly(f) {
+      return isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(f)
+        && request.resource.data[f[0]] is string && request.resource.data[f[0]].size() <= 100;
+    }
+    match /classes/{code} { allow update: if ownerOnly(['ownerEmail']); }
+    match /progress/{docId} { allow update: if ownerOnly(['owner']); }
+    match /scale_progress/{docId} { allow update: if ownerOnly(['owner']); }
+    match /tidal_progress/{docId} { allow update: if ownerOnly(['owner']); }
+    match /rooftop_progress/{docId} { allow update: if ownerOnly(['owner']); }
+    match /listening_progress/{docId} { allow update: if ownerOnly(['owner']); }
+    match /brainwaves_progress/{docId} { allow update: if ownerOnly(['owner']); }
+    match /game_feedback/{noteId} { allow update: if ownerOnly(['owner']); }
+    match /tests/{testId} { allow update: if ownerOnly(['owner']); }
+    match /test_results/{resultId} { allow update: if ownerOnly(['owner']); }
+    match /bc_answers/{id} { allow update: if ownerOnly(['owner']); }
+    match /bc_pulse/{key} { allow update: if ownerOnly(['owner']); }
+    match /bc_private/{id} { allow update: if ownerOnly(['owner']); }
+    match /bc_reports/{key} { allow update: if ownerOnly(['owner', 'teacher']); }
+    match /sm_threads/{id} { allow update: if ownerOnly(['owner', 'teacher']); }
+
+    // ================= PRIVACY 2026-10-26: class locked copies =================
+    // Every score (and practice time) is also written inside its class: classes/{code}/<collection>/{id}.
+    // Reading needs the class code; there is NO collection group rule, so nobody can read across classes.
+    // Same field checks as the old top level collections, plus class_code must match the path.
+    // After the migration the old top level collections become admin only, then are deleted.
+    match /classes/{code}/rhythm_scores/{scoreId} {
+      allow read: if true;
+
+      allow create: if request.resource.data.get('class_code', '') == code && request.resource.data.keys().hasOnly(['name', 'level', 'class_code', 'score', 'correct', 'total', 'extra_listens', 'time_sec', 'created_at', 'dev', 'icon', 'class_codes'])
+        && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data)
+        && request.resource.data.name is string
+        && request.resource.data.name.size() >= 2 && request.resource.data.name.size() <= 24
+        && request.resource.data.level in ['beginner', 'beginner16', 'easy', 'hard', 'extreme']
+        && request.resource.data.get('class_code', '') is string
+        && (request.resource.data.get('class_code', '') == ''
+            || exists(/databases/$(database)/documents/classes/$(request.resource.data.class_code)))
+        && request.resource.data.score is number
+        && request.resource.data.score >= 0 && request.resource.data.score <= 100
+        && request.resource.data.correct is int && request.resource.data.total is int
+        && request.resource.data.correct >= 0 && request.resource.data.correct <= request.resource.data.total
+        && request.resource.data.total >= 1 && request.resource.data.total <= 200
+        && request.resource.data.extra_listens is int
+        && request.resource.data.extra_listens >= 0 && request.resource.data.extra_listens <= 100
+        && request.resource.data.time_sec is int
+        && request.resource.data.time_sec >= 1 && request.resource.data.time_sec <= 36000
+        && request.resource.data.created_at == request.time;
+
+      allow update: if request.resource.data.get('class_code', '') == code && devRename();
+
+      // The admin can delete any score; a teacher can delete scores in their own classes.
+      allow delete: if isAdmin() || ownsClass(code);
+    }
+
+    match /classes/{code}/scale_scores/{scoreId} {
+      allow read: if true;
+      allow create: if request.resource.data.get('class_code', '') == code && scaleScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if request.resource.data.get('class_code', '') == code && devRename();
+      allow delete: if isAdmin() || ownsClass(code);
+    }
+
+    match /classes/{code}/degree_scores/{scoreId} {
+      allow read: if true;
+      allow create: if request.resource.data.get('class_code', '') == code && scaleScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if request.resource.data.get('class_code', '') == code && devRename();
+      allow delete: if isAdmin() || ownsClass(code);
+    }
+
+    match /classes/{code}/key_scores/{scoreId} {
+      allow read: if true;
+      allow create: if request.resource.data.get('class_code', '') == code && scaleScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if request.resource.data.get('class_code', '') == code && devRename();
+      allow delete: if isAdmin() || ownsClass(code);
+    }
+
+    match /classes/{code}/nova_scores/{scoreId} {
+      allow read: if true;
+      allow create: if request.resource.data.get('class_code', '') == code && novaScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if request.resource.data.get('class_code', '') == code && devRename();
+      allow delete: if isAdmin() || ownsClass(code);
+    }
+
+    match /classes/{code}/tidal_scores/{scoreId} {
+      allow read: if true;
+      allow create: if request.resource.data.get('class_code', '') == code && tidalScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if request.resource.data.get('class_code', '') == code && devRename();
+      allow delete: if isAdmin() || ownsClass(code);
+    }
+
+    match /classes/{code}/listening_scores/{scoreId} {
+      allow read: if true;
+      allow create: if request.resource.data.get('class_code', '') == code && listenScore(request.resource.data) && devOk(request.resource.data);
+      allow update: if request.resource.data.get('class_code', '') == code && devRename();
+      allow delete: if isAdmin() || ownsClass(resource.data.get('class_code', ''));
+    }
+
+    match /classes/{code}/sight_scores/{scoreId} {
+      allow read: if true;
+      allow create: if request.resource.data.get('class_code', '') == code && sightScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if request.resource.data.get('class_code', '') == code && devRename();
+      allow delete: if isAdmin() || ownsClass(code);
+    }
+
+    match /classes/{code}/synapse_scores/{scoreId} {
+      allow read: if true;
+      allow create: if request.resource.data.get('class_code', '') == code && synapseScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if request.resource.data.get('class_code', '') == code && devRename();
+      allow delete: if isAdmin() || ownsClass(code);
+    }
+
+    match /classes/{code}/intervals_scores/{scoreId} {
+      allow read: if true;
+      allow create: if request.resource.data.get('class_code', '') == code && intervalsScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if request.resource.data.get('class_code', '') == code && devRename();
+      allow delete: if isAdmin() || ownsClass(code);
+    }
+
+    match /classes/{code}/chords_scores/{scoreId} {
+      allow read: if true;
+      allow create: if request.resource.data.get('class_code', '') == code && chordsScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if request.resource.data.get('class_code', '') == code && devRename();
+      allow delete: if isAdmin() || ownsClass(code);
+    }
+
+    match /classes/{code}/progressions_scores/{scoreId} {
+      allow read: if true;
+      allow create: if request.resource.data.get('class_code', '') == code && progressionsScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if request.resource.data.get('class_code', '') == code && devRename();
+      allow delete: if isAdmin() || ownsClass(code);
+    }
+
+    match /classes/{code}/scales_scores/{scoreId} {
+      allow read: if true;
+      allow create: if request.resource.data.get('class_code', '') == code && scalesScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if request.resource.data.get('class_code', '') == code && devRename();
+      allow delete: if isAdmin() || ownsClass(code);
+    }
+
+    match /classes/{code}/pitch_scores/{scoreId} {
+      allow read: if true;
+      allow create: if request.resource.data.get('class_code', '') == code && pitchScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if request.resource.data.get('class_code', '') == code && devRename();
+      allow delete: if isAdmin() || ownsClass(code);
+    }
+
+    match /classes/{code}/earshot_scores/{scoreId} {
+      allow read: if true;
+      allow create: if request.resource.data.get('class_code', '') == code && earshotScore(request.resource.data) && devOk(request.resource.data) && iconOk(request.resource.data) && classCodesOk(request.resource.data);
+      allow update: if request.resource.data.get('class_code', '') == code && devRename();
+      allow delete: if isAdmin() || ownsClass(code);
+    }
+
+    match /classes/{code}/practice_time/{docId} {
+      allow read: if true;
+      allow create: if request.resource.data.get('class_code', '') == code && practiceOk(docId, request.resource.data)
+        && request.resource.data.total_min <= 30
+        && request.resource.data.week_min <= 30 && request.resource.data.day_min <= 30;
+      allow update: if request.resource.data.get('class_code', '') == code && practiceOk(docId, request.resource.data)
+        && request.resource.data.sid == resource.data.sid && request.resource.data.class_code == resource.data.class_code
+        && request.resource.data.name.lower() == resource.data.name.lower() && request.time > resource.data.updated_at + duration.value(50, 's')   // SECURITY H3 (2026-11-17)
+        && request.resource.data.total_min >= resource.data.total_min
+        && request.resource.data.total_min <= resource.data.total_min + 30
+        && periodOk(request.resource.data.week, request.resource.data.week_min, resource.data.week, resource.data.week_min)
+        && periodOk(request.resource.data.day, request.resource.data.day_min, resource.data.day, resource.data.day_min);
+      allow delete: if isAdmin() || ownsClass(resource.data.get('class_code', ''));
+    }
+
+    match /classes/{code}/genius_scores/{docId} {
+      allow read: if true;
+      allow create: if request.resource.data.get('class_code', '') == code && geniusOk(docId, request.resource.data);
+      allow update: if request.resource.data.get('class_code', '') == code && geniusOk(docId, request.resource.data) && request.resource.data.name.lower() == resource.data.name.lower()   // SECURITY H3
+        && request.resource.data.sid == resource.data.sid && request.resource.data.class_code == resource.data.class_code
+        && geniusBetter(request.resource.data, resource.data);
+      allow delete: if isAdmin() || ownsClass(resource.data.get('class_code', ''));
+    }
+
+    // ================= PRIVACY 2026-10-26: anonymous World board =================
+    // world_scores/<game>/runs/<id>: the student's first name and last initial (field `nick`, like "Kayden W."), icon, level,
+    // score and accuracy. No class code. The game is in the path, so "orderBy score" needs no extra index.
+    // (David, 2026-10-29: real names on the World board, no random game names.) "Maestro" is the developer's and is refused here.
+    match /world_scores/{game}/runs/{scoreId} {
+      allow read: if true;
+      allow create: if game.matches('^[a-z0-9_]{2,24}$')
+        && request.resource.data.keys().hasOnly(['level', 'score', 'acc', 'icon', 'nick', 'created_at'])
+        && (!('acc' in request.resource.data) || (request.resource.data.acc is int && request.resource.data.acc >= 0 && request.resource.data.acc <= 100))
+        && request.resource.data.level is string && request.resource.data.level.size() <= 24
+        && request.resource.data.score is number && request.resource.data.score >= 0 && request.resource.data.score <= 100000000
+        && request.resource.data.nick is string && request.resource.data.nick.size() >= 2 && request.resource.data.nick.size() <= 24
+        && !request.resource.data.nick.lower().matches('maestro.*')
+        && iconOk(request.resource.data)
+        && request.resource.data.created_at == request.time;
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+    // ================= Live Class (classroom backchannel, added 2026-11-12; plan: BACKCHANNEL-PLAN.md) =================
+    // Students have no sign-in, so privacy comes from what each kind of record allows:
+    //  - bc_live/<class code>: the class's live screen (question, open or locked, timer, and the spotlight the teacher chose to
+    //    share). Anyone may get it (a student needs the class code); only the class's teacher writes it.
+    //  - bc_live/<code>/reacts/<round>_<sid>: one emoji per student on the spotlight; anyone can read the counts.
+    //  - bc_answers/<random id>: one answer. Anyone may ADD one, only while that question is open (checked); nobody can change
+    //    it except the teacher's mark; only the class's teacher or the admin can read, list or delete. Classmates never read answers.
+    //  - bc_pulse/<key>: one per student device ("I'm lost", confidence 1-5). key = a random 20-character code made by the
+    //    student's browser and kept on that device. Only the class's teacher or the admin reads it.
+    //  - bc_private/<random id>: a private question to the teacher; add only; the teacher may mark it done.
+    //  - bc_reports/<key>: a released report card. Get by its exact key only (only the student's device has it); only the
+    //    class's teacher can list them. The admin's dashboard deletes answers, pulses, private questions and reactions after 90 days.
+    function bcClassFieldsOk(d) {
+      return (!('skills' in d) || (d.skills is list && d.skills.size() <= 20))
+        && (!('bc_goal' in d) || d.bc_goal is map);
+    }
+    function bcClassOk(d) {
+      return d.class_code is string && d.class_code.size() >= 4 && d.class_code.size() <= 7
+        && exists(/databases/$(database)/documents/classes/$(d.class_code))
+        && d.owner is string && d.owner == get(/databases/$(database)/documents/classes/$(d.class_code)).data.ownerEmail;
+    }
+    function bcNameOk(d) {
+      return d.sid is string && d.sid.matches('^[a-z]{2,16}$')
+        && d.name is string && d.name.size() >= 1 && d.name.size() <= 24
+        && !d.name.lower().matches('maestro.*');
+    }
+    function bcKeyOk(k) {
+      return k is string && k.matches('^[a-z0-9]{20}$');
+    }
+    function bcMine(r) {
+      return isAdmin() || (isTeacher() && r.data.owner == request.auth.token.email);
+    }
+    function bcLive(code) {
+      return get(/databases/$(database)/documents/bc_live/$(code)).data;
+    }
+    match /bc_live/{code} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update: if ownsClass(code)
+        && request.resource.data.keys().hasOnly(['round', 'q', 'type', 'opts', 'skills', 'open', 'ends_at', 'spot', 'ks', 'clef', 'game', 'reveal', 'final', 'board', 'updated_at'])
+        && request.resource.data.round is string && request.resource.data.round.matches('^[A-Za-z0-9-]{1,40}$')
+        && request.resource.data.q is string && request.resource.data.q.size() <= 200
+        && request.resource.data.type in ['text', 'mc', 'yn', 'num', 'emoji', 'word']
+        && request.resource.data.open is bool
+        && (!('opts' in request.resource.data) || (request.resource.data.opts is list && request.resource.data.opts.size() <= 6))
+        && (!('skills' in request.resource.data) || (request.resource.data.skills is list && request.resource.data.skills.size() <= 20))
+        && (!('ends_at' in request.resource.data) || request.resource.data.ends_at == null || request.resource.data.ends_at is timestamp)
+        && (!('spot' in request.resource.data) || (request.resource.data.spot is list && request.resource.data.spot.size() <= 2))
+        // ks = a key signature drawn on a staff with the question (Key signature maker, 2026-11-17): -7..7, minus = flats
+        && (!('ks' in request.resource.data) || (request.resource.data.ks is int && request.resource.data.ks >= -7 && request.resource.data.ks <= 7))
+        // clef for that staff (2026-11-17): treble when missing
+        && (!('clef' in request.resource.data) || request.resource.data.clef in ['treble', 'bass', 'alto'])
+        // Showdown (game mode, 2026-11-17): game on/off, the right choice shown only after time is up, the final Curtain call, the top-5 board (name, sid, points)
+        && (!('game' in request.resource.data) || request.resource.data.game is bool)
+        && (!('final' in request.resource.data) || request.resource.data.final is bool)
+        && (!('reveal' in request.resource.data) || request.resource.data.reveal == null || (request.resource.data.reveal is int && request.resource.data.reveal >= 0 && request.resource.data.reveal <= 5))
+        && (!('board' in request.resource.data) || (request.resource.data.board is list && request.resource.data.board.size() <= 5))
+        && request.resource.data.updated_at == request.time;
+      allow delete: if isAdmin() || ownsClass(code);
+
+      match /reacts/{id} {
+        allow read: if true;
+        allow create, update: if request.resource.data.keys().hasOnly(['round', 'to', 'e', 'at'])
+          && request.resource.data.round is string && request.resource.data.round.matches('^[A-Za-z0-9-]{1,40}$')
+          && id.matches(request.resource.data.round + '_[a-z]{2,16}')
+          && request.resource.data.to is int && request.resource.data.to >= 0 && request.resource.data.to <= 1
+          && request.resource.data.e in ['👍', '🤯', '😂', '💡']
+          && request.resource.data.at == request.time;
+        allow delete: if isAdmin() || ownsClass(code);
+      }
+    }
+    match /bc_answers/{id} {
+      allow read: if bcMine(resource);
+      allow create: if request.resource.data.keys().hasOnly(['round', 'class_code', 'owner', 'sid', 'name', 'key', 'type', 'text', 'flag', 'avatar', 'at'])
+        && request.resource.data.keys().hasAll(['round', 'class_code', 'owner', 'sid', 'name', 'key', 'type', 'text', 'at'])
+        && bcClassOk(request.resource.data) && bcNameOk(request.resource.data) && bcKeyOk(request.resource.data.key)
+        && request.resource.data.type in ['text', 'mc', 'yn', 'num', 'emoji', 'word']
+        && request.resource.data.text is string && request.resource.data.text.size() >= 1 && request.resource.data.text.size() <= 280
+        && (!('flag' in request.resource.data) || request.resource.data.flag is bool)
+        && (!('avatar' in request.resource.data) || (request.resource.data.avatar is string && request.resource.data.avatar.size() <= 200))
+        && bcLive(request.resource.data.class_code).open == true
+        && bcLive(request.resource.data.class_code).round == request.resource.data.round
+        && request.resource.data.at == request.time;
+      allow update: if bcMine(resource)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['mark'])
+        && request.resource.data.mark in [0, 0.5, 1];
+      allow delete: if bcMine(resource);
+    }
+    match /bc_pulse/{key} {
+      // I'm lost (2026-11-17): the student's device reads its own doc by its secret key (to see when the teacher cleared it);
+      // a student can turn lost on but only the class's teacher (or the admin) can turn it off.
+      allow get: if true;
+      allow list, delete: if bcMine(resource);
+      allow update: if bcPulseOk(key) && (resource.data.lost == false || request.resource.data.lost == true || bcMine(resource));
+      allow create: if bcPulseOk(key);
+    }
+    function bcPulseOk(key) {
+      return bcKeyOk(key)
+        && request.resource.data.keys().hasOnly(['class_code', 'owner', 'sid', 'name', 'lost', 'conf', 'at'])
+        && request.resource.data.keys().hasAll(['class_code', 'owner', 'sid', 'name', 'lost', 'conf', 'at'])
+        && bcClassOk(request.resource.data) && bcNameOk(request.resource.data)
+        && request.resource.data.lost is bool
+        && request.resource.data.conf is int && request.resource.data.conf >= 1 && request.resource.data.conf <= 5
+        && request.resource.data.at == request.time;
+    }
+    match /bc_private/{id} {
+      // Replies (2026-11-17): a question whose id starts with the device's secret key (<key>_<random>) can be read by that id,
+      // so only that student's device sees the teacher's reply. Older questions (random ids) stay teacher-only.
+      allow get: if bcMine(resource) || id.matches('^' + resource.data.key + '_[a-z0-9]{6,20}$');
+      allow list, delete: if bcMine(resource);
+      allow create: if request.resource.data.keys().hasOnly(['class_code', 'owner', 'sid', 'name', 'key', 'text', 'at'])
+        && request.resource.data.keys().hasAll(['class_code', 'owner', 'sid', 'name', 'key', 'text', 'at'])
+        && bcClassOk(request.resource.data) && bcNameOk(request.resource.data) && bcKeyOk(request.resource.data.key)
+        && request.resource.data.text is string && request.resource.data.text.size() >= 1 && request.resource.data.text.size() <= 280
+        && request.resource.data.at == request.time;
+      allow update: if bcMine(resource)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['done', 'reply', 'reply_at'])
+        && request.resource.data.done is bool
+        && (!('reply' in request.resource.data) || (request.resource.data.reply is string && request.resource.data.reply.size() >= 1 && request.resource.data.reply.size() <= 280))
+        && (!('reply_at' in request.resource.data) || request.resource.data.reply_at == request.time || request.resource.data.reply_at == resource.data.get('reply_at', null));
+    }
+    match /bc_reports/{key} {
+      allow get: if true;   // only the student's device knows the key
+      allow list: if bcMine(resource);
+      allow create, update: if bcKeyOk(key) && ownsClass(request.resource.data.class_code)
+        && request.resource.data.owner == request.auth.token.email
+        && request.resource.data.keys().hasOnly(['class_code', 'owner', 'sid', 'name', 'date', 'level', 'skills', 'comment', 'prev', 'released_at'])
+        && bcNameOk(request.resource.data)
+        && request.resource.data.skills is list && request.resource.data.skills.size() <= 20
+        && (!('comment' in request.resource.data) || (request.resource.data.comment is string && request.resource.data.comment.size() <= 300))
+        && (!('prev' in request.resource.data) || request.resource.data.prev is list)
+        && request.resource.data.released_at == request.time;
+      allow delete: if bcMine(resource);
+    }
+    // ================= Message my teacher (added 2026-11-16) =================
+    // sm_threads/<device key>_<class code> = { class_code, owner, sid, name, key, created_at, last_at, last_from 'student'|'teacher',
+    //   last_text (<=120), unread_teacher, unread_student }: one conversation between a student's device and their teacher.
+    //   The id starts with a random 20-character key that only the student's device knows (the same idea as bc_reports), so a get
+    //   by id is open; only the class's teacher and the admin can list. + msgs/<id> = { from, text 1-300, at }.
+    // A student can write only while their class has sm_on == true and their sid is not in sm_blocked. Teachers only reply
+    // (every conversation starts with the student). The admin's dashboard deletes conversations older than 90 days.
+    function smOpen(code, sid) {
+      let c = get(/databases/$(database)/documents/classes/$(code)).data;
+      return c.get('sm_on', false) == true && !(sid in c.get('sm_blocked', []));
+    }
+    function smTextOk(t, n) {
+      return t is string && t.size() >= 1 && t.size() <= n;
+    }
+    match /sm_threads/{id} {
+      allow get: if true;
+      allow list: if bcMine(resource);
+      allow create: if request.resource.data.keys().hasOnly(['class_code', 'owner', 'sid', 'name', 'key', 'created_at', 'last_at', 'last_from', 'last_text', 'unread_teacher', 'unread_student'])
+        && request.resource.data.keys().hasAll(['class_code', 'owner', 'sid', 'name', 'key', 'created_at', 'last_at', 'last_from', 'last_text', 'unread_teacher', 'unread_student'])
+        && bcClassOk(request.resource.data) && bcNameOk(request.resource.data) && bcKeyOk(request.resource.data.key)
+        && id == request.resource.data.key + '_' + request.resource.data.class_code
+        && smOpen(request.resource.data.class_code, request.resource.data.sid)
+        && request.resource.data.created_at == request.time && request.resource.data.last_at == request.time
+        && request.resource.data.last_from == 'student' && smTextOk(request.resource.data.last_text, 120)
+        && request.resource.data.unread_teacher == 1 && request.resource.data.unread_student == 0;
+      allow update: if
+        // the student's device sends a message
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['last_at', 'last_from', 'last_text', 'unread_teacher', 'unread_student'])
+          && request.resource.data.last_from == 'student' && request.resource.data.last_at == request.time
+          && smTextOk(request.resource.data.last_text, 120)
+          && request.resource.data.unread_teacher == resource.data.unread_teacher + 1 && request.resource.data.unread_student == 0
+          // LIMIT (2026-11-17, a student sent 58 in a row): at most 3 messages until the teacher replies, at least 30 s apart
+          && request.resource.data.unread_teacher <= 3 && request.time > resource.data.last_at + duration.value(30, 's')
+          && smOpen(resource.data.class_code, resource.data.sid))
+        // the student's device read the teacher's replies
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unread_student']) && request.resource.data.unread_student == 0)
+        // the teacher replies
+        || (bcMine(resource)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['last_at', 'last_from', 'last_text', 'unread_teacher', 'unread_student'])
+          && request.resource.data.last_from == 'teacher' && request.resource.data.last_at == request.time
+          && smTextOk(request.resource.data.last_text, 120)
+          && request.resource.data.unread_student == resource.data.unread_student + 1 && request.resource.data.unread_teacher == 0)
+        // the teacher read the student's messages
+        || (bcMine(resource) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unread_teacher']) && request.resource.data.unread_teacher == 0);
+      allow delete: if bcMine(resource);
+      match /msgs/{mid} {
+        allow read: if true;   // only someone who knows the thread id can reach these
+        allow create: if request.resource.data.keys().hasOnly(['from', 'text', 'at']) && request.resource.data.keys().hasAll(['from', 'text', 'at'])
+          && smTextOk(request.resource.data.text, 300) && request.resource.data.at == request.time
+          && ((request.resource.data.from == 'student'
+                && getAfter(/databases/$(database)/documents/sm_threads/$(id)).data.last_at == request.time
+                && getAfter(/databases/$(database)/documents/sm_threads/$(id)).data.last_from == 'student')
+            || (request.resource.data.from == 'teacher'
+                && (isAdmin() || (isTeacher() && get(/databases/$(database)/documents/sm_threads/$(id)).data.owner == request.auth.token.email))));
+        allow update: if false;
+        allow delete: if isAdmin() || (isTeacher() && get(/databases/$(database)/documents/sm_threads/$(id)).data.owner == request.auth.token.email);
+      }
+    }
+    // ================= Replies to feedback (added 2026-11-16) =================
+    // fb_threads/<id>: a conversation between a student and Music Theory Academy (the admin), started by the admin replying to a
+    //   feedback note. id = the student's device key (notes sent since 2026-11-16 carry it) or, for older notes, <class code>_<sid>
+    //   (anyone signed in with that name and class can read it; the admin's reply box warns about that). Get by exact id is open.
+    //   = { name, sid, class_code, note_id, game, created_at, last_at, last_from 'support'|'student', last_text, unread_admin, unread_student }
+    //   + msgs/<id> = { from 'support'|'student', text 1-300, at }.
+    match /fb_threads/{id} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin()
+        // the student answers
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['last_at', 'last_from', 'last_text', 'unread_admin', 'unread_student'])
+          && request.resource.data.last_from == 'student' && request.resource.data.last_at == request.time
+          && smTextOk(request.resource.data.last_text, 120)
+          && request.resource.data.unread_admin == resource.data.unread_admin + 1 && request.resource.data.unread_student == 0
+          && request.resource.data.unread_admin <= 3 && request.time > resource.data.last_at + duration.value(30, 's'))   // LIMIT (2026-11-17)
+        // the student read the replies
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['unread_student']) && request.resource.data.unread_student == 0);
+      allow delete: if isAdmin();
+      match /msgs/{mid} {
+        allow read: if true;
+        allow create: if request.resource.data.keys().hasOnly(['from', 'text', 'at']) && request.resource.data.keys().hasAll(['from', 'text', 'at'])
+          && smTextOk(request.resource.data.text, 300) && request.resource.data.at == request.time
+          && ((request.resource.data.from == 'support' && isAdmin())
+            || (request.resource.data.from == 'student'
+                && getAfter(/databases/$(database)/documents/fb_threads/$(id)).data.last_at == request.time
+                && getAfter(/databases/$(database)/documents/fb_threads/$(id)).data.last_from == 'student'));
+        allow update: if false;
+        allow delete: if isAdmin();
+      }
+    }
+  }
+}
