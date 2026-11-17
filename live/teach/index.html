@@ -148,7 +148,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Music&text=%F0%9D%84%9E&display=swap" rel="stylesheet"><!-- the treble clef on key signature questions -->
+<link href="https://fonts.googleapis.com/css2?family=Noto+Music&text=%F0%9D%84%9E%F0%9D%84%A1%F0%9D%84%A2&display=swap" rel="stylesheet"><!-- the treble clef on key signature questions -->
 <link rel="stylesheet" href="../live.css">
 <!-- Live Class teacher console (added 2026-11-12). Shown inside the All games dashboard's Live tab (?embed=1&code=XXXX),
      or on its own. ?preview=1 = a pretend class kept in this browser; open ../?preview=1 in another tab to be a student. -->
@@ -165,7 +165,7 @@
 <script src="../live-core.js"></script>
 <script>
 (() => {
-const { KS_ORDER, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, BANK, NOW, at, db, results, latest, left, clock, ERR } = LC;
+const { KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, BANK, NOW, at, db, results, latest, left, clock, ERR } = LC;
 const $ = id => document.getElementById(id);
 const app = $('app');
 const EMBED = Q.get('embed') === '1';
@@ -176,7 +176,7 @@ const ago = ms => { const s = Math.round((Date.now() - (ms || Date.now())) / 100
 
 const S = { email: '', classes: [], code: '', live: null, ans: [], pulses: [], priv: [], err: '', confirm: '', sort: 'first', curtain: (() => { try { return localStorage.getItem('mtg_live_curtain_v1') === '1'; } catch (e) { return false; } })(), offs: [], offA: null, round: '',
   comp: { type: 'mc', q: '', opts: ['', '', '', ''], correct: '', timer: 0, skills: [], ks: null }, g: null,
-  ksm: { open: false, minor: false, style: 'name' } };   // the 🎼 Key signature maker (2026-11-17)
+  ksm: { open: false, minor: false, style: 'name', clef: 'treble' } };   // the 🎼 Key signature maker (2026-11-17)
 const TK = () => 'mtg_live_teach_v1:' + S.code;    // the correct answer stays on this computer (the projector reads it)
 const correct = () => { try { const t = JSON.parse(localStorage.getItem(TK()) || 'null'); return t && S.live && t.round === S.live.round ? t.correct || '' : ''; } catch { return ''; } };
 const livePath = () => 'bc_live/' + S.code;
@@ -186,7 +186,8 @@ const GK = () => 'mtg_live_game_v1:' + S.code;
 const G = () => { if (!S.g || S.g.code !== S.code) { let o = null; try { o = JSON.parse(localStorage.getItem(GK()) || 'null'); } catch {} S.g = o && o.scores ? { ...o, code: S.code } : { code: S.code, on: false, scores: {}, qn: 0, starts: {}, done: {} }; } return S.g; };
 const saveG = () => { try { localStorage.setItem(GK(), JSON.stringify(S.g)); } catch {} };
 const GT = 20;   // seconds per game question unless a timer is picked
-function topBoard() { return Object.entries(G().scores).map(([s, x]) => ({ n: x.n, s, p: x.p })).sort((a, b) => b.p - a.p).slice(0, 5); }
+// with 🎭 Hide names on, the class screen's Top 5 and Curtain call say Player 1, 2… instead of names (2026-11-17)
+function topBoard() { return Object.entries(G().scores).map(([s, x]) => ({ n: x.n, s, p: x.p })).sort((a, b) => b.p - a.p).slice(0, 5).map((b, i) => S.curtain ? { ...b, n: 'Player ' + (i + 1) } : b); }
 // score the round from each student's FIRST answer: right = 500 + up to 500 for speed, +100 per right answer in a row after the 2nd
 function scoreRound(L) {
   const g = G(); if (g.done[L.round]) return;
@@ -264,7 +265,7 @@ function roundCard() {
   const L = S.live, A = latest(S.ans), n = recent().length, s = left(L);
   return `<section class="card stack qhead">
     <div class="row between"><span class="label">${esc(TYPES[L.type] || '')}</span><div class="row">${s != null ? `<span class="chip gold">⏱ <span class="mono" id="cd">${clock(s)}</span></span>` : ''}<span class="chip ${L.open ? 'ok' : 'no'}">${L.open ? 'Open' : 'Locked'}</span></div></div>
-    <h2>${esc(L.q)}</h2>${ksStaff(L.ks)}
+    <h2>${esc(L.q)}</h2>${ksStaff(L.ks, '', L.clef)}
     ${L.type === 'mc' ? `<div class="row">${(L.opts || []).map((o, i) => `<span class="chip">${'ABCDEF'[i]}. ${esc(o)}</span>`).join('')}</div>` : ''}
     <div class="row"><b class="mono">${A.length}${n ? ' of ' + Math.max(n, A.length) : ''}</b><span class="muted">answered</span><div class="meter" style="flex:1;min-width:120px"><i style="width:${n ? Math.min(100, 100 * A.length / Math.max(n, A.length)) : 0}%"></i></div></div>
     <div class="row">
@@ -342,7 +343,7 @@ function composerCard() {
     ${S.ksm.open ? ksMaker() : ''}
     <label class="f" for="c-type">Type<select id="c-type">${Object.entries(TYPES).map(([k, v]) => `<option value="${k}" ${c.type === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
     <label class="f" for="c-q">Question<textarea id="c-q" maxlength="200" placeholder="Ask your class something…">${esc(c.q)}</textarea></label>
-    ${c.type === 'mc' && ksOk(c.ks) ? `<div class="row" style="align-items:flex-end">${ksStaff(c.ks)}<button class="btn sm" type="button" data-act="ksclear">✕ Remove staff</button></div>` : ''}
+    ${c.type === 'mc' && ksOk(c.ks) ? `<div class="row" style="align-items:flex-end">${ksStaff(c.ks, '', c.clef)}<button class="btn sm" type="button" data-act="ksclear">✕ Remove staff</button></div>` : ''}
     ${c.type === 'mc' ? `<div class="optgrid">${c.opts.map((o, i) => `<input type="text" id="c-o${i}" data-i="${i}" maxlength="60" value="${esc(o)}" placeholder="Option ${'ABCDEF'[i]}" aria-label="Option ${'ABCDEF'[i]}">`).join('')}</div>${c.opts.length < 6 ? '<button class="btn sm" type="button" data-act="addopt" style="align-self:flex-start">+ Option</button>' : ''}` : ''}
     ${c.type === 'emoji' ? `<p class="muted small" style="margin:0">Students pick ${EMOJIS.join(' ')}</p>` : ''}
     ${corr}
@@ -368,12 +369,12 @@ function askedCard() {
 function studySheet(withKey) {
   const l = asked(); if (!l.length) return;
   const cls = (S.classes.find(c => c.code === S.code) || {}).name || S.code, day = new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
-  const qs = l.map((x, i) => `<li><p class="q">${esc(x.q)}</p>${ksStaff(x.ks)}${x.type === 'mc' && x.opts ? `<ol type="A" class="opts">${x.opts.map(o => `<li>${esc(o)}</li>`).join('')}</ol>`
+  const qs = l.map((x, i) => `<li><p class="q">${esc(x.q)}</p>${ksStaff(x.ks, '', x.clef)}${x.type === 'mc' && x.opts ? `<ol type="A" class="opts">${x.opts.map(o => `<li>${esc(o)}</li>`).join('')}</ol>`
     : x.type === 'yn' ? '<p class="opts">Yes &nbsp;/&nbsp; No</p>' : '<p class="line"></p>'}</li>`).join('');
   const key = l.map((x, i) => { const k = x.type === 'mc' && x.opts ? x.opts.indexOf(x.correct) : -1;
     return `<li>${x.correct ? (k >= 0 ? `<b>${'ABCDEF'[k]}</b> · ` : '') + esc(x.correct) : '<span class="muted">(open answer)</span>'}</li>`; }).join('');
   const w = window.open('', '_blank'); if (!w) { toast('Allow pop-ups for this page, then try again.'); return; }
-  w.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Study sheet · ${esc(cls)} · ${esc(day)}</title><style>
+  w.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><link href="https://fonts.googleapis.com/css2?family=Noto+Music&text=%F0%9D%84%9E%F0%9D%84%A1%F0%9D%84%A2&display=swap" rel="stylesheet"><title>Study sheet · ${esc(cls)} · ${esc(day)}</title><style>
     body{font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:#141d2c;background:#fff;max-width:760px;margin:24px auto;padding:0 20px}
     h1{font-size:26px;margin:0}.sub{color:#5b6784;margin:4px 0 20px}.bar{display:flex;gap:10px;margin:0 0 18px}
     button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 16px;background:#2b5bd7;color:#fff;cursor:pointer}
@@ -391,7 +392,7 @@ function studySheet(withKey) {
 function ksMaker() {
   const m = S.ksm, seg = (act, cur, list) => `<span class="seg">${list.map(([v, l]) => `<button type="button" data-act="${act}" data-v="${v}" aria-pressed="${cur === v}">${l}</button>`).join('')}</span>`;
   return `<div class="stack" style="gap:10px;border:1px solid var(--line2);border-radius:14px;padding:12px">
-    <div class="row">${seg('ksmode', m.minor ? 'minor' : 'major', [['major', 'Major'], ['minor', 'Minor']])}${seg('ksstyle', m.style, [['name', 'Name this key'], ['count', 'How many?']])}</div>
+    <div class="row">${seg('ksmode', m.minor ? 'minor' : 'major', [['major', 'Major'], ['minor', 'Minor']])}${seg('ksstyle', m.style, [['name', 'Name this key'], ['count', 'How many?']])}${m.style === 'name' ? seg('ksclef', m.clef, [['treble', '𝄞 Treble'], ['bass', '𝄢 Bass'], ['alto', '𝄡 Alto']]) : ''}</div>
     <p class="dim small" style="margin:0">${m.style === 'name' ? 'Students see the key signature on a staff and pick the key.' : 'Students pick how many sharps or flats the key has (no staff).'} Tap a key:</p>
     <div class="kskeys">${KS_ORDER.map(n => `<button class="btn" type="button" data-act="kspick" data-v="${n}">${esc(ksName(n, m.minor).replace(/ (major|minor)$/, m.minor ? 'm' : ''))}<small>${n ? Math.abs(n) + (n > 0 ? '♯' : '♭') : '0'}</small></button>`).join('')}</div></div>`;
 }
@@ -419,13 +420,13 @@ async function post() {
   const round = LC.roundId();
   const d = { round, q, type: c.type, skills: (c.skills || []).slice(0, 20), open: true, ends_at: c.timer ? at(Date.now() + c.timer * 1000) : null, spot: [], updated_at: NOW };
   if (c.type === 'mc') d.opts = opts;
-  if (c.type === 'mc' && ksOk(c.ks)) d.ks = c.ks;
+  if (c.type === 'mc' && ksOk(c.ks)) { d.ks = c.ks; if (c.clef === 'bass' || c.clef === 'alto') d.clef = c.clef; }
   if (G().on) { d.game = true; d.reveal = null; d.final = false; d.board = topBoard(); if (!c.timer) d.ends_at = at(Date.now() + GT * 1000); G().qn++; saveG(); }
   try {
     await db.set(livePath(), d);
     try { localStorage.setItem(TK(), JSON.stringify({ round, correct: c.type === 'mc' && !opts.includes(c.correct) ? '' : String(c.correct || '') })); } catch {}
     const okC = c.type === 'mc' && !opts.includes(c.correct) ? '' : String(c.correct || '').slice(0, 60);
-    saveAsked([...asked(), { q, type: c.type, opts: c.type === 'mc' ? opts : null, correct: okC, ks: d.ks != null ? d.ks : null, at: Date.now() }]);
+    saveAsked([...asked(), { q, type: c.type, opts: c.type === 'mc' ? opts : null, correct: okC, ks: d.ks != null ? d.ks : null, clef: d.clef || null, at: Date.now() }]);
     S.comp = { type: c.type, q: '', opts: c.type === 'mc' ? ['', '', '', ''] : c.opts, correct: '', timer: c.timer, skills: [], ks: null };
     S.err = ''; S.confirm = ''; toast('Posted.'); draw();
   } catch (e) { S.err = ERR(e); draw(); }
@@ -490,7 +491,8 @@ app.addEventListener('click', async e => {
   if (act === 'ksopen') { S.ksm.open = !S.ksm.open; draw(); return; }
   if (act === 'ksmode') { S.ksm.minor = t.dataset.v === 'minor'; draw(); return; }
   if (act === 'ksstyle') { S.ksm.style = t.dataset.v; draw(); return; }
-  if (act === 'kspick') { const q = ksQuestion(Number(t.dataset.v), S.ksm.minor, S.ksm.style); S.comp = { ...q, timer: S.comp.timer }; toast('Question filled in. Check it, then Post.'); draw(); return; }
+  if (act === 'ksclef') { S.ksm.clef = t.dataset.v; draw(); return; }
+  if (act === 'kspick') { const q = ksQuestion(Number(t.dataset.v), S.ksm.minor, S.ksm.style, S.ksm.clef); S.comp = { ...q, timer: S.comp.timer }; toast('Question filled in. Check it, then Post.'); draw(); return; }
   if (act === 'ksclear') { S.comp.ks = null; draw(); return; }
   if (!L) return;
   if (act === 'lock') { if (L.game && L.open) return gameLock(L); return upd(L.open ? { open: false, ends_at: null, reveal: revealIdx(L) } : { open: true, ends_at: null, reveal: null }); }
@@ -499,6 +501,7 @@ app.addEventListener('click', async e => {
   if (act === 'pickClose') { S.pick = null; draw(); return; }
   if (act === 'curtain') { S.curtain = !S.curtain; try { localStorage.setItem('mtg_live_curtain_v1', S.curtain ? '1' : '0'); } catch (e) {}
     if (S.curtain && L && (L.spot || []).some(x => x.n)) upd({ spot: L.spot.map(x => ({ id: x.id, n: '', t: x.t })) });   // names come off the projector too
+    if (L && L.game && (L.board || []).length) upd({ board: topBoard() });   // and off the Top 5 / Curtain call
     draw(); return; }
   if (act === 'spot') {
     const a = S.ans.find(x => x.id === t.dataset.id); if (!a) return;

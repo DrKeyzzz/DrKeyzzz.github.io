@@ -112,12 +112,20 @@ window.LC = (() => {
   const ksY = p => 170 - p * 10;
   const SHARP = '<path d="M-4 -17V15M4 -15V17" stroke-width="2.2"/><path d="M-9 -3 9 -8M-9 8 9 3" stroke-width="4.5"/>';
   const FLAT = '<path d="M-5 -24V8" stroke-width="2.4"/><path d="M-5 8C4 3 10 -2 7 -6 4 -9-2 -6-5 -2" stroke-width="3.2"/>';
-  function ksStaff(n, label) {
+  // Clefs (2026-11-17, David): treble, bass or alto. A key signature sits 2 steps lower in bass clef and 1 lower in alto (as in Scale Quest).
+  const KS_CLEFS = { treble: { sh: 0, name: 'Treble' }, bass: { sh: -2, name: 'Bass' }, alto: { sh: -1, name: 'Alto' } };
+  const clefOk = c => c === 'treble' || c === 'bass' || c === 'alto';
+  const CLEF_SVG = {
+    treble: `<text x="16" y="${170 - 2 * 10 + 13}" font-size="86" fill="#1d2433" style="font-family:'Noto Music','Apple Symbols','Segoe UI Symbol',serif">𝄞</text>`,
+    bass: `<text x="14" y="${170 - 2 * 10 - 3}" font-size="76" fill="#1d2433" style="font-family:'Noto Music','Apple Symbols','Segoe UI Symbol',serif">𝄢</text>`,
+    alto: `<text x="14" y="${170 - 2 * 10 + 1}" font-size="80" fill="#1d2433" style="font-family:'Noto Music','Apple Symbols','Segoe UI Symbol',serif">𝄡</text>` };
+  function ksStaff(n, label, clef) {
     if (!ksOk(n)) return '';
+    const C = clefOk(clef) ? clef : 'treble', sh = KS_CLEFS[C].sh;
     const lines = [2, 4, 6, 8, 10].map(p => `<line x1="6" x2="250" y1="${ksY(p)}" y2="${ksY(p)}" stroke="#1d2433" stroke-width="1.6"/>`).join('');
     let acc = '';
-    for (let i = 0; i < Math.abs(n); i++) acc += `<g transform="translate(${88 + i * 20} ${ksY((n > 0 ? SHARP_POS : FLAT_POS)[i])}) scale(.9)" fill="none" stroke="#1d2433">${n > 0 ? SHARP : FLAT}</g>`;
-    return `<div class="ksbox"><svg viewBox="0 30 256 172" role="img" aria-label="${esc(label || 'Key signature: ' + ksCount(n).toLowerCase())}">${lines}<line x1="6" x2="6" y1="${ksY(10)}" y2="${ksY(2)}" stroke="#1d2433" stroke-width="1.6"/><text x="14" y="${ksY(2) + 17}" font-size="104" fill="#1d2433" style="font-family:'Noto Music','Apple Symbols','Segoe UI Symbol',serif">𝄞</text>${acc}</svg></div>`;
+    for (let i = 0; i < Math.abs(n); i++) acc += `<g transform="translate(${88 + i * 20} ${ksY((n > 0 ? SHARP_POS : FLAT_POS)[i] + sh)}) scale(.9)" fill="none" stroke="#1d2433">${n > 0 ? SHARP : FLAT}</g>`;
+    return `<div class="ksbox"><svg viewBox="0 30 256 172" role="img" aria-label="${esc(label || KS_CLEFS[C].name + ' clef, key signature: ' + ksCount(n).toLowerCase())}">${lines}<line x1="6" x2="6" y1="${ksY(10)}" y2="${ksY(2)}" stroke="#1d2433" stroke-width="1.6"/>${CLEF_SVG[C]}${acc}</svg></div>`;
   }
   const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
   // Wrong choices that catch real mistakes: one accidental more or less, the same number of the other accidental,
@@ -127,16 +135,16 @@ window.LC = (() => {
     return (minor ? [{ n, minor: false }] : []).concat(near.concat(far).filter(ksOk).map(k => ({ n: k, minor })));
   }
   // style 'name' = the staff is shown, pick the key; 'count' = no staff, pick how many sharps or flats
-  function ksQuestion(n, minor, style) {
+  function ksQuestion(n, minor, style, clef) {
     const kind = minor ? 'minor' : 'major';
     if (style === 'count') {
       const right = ksCount(n), wrong = [];
       for (const k of ksNear(n, false)) { const t = ksCount(k.n); if (t !== right && !wrong.includes(t)) wrong.push(t); if (wrong.length === 3) break; }
-      return { type: 'mc', q: `How many sharps or flats are in ${ksName(n, minor)}?`, opts: shuffle([right, ...wrong]), correct: right, skills: ['keys'], ks: null };
+      return { type: 'mc', q: `How many sharps or flats are in ${ksName(n, minor)}?`, opts: shuffle([right, ...wrong]), correct: right, skills: ['keys'], ks: null, clef: 'treble' };
     }
     const right = ksName(n, minor), wrong = [];
     for (const k of ksNear(n, minor)) { const t = ksName(k.n, k.minor); if (t !== right && !wrong.includes(t)) wrong.push(t); if (wrong.length === 3) break; }
-    return { type: 'mc', q: `This is the key signature for which ${kind} key?`, opts: shuffle([right, ...wrong]), correct: right, skills: ['keys'], ks: n };
+    return { type: 'mc', q: `This is the key signature for which ${kind} key?`, opts: shuffle([right, ...wrong]), correct: right, skills: ['keys'], ks: n, clef: clefOk(clef) ? clef : 'treble' };
   }
 
   // ---------- results (teacher console and projector; counts only, never names) ----------
@@ -177,5 +185,5 @@ window.LC = (() => {
   const clock = s => s == null ? '' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const ERR = e => { const c = String(e && (e.code || e.message) || e); return /permission/i.test(c) ? 'Live Class is not switched on yet (the new database rules are not in place).' : /offline|unavailable|timeout/i.test(c) ? 'No connection. Check the wifi and try again.' : 'Something went wrong: ' + c; };
 
-  return { KS_ORDER, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, BANK, NOW, at, newKey, roundId, flagged, db, fbAuth, results, latest, left, clock, ERR };
+  return { KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, BANK, NOW, at, newKey, roundId, flagged, db, fbAuth, results, latest, left, clock, ERR };
 })();

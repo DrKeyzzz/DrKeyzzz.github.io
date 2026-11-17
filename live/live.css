@@ -189,3 +189,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); }
 .sd-split > .card { padding: 18px; }
 .sd-split .sd-row { padding: 6px 12px; }
 @media (max-width: 800px) { .sd-split { grid-template-columns: 1fr; } .proj.sd-fit { height: auto; overflow: visible; } }
+
+/* the A B C D letter sits above the answer, never on top of it (2026-11-17) */
+.sd-key { padding-top: 34px; }
+.sd-split .sd-key { min-height: 0; }
