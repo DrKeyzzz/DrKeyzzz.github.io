@@ -145,10 +145,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Live Class · Teacher</title>
 <meta name="robots" content="noindex">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Music&text=%F0%9D%84%9E%F0%9D%84%A1%F0%9D%84%A2&display=swap" rel="stylesheet"><!-- the treble clef on key signature questions -->
+<link href="/fonts/fonts.css" rel="stylesheet">
+<!-- fonts.css has Noto Music for the treble clef on key signature questions -->
 <link rel="stylesheet" href="../live.css">
 <!-- Live Class teacher console (added 2026-11-12). Shown inside the All games dashboard's Live tab (?embed=1&code=XXXX),
      or on its own. ?preview=1 = a pretend class kept in this browser; open ../?preview=1 in another tab to be a student. -->
@@ -377,7 +375,7 @@ function studySheet(withKey) {
   const key = l.map((x, i) => { const k = x.type === 'mc' && x.opts ? x.opts.indexOf(x.correct) : -1;
     return `<li>${x.correct ? (k >= 0 ? `<b>${'ABCDEF'[k]}</b> · ` : '') + esc(x.correct) : '<span class="muted">(open answer)</span>'}</li>`; }).join('');
   const w = window.open('', '_blank'); if (!w) { toast('Allow pop-ups for this page, then try again.'); return; }
-  w.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><link href="https://fonts.googleapis.com/css2?family=Noto+Music&text=%F0%9D%84%9E%F0%9D%84%A1%F0%9D%84%A2&display=swap" rel="stylesheet"><title>Study sheet · ${esc(cls)} · ${esc(day)}</title><style>
+  w.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><link href="${location.origin}/fonts/fonts.css" rel="stylesheet"><title>Study sheet · ${esc(cls)} · ${esc(day)}</title><style>
     body{font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:#141d2c;background:#fff;max-width:760px;margin:24px auto;padding:0 20px}
     h1{font-size:26px;margin:0}.sub{color:#5b6784;margin:4px 0 20px}.bar{display:flex;gap:10px;margin:0 0 18px}
     button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 16px;background:#2b5bd7;color:#fff;cursor:pointer}

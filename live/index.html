@@ -145,10 +145,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Live Class · Music Theory Academy</title>
 <meta name="description" content="Answer your teacher's questions live in class. Only your teacher sees your answers.">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Music&text=%F0%9D%84%9E%F0%9D%84%A1%F0%9D%84%A2&display=swap" rel="stylesheet"><!-- the treble clef on key signature questions -->
+<link href="/fonts/fonts.css" rel="stylesheet">
+<!-- fonts.css has Noto Music for the treble clef on key signature questions -->
 <link rel="stylesheet" href="live.css">
 <!-- Live Class, student page and ?screen=1 projector (added 2026-11-12). Shared code: live-core.js; teacher console: teach/. -->
 </head>
@@ -405,7 +403,7 @@ function mySheet() {
       <p class="me">Your answer: <b>${x.mine ? esc(x.mine) : '<i>no answer</i>'}</b> ${ok ? '<span class="tag g">✓ Right</span>' : bad ? '<span class="tag r">✗ Not quite</span>' : ''}</p>
       ${bad ? `<p class="me">Right answer: <b>${esc(x.right)}</b></p>` : ''}</li>`; }).join('');
   const w = window.open('', '_blank'); if (!w) { toast('Allow pop-ups for this page, then try again.'); return; }
-  w.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><link href="https://fonts.googleapis.com/css2?family=Noto+Music&text=%F0%9D%84%9E%F0%9D%84%A1%F0%9D%84%A2&display=swap" rel="stylesheet"><title>My answers · ${esc(p.className || code)}</title><style>
+  w.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><link href="${location.origin}/fonts/fonts.css" rel="stylesheet"><title>My answers · ${esc(p.className || code)}</title><style>
     body{font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:#141d2c;background:#fff;max-width:760px;margin:24px auto;padding:0 20px}
     h1{font-size:26px;margin:0}.sub{color:#5b6784;margin:4px 0 20px}button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 16px;background:#2b5bd7;color:#fff;cursor:pointer;margin-bottom:16px}
     ol.qs>li{margin:0 0 16px;padding:8px 12px;border-left:4px solid #d5dae6;break-inside:avoid}ol.qs>li.ok{border-color:#2e9e5b}ol.qs>li.bad{border-color:#d0453a}
