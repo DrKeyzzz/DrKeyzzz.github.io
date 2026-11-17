@@ -293,6 +293,14 @@ const code = p.classCode, sid = sidOf(p), name = nameOf(p);
 const LK = 'mtg_bc_v1:' + sid;
 const loadMe = () => { try { const o = JSON.parse(localStorage.getItem(LK) || 'null'); if (o && /^[a-z0-9]{20}$/.test(o.key)) return o; } catch {} return { key: LC.newKey(), lost: false, conf: 3, hist: [], react: null }; };
 const ME = loadMe();
+// Private questions with the teacher's reply (2026-11-17, David: "i want to be able to answer private questions"). Each question's id
+// starts with this device's secret key, so only this device (and the teacher) can read the reply. The last 5 stay on this device.
+const PQ = {};   // id -> live copy of the question (with reply)
+function pqWatch() { (ME.pq || []).forEach(q => { if (PQ[q.id] !== undefined) return; PQ[q.id] = null; db.watchDoc('bc_private/' + q.id, d => { PQ[q.id] = d; draw(); }, () => {}); }); }
+function pqList() {
+  const L = (ME.pq || []).filter(q => q.code === code).slice(-5).reverse(); if (!L.length) return '';
+  return `<ul class="pqlist">${L.map(q => { const d = PQ[q.id]; return `<li><p class="q">${esc(q.text)}</p>${d && d.reply ? `<p class="rep"><b>Your teacher:</b> ${esc(d.reply)}</p>` : `<p class="dim small" style="margin:0">${d && d.done ? 'Your teacher saw this.' : 'Waiting for your teacher…'}</p>`}</li>`; }).join('')}</ul>`;
+}
 const saveMe = () => { try { localStorage.setItem(LK, JSON.stringify(ME)); } catch {} };
 saveMe();
 const S = { live: null, draft: '', draftRound: '', busy: false, err: '', loaded: false };
@@ -304,6 +312,7 @@ function pulse() {
 // I'm lost (2026-11-17, David: "they are going nuts with it"): one tap turns it on; only the teacher can clear it. The student's
 // own pulse doc (read by its secret key) says when the teacher cleared it. The first look decides before joining, so an old
 // "lost" from last time isn't sent again after the teacher already cleared it.
+pqWatch();   // replies to this device's private questions
 let pulsed = false;
 db.watchDoc('bc_pulse/' + ME.key, d => {
   if (d && d.lost === false && ME.lost) { ME.lost = false; saveMe(); draw(); }
@@ -381,7 +390,7 @@ function helpCard() {
     <button type="button" class="btn lost ${ME.lost ? 'on' : ''}" id="lost" aria-pressed="${!!ME.lost}"${ME.lost ? ' disabled' : ''}>${ME.lost ? '😵 Your teacher knows. They\'ll clear it when they\'ve helped.' : '🙋 I\'m lost'}</button>
     <label class="f" for="conf">How sure do you feel? <b class="mono" style="color:var(--ink)" id="confv">${ME.conf} / 5</b><input type="range" id="conf" min="1" max="5" value="${ME.conf}"></label>
     <p class="dim small" style="margin:0">Only your teacher sees these.</p></section>
-  <section class="card stack"><h3>Ask your teacher privately</h3><textarea id="pq" maxlength="280" rows="3" placeholder="Nobody else will see this."></textarea><button type="button" class="btn" id="sendpq">Send privately</button></section>`;
+  <section class="card stack"><h3>Ask your teacher privately</h3>${pqList()}<textarea id="pq" maxlength="280" rows="3" placeholder="Nobody else will see this."></textarea><button type="button" class="btn" id="sendpq">Send privately</button></section>`;
 }
 function draw() {
   const a = document.activeElement, keep = a && a.id ? { id: a.id, s: a.selectionStart, e: a.selectionEnd } : null;
@@ -427,7 +436,11 @@ app.addEventListener('click', async e => {
   if (t.id === 'sendpq') {
     const v = $('pq').value.trim().slice(0, 280); if (!v) return;
     t.disabled = true;
-    try { await db.add('bc_private', { ...base(), key: ME.key, text: v, at: NOW }); $('pq').value = ''; toast('Sent to your teacher only.'); }
+    try {
+      const id = ME.key + '_' + LC.newKey().slice(0, 12);
+      await db.set('bc_private/' + id, { ...base(), key: ME.key, text: v, at: NOW }); $('pq').value = ''; toast('Sent to your teacher only.');
+      ME.pq = (ME.pq || []).concat({ id, code, text: v, at: Date.now() }).slice(-10); saveMe(); pqWatch(); draw();
+    }
     catch (er) { S.err = ERR(er); draw(); }
     t.disabled = false;
   }

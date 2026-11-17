@@ -325,7 +325,9 @@ function inboxCard() {
   const open = L.filter(x => !x.done).length;
   return `<section class="card stack"><h3>Private questions ${open ? `<span class="chip no">${open} new</span>` : ''}</h3>
     ${L.length ? L.map(x => `<div class="ans" style="${x.done ? 'opacity:.55' : ''}"><header><b style="flex:1">${esc(hidName(x))}</b><span class="t">${ago(x.at)}</span></header><p class="txt" style="font-size:15px">${esc(x.text)}</p>
-      <footer>${x.done ? '<span class="chip ok">Done</span>' : `<button class="btn sm" type="button" data-act="done" data-id="${esc(x.id)}">✓ Done</button>`}<button class="btn sm" type="button" data-act="pdel" data-id="${esc(x.id)}" aria-label="Delete">🗑</button></footer></div>`).join('') : '<p class="muted empty small">Questions students send privately show up here.</p>'}</section>`;
+      ${x.reply ? `<p class="small" style="margin:4px 0 0"><b>You replied:</b> ${esc(x.reply)}</p>` : ''}
+      ${S.replyTo === x.id ? `<div class="stack" style="gap:6px;margin-top:6px"><textarea id="prep" maxlength="280" rows="2" placeholder="Only ${esc(hidName(x))} sees your reply"></textarea><div class="row"><button class="btn sm pri" type="button" data-act="psend" data-id="${esc(x.id)}">Send reply</button><button class="btn sm" type="button" data-act="pcancel">Cancel</button></div></div>` : ''}
+      <footer>${S.replyTo === x.id || !/^[a-z0-9]{20}_/.test(x.id) ? '' : `<button class="btn sm" type="button" data-act="preply" data-id="${esc(x.id)}">↩ ${x.reply ? 'Reply again' : 'Reply'}</button>`}${x.done ? '<span class="chip ok">Done</span>' : `<button class="btn sm" type="button" data-act="done" data-id="${esc(x.id)}">✓ Done</button>`}<button class="btn sm" type="button" data-act="pdel" data-id="${esc(x.id)}" aria-label="Delete">🗑</button></footer></div>`).join('') : '<p class="muted empty small">Questions students send privately show up here.</p>'}</section>`;
 }
 function composerCard() {
   const c = S.comp;
@@ -462,6 +464,13 @@ app.addEventListener('click', async e => {
   if (act === 'csv') return csv();
   if (act === 'sim') return simulate();
   if (act === 'done') return db.update('bc_private/' + t.dataset.id, { done: true }).catch(er => { S.err = ERR(er); draw(); });
+  if (act === 'preply') { S.replyTo = t.dataset.id; draw(); setTimeout(() => { const ta = $('prep'); if (ta) ta.focus(); }, 30); return; }
+  if (act === 'pcancel') { S.replyTo = ''; draw(); return; }
+  if (act === 'psend') {   // reply to a private question (2026-11-17): only that student's device reads it
+    const v = ($('prep') || {}).value ? $('prep').value.trim().slice(0, 280) : ''; if (!v) return;
+    try { await db.update('bc_private/' + t.dataset.id, { reply: v, reply_at: NOW, done: true }); S.replyTo = ''; toast('Reply sent. Only that student sees it.'); } catch (er) { S.err = ERR(er); }
+    draw(); return;
+  }
   if (act === 'pdel') return db.del('bc_private/' + t.dataset.id).catch(er => { S.err = ERR(er); draw(); });
 });
 app.addEventListener('input', e => {
