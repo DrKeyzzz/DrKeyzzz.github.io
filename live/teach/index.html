@@ -270,7 +270,7 @@ function roundCard() {
     <div class="row"><b class="mono">${A.length}${n ? ' of ' + Math.max(n, A.length) : ''}</b><span class="muted">answered</span><div class="meter" style="flex:1;min-width:120px"><i style="width:${n ? Math.min(100, 100 * A.length / Math.max(n, A.length)) : 0}%"></i></div></div>
     <div class="row">
       <button class="btn ${L.open ? 'pri' : ''}" type="button" data-act="lock" title="${L.open ? 'Stop answers and show the results and the correct answer on the class screen' : 'Let students answer again'}">${L.open ? '👁 Lock &amp; reveal' : '🔓 Unlock answers'}</button>
-      <button class="btn" type="button" data-act="timer" data-v="30">⏱ 30s</button><button class="btn" type="button" data-act="timer" data-v="60">1 min</button><button class="btn" type="button" data-act="timer" data-v="120">2 min</button>
+      <button class="btn" type="button" data-act="timer" data-v="15">⏱ 15s</button><button class="btn" type="button" data-act="timer" data-v="30">30s</button><button class="btn" type="button" data-act="timer" data-v="60">1 min</button><button class="btn" type="button" data-act="timer" data-v="120">2 min</button>
       ${(L.spot || []).length ? '<button class="btn" type="button" data-act="spotClear">Clear spotlight</button>' : ''}
       <button class="btn" type="button" data-act="csv">Download CSV</button>
       ${S.confirm === 'end' ? '<button class="btn warn" type="button" data-act="end">End and clear the screen?</button>' : '<button class="btn warn" type="button" data-act="confirm" data-v="end">End question</button>'}
@@ -347,7 +347,7 @@ function composerCard() {
     ${c.type === 'mc' ? `<div class="optgrid">${c.opts.map((o, i) => `<input type="text" id="c-o${i}" data-i="${i}" maxlength="60" value="${esc(o)}" placeholder="Option ${'ABCDEF'[i]}" aria-label="Option ${'ABCDEF'[i]}">`).join('')}</div>${c.opts.length < 6 ? '<button class="btn sm" type="button" data-act="addopt" style="align-self:flex-start">+ Option</button>' : ''}` : ''}
     ${c.type === 'emoji' ? `<p class="muted small" style="margin:0">Students pick ${EMOJIS.join(' ')}</p>` : ''}
     ${corr}
-    <label class="f" for="c-timer">Timer<select id="c-timer"><option value="0">No timer</option>${[30, 60, 120, 300].map(t => `<option value="${t}" ${+c.timer === t ? 'selected' : ''}>${t < 60 ? t + ' seconds' : t / 60 + ' minute' + (t > 60 ? 's' : '')}</option>`).join('')}</select></label>
+    <label class="f" for="c-timer">Timer<select id="c-timer"><option value="0">No timer</option>${[15, 30, 60, 120, 300].map(t => `<option value="${t}" ${+c.timer === t ? 'selected' : ''}>${t < 60 ? t + ' seconds' : t / 60 + ' minute' + (t > 60 ? 's' : '')}</option>`).join('')}</select></label>
     ${G().on ? `<p class="muted small" style="margin:0">🏁 Showdown: multiple choice with a correct answer; ${GT} seconds unless you pick a timer.</p>` : ''}
     <button class="btn pri" type="button" data-act="post">Post question</button>
     <p class="dim small" style="margin:0">Posting replaces the current question on every screen.</p></section>`;
