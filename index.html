@@ -1200,6 +1200,49 @@ render(); refreshClass(); tipIds();
 })();
 </script>
 
+<script>
+// Brainwaves card: electric pulses hop neuron to neuron over the brain picture (like the Brainwaves brain page), trails and flashes.
+(() => {
+  const cv = document.querySelector('.bw-sparks'); if (!cv || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const img = cv.nextElementSibling, cx = cv.getContext('2d'), COLS = ['#7c8cff', '#ff6fd8', '#3ee8f0', '#ffc85c', '#7dffb0', '#ff8a5c'];
+  let W = 0, H = 0, N = [], P = [], F = [], on = true, last = 0;
+  function layout() {
+    const r = cv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1); W = r.width; H = r.height;
+    cv.width = W * dpr; cv.height = H * dpr; cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    // neurons scattered over the picture itself (it's centered and contained in the box)
+    const ir = img.getBoundingClientRect(), ox = ir.left - r.left, oy = ir.top - r.top, iw = ir.width || W, ih = ir.height || H;
+    N = Array.from({ length: 42 }, () => { const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random());
+      return { x: ox + iw * (.5 + Math.cos(a) * d * .36), y: oy + ih * (.47 + Math.sin(a) * d * .3) }; });
+    N.forEach(n => { n.nb = N.filter(m => m !== n).sort((a, b) => Math.hypot(a.x - n.x, a.y - n.y) - Math.hypot(b.x - n.x, b.y - n.y)).slice(0, 4); });
+    P = Array.from({ length: 22 }, spawn);
+  }
+  function spawn() { const a = N[Math.random() * N.length | 0]; return { a, b: a.nb[Math.random() * a.nb.length | 0], t: Math.random(), v: .9 + Math.random() * 1.1, c: COLS[Math.random() * COLS.length | 0], tr: [] }; }
+  function frame(now) {
+    if (!on) return; requestAnimationFrame(frame);
+    const dt = Math.min(.05, (now - (last || now)) / 1000); last = now;
+    cx.clearRect(0, 0, W, H); cx.lineCap = 'round';
+    for (const p of P) {
+      p.t += dt * p.v * 1.6;
+      if (p.t >= 1) { F.push({ x: p.b.x, y: p.b.y, c: p.c, life: 1 }); p.a = p.b; p.b = p.a.nb[Math.random() * p.a.nb.length | 0]; p.t = 0; if (Math.random() < .25) p.c = COLS[Math.random() * COLS.length | 0]; }
+      const x = p.a.x + (p.b.x - p.a.x) * p.t, y = p.a.y + (p.b.y - p.a.y) * p.t;
+      p.tr.push([x, y]); if (p.tr.length > 18) p.tr.shift();
+      for (let k = 1; k < p.tr.length; k++) { cx.strokeStyle = p.c; cx.globalAlpha = k / p.tr.length * .8; cx.lineWidth = 1.5 + k / p.tr.length * 3;
+        cx.beginPath(); cx.moveTo(p.tr[k - 1][0], p.tr[k - 1][1]); cx.lineTo(p.tr[k][0], p.tr[k][1]); cx.stroke(); }
+      cx.globalAlpha = 1; cx.shadowColor = p.c; cx.shadowBlur = 16; cx.fillStyle = '#fff'; cx.beginPath(); cx.arc(x, y, 3.2, 0, 7); cx.fill(); cx.shadowBlur = 0;
+    }
+    F = F.filter(f => (f.life -= dt * 2.2) > 0);
+    for (const f of F) { cx.globalAlpha = f.life; cx.fillStyle = f.c; cx.shadowColor = f.c; cx.shadowBlur = 24; cx.beginPath(); cx.arc(f.x, f.y, 4 + (1 - f.life) * 9, 0, 7); cx.fill(); }
+    cx.globalAlpha = 1; cx.shadowBlur = 0;
+  }
+  const go = () => { layout(); last = 0; requestAnimationFrame(frame); };
+  if (img.complete) go(); else img.addEventListener('load', go);
+  addEventListener('resize', () => layout());
+  // only run while the card is on screen and the tab is visible
+  new IntersectionObserver(([e]) => { const was = on; on = e.isIntersecting && !document.hidden; if (on && !was) { last = 0; requestAnimationFrame(frame); } }).observe(cv);
+  document.addEventListener('visibilitychange', () => { const was = on; on = !document.hidden; if (on && !was) { last = 0; requestAnimationFrame(frame); } });
+})();
+</script>
+<script src="msg/student-msg.js" defer></script>
 <!-- MTG_TIME start: identical in every game, only data-mount / data-place change. Master copy: Music Games/shared/mtg-time.snippet.html -->
 <script id="mtg-time" data-mount=".topbar" data-place="prepend">
 /* Practice time box (added 2026-10-16). Shows "Today: N min" (every game added together) and "All time" with a
@@ -1570,12 +1613,16 @@ render(); refreshClass(); tipIds();
     if (kind === 'week') rows = rows.filter(function(r){ return r.v > 0 || r.me; });
     rows.sort(function(a, b){ return b.v - a.v || (a.me ? -1 : b.me ? 1 : a.name < b.name ? -1 : 1); });
     var lim = kind === 'world' ? 10 : 60, top = rows.slice(0, lim), html = '';
-    var line = function(r, i){ var t = tierOf(r.total); return '<li' + (r.me ? ' class="me"' : '') + '><span class="r">' + (i == null ? '–' : i + 1) + '</span><span aria-hidden="true">' + (t.ic || '·') + '</span><span class="n">' + esc(r.name) + (r.me ? '<em>You</em>' : '') + '</span><span class="v">' + fmt(r.v) + '</span></li>'; };
+    var line = function(r, i){ var t = tierOf(r.total); return '<li' + (r.me ? ' class="me"' : '') + (r.id ? ' data-avd="' + esc(r.id) + '"' : '') + '><span class="r">' + (i == null ? '–' : i + 1) + '</span><span aria-hidden="true">' + (t.ic || '·') + '</span><span class="n">' + esc(r.name) + (r.me ? '<em>You</em>' : '') + '</span><span class="v">' + fmt(r.v) + '</span></li>'; };
     top.forEach(function(r, i){ html += line(r, i); });
     if (mine && top.indexOf(mine) < 0) html += '<li class="gap" aria-hidden="true">⋯</li>' + line(mine, rows.indexOf(mine) >= lim ? null : rows.indexOf(mine));
     return html || '<li class="gap">No practice time yet. Play any game to get on the board!</li>';
   }
   var TABS = [['class', 'My class'], ['world', 'World'], ['week', 'This week']];
+  // each player's avatar head before the name (2026-11-17, David): the board's doc ids are '<class code or none>_<sid>', the same as the avatar docs.
+  // MTGAvatar.badge reads each avatar once and keeps it 10 minutes; nothing shows for players without an avatar or when avatars are off.
+  function avHeads(list){ if (!window.MTGAvatar || !MTGAvatar.badge) return; Array.prototype.forEach.call(list.querySelectorAll('li[data-avd]'), function(li){
+    var id = li.getAttribute('data-avd'), k = id.indexOf('_'), n = li.querySelector('.n'); if (k > 0 && n) MTGAvatar.badge(n, id.slice(0, k), id.slice(k + 1), 22); }); }
   function renderBoard(host, opts){
     host.classList.add('mtgtm-board');
     var s = stats();
@@ -1594,7 +1641,7 @@ render(); refreshClass(); tipIds();
       foot.textContent = kind === 'world' ? 'The top 10 in every class.' : kind === 'week' ? 'Minutes since Monday in ' + (s.cls ? s.cls.name : 'your class') + '.' : 'All-time practice in ' + (s.cls ? s.cls.name : 'your class') + '.';
       if (kind !== 'world' && !s.cls) { list.innerHTML = '<li class="gap">Join a class to see your class board. Add your class code on the home page.</li>'; return; }
       list.innerHTML = '<li class="gap">Loading…</li>';
-      loadRows(kind, s).then(function(rows){ if (host._tab === kind) list.innerHTML = boardRows(kind, rows, s); })
+      loadRows(kind, s).then(function(rows){ if (host._tab === kind) { list.innerHTML = boardRows(kind, rows, s); avHeads(list); } })
         .catch(function(e){ console.warn('[practice time] board:', e && (e.code || e.message)); if (host._tab === kind) list.innerHTML = '<li class="gap">Couldn\'t load the leaderboard. Check your internet connection and try again.</li>'; });
     };
     var tabs = host.querySelector('.mtgtm-tabs');
@@ -1667,49 +1714,6 @@ render(); refreshClass(); tipIds();
 })();
 </script>
 <!-- MTG_TIME end -->
-<script>
-// Brainwaves card: electric pulses hop neuron to neuron over the brain picture (like the Brainwaves brain page), trails and flashes.
-(() => {
-  const cv = document.querySelector('.bw-sparks'); if (!cv || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const img = cv.nextElementSibling, cx = cv.getContext('2d'), COLS = ['#7c8cff', '#ff6fd8', '#3ee8f0', '#ffc85c', '#7dffb0', '#ff8a5c'];
-  let W = 0, H = 0, N = [], P = [], F = [], on = true, last = 0;
-  function layout() {
-    const r = cv.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1); W = r.width; H = r.height;
-    cv.width = W * dpr; cv.height = H * dpr; cx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // neurons scattered over the picture itself (it's centered and contained in the box)
-    const ir = img.getBoundingClientRect(), ox = ir.left - r.left, oy = ir.top - r.top, iw = ir.width || W, ih = ir.height || H;
-    N = Array.from({ length: 42 }, () => { const a = Math.random() * Math.PI * 2, d = Math.sqrt(Math.random());
-      return { x: ox + iw * (.5 + Math.cos(a) * d * .36), y: oy + ih * (.47 + Math.sin(a) * d * .3) }; });
-    N.forEach(n => { n.nb = N.filter(m => m !== n).sort((a, b) => Math.hypot(a.x - n.x, a.y - n.y) - Math.hypot(b.x - n.x, b.y - n.y)).slice(0, 4); });
-    P = Array.from({ length: 22 }, spawn);
-  }
-  function spawn() { const a = N[Math.random() * N.length | 0]; return { a, b: a.nb[Math.random() * a.nb.length | 0], t: Math.random(), v: .9 + Math.random() * 1.1, c: COLS[Math.random() * COLS.length | 0], tr: [] }; }
-  function frame(now) {
-    if (!on) return; requestAnimationFrame(frame);
-    const dt = Math.min(.05, (now - (last || now)) / 1000); last = now;
-    cx.clearRect(0, 0, W, H); cx.lineCap = 'round';
-    for (const p of P) {
-      p.t += dt * p.v * 1.6;
-      if (p.t >= 1) { F.push({ x: p.b.x, y: p.b.y, c: p.c, life: 1 }); p.a = p.b; p.b = p.a.nb[Math.random() * p.a.nb.length | 0]; p.t = 0; if (Math.random() < .25) p.c = COLS[Math.random() * COLS.length | 0]; }
-      const x = p.a.x + (p.b.x - p.a.x) * p.t, y = p.a.y + (p.b.y - p.a.y) * p.t;
-      p.tr.push([x, y]); if (p.tr.length > 18) p.tr.shift();
-      for (let k = 1; k < p.tr.length; k++) { cx.strokeStyle = p.c; cx.globalAlpha = k / p.tr.length * .8; cx.lineWidth = 1.5 + k / p.tr.length * 3;
-        cx.beginPath(); cx.moveTo(p.tr[k - 1][0], p.tr[k - 1][1]); cx.lineTo(p.tr[k][0], p.tr[k][1]); cx.stroke(); }
-      cx.globalAlpha = 1; cx.shadowColor = p.c; cx.shadowBlur = 16; cx.fillStyle = '#fff'; cx.beginPath(); cx.arc(x, y, 3.2, 0, 7); cx.fill(); cx.shadowBlur = 0;
-    }
-    F = F.filter(f => (f.life -= dt * 2.2) > 0);
-    for (const f of F) { cx.globalAlpha = f.life; cx.fillStyle = f.c; cx.shadowColor = f.c; cx.shadowBlur = 24; cx.beginPath(); cx.arc(f.x, f.y, 4 + (1 - f.life) * 9, 0, 7); cx.fill(); }
-    cx.globalAlpha = 1; cx.shadowBlur = 0;
-  }
-  const go = () => { layout(); last = 0; requestAnimationFrame(frame); };
-  if (img.complete) go(); else img.addEventListener('load', go);
-  addEventListener('resize', () => layout());
-  // only run while the card is on screen and the tab is visible
-  new IntersectionObserver(([e]) => { const was = on; on = e.isIntersecting && !document.hidden; if (on && !was) { last = 0; requestAnimationFrame(frame); } }).observe(cv);
-  document.addEventListener('visibilitychange', () => { const was = on; on = !document.hidden; if (on && !was) { last = 0; requestAnimationFrame(frame); } });
-})();
-</script>
-<script src="msg/student-msg.js" defer></script>
 <!-- MTG_FEEDBACK start: identical in every game, only data-game changes. Master copy: Music Games/shared/mtg-feedback.snippet.html -->
 <script id="mtg-feedback" data-game="hub">
 (function(){
