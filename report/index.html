@@ -1283,6 +1283,82 @@ boot();
 .mav-btn.ghost{background:transparent;color:#eef1fb;border-color:#34407a}
 .mav-dlg button:focus-visible{outline:3px solid #ffc85c;outline-offset:2px}
 @media (max-width:640px){.mav-wrap{flex-direction:column;padding:14px;gap:10px}.mav-left{flex:none;flex-direction:row;flex-wrap:wrap}.mav-big{height:150px;flex:0 0 120px}.mav-left .mav-btn{flex:1}.mav-lab{flex-basis:84px}}
+/* ---- THE LOCKER (Store redesign, 2026-11-16, David 'go with your picks'): full screen, stage, rarity cards, Shop tab, buy bar, reveal ---- */
+.mav-dlg{max-width:100vw;width:100vw;height:100vh;height:100dvh;max-height:100dvh;margin:0;border-radius:0;background:radial-gradient(120% 90% at 18% 30%,#24307a 0,#121842 45%,#0b0f24 100%);overflow:hidden}
+.mav-wrap{height:100%;max-height:none;gap:16px;padding:14px 18px 0}
+.mav-left{flex:0 0 min(36%,420px);position:relative;align-items:center;justify-content:flex-end;padding-bottom:14px;gap:8px;min-height:0}
+.mav-stage{position:relative;flex:1;width:100%;min-height:0;display:flex;align-items:flex-end;justify-content:center;overflow:hidden}
+.mav-beam{position:absolute;top:-25%;left:50%;width:80%;height:120%;transform:translateX(-50%);background:conic-gradient(from 180deg at 50% 0%,transparent 160deg,rgba(255,240,200,.15) 172deg,rgba(255,240,200,.24) 180deg,rgba(255,240,200,.15) 188deg,transparent 200deg);animation:mav-beam 6s ease-in-out infinite alternate;pointer-events:none}
+@keyframes mav-beam{from{transform:translateX(-52%) rotate(-3deg)}to{transform:translateX(-48%) rotate(3deg)}}
+.mav-big{background:none;border-radius:0;height:auto;width:min(100%,340px);aspect-ratio:100/120;max-height:100%;position:relative}
+.mav-big svg{width:100%;height:100%}
+.mav-big.pose{animation:mav-pose .7s cubic-bezier(.3,1.6,.5,1)}
+@keyframes mav-pose{0%{transform:scale(.96)}50%{transform:scale(1.05) translateY(-3%)}100%{transform:none}}
+.mav-lo{display:flex;gap:6px}
+.mav-lo button{font:inherit;font-weight:900;font-size:13px;color:#eef1fb;background:rgba(10,14,40,.6);border:2px solid rgba(255,255,255,.2);border-radius:12px;padding:6px 10px;cursor:pointer}
+.mav-lo button small{font-weight:700;color:#9aa3c7;margin-left:4px}
+.mav-lo .mav-los{padding:6px 7px;font-size:12px;margin-left:-4px}
+.mav-leftbtns{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.mav-leftbtns .mav-btn{min-height:36px;padding:6px 12px;font-size:13px}
+.mav-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mav-right h2{font-size:28px;font-weight:900;letter-spacing:1px;text-shadow:0 3px 0 rgba(0,0,0,.35)}
+.mav-top .mav-wallet{margin:0 0 0 auto}
+.mav-wallet span{background:rgba(0,0,0,.35);border-color:rgba(255,255,255,.15);font-size:15px;font-weight:800}
+.mav-top .mav-btn{min-height:40px;padding:8px 16px}
+.mav-tabs{flex-wrap:nowrap;overflow-x:auto;gap:8px;margin:10px 0 6px;padding-bottom:4px;scrollbar-width:none}
+.mav-tab{flex:none;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:72px;border:2px solid transparent;background:rgba(255,255,255,.07);border-radius:14px;padding:7px 9px;font-size:11.5px;font-weight:900;text-transform:uppercase;letter-spacing:.4px;color:#dfe5ff}
+.mav-tab i{font-style:normal;font-size:22px;line-height:1.1}
+.mav-tab.on{background:linear-gradient(#ffd25a,#ffb020);color:#2a1a00;border-color:#fff3c4;box-shadow:0 4px 0 #b97800}
+.mav-rows{padding:2px 2px 96px}
+.mav-grid{grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px}
+.mav-card{position:relative;font:inherit;color:#fff;border:0;padding:0;border-radius:16px;overflow:hidden;aspect-ratio:3/4;cursor:pointer;text-align:left;background:var(--c1);box-shadow:inset 0 0 0 2px rgba(255,255,255,.18),0 6px 14px rgba(0,0,0,.35);transition:transform .12s}
+.mav-card:hover{transform:translateY(-3px) scale(1.02)}
+.mav-card.try{box-shadow:inset 0 0 0 3px #fff,0 0 0 3px var(--c2),0 10px 24px rgba(0,0,0,.45)}
+.mav-card.on{box-shadow:inset 0 0 0 3px #5cf0a0,0 6px 14px rgba(0,0,0,.35)}
+.mav-cbg{position:absolute;inset:0;background:radial-gradient(90% 70% at 50% 35%,var(--c2) 0,var(--c1) 70%)}
+.mav-cbg::after{content:'';position:absolute;inset:0;background:repeating-conic-gradient(from 0deg at 50% 38%,rgba(255,255,255,.07) 0 10deg,transparent 10deg 20deg)}
+.mav-pic{position:absolute;left:8%;right:8%;top:7%;height:60%;display:flex;align-items:center;justify-content:center}
+.mav-pic img{max-width:78%;max-height:88%;filter:drop-shadow(0 6px 8px rgba(0,0,0,.4))}
+.mav-pic .av{height:100%;aspect-ratio:100/120}.mav-pic .av svg{width:100%;height:100%}.mav-pic .mav-emo{font-size:46px}
+.mav-lbl{position:absolute;left:0;right:0;bottom:0;padding:6px 9px 8px;background:linear-gradient(transparent,rgba(0,0,0,.55) 30%)}
+.mav-lbl b{display:block;font-size:13.5px;line-height:1.15;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.mav-lbl small{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;opacity:.85}
+.mav-pr{position:absolute;top:7px;right:7px;background:rgba(0,0,0,.55);border-radius:999px;padding:2px 8px;font-weight:900;font-size:12.5px}
+.mav-ctag{position:absolute;top:7px;left:7px;border-radius:6px;padding:1px 6px;font-weight:900;font-size:10px;letter-spacing:.5px;background:#2fbf71}
+.mav-ctag.eq{background:#fff;color:#111}.mav-ctag.lk{background:#111}.mav-ctag.new{background:#ff4d6d}
+.mav-card.big{aspect-ratio:auto;min-height:230px}.mav-card.big .mav-lbl b{font-size:21px}
+.mav-feat{display:grid;grid-template-columns:1.3fr 1fr;gap:10px}
+.mav-h{display:flex;align-items:baseline;gap:10px;margin:10px 0 8px;font-size:20px;font-weight:900;letter-spacing:.5px}
+.mav-h small{color:#ffb020;font-size:12.5px;font-weight:900;letter-spacing:0}
+.r-common{--c1:#3b4256;--c2:#6c7690}.r-rare{--c1:#173b8a;--c2:#3d8bff}.r-epic{--c1:#3d1677;--c2:#a45cff}.r-legendary{--c1:#7a3b00;--c2:#ffb020}
+.mav-tryrow{position:absolute;right:18px;bottom:14px;left:calc(min(36%,420px) + 34px);z-index:3}
+.mav-try{margin:0;background:rgba(14,18,48,.94);border:2px solid var(--c2,#ffc85c);border-radius:18px;padding:10px 12px 10px 16px;box-shadow:0 10px 30px rgba(0,0,0,.5);animation:mav-up .25s cubic-bezier(.3,1.4,.5,1)}
+@keyframes mav-up{from{transform:translateY(120%)}to{transform:none}}
+.mav-try b{font-size:18px}.mav-try small{color:#a8b3d6;font-weight:700}
+.mav-try .mav-btn{background:linear-gradient(#5cf0a0,#2fbf71);color:#063;font-weight:900;font-size:16px;box-shadow:0 4px 0 #1b7a45}
+.mav-need{color:#ffb020;font-weight:800}
+.mav-rev{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;background:radial-gradient(circle at 50% 45%,rgba(255,255,255,.12),rgba(5,7,20,.93) 60%);overflow:hidden}
+.mav-rev:empty{display:none}
+.mav-rev .mav-card{width:220px;flex:none;animation:mav-flip .9s cubic-bezier(.3,1.3,.5,1)}
+@keyframes mav-flip{0%{transform:rotateY(180deg) scale(.4)}60%{transform:rotateY(-12deg) scale(1.08)}100%{transform:none}}
+.mav-rev h3{margin:0;font-size:40px;font-weight:900;color:#ffb020;text-shadow:0 4px 0 rgba(0,0,0,.4);letter-spacing:1px}
+.mav-flash{position:absolute;inset:0;background:#fff;opacity:0;animation:mav-flash .5s ease-out;pointer-events:none}
+@keyframes mav-flash{0%{opacity:.85}100%{opacity:0}}
+.mav-conf{position:absolute;top:-14px;width:10px;height:14px;animation:mav-fall linear forwards;pointer-events:none}
+@keyframes mav-fall{to{transform:translateY(110vh) rotate(720deg)}}
+@media (max-width:760px){
+  .mav-wrap{flex-direction:column;padding:10px 12px 0;gap:6px}
+  .mav-left{flex:0 0 auto;height:34vh;flex-direction:column;flex-wrap:nowrap;padding-bottom:4px}
+  .mav-big{width:auto;height:100%;flex:none}
+  .mav-leftbtns .mav-btn{flex:none}
+  .mav-right h2{font-size:18px}
+  .mav-top{gap:6px}.mav-top .mav-sub{display:none}.mav-top .mav-btn{min-height:34px;padding:5px 12px;font-size:13px}.mav-top>.mav-btn.ghost{margin-left:auto}.mav-top .mav-wallet+.mav-btn.ghost{margin-left:0}
+  .mav-leftbtns .mav-btn{min-height:30px;padding:4px 9px;font-size:12px}.mav-lo button{padding:4px 8px;font-size:12px}
+  .mav-feat{grid-template-columns:1fr}
+  .mav-grid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px}
+  .mav-tryrow{left:10px;right:10px;bottom:10px}
+}
+@media (prefers-reduced-motion:reduce){.mav-dlg *{animation:none!important;transition:none!important}}
 /* ---- the avatar on the game (perch, 2026-11-16): sits on the game's card or sign; legs swing, jumps on a right answer, slips on a miss ---- */
 .mav-perch{position:fixed;z-index:40;transform-origin:50% 77%;transition:transform .25s;-webkit-tap-highlight-color:transparent;pointer-events:none}
 .mav-perch .head,.mav-perch .root>path{pointer-events:auto;cursor:pointer}   /* only the head and body take a tap (opens the Store); legs never block the game */
@@ -1945,17 +2021,47 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   var key = function(it){ return it.slot + ':' + it.id; };
   var RANK_ITEMS = { 'gear:baton': 8, 'bg:wreath': 9 };   // rank index that unlocks them
   var owns = function(it){ var k = key(it); return !!it.free || (it.enc && (W.encores || 0) >= it.enc) || W.owned.indexOf(k) >= 0 || (RANK_ITEMS[k] != null && rankNow() >= RANK_ITEMS[k]) || masteredGear(k); };
-  var TABS = [['look', 'Look'], ['outfit', 'Skins'], ['clothes', 'Clothes'], ['hat', 'Hats'], ['gear', 'Gear'], ['moves', 'Moves'], ['bg', 'Backdrops'], ['pet', 'Pets'], ['rank', 'Rank']];
+  var TABS = [['shop', 'Shop', '🛒'], ['look', 'Look', '🙂'], ['outfit', 'Skins', '🦸'], ['clothes', 'Clothes', '👕'], ['hat', 'Hats', '🎩'], ['gear', 'Gear', '🎺'], ['moves', 'Moves', '🕺'], ['bg', 'Backdrops', '🌌'], ['pet', 'Pets', '🐾'], ['rank', 'Rank', '🏆']];
+  // THE LOCKER (2026-11-16). Rarity follows the price (no randomness): Common < 60 coins, Rare 60-149, Epic 150+ coins or points, Legendary 1000+ points / earned items.
+  function rarity(it){ if (it.free) return 'common'; if (it.lock || it.enc || (it.p && it.p >= 1000)) return 'legendary'; if (it.p || (it.c && it.c >= 150)) return 'epic'; return it.c >= 60 ? 'rare' : 'common'; }
+  var RN = { common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' };
+  var buyable = function(it){ return !it.free && !it.lock && !it.enc && !!(it.c || it.p); };
+  function thumb(it){
+    if (it.art) return '<img src="' + ART + it.art + '.png" alt="" loading="lazy">';
+    if (it.id === 'none') return '<span class="mav-emo">' + it.ic + '</span>';
+    var L = Object.assign({}, draft, { gear: 'none', pet: 'none', bg: 'none', outfit: 'none' }); L[it.slot] = it.id;
+    var mv = /^(happy|dance)$/.test(it.slot);
+    return '<span class="av" data-idle="' + (it.slot === 'idle' ? it.id : 'bounce') + '"' + (mv ? ' data-act="' + it.id + '"' : '') + '>' + avatar(clean(L), { crop: it.slot === 'hat' ? 1 : 0, label: it.name }) + '</span>';
+  }
+  function daySeed(){ var d = new Date(); return d.getFullYear() * 400 + d.getMonth() * 32 + d.getDate(); }
+  function todays(skip){   // Today's Shop: the same 6 items for everyone on a given day, new ones at midnight
+    var pool = ITEMS.filter(function(it){ return buyable(it) && key(it) !== skip; }), out = [], sd = daySeed(), n = 0;
+    while (out.length < Math.min(6, pool.length) && n++ < 400) { sd = (sd * 9301 + 49297) % 233280; var it = pool[Math.floor(sd / 233280 * pool.length)]; if (out.indexOf(it) < 0) out.push(it); }
+    return out;
+  }
+  function featured(){ var pool = ITEMS.filter(function(it){ return buyable(it) && /epic|legendary/.test(rarity(it)); }), wk = Math.floor(Date.now() / 6048e5); return pool[wk % pool.length]; }
+  function untilMidnight(){ var n = new Date(), m = new Date(n); m.setHours(24, 0, 0, 0); var x = Math.floor((m - n) / 1000); return Math.floor(x / 3600) + 'h ' + Math.floor(x % 3600 / 60) + 'm ' + (x % 60) + 's'; }
+  // Loadouts A/B/C: three saved outfits on this device (guests: only for this visit)
+  var LOK = 'mtg_avatar_lo_v1:' + (SID || 'guest'), LO = [null, null, null];
+  try { if (P) { var lo0 = JSON.parse(localStorage.getItem(LOK) || 'null'); if (Array.isArray(lo0) && lo0.length === 3) LO = lo0; } } catch(e){}
+  function saveLO(){ if (!P) return; try { localStorage.setItem(LOK, JSON.stringify(LO)); } catch(e){} }
+  function loHtml(){ return LO.map(function(o, i){ return '<button type="button" data-lo="' + i + '" title="' + (o ? 'Wear outfit ' + 'ABC'[i] : 'Save what you are wearing as outfit ' + 'ABC'[i]) + '">' + 'ABC'[i] + '<small>' + (o ? 'wear' : '+ save') + '</small></button>' + (o ? '<button type="button" class="mav-los" data-losave="' + i + '" title="Save what you are wearing over outfit ' + 'ABC'[i] + '">💾</button>' : ''); }).join(''); }
+  // quiet sounds (Web Audio): a click on tabs and cards, a chime when something is unlocked
+  var sac = null;
+  function tone(f, t, d, v){ try { sac = sac || new (window.AudioContext || window.webkitAudioContext)(); var o = sac.createOscillator(), g = sac.createGain(), n = sac.currentTime + t; o.frequency.value = f; g.gain.setValueAtTime(0, n); g.gain.linearRampToValueAtTime(v, n + .01); g.gain.exponentialRampToValueAtTime(.0001, n + d); o.connect(g).connect(sac.destination); o.start(n); o.stop(n + d + .05); } catch(e){} }
+  function tick(){ tone(880, 0, .05, .02); }
+  function chime(){ [523, 659, 784, 1047].forEach(function(f, i){ tone(f, i * .08, .5, .05); }); }
   var MOVE_SLOTS = [['idle', 'Standing still'], ['happy', 'Right answer'], ['dance', 'End of a run']];   // a miss always gets the friendly shrug (David, 2026-11-16: no 'missed' moves for sale)
   var LOOKROWS = [
     ['Skin', 'skin', 'swatch', SKIN], ['Face', 'face'], ['Eyes', 'eyes'], ['Brows', 'brows'], ['Nose', 'nose'], ['Mouth', 'mouth'],
     ['Hair', 'hair'], ['Hair color', 'hairC', 'swatch', HAIRC], ['Beard', 'beard'], ['Head covering', 'cover'], ['Glasses', 'glasses'],
   ];
   var CLOTHROWS = [['Top color', 'topC', 'swatch', TOPC], ['Pants', 'pantC', 'swatch', PANTC]];
-  var dlg = null, draft = null, tab = 'look', trying = null, note = '';
+  var dlg = null, draft = null, tab = 'shop', trying = null, note = '', clockT = 0;
   function drawWallet(){ var c = dlg.querySelector('.mav-c'), p = dlg.querySelector('.mav-p'); if (c) c.textContent = W.coins.toLocaleString(); if (p) p.textContent = W.points.toLocaleString(); }
   function shown(){ var L = Object.assign({}, draft); if (trying) L[trying.slot] = trying.id; return L; }
-  function drawBig(){ var L = shown(), big = dlg.querySelector('.mav-big'); big.innerHTML = avatar(L, { label: 'Your avatar', rank: rankNow() }); big.dataset.idle = L.idle; }
+  function drawBig(pose){ var L = shown(), big = dlg.querySelector('.mav-big'); big.innerHTML = avatar(L, { label: 'Your avatar', rank: rankNow() }); big.dataset.idle = L.idle;
+    if (pose) { big.classList.remove('pose'); void big.offsetWidth; big.classList.add('pose'); } }
   function play(move){ var big = dlg.querySelector('.mav-big'); delete big.dataset.act; void big.offsetWidth; big.dataset.act = move; setTimeout(function(){ delete big.dataset.act; }, LEN[move] || 1000); }
   function rowsHtml(rows){
     return rows.map(function(r){
@@ -1966,15 +2072,23 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     }).join('');
   }
   function price(it){ return it.c ? it.c + ' 🪙' : it.p ? it.p.toLocaleString() + ' ★' : ''; }
-  function card(it){
-    var on = draft[it.slot] === it.id, have = owns(it), t = trying && key(trying) === key(it);
-    var tag = on ? '<span class="mav-tag on">Wearing</span>' : have ? '<span class="mav-tag">Yours</span>' : it.enc ? '<span class="mav-tag lock">🎭 ' + it.enc + '</span>' : it.lock ? '<span class="mav-tag lock">🔒</span>' : '<span class="mav-tag price">' + price(it) + '</span>';
-    return '<button type="button" class="mav-item' + (on ? ' on' : '') + (t ? ' try' : '') + (it.lock && !have ? ' locked' : '') + '" data-item="' + key(it) + '" title="' + (it.lock && !have ? 'How to get it: ' + it.lock : it.name) + '">'
-      + '<span class="mav-ic" aria-hidden="true">' + (it.art ? '<img src="' + ART + it.art + '.png" alt="" width="34" height="34" loading="lazy">' : it.ic) + '</span><span class="mav-in">' + it.name + '</span>' + tag + '</button>';
+  function card(it, big){
+    var on = draft[it.slot] === it.id, have = owns(it), t = trying && key(trying) === key(it), r = rarity(it);
+    var tag = on ? '<span class="mav-ctag eq">EQUIPPED</span>' : have ? (it.free ? '' : '<span class="mav-ctag">OWNED</span>') : it.enc ? '<span class="mav-ctag lk">🎭 ENCORE ' + it.enc + '</span>' : it.lock ? '<span class="mav-ctag lk">🔒 MASTERY</span>' : '';
+    var pr = have || it.lock || it.enc ? '' : '<span class="mav-pr">' + (it.c ? '🪙 ' + it.c : '★ ' + it.p.toLocaleString()) + '</span>';
+    return '<button type="button" class="mav-card r-' + r + (big ? ' big' : '') + (on ? ' on' : '') + (t ? ' try' : '') + '" data-item="' + key(it) + '" title="' + (it.lock && !have ? 'How to get it: ' + it.lock : it.name) + '">'
+      + '<span class="mav-cbg"></span><span class="mav-pic">' + thumb(it) + '</span>' + tag + pr + '<span class="mav-lbl"><b>' + it.name + '</b><small>' + RN[r] + '</small></span></button>';
   }
   function itemsOf(slot){ return ITEMS.filter(function(it){ return it.slot === slot; }); }
   function tabHtml(){
     if (tab === 'look') return rowsHtml(LOOKROWS);
+    if (tab === 'shop') {
+      var f = featured(), brass = ['trumpet', 'trombone', 'horn', 'tuba'], got = brass.filter(function(id){ return W.owned.indexOf('gear:' + id) >= 0; }).length;
+      return '<div class="mav-h">FEATURED <small>this week</small></div><div class="mav-feat">' + (f ? card(f, 1) : '')
+        + '<button type="button" class="mav-card big r-epic" data-tab="gear"><span class="mav-cbg"></span><span class="mav-pic" style="flex-wrap:wrap;gap:4px">' + brass.map(function(id){ var it = ITEMS.filter(function(x){ return x.slot === 'gear' && x.id === id; })[0]; return it && it.art ? '<img src="' + ART + it.art + '.png" alt="" style="max-width:42%;max-height:44%">' : ''; }).join('') + '</span>'
+        + '<span class="mav-ctag new">COLLECTION</span><span class="mav-lbl"><b>Brass Section</b><small>' + got + ' of 4 collected · see Gear</small></span></button></div>'
+        + '<div class="mav-h">TODAY’S SHOP <small class="mav-clock">New items in ' + untilMidnight() + '</small></div><div class="mav-grid">' + todays(f && key(f)).map(function(x){ return card(x); }).join('') + '</div>';
+    }
     if (tab === 'rank') {
       if (!P) return '<p class="mav-sub">Sign in to climb the ranks. Every right answer and finished run counts.</p>';
       var r = rankNow(), x = xpNow() - (W.encXP || 0), m = mastered();
@@ -1996,19 +2110,21 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   function tryHtml(){
     if (note) return '<div class="mav-try"><span>' + note + '</span></div>';
     if (!trying || owns(trying)) return '';
-    var it = trying;
-    if (it.enc) return '<div class="mav-try"><b>' + it.ic + ' ' + it.name + '</b> is yours after Encore ' + encMark(it.enc) + ' (reach the top rank and take a bow).</div>';
-    if (it.lock) return '<div class="mav-try"><b>' + it.ic + ' ' + it.name + '</b> is earned, not bought: ' + it.lock + '.</div>';
-    if (!P) return '<div class="mav-try"><b>' + it.ic + ' ' + it.name + '</b> · ' + price(it) + '. Sign in to earn coins and points and buy it.</div>';
+    var it = trying, r = rarity(it), head = '<span><b>' + it.name + '</b><br><small>' + RN[r] + ' · ';
+    var wrap = function(inner){ return '<div class="mav-try r-' + r + '">' + inner + '</div>'; };
+    if (it.enc) return wrap(head + 'yours after Encore ' + encMark(it.enc) + ' (reach the top rank and take a bow)</small></span>');
+    if (it.lock) return wrap(head + 'earned, not bought: ' + it.lock + '</small></span>');
+    if (!P) return wrap(head + price(it) + '</small></span><span class="mav-need">Sign in to earn coins and points</span>');
     var have = it.c ? W.coins : W.points, need = (it.c || it.p) - have;
-    return '<div class="mav-try"><span><b>' + it.ic + ' ' + it.name + '</b> · ' + price(it) + '</span>'
-      + (need > 0 ? '<span class="mav-need">You need ' + need.toLocaleString() + (it.c ? ' more coins. Keep playing!' : ' more points. Keep going!') + '</span>'
-        : '<button type="button" class="mav-btn" data-do="buy">Buy for ' + price(it) + '</button>') + '</div>';
+    return wrap(head + price(it) + '</small></span>'
+      + (need > 0 ? '<span class="mav-need">Need ' + need.toLocaleString() + (it.c ? ' more coins' : ' more points') + '</span>'
+        : '<button type="button" class="mav-btn" data-do="buy">Buy · ' + price(it) + '</button>'));
   }
   function render(){
-    dlg.querySelector('.mav-tabs').innerHTML = TABS.map(function(t){ return '<button type="button" class="mav-tab' + (t[0] === tab ? ' on' : '') + '" data-tab="' + t[0] + '" aria-pressed="' + (t[0] === tab) + '">' + t[1] + '</button>'; }).join('');
+    dlg.querySelector('.mav-tabs').innerHTML = TABS.map(function(t){ return '<button type="button" class="mav-tab' + (t[0] === tab ? ' on' : '') + '" data-tab="' + t[0] + '" aria-pressed="' + (t[0] === tab) + '"><i aria-hidden="true">' + t[2] + '</i>' + t[1] + '</button>'; }).join('');
+    var lo = dlg.querySelector('.mav-lo'); if (lo) lo.innerHTML = loHtml();
     dlg.querySelector('.mav-rows').innerHTML = tabHtml();
-    dlg.querySelector('.mav-tryrow').innerHTML = tryHtml();
+    var tr = dlg.querySelector('.mav-tryrow'); tr.innerHTML = tryHtml(); var tb = tr.firstChild; if (tb && trying) tb.style.setProperty('--c2', { common: '#6c7690', rare: '#3d8bff', epic: '#a45cff', legendary: '#ffb020' }[rarity(trying)]);
     drawBig(); drawWallet();
   }
   function buy(it){
@@ -2018,7 +2134,15 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     W.owned.push(key(it)); draft[it.slot] = it.id; trying = null;
     look[it.slot] = it.id;   // a new item goes on right away (and stays on after Cancel)
     lookDirty = true; saveLocal(); drawAll(); clearTimeout(sendT); sendT = setTimeout(sendNow, 3000);
-    note = '🎉 <b>' + it.name + '</b> is yours!'; render(); play(look.happy); note = '';
+    render(); play(look.happy); reveal(it);
+  }
+  function reveal(it){   // the purchase moment: the card flips in, a flash, confetti and a chime
+    var rv = dlg.querySelector('.mav-rev');
+    rv.innerHTML = '<div class="mav-flash"></div>' + card(it) + '<h3>UNLOCKED!</h3><button type="button" class="mav-btn" data-do="revok">Awesome!</button>';
+    var cols = ['#ffb020', '#a45cff', '#3d8bff', '#ff4d6d', '#5cf0a0', '#fff'];
+    for (var i = 0; i < 60; i++) { var c = document.createElement('span'); c.className = 'mav-conf'; c.style.left = Math.random() * 100 + '%'; c.style.background = cols[i % 6];
+      c.style.animationDuration = (1.4 + Math.random() * 1.6) + 's'; c.style.animationDelay = Math.random() * .4 + 's'; rv.appendChild(c); }
+    chime();
   }
   function openBuilder(){
     if (!dlg) {
@@ -2026,12 +2150,15 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       document.body.appendChild(dlg);
       dlg.addEventListener('click', function(e){
         var b = e.target.closest('button'); if (!b) { if (e.target === dlg) dlg.close(); return; }
-        if (b.dataset.tab) { tab = b.dataset.tab; trying = null; render(); return; }
+        if (b.dataset.do === 'revok') { dlg.querySelector('.mav-rev').innerHTML = ''; return; }
+        if (b.dataset.tab) { tick(); tab = b.dataset.tab; trying = null; render(); dlg.querySelector('.mav-rows').scrollTop = 0; return; }
+        if (b.dataset.lo) { tick(); var i = +b.dataset.lo; if (LO[i]) { draft = wearOwned(clean(Object.assign({}, LO[i]))); trying = null; drawBig(1); } else { LO[i] = Object.assign({}, draft); saveLO(); } render(); return; }
+        if (b.dataset.losave) { tick(); LO[+b.dataset.losave] = Object.assign({}, draft); saveLO(); render(); return; }
         if (b.dataset.k) { var k = b.dataset.k; draft[k] = typeof DEF[k] === 'number' ? +b.dataset.v : b.dataset.v; render(); return; }
         if (b.dataset.item) {
           var it = ITEMS.filter(function(x){ return key(x) === b.dataset.item; })[0]; if (!it) return;
-          if (owns(it)) { draft[it.slot] = it.id; trying = null; } else trying = it;   // not yours yet: try it on
-          render();
+          tick(); if (owns(it)) { draft[it.slot] = it.id; trying = null; } else trying = it;   // not yours yet: try it on
+          render(); drawBig(1);
           if (/^(idle|happy|aww|dance)$/.test(it.slot) && it.slot !== 'idle') play(it.id);
           return;
         }
@@ -2050,15 +2177,16 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       });
     }
     draft = Object.assign({}, look); trying = null; note = '';
-    dlg.innerHTML = '<div class="mav-wrap"><div class="mav-left"><div class="mav-big av"></div>'
-      + '<button type="button" class="mav-btn ghost" data-do="try">▶ Try a move</button><button type="button" class="mav-btn ghost" data-do="random">🎲 Random look</button>'
-      + (PERCH.length ? '<button type="button" class="mav-btn ghost" data-do="perch" title="Show your avatar sitting on the game, or only in the corner">' + perchLabel() + '</button>' : '') + '</div>'
-      + '<div class="mav-right"><h2>Your avatar</h2>'
-      + (P ? '<div class="mav-wallet"><span title="Coins: 1 for every minute you play, up to 60 a day">🪙 <b class="mav-c"></b> coins</span><span title="Points: right answers and finished runs; harder levels pay more">★ <b class="mav-p"></b> points</span></div>'
-           : '<p class="mav-sub">Guest avatar: <b>sign in to keep it</b> and to earn coins and points for the Store.</p>')
+    dlg.innerHTML = '<div class="mav-wrap"><div class="mav-left"><div class="mav-stage"><div class="mav-beam"></div><div class="mav-big av"></div></div>'
+      + '<div class="mav-lo" aria-label="Saved outfits"></div><div class="mav-leftbtns"><button type="button" class="mav-btn ghost" data-do="try">▶ Try a move</button><button type="button" class="mav-btn ghost" data-do="random">🎲 Random look</button>'
+      + (PERCH.length ? '<button type="button" class="mav-btn ghost" data-do="perch" title="Show your avatar sitting on the game, or only in the corner">' + perchLabel() + '</button>' : '') + '</div></div>'
+      + '<div class="mav-right"><div class="mav-top"><h2>THE LOCKER</h2>'
+      + (P ? '<div class="mav-wallet"><span title="Coins: 1 for every minute you play, up to 60 a day">🪙 <b class="mav-c"></b></span><span title="Points: right answers and finished runs; harder levels pay more">★ <b class="mav-p"></b></span></div>'
+           : '<p class="mav-sub" style="margin:0 0 0 auto">Guest: <b>sign in to keep it</b> and earn coins and points.</p>')
+      + '<button type="button" class="mav-btn ghost" data-do="close">Cancel</button><button type="button" class="mav-btn" data-do="save">Save</button></div>'
       + '<div class="mav-tabs" role="toolbar" aria-label="Store sections"></div>'
-      + '<div class="mav-rows"></div><div class="mav-tryrow" aria-live="polite"></div>'
-      + '<div class="mav-acts"><button type="button" class="mav-btn ghost" data-do="close">Cancel</button><button type="button" class="mav-btn" data-do="save">Save</button></div></div></div>';
+      + '<div class="mav-rows"></div></div></div><div class="mav-tryrow" aria-live="polite"></div><div class="mav-rev"></div>';
+    clearInterval(clockT); clockT = setInterval(function(){ var c = dlg.querySelector('.mav-clock'); if (c) c.textContent = 'New items in ' + untilMidnight(); if (!dlg.open) clearInterval(clockT); }, 1000);
     render();
     if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
   }
