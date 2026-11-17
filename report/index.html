@@ -1296,10 +1296,13 @@ boot();
 .mav-big svg{width:100%;height:100%}
 .mav-big.pose{animation:mav-pose .7s cubic-bezier(.3,1.6,.5,1)}
 @keyframes mav-pose{0%{transform:scale(.96)}50%{transform:scale(1.05) translateY(-3%)}100%{transform:none}}
-.mav-lo{display:flex;gap:6px}
-.mav-lo button{font:inherit;font-weight:900;font-size:13px;color:#eef1fb;background:rgba(10,14,40,.6);border:2px solid rgba(255,255,255,.2);border-radius:12px;padding:6px 10px;cursor:pointer}
-.mav-lo button small{font-weight:700;color:#9aa3c7;margin-left:4px}
-.mav-lo .mav-los{padding:6px 7px;font-size:12px;margin-left:-4px}
+.mav-lo{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 10px;align-items:flex-start}
+.mav-lot{width:100%;text-align:center;font-size:11px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:#9aa3c7}
+.mav-slot{display:flex;flex-direction:column;align-items:center;gap:2px}
+.mav-lob{width:58px;height:66px;padding:2px;border-radius:12px;border:2px solid rgba(255,255,255,.22);background:rgba(10,14,40,.6);cursor:pointer;color:#eef1fb;font:inherit}
+.mav-lob svg{width:100%;height:100%;display:block}.mav-lob:hover{border-color:#ffb020}
+.mav-lob.empty{border-style:dashed;font-size:10.5px;font-weight:800;line-height:1.15;color:#9aa3c7}.mav-lob.empty b{display:block;font-size:20px;color:#eef1fb}
+.mav-rep{font:inherit;font-size:10.5px;font-weight:800;color:#9aa3c7;background:none;border:0;padding:0 2px;cursor:pointer;text-decoration:underline}
 .mav-leftbtns{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
 .mav-leftbtns .mav-btn{min-height:36px;padding:6px 12px;font-size:13px}
 .mav-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
@@ -1355,7 +1358,7 @@ boot();
   .mav-leftbtns .mav-btn{flex:none}
   .mav-right h2{font-size:18px}
   .mav-top{gap:6px}.mav-top .mav-sub{display:none}.mav-top .mav-btn{min-height:34px;padding:5px 12px;font-size:13px}.mav-top>.mav-btn.ghost{margin-left:auto}.mav-top .mav-wallet+.mav-btn.ghost{margin-left:0}
-  .mav-leftbtns .mav-btn{min-height:30px;padding:4px 9px;font-size:12px}.mav-lo button{padding:4px 8px;font-size:12px}
+  .mav-leftbtns .mav-btn{min-height:30px;padding:4px 9px;font-size:12px}.mav-lob{width:46px;height:52px}
   .mav-feat{grid-template-columns:1fr}
   .mav-grid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px}
   .mav-tryrow{left:10px;right:10px;bottom:10px}
@@ -2055,7 +2058,12 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   var LOK = 'mtg_avatar_lo_v1:' + (SID || 'guest'), LO = [null, null, null];
   try { if (P) { var lo0 = JSON.parse(localStorage.getItem(LOK) || 'null'); if (Array.isArray(lo0) && lo0.length === 3) LO = lo0; } } catch(e){}
   function saveLO(){ if (!P) return; try { localStorage.setItem(LOK, JSON.stringify(LO)); } catch(e){} }
-  function loHtml(){ return LO.map(function(o, i){ return '<button type="button" data-lo="' + i + '" title="' + (o ? 'Wear outfit ' + 'ABC'[i] : 'Save what you are wearing as outfit ' + 'ABC'[i]) + '">' + 'ABC'[i] + '<small>' + (o ? 'wear' : '+ save') + '</small></button>' + (o ? '<button type="button" class="mav-los" data-losave="' + i + '" title="Save what you are wearing over outfit ' + 'ABC'[i] + '">💾</button>' : ''); }).join(''); }
+  function loHtml(){   // "My outfits": a mini picture of each saved outfit (tap = wear it), an empty slot saves the current look, "Replace" saves over it (David 2026-11-16: the A/B/C + floppy buttons were confusing)
+    return '<span class="mav-lot">My outfits</span>' + LO.map(function(o, i){
+      if (!o) return '<span class="mav-slot"><button type="button" class="mav-lob empty" data-lo="' + i + '" title="Save what you are wearing as an outfit"><b>+</b>Save this look</button></span>';
+      return '<span class="mav-slot"><button type="button" class="mav-lob" data-lo="' + i + '" title="Wear this outfit">' + avatar(clean(Object.assign({}, o, { bg: 'none', pet: 'none' })), { crop: 0, label: 'Saved outfit ' + (i + 1) }) + '</button><button type="button" class="mav-rep" data-losave="' + i + '" title="Save what you are wearing here instead">Replace</button></span>';
+    }).join('');
+  }
   // quiet sounds (Web Audio): a click on tabs and cards, a chime when something is unlocked
   var sac = null;
   function tone(f, t, d, v){ try { sac = sac || new (window.AudioContext || window.webkitAudioContext)(); var o = sac.createOscillator(), g = sac.createGain(), n = sac.currentTime + t; o.frequency.value = f; g.gain.setValueAtTime(0, n); g.gain.linearRampToValueAtTime(v, n + .01); g.gain.exponentialRampToValueAtTime(.0001, n + d); o.connect(g).connect(sac.destination); o.start(n); o.stop(n + d + .05); } catch(e){} }
