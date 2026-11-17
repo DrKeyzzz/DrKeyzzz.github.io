@@ -1374,6 +1374,7 @@ boot();
 .mav-btn.ghost{background:transparent;color:#eef1fb;border-color:#34407a}
 .mav-dlg button:focus-visible{outline:3px solid #ffc85c;outline-offset:2px}
 @media (max-width:640px){.mav-wrap{flex-direction:column;padding:14px;gap:10px}.mav-left{flex:none;flex-direction:row;flex-wrap:wrap}.mav-big{height:150px;flex:0 0 120px}.mav-left .mav-btn{flex:1}.mav-lab{flex-basis:84px}}
+.av .mav-fl{transform-box:fill-box;transform-origin:50% 100%;animation:mav-flk .7s ease-in-out infinite alternate}@keyframes mav-flk{from{transform:scaleY(.85) skewX(-4deg)}to{transform:scaleY(1.1) skewX(4deg)}}
 .av .mav-sheen{animation:mav-sheen 3.2s ease-in-out infinite}@keyframes mav-sheen{0%,55%{transform:skewX(-22deg) translateX(0)}100%{transform:skewX(-22deg) translateX(75px)}}
 .av .mav-tw{transform-box:fill-box;transform-origin:center;animation:mav-tw 1.8s ease-in-out infinite}.av .mav-tw2{animation-delay:-.9s}@keyframes mav-tw{0%,100%{opacity:0;transform:scale(.3)}50%{opacity:1;transform:scale(1)}}
 .mav-quests{background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:10px 14px}
@@ -1589,7 +1590,14 @@ boot();
     {id:'airguitar',slot:'dance',name:'Air Guitar',ic:'🎸',p:600},{id:'conductor',slot:'dance',name:'Conductor',ic:'🪄',p:500},{id:'jacks',slot:'dance',name:'Jumping Jacks',ic:'⭐',c:140},
     {id:'raiseroof',slot:'dance',name:'Raise the Roof',ic:'🙌',c:120},{id:'shuffle',slot:'dance',name:'Shuffle',ic:'👟',p:450},{id:'drumsolo',slot:'dance',name:'Drum Solo',ic:'🥁',c:150},
     {id:'clap',slot:'happy',name:'Clap',ic:'👏',c:35},{id:'starjump',slot:'happy',name:'Star Jump',ic:'🌟',c:60},{id:'pointup',slot:'happy',name:'Point Up',ic:'☝️',c:40},
-    {id:'tap',slot:'idle',name:'Foot Tap',ic:'🦶',c:50},{id:'look',slot:'idle',name:'Look Around',ic:'👀',c:60},{id:'kick',slot:'happy',name:'Kick',ic:'🦵',c:45},{id:'kickstep',slot:'dance',name:'Kick Step',ic:'🦶',p:800},
+    {id:'tap',slot:'idle',name:'Foot Tap',ic:'🦶',c:50},{id:'look',slot:'idle',name:'Look Around',ic:'👀',c:60},
+    // collection rewards and streak rewards (play more, 2026-11-16): earned, never bought
+    {id:'marching',slot:'top',name:'Marching Band Jacket',ic:'🎖️',lock:'Collect the Brass Section: trumpet, trombone, French horn, tuba',set:'brass'},
+    {id:'tux',slot:'top',name:'Orchestra Tux',ic:'🤵',lock:'Collect the Strings: violin, viola, cello, string bass',set:'strings'},
+    {id:'beret',slot:'hat',name:'Jazz Beret',ic:'🎷',lock:'Collect the Woodwinds: flute, clarinet, alto sax',set:'winds'},
+    {id:'shako',slot:'hat',name:'Drumline Hat',ic:'🥁',lock:'Collect the Percussion: snare, marching drum, hand drum',set:'perc'},
+    {id:'flame',slot:'bg',name:'Flame Aura',ic:'🔥',lock:'Play 14 days in a row',streak:14},
+    {id:'inferno',slot:'bg',name:'Inferno',ic:'🌋',lock:'Play 30 days in a row',streak:30},{id:'kick',slot:'happy',name:'Kick',ic:'🦵',c:45},{id:'kickstep',slot:'dance',name:'Kick Step',ic:'🦶',p:800},
     // Encore-only items (step 5): yours after that many Encores
     {id:'encjacket',slot:'top',name:'Encore Jacket',ic:'🎭',enc:1}, {id:'ovation',slot:'dance',name:'Standing Ovation',ic:'👏',enc:2},
     {id:'spotlight',slot:'bg',name:'Spotlight',ic:'🔦',enc:3}, {id:'goldmic',slot:'gear',name:'Golden Mic',ic:'🎤',enc:4},
@@ -1619,6 +1627,11 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     if (L.bg === 'staff') bg = `<rect ${B} fill="#eef1fb"/>` + [30, 40, 50, 60, 70].map(y => `<line x1="0" x2="100" y1="${y}" y2="${y}" stroke="#b8c2e0" stroke-width="1"/>`).join('') + `<text x="8" y="66" font-size="40" fill="#b8c2e0">𝄞</text>`;
     else if (L.bg === 'stage') { defs += `<radialGradient id="${u}s" cx=".5" cy=".2" r=".9"><stop offset="0" stop-color="#a77bff"/><stop offset="1" stop-color="#1a1240"/></radialGradient>`; bg = `<rect ${B} fill="url(#${u}s)"/><path d="M20 0 L5 120 L35 120Z M80 0 L65 120 L95 120Z" fill="#fff" opacity=".12"/>`; }
     else if (L.bg === 'sunset') { defs += `<linearGradient id="${u}g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff9a5a"/><stop offset=".6" stop-color="#ff5f8f"/><stop offset="1" stop-color="#6a3cbc"/></linearGradient>`; bg = `<rect ${B} fill="url(#${u}g)"/><circle cx="50" cy="78" r="22" fill="#ffd36e" opacity=".8"/>`; }
+    else if (L.bg === 'flame') { defs += `<radialGradient id="${u}fl" cx=".5" cy=".85" r=".8"><stop offset="0" stop-color="#ffb020"/><stop offset=".45" stop-color="#ff4d2d"/><stop offset="1" stop-color="#3a0a12"/></radialGradient>`;
+      bg = `<rect ${B} fill="url(#${u}fl)"/>` + [[18, 96, 10], [32, 104, 8], [68, 104, 8], [82, 96, 10], [50, 108, 7]].map(([x, y, r]) => `<path class="mav-fl" d="M${x} ${y} Q${x - r} ${y - r * 1.4} ${x} ${y - r * 3} Q${x + r} ${y - r * 1.4} ${x} ${y}Z" fill="#ffd166" opacity=".55"/>`).join(''); }
+    else if (L.bg === 'inferno') { defs += `<linearGradient id="${u}in" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ff7a00"/><stop offset=".5" stop-color="#b3001b"/><stop offset="1" stop-color="#1a0006"/></linearGradient>`;
+      bg = `<rect ${B} fill="url(#${u}in)"/>` + Array.from({length: 9}, (_, i) => { const x = 6 + i * 11, h = 18 + (i * 7) % 16; return `<path class="mav-fl" d="M${x - 6} 118 Q${x - 7} ${118 - h} ${x} ${118 - h * 1.9} Q${x + 7} ${118 - h} ${x + 6} 118Z" fill="${i % 2 ? '#ffb020' : '#ff4d2d'}" opacity=".8"/>`; }).join('')
+        + Array.from({length: 10}, (_, i) => `<circle cx="${(i * 29) % 94 + 3}" cy="${(i * 41) % 70 + 6}" r="${i % 3 ? .7 : 1.2}" fill="#ffd166" opacity=".8"/>`).join(''); }
     else if (L.bg === 'galaxy') { bg = `<rect ${B} fill="#0b0b2a"/>` + Array.from({length: 26}, (_, i) => `<circle cx="${(i * 37) % 96 + 2}" cy="${(i * 53) % 114 + 3}" r="${i % 3 ? .7 : 1.3}" fill="#fff" opacity="${.5 + (i % 4) / 8}"/>`).join('') + `<ellipse cx="70" cy="30" rx="22" ry="7" fill="#7c5cff" opacity=".35" transform="rotate(-25 70 30)"/>`; }
     else if (L.bg === 'spotlight') { defs += `<radialGradient id="${u}p" cx=".5" cy=".95" r=".7"><stop offset="0" stop-color="#3a2a6a"/><stop offset="1" stop-color="#0b0820"/></radialGradient>`; bg = `<rect ${B} fill="url(#${u}p)"/><path d="M44 0 L56 0 L84 120 L16 120Z" fill="#fff6c8" opacity=".18"/><ellipse cx="50" cy="112" rx="34" ry="6" fill="#fff6c8" opacity=".22"/>`; }
   else if (L.bg === 'wreath') { defs += `<radialGradient id="${u}w"><stop offset="0" stop-color="#4a3800"/><stop offset="1" stop-color="#140f00"/></radialGradient>`; bg = `<rect ${B} fill="url(#${u}w)"/>` + Array.from({length: 16}, (_, i) => { const side = i < 8 ? 1 : -1, k = i % 8, a = Math.PI / 2 + side * (.45 + k * .33), x = 50 + 40 * Math.cos(a), y = 62 + 44 * Math.sin(a); return `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="5" ry="2.4" fill="#f5c542" transform="rotate(${(a * 180 / Math.PI + 90).toFixed(0)} ${x.toFixed(1)} ${y.toFixed(1)})"/>`; }).join(''); }
@@ -1701,6 +1714,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       phones: `<path d="M27 42 Q27 13 50 13 Q73 13 73 42" fill="none" stroke="#222" stroke-width="3.2"/><rect x="23" y="36" width="8" height="14" rx="3.5" fill="#ff4d6d"/><rect x="69" y="36" width="8" height="14" rx="3.5" fill="#ff4d6d"/>`,
       tophat: `<rect x="35" y="-2" width="30" height="24" rx="2" fill="#151520"/><rect x="35" y="16" width="30" height="4" fill="#9b6bff"/><ellipse cx="50" cy="22.5" rx="23" ry="4" fill="#151520"/>`,
       crown: `<path d="M32 22 L32 8 L40 15 L50 4 L60 15 L68 8 L68 22Z" fill="#f5c542" stroke="#b8860b" stroke-width="1"/><circle cx="50" cy="15" r="2.4" fill="#ff4d6d"/><circle cx="40" cy="18" r="1.6" fill="#3ccf9a"/><circle cx="60" cy="18" r="1.6" fill="#4f7cff"/>`,
+      beret: `<path d="M27 30 Q30 15 52 15 Q73 16 72 28 Q60 33 27 30Z" fill="#1d1d24"/><circle cx="57" cy="14.5" r="1.8" fill="#1d1d24"/><path d="M30 28 Q50 31 70 27" fill="none" stroke="#33333e" stroke-width="1"/>`,
+      shako: `<rect x="33" y="2" width="34" height="27" rx="3" fill="#1d2a52"/><rect x="33" y="22" width="34" height="5" fill="#f5c542"/><path d="M31 29 Q50 34 69 29 L69 31 Q50 37 31 31Z" fill="#111"/><circle cx="50" cy="13" r="4" fill="#f5c542"/><path d="M50 3 Q46.5 -1 50 -5 Q53.5 -1 50 3" fill="#fff"/><path d="M50 3 Q48.6 0 50 -3" stroke="#ff4d6d" stroke-width="1.4" fill="none"/>`,
       captain: `<path d="M29 27 Q30 10 50 10 Q70 10 71 27Z" fill="#fff"/><rect x="28" y="24" width="44" height="6" rx="2" fill="#1d2a52"/><path d="M34 30 Q50 37 66 30 L66 31.5 Q50 39 34 31.5Z" fill="#111"/><text x="50" y="22" font-size="9" text-anchor="middle" fill="#f5c542">⚓</text>`,
     };
     let hat = HT[L.hat] || '';
@@ -1722,6 +1737,9 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
         + `<rect x="34.0" y="85" width="3.2" height="7" fill="#fffdf4" stroke="#1a1a1a" stroke-width=".35"/><rect x="37.2" y="85" width="3.2" height="7" fill="#fffdf4" stroke="#1a1a1a" stroke-width=".35"/><rect x="40.4" y="85" width="3.2" height="7" fill="#fffdf4" stroke="#1a1a1a" stroke-width=".35"/><rect x="43.6" y="85" width="3.2" height="7" fill="#fffdf4" stroke="#1a1a1a" stroke-width=".35"/><rect x="46.8" y="85" width="3.2" height="7" fill="#fffdf4" stroke="#1a1a1a" stroke-width=".35"/><rect x="50.0" y="85" width="3.2" height="7" fill="#fffdf4" stroke="#1a1a1a" stroke-width=".35"/><rect x="53.2" y="85" width="3.2" height="7" fill="#fffdf4" stroke="#1a1a1a" stroke-width=".35"/><rect x="56.4" y="85" width="3.2" height="7" fill="#fffdf4" stroke="#1a1a1a" stroke-width=".35"/><rect x="59.6" y="85" width="3.2" height="7" fill="#fffdf4" stroke="#1a1a1a" stroke-width=".35"/><rect x="62.8" y="85" width="3.2" height="7" fill="#fffdf4" stroke="#1a1a1a" stroke-width=".35"/><rect x="36.2" y="85" width="2" height="4.2" fill="#111"/><rect x="39.4" y="85" width="2" height="4.2" fill="#111"/><rect x="45.8" y="85" width="2" height="4.2" fill="#111"/><rect x="49.0" y="85" width="2" height="4.2" fill="#111"/><rect x="52.2" y="85" width="2" height="4.2" fill="#111"/><rect x="58.6" y="85" width="2" height="4.2" fill="#111"/><rect x="61.8" y="85" width="2" height="4.2" fill="#111"/>`
         + `<text x="40.5" y="68.5" font-size="4.6" fill="#fff2a8" transform="rotate(-25 42 67)">♪</text>`
         + `<path class="mav-tw" d="M60 66 l.8 2 2 .8 -2 .8 -.8 2 -.8 -2 -2 -.8 2 -.8Z" fill="#fff"/><path class="mav-tw mav-tw2" d="M38 77 l.6 1.5 1.5 .6 -1.5 .6 -.6 1.5 -.6 -1.5 -1.5 -.6 1.5 -.6Z" fill="#fff"/>`; }
+    if (L.top === 'marching') { topFill = sleeve = fore = '#b3202a'; extra = `<path d="M50 57 V92" stroke="#f5c542" stroke-width="1.2"/>` + [62, 68, 74, 80, 86].map(y => `<circle cx="46" cy="${y}" r="1.2" fill="#f5c542"/><circle cx="54" cy="${y}" r="1.2" fill="#f5c542"/><path d="M46 ${y} H54" stroke="#f5c542" stroke-width=".8"/>`).join('')
+      + `<path d="M34 61 Q37 57 42 57.5 L41 62 Z M66 61 Q63 57 58 57.5 L59 62 Z" fill="#f5c542"/><path d="M34 62.5 h7 M59 62.5 h7" stroke="#fff3b0" stroke-width=".8"/><rect x="34" y="88" width="32" height="4" fill="#1d2a52"/><path d="M37 66 Q44 76 40 86" fill="none" stroke="#fff" stroke-width="1.4"/>`; }
+    if (L.top === 'tux') { topFill = sleeve = fore = '#16161d'; extra = `<path d="M44 57 L50 72 L56 57Z" fill="#fff"/><path d="M42.5 57 L50 74 L47 80 L39 64Z M57.5 57 L50 74 L53 80 L61 64Z" fill="#2a2a36"/><path d="M46.4 59 L50 60.8 L53.6 59 L53.6 62.6 L50 60.8 L46.4 62.6Z" fill="#b3202a"/>` + [66, 70].map(y => `<circle cx="50" cy="${y}" r=".8" fill="#111"/>`).join('') + `<path d="M58 66 l2 -1.4 1.4 1.6Z" fill="#fff"/>`; }
     if (L.top === 'encjacket') { topFill = sleeve = fore = '#5b2fb8'; extra = `<path d="M44 57 L50 70 L56 57Z" fill="#f5c542"/>` + [[39, 66], [60, 70], [42, 80], [58, 84], [47, 88]].map(([x, y]) => star(x, y, 1.8, '#ffe38a')).join('') + `<path d="M34 90 H66" stroke="#f5c542" stroke-width="1.6"/>`; }
   if (L.top === 'detective') { topFill = sleeve = fore = '#b08a5a'; torsoD = 'M33 64 Q33 57.5 42 57 L58 57 Q67 57.5 67 64 L69 104 L31 104Z'; extra = `<path d="M43 57 L50 70 L57 57 L54 57 L50 64 L46 57Z" fill="#8a6a40"/><rect x="33" y="80" width="34" height="3.6" fill="#5a4026"/>`; }
     // full skins (costumes) replace the clothes
@@ -1847,7 +1865,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   } catch(e){} }
   if (!look) { look = randomLook(); fresh = !!P; }   // guests: a random avatar for this visit, never saved
   function wearOwned(L){   // a paid item that isn't in this student's owned list goes back to the free default
-    ITEMS.forEach(function(it){ var k = it.slot + ':' + it.id; if (L[it.slot] === it.id && !it.free && W.owned.indexOf(k) < 0 && !(k === 'gear:baton' && rankNow() >= 8) && !(k === 'bg:wreath' && rankNow() >= 9) && !masteredGear(k) && !(it.enc && (W.encores || 0) >= it.enc)) L[it.slot] = DEF[it.slot]; });
+    ITEMS.forEach(function(it){ var k = it.slot + ':' + it.id; if (L[it.slot] === it.id && !it.free && W.owned.indexOf(k) < 0 && !(k === 'gear:baton' && rankNow() >= 8) && !(k === 'bg:wreath' && rankNow() >= 9) && !masteredGear(k) && !(it.enc && (W.encores || 0) >= it.enc) && !(P && typeof earnedIt === 'function' && earnedIt(it))) L[it.slot] = DEF[it.slot]; });
     if (!ITEMS.some(function(it){ return it.slot === 'top' && it.id === L.top; })) L.top = DEF.top;
     return L;
   }
@@ -2062,7 +2080,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       if (Sm.min >= 5 && Sm.last !== today()) {
         if (Sm.last === dayStr(-2) && Sm.saverWk !== wkOf()) { Sm.saverWk = wkOf(); Sm.days++; }   // the Streak Saver covers yesterday
         else if (Sm.last === dayStr(-1)) Sm.days++; else Sm.days = 1;
-        Sm.last = today();
+        Sm.last = today(); Sm.best = Math.max(Sm.best || 0, Sm.days);
         var rw = SMILES[Sm.days]; if (rw) earn(rw, 0);
         msg = '🔥 ' + Sm.days + (Sm.days === 1 ? ' day' : ' days in a row!') + (rw ? ' +' + rw + ' ★' : '');
       }
@@ -2200,9 +2218,13 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   // ---------- the Store (build step 3): tap the corner avatar ----------
   // Look = the free face, hair and colors. The other tabs sell items: everyday ones for coins (c), dream ones for points (p).
   // Items with "lock" are earned by mastering a game (build step 4); until then they show the lock and how to get them.
+  var SETS = { brass: ['trumpet', 'trombone', 'horn', 'tuba'], strings: ['violin', 'viola', 'cello', 'bass'], winds: ['flute', 'clarinet', 'sax'], perc: ['snare', 'mdrum', 'handdrum'] };
+  function setDone(set){ return !!(SETS && SETS[set]) && SETS[set].every(function(id){ return W.owned.indexOf('gear:' + id) >= 0; }); }
+  function streakBest(){ var x = lsGet('mtg_streak_v1:' + (SID || 'guest')) || {}; return Math.max(+x.best || 0, +x.days || 0); }
+  function earnedIt(it){ return (it.set && setDone(it.set)) || (it.streak && streakBest() >= it.streak); }
   var key = function(it){ return it.slot + ':' + it.id; };
   var RANK_ITEMS = { 'gear:baton': 8, 'bg:wreath': 9 };   // rank index that unlocks them
-  var owns = function(it){ var k = key(it); return !!it.free || (it.enc && (W.encores || 0) >= it.enc) || W.owned.indexOf(k) >= 0 || (RANK_ITEMS[k] != null && rankNow() >= RANK_ITEMS[k]) || masteredGear(k); };
+  var owns = function(it){ var k = key(it); return !!it.free || (it.enc && (W.encores || 0) >= it.enc) || W.owned.indexOf(k) >= 0 || (RANK_ITEMS[k] != null && rankNow() >= RANK_ITEMS[k]) || masteredGear(k) || (P && earnedIt(it)); };
   var TABS = [['shop', 'Shop', '🛒'], ['look', 'Look', '🙂'], ['outfit', 'Skins', '🦸'], ['clothes', 'Clothes', '👕'], ['hat', 'Hats', '🎩'], ['gear', 'Gear', '🎺'], ['moves', 'Moves', '🕺'], ['bg', 'Backdrops', '🌌'], ['pet', 'Pets', '🐾'], ['rank', 'Rank', '🏆']];
   // THE LOCKER (2026-11-16). Rarity follows the price (no randomness): Common < 60 coins, Rare 60-149, Epic 150+ coins or points, Legendary 1000+ points / earned items.
   function rarity(it){ if (it.free) return 'common'; if (it.lock || it.enc || (it.p && it.p >= 1000)) return 'legendary'; if (it.p || (it.c && it.c >= 150)) return 'epic'; return it.c >= 60 ? 'rare' : 'common'; }
@@ -2273,7 +2295,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       var f = featured(), brass = ['trumpet', 'trombone', 'horn', 'tuba'], got = brass.filter(function(id){ return W.owned.indexOf('gear:' + id) >= 0; }).length;
       return '<div class="mav-h">TODAY\u2019S QUESTS <small>new ones at midnight</small></div>' + questsHtml() + '<div class="mav-h">FEATURED <small>this week</small></div><div class="mav-feat">' + (f ? card(f, 1) : '')
         + '<button type="button" class="mav-card big r-epic" data-tab="gear"><span class="mav-cbg"></span><span class="mav-pic" style="flex-wrap:wrap;gap:4px">' + brass.map(function(id){ var it = ITEMS.filter(function(x){ return x.slot === 'gear' && x.id === id; })[0]; return it && it.art ? '<img src="' + ART + it.art + '.png" alt="" style="max-width:42%;max-height:44%">' : ''; }).join('') + '</span>'
-        + '<span class="mav-ctag new">COLLECTION</span><span class="mav-lbl"><b>Brass Section</b><small>' + got + ' of 4 collected · see Gear</small></span></button></div>'
+        + '<span class="mav-ctag new">COLLECTION</span><span class="mav-lbl"><b>Brass Section</b><small>' + got + ' of 4 · ' + (got === 4 ? '🎉 Marching Band Jacket is yours' : 'all 4 = Marching Band Jacket') + '</small></span></button></div>'
         + '<div class="mav-h">TODAY’S SHOP <small class="mav-clock">New items in ' + untilMidnight() + '</small></div><div class="mav-grid">' + todays(f && key(f)).map(function(x){ return card(x); }).join('') + '</div>';
     }
     if (tab === 'rank') {
