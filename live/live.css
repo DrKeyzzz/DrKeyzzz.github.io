@@ -193,3 +193,6 @@ input[type=range] { width: 100%; accent-color: var(--gold); }
 /* the A B C D letter sits above the answer, never on top of it (2026-11-17) */
 .sd-key { padding-top: 34px; }
 .sd-split .sd-key { min-height: 0; }
+
+/* Hide names: a mask instead of the avatar at the Curtain call (2026-11-17) */
+.sd-mask { font-size: 96px; line-height: 1.2; text-align: center; }

@@ -187,7 +187,7 @@ const G = () => { if (!S.g || S.g.code !== S.code) { let o = null; try { o = JSO
 const saveG = () => { try { localStorage.setItem(GK(), JSON.stringify(S.g)); } catch {} };
 const GT = 20;   // seconds per game question unless a timer is picked
 // with 🎭 Hide names on, the class screen's Top 5 and Curtain call say Player 1, 2… instead of names (2026-11-17)
-function topBoard() { return Object.entries(G().scores).map(([s, x]) => ({ n: x.n, s, p: x.p })).sort((a, b) => b.p - a.p).slice(0, 5).map((b, i) => S.curtain ? { ...b, n: 'Player ' + (i + 1) } : b); }
+function topBoard() { return Object.entries(G().scores).map(([s, x]) => ({ n: x.n, s, p: x.p })).sort((a, b) => b.p - a.p).slice(0, 5).map((b, i) => S.curtain ? { ...b, n: 'Player ' + (i + 1), h: 1 } : b);   // h = hide the avatar too (it is recognisable) }
 // score the round from each student's FIRST answer: right = 500 + up to 500 for speed, +100 per right answer in a row after the 2nd
 function scoreRound(L) {
   const g = G(); if (g.done[L.round]) return;
