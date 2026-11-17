@@ -1376,6 +1376,14 @@ boot();
 @media (max-width:640px){.mav-wrap{flex-direction:column;padding:14px;gap:10px}.mav-left{flex:none;flex-direction:row;flex-wrap:wrap}.mav-big{height:150px;flex:0 0 120px}.mav-left .mav-btn{flex:1}.mav-lab{flex-basis:84px}}
 .av .mav-sheen{animation:mav-sheen 3.2s ease-in-out infinite}@keyframes mav-sheen{0%,55%{transform:skewX(-22deg) translateX(0)}100%{transform:skewX(-22deg) translateX(75px)}}
 .av .mav-tw{transform-box:fill-box;transform-origin:center;animation:mav-tw 1.8s ease-in-out infinite}.av .mav-tw2{animation-delay:-.9s}@keyframes mav-tw{0%,100%{opacity:0;transform:scale(.3)}50%{opacity:1;transform:scale(1)}}
+.mav-quests{background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:10px 14px}
+.mav-qs{font-size:14px;color:#c8d0ee;margin-bottom:4px}.mav-qs b{color:#ffb020;font-size:16px}
+.mav-q{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid rgba(255,255,255,.07)}
+.mav-qck{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.3);display:grid;place-items:center;flex:none;font-weight:900;font-size:13px}
+.mav-q.done .mav-qck{background:#5cf0a0;border-color:#5cf0a0;color:#063}.mav-q.week .mav-qck{border-color:#ffb020}
+.mav-qt{flex:1;min-width:0;font-weight:700;font-size:14px}.mav-q.done .mav-qt{opacity:.65;text-decoration:line-through}
+.mav-qbar{display:block;height:7px;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden;margin-top:4px}.mav-qbar i{display:block;height:100%;background:linear-gradient(90deg,#3d8bff,#a45cff)}
+.mav-qr{font-weight:900;color:#ffb020;font-size:13px;white-space:nowrap}
 /* ---- THE LOCKER (Store redesign, 2026-11-16, David 'go with your picks'): full screen, stage, rarity cards, Shop tab, buy bar, reveal ---- */
 .mav-dlg{max-width:100vw;width:100vw;height:100vh;height:100dvh;max-height:100dvh;margin:0;border-radius:0;background:radial-gradient(120% 90% at 18% 30%,#24307a 0,#121842 45%,#0b0f24 100%);overflow:hidden}
 .mav-wrap{height:100%;max-height:none;gap:16px;padding:14px 18px 0}
@@ -2013,10 +2021,73 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     saveLocal(); sendSoon(60000);
     if (dlg && dlg.open) drawWallet();
   }
+
+  // ---------- quests and the daily streak (play more, 2026-11-16, David 'go with your picks') ----------
+  // On this device only (localStorage mtg_quests_v1:<sid> and mtg_streak_v1:<sid>), from the same mtghist events the avatar listens to.
+  // Rewards are ★ points (coins stay capped at 60 a day on purpose). Guests see them but earn nothing.
+  // Daily: 3 quests picked from the date (the same for everyone), +30 ★ each. Weekly: play 60 minutes, +200 ★.
+  // Streak: a day counts at 5 minutes of play; one Streak Saver a week covers one missed day. Rewards at 3, 7, 14, 30 days.
+  var QPOOL = [['right15', 'Get 15 right in any game', 'right', 15], ['right30', 'Get 30 right in any game', 'right', 30], ['runs2', 'Finish 2 runs in any game', 'run', 2],
+    ['runs3', 'Finish 3 runs in any game', 'run', 3], ['min10', 'Play for 10 minutes', 'min', 10], ['games2', 'Play 2 different games', 'games', 2]]
+    .concat(['scale', 'tidal', 'earshot', 'rhythm', 'rooftop', 'brainwaves'].map(function(g){ return ['g_' + g, 'Get 10 right in ' + GNAME[g], 'gright', 10, g]; }));
+  var QRW = 30, WEEKMIN = 60, WEEKRW = 200, SMILES = { 3: 100, 7: 300, 14: 600, 30: 600 };
+  var QK = 'mtg_quests_v1:' + (SID || 'guest'), SK = 'mtg_streak_v1:' + (SID || 'guest'), Qm = null, Sm = null;
+  function wkOf(d){ var t = new Date(d || Date.now()); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() - ((t.getDay() + 6) % 7)); return t.getFullYear() + '-' + (t.getMonth() + 1) + '-' + t.getDate(); }   // the Monday of this week
+  function dayStr(off){ var d = new Date(); d.setDate(d.getDate() + (off || 0)); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function qPick(){ var sd = (function(){ var d = new Date(); return d.getFullYear() * 400 + d.getMonth() * 32 + d.getDate(); })() * 7 + 3, out = [], kinds = {};
+    while (out.length < 3) { sd = (sd * 9301 + 49297) % 233280; var q = QPOOL[Math.floor(sd / 233280 * QPOOL.length)], k = q[2] === 'gright' ? 'gright' : q[2]; if (!kinds[k]) { kinds[k] = 1; out.push(q[0]); } }
+    return out; }
+  function qLoad(){
+    if (!Qm) Qm = (P ? lsGet(QK) : null) || {};
+    if (Qm.day !== today()) { Qm.day = today(); Qm.list = qPick(); Qm.prog = {}; Qm.done = {}; Qm.games = {}; }
+    if (Qm.wk !== wkOf()) { Qm.wk = wkOf(); Qm.wmin = 0; Qm.wdone = 0; }
+    if (!Sm) Sm = (P ? lsGet(SK) : null) || { days: 0, last: '', min: 0, minDay: '', saverWk: '' };
+    if (Sm.minDay !== today()) { Sm.minDay = today(); Sm.min = 0; }
+    if (Sm.last && Sm.last !== today() && Sm.last !== dayStr(-1) && !(Sm.last === dayStr(-2) && Sm.saverWk !== wkOf())) Sm.days = 0;   // missed: the streak is over
+    return Qm;
+  }
+  function qSave(){ if (P) { lsSet(QK, Qm); lsSet(SK, Sm); } }
+  function qStep(kind, n, game){
+    qLoad(); var msg = '';
+    if (game) Qm.games[game] = 1;
+    Qm.list.forEach(function(id){
+      var q = QPOOL.filter(function(x){ return x[0] === id; })[0]; if (!q || Qm.done[id]) return;
+      var add = q[2] === kind ? n : (q[2] === 'gright' && kind === 'right' && game === q[4]) ? n : 0;
+      if (q[2] === 'games') Qm.prog[id] = Object.keys(Qm.games).length; else if (add) Qm.prog[id] = (Qm.prog[id] || 0) + add;
+      if ((Qm.prog[id] || 0) >= q[3]) { Qm.done[id] = 1; earn(QRW, 0); msg = '✅ Quest complete! +' + QRW + ' ★'; }
+    });
+    if (kind === 'min') {
+      Qm.wmin += n; if (!Qm.wdone && Qm.wmin >= WEEKMIN) { Qm.wdone = 1; earn(WEEKRW, 0); msg = '🏆 Weekly quest complete! +' + WEEKRW + ' ★'; }
+      Sm.min += n;
+      if (Sm.min >= 5 && Sm.last !== today()) {
+        if (Sm.last === dayStr(-2) && Sm.saverWk !== wkOf()) { Sm.saverWk = wkOf(); Sm.days++; }   // the Streak Saver covers yesterday
+        else if (Sm.last === dayStr(-1)) Sm.days++; else Sm.days = 1;
+        Sm.last = today();
+        var rw = SMILES[Sm.days]; if (rw) earn(rw, 0);
+        msg = '🔥 ' + Sm.days + (Sm.days === 1 ? ' day' : ' days in a row!') + (rw ? ' +' + rw + ' ★' : '');
+      }
+    }
+    qSave();
+    if (msg && P) pop(msg, '#ffd166');
+  }
+  function questsInfo(){
+    qLoad();
+    return { list: Qm.list.map(function(id){ var q = QPOOL.filter(function(x){ return x[0] === id; })[0]; return { t: q[1], n: Math.min(q[3], Qm.prog[id] || 0), of: q[3], done: !!Qm.done[id], rw: QRW }; }),
+      week: { t: 'Play ' + WEEKMIN + ' minutes this week', n: Math.min(WEEKMIN, Qm.wmin || 0), of: WEEKMIN, done: !!Qm.wdone, rw: WEEKRW },
+      streak: { days: Sm.days, today: Sm.last === today(), min: Sm.min, saver: Sm.saverWk !== wkOf() }, signedIn: !!P };
+  }
+  function questsHtml(){
+    var Q = questsInfo(), bar = function(n, of){ return '<span class="mav-qbar"><i style="width:' + Math.round(100 * n / of) + '%"></i></span>'; };
+    return '<div class="mav-quests"><div class="mav-qs"><b>🔥 ' + Q.streak.days + '</b> day' + (Q.streak.days === 1 ? '' : 's') + ' in a row' + (Q.streak.today ? ' ✓' : ' · play 5 min today') + (Q.streak.saver ? ' · 🛟 Saver ready' : '') + '</div>'
+      + Q.list.map(function(q){ return '<div class="mav-q' + (q.done ? ' done' : '') + '"><span class="mav-qck">' + (q.done ? '✓' : '') + '</span><span class="mav-qt">' + q.t + bar(q.n, q.of) + '</span><span class="mav-qr">' + (q.done ? 'Done!' : q.n + '/' + q.of + ' · +' + q.rw + ' ★') + '</span></div>'; }).join('')
+      + '<div class="mav-q week' + (Q.week.done ? ' done' : '') + '"><span class="mav-qck">' + (Q.week.done ? '✓' : '🏆') + '</span><span class="mav-qt">Weekly: ' + Q.week.t + bar(Q.week.n, Q.week.of) + '</span><span class="mav-qr">' + (Q.week.done ? 'Done!' : Q.week.n + '/' + Q.week.of + ' min · +' + Q.week.rw + ' ★') + '</span></div>'
+      + (P ? '' : '<p class="mav-sub">Sign in to earn quest rewards.</p>') + '</div>';
+  }
   addEventListener('mtghist', function(e){
     var d = e.detail || {};
     if (d.type === 'note') {
       act(d.ok ? look.happy : look.aww); perchDo(d.ok ? 'right' : 'miss');
+      try { if (d.ok) qStep('right', 1, d.game); else if (d.game) qStep('seen', 0, d.game); } catch(x){}
       var now = Date.now();
       if (lastAns && now - lastAns < 120000) playMs += now - lastAns;
       lastAns = now;
@@ -2026,9 +2097,11 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       if (d.ok) addXP(2);
       runPts += pts;
       earn(pts, coins);
+      if (coins) try { qStep('min', coins); } catch(x){}
       if (coins && P) pop('+' + coins + ' 🪙', '#ffd166');
     } else if (d.type === 'run') {
       act(look.dance); perchDo('run');
+      try { qStep('run', 1, d.game); } catch(x){}
       var r = d.r || {}, L = Math.round(+r.level || 0);
       if (L > 0) lvl = Math.max(1, Math.min(9, L));
       var bonus = 10 * lvl + (/[?&]test=/.test(location.search) ? 50 : 0);
@@ -2198,7 +2271,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     if (tab === 'look') return rowsHtml(LOOKROWS);
     if (tab === 'shop') {
       var f = featured(), brass = ['trumpet', 'trombone', 'horn', 'tuba'], got = brass.filter(function(id){ return W.owned.indexOf('gear:' + id) >= 0; }).length;
-      return '<div class="mav-h">FEATURED <small>this week</small></div><div class="mav-feat">' + (f ? card(f, 1) : '')
+      return '<div class="mav-h">TODAY\u2019S QUESTS <small>new ones at midnight</small></div>' + questsHtml() + '<div class="mav-h">FEATURED <small>this week</small></div><div class="mav-feat">' + (f ? card(f, 1) : '')
         + '<button type="button" class="mav-card big r-epic" data-tab="gear"><span class="mav-cbg"></span><span class="mav-pic" style="flex-wrap:wrap;gap:4px">' + brass.map(function(id){ var it = ITEMS.filter(function(x){ return x.slot === 'gear' && x.id === id; })[0]; return it && it.art ? '<img src="' + ART + it.art + '.png" alt="" style="max-width:42%;max-height:44%">' : ''; }).join('') + '</span>'
         + '<span class="mav-ctag new">COLLECTION</span><span class="mav-lbl"><b>Brass Section</b><small>' + got + ' of 4 collected · see Gear</small></span></button></div>'
         + '<div class="mav-h">TODAY’S SHOP <small class="mav-clock">New items in ' + untilMidnight() + '</small></div><div class="mav-grid">' + todays(f && key(f)).map(function(x){ return card(x); }).join('') + '</div>';
@@ -2355,7 +2428,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     });
   }
   window.MTGAvatar = { draw: function(L, o){ return avatar(clean(Object.assign({}, DEF, L)), o || {}); }, peer: peer, badge: badge, off: function(){ return OFF; }, signedIn: function(){ return !!P; }, rank: function(){ return P ? { n: rankNow() + 1, name: RANKS[rankNow()][1], encores: W.encores || 0 } : null; },
-    wallet: function(){ return { coins: W.coins, points: W.points }; }, look: function(){ return Object.assign({}, look); }, svg: function(o){ o = o || {}; if (o.rank == null && P) o.rank = rankNow(); return avatar(look, o); }, open: openBuilder };
+    wallet: function(){ return { coins: W.coins, points: W.points }; }, look: function(){ return Object.assign({}, look); }, svg: function(o){ o = o || {}; if (o.rank == null && P) o.rank = rankNow(); return avatar(look, o); }, open: openBuilder, quests: questsInfo, questsHtml: questsHtml };
 
 })();
 </script>
@@ -2844,7 +2917,10 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     const draw = () => { box.innerHTML = A.svg({ label: 'Your avatar' }); box.dataset.idle = (A.look() || {}).idle || 'bounce'; const w = A.wallet(), k = A.rank();
       document.getElementById('p-coins').textContent = '🪙 ' + w.coins.toLocaleString(); document.getElementById('p-pts').textContent = '★ ' + w.points.toLocaleString();
       if (k && k.encores) { const lv = document.getElementById('p-level'); if (lv && !lv.querySelector('.enc2')) lv.insertAdjacentHTML('beforeend', ' <span class="enc2">' + (k.encores <= 5 ? '★'.repeat(k.encores) : '★' + k.encores) + '</span>'); }
-      const ed = document.getElementById('editav'); ed.hidden = false; ed.onclick = () => A.open(); };
+      const ed = document.getElementById('editav'); ed.hidden = false; ed.onclick = () => A.open();
+      // Today's quests and the daily streak (play more, 2026-11-16): from the avatar snippet
+      if (A.questsHtml) { let qb = document.getElementById('questbox'); if (!qb) { qb = document.createElement('section'); qb.id = 'questbox'; qb.className = 'box'; document.getElementById('next2').insertAdjacentElement('afterend', qb); }
+        qb.innerHTML = '<h2>🎯 Today\u2019s quests</h2><p class="sub">New ones every day at midnight. Each one pays ★ points for the Store.</p>' + A.questsHtml(); } };
     box.dataset.act = ((window.MTGAvatar.look() || {}).dance) || 'groove'; setTimeout(() => { delete box.dataset.act; }, 3000);   // a dance when the page opens
     draw();
     box.onclick = () => A.open();
