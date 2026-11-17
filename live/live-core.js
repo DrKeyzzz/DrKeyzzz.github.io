@@ -99,6 +99,46 @@ window.LC = (() => {
   };
   const db = PREVIEW ? mem : real;
 
+  // ---------- key signatures (added 2026-11-17): the 🎼 Key signature maker in the teacher console ----------
+  // A question's ks = -7..7 (minus = flats, 0 = none) is drawn on a treble staff above the choices (student page, projector, teacher).
+  // Drawing follows Scale Quest (positions count lines and spaces up from C4; bottom line E4 = 2, top line F5 = 10; one space = 20).
+  const KS_MAJ = { '-7': 'C♭', '-6': 'G♭', '-5': 'D♭', '-4': 'A♭', '-3': 'E♭', '-2': 'B♭', '-1': 'F', 0: 'C', 1: 'G', 2: 'D', 3: 'A', 4: 'E', 5: 'B', 6: 'F♯', 7: 'C♯' };
+  const KS_MIN = { '-7': 'A♭', '-6': 'E♭', '-5': 'B♭', '-4': 'F', '-3': 'C', '-2': 'G', '-1': 'D', 0: 'A', 1: 'E', 2: 'B', 3: 'F♯', 4: 'C♯', 5: 'G♯', 6: 'D♯', 7: 'A♯' };
+  const KS_ORDER = [0, 1, 2, 3, 4, 5, 6, 7, -1, -2, -3, -4, -5, -6, -7];   // the teacher's buttons: C, the sharp keys, then the flat keys
+  const ksOk = n => Number.isInteger(n) && n >= -7 && n <= 7;
+  const ksName = (n, minor) => (minor ? KS_MIN : KS_MAJ)[n] + (minor ? ' minor' : ' major');
+  const ksCount = n => n === 0 ? 'No sharps or flats' : Math.abs(n) + (n > 0 ? ' sharp' : ' flat') + (Math.abs(n) > 1 ? 's' : '');
+  const SHARP_POS = [10, 7, 11, 8, 5, 9, 6], FLAT_POS = [6, 9, 5, 8, 4, 7, 3];   // F C G D A E B / B E A D G C F
+  const ksY = p => 170 - p * 10;
+  const SHARP = '<path d="M-4 -17V15M4 -15V17" stroke-width="2.2"/><path d="M-9 -3 9 -8M-9 8 9 3" stroke-width="4.5"/>';
+  const FLAT = '<path d="M-5 -24V8" stroke-width="2.4"/><path d="M-5 8C4 3 10 -2 7 -6 4 -9-2 -6-5 -2" stroke-width="3.2"/>';
+  function ksStaff(n, label) {
+    if (!ksOk(n)) return '';
+    const lines = [2, 4, 6, 8, 10].map(p => `<line x1="6" x2="250" y1="${ksY(p)}" y2="${ksY(p)}" stroke="#1d2433" stroke-width="1.6"/>`).join('');
+    let acc = '';
+    for (let i = 0; i < Math.abs(n); i++) acc += `<g transform="translate(${88 + i * 20} ${ksY((n > 0 ? SHARP_POS : FLAT_POS)[i])}) scale(.9)" fill="none" stroke="#1d2433">${n > 0 ? SHARP : FLAT}</g>`;
+    return `<div class="ksbox"><svg viewBox="0 30 256 172" role="img" aria-label="${esc(label || 'Key signature: ' + ksCount(n).toLowerCase())}">${lines}<line x1="6" x2="6" y1="${ksY(10)}" y2="${ksY(2)}" stroke="#1d2433" stroke-width="1.6"/><text x="14" y="${ksY(2) + 17}" font-size="104" fill="#1d2433" style="font-family:'Noto Music','Apple Symbols','Segoe UI Symbol',serif">𝄞</text>${acc}</svg></div>`;
+  }
+  const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  // Wrong choices that catch real mistakes: one accidental more or less, the same number of the other accidental,
+  // and on minor keys the relative major (reading the signature as major). Then a little further away if a key is at the edge.
+  function ksNear(n, minor) {
+    const near = shuffle([n + 1, n - 1].concat(n ? [-n] : [])), far = [n + 2, n - 2, n + 3, n - 3];
+    return (minor ? [{ n, minor: false }] : []).concat(near.concat(far).filter(ksOk).map(k => ({ n: k, minor })));
+  }
+  // style 'name' = the staff is shown, pick the key; 'count' = no staff, pick how many sharps or flats
+  function ksQuestion(n, minor, style) {
+    const kind = minor ? 'minor' : 'major';
+    if (style === 'count') {
+      const right = ksCount(n), wrong = [];
+      for (const k of ksNear(n, false)) { const t = ksCount(k.n); if (t !== right && !wrong.includes(t)) wrong.push(t); if (wrong.length === 3) break; }
+      return { type: 'mc', q: `How many sharps or flats are in ${ksName(n, minor)}?`, opts: shuffle([right, ...wrong]), correct: right, skills: ['keys'], ks: null };
+    }
+    const right = ksName(n, minor), wrong = [];
+    for (const k of ksNear(n, minor)) { const t = ksName(k.n, k.minor); if (t !== right && !wrong.includes(t)) wrong.push(t); if (wrong.length === 3) break; }
+    return { type: 'mc', q: `This is the key signature for which ${kind} key?`, opts: shuffle([right, ...wrong]), correct: right, skills: ['keys'], ks: n };
+  }
+
   // ---------- results (teacher console and projector; counts only, never names) ----------
   // ans = the latest answer from each student: [{ text, sid, ... }]
   function results(live, ans, opt = {}) {
@@ -132,5 +172,5 @@ window.LC = (() => {
   const clock = s => s == null ? '' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const ERR = e => { const c = String(e && (e.code || e.message) || e); return /permission/i.test(c) ? 'Live Class is not switched on yet (the new database rules are not in place).' : /offline|unavailable|timeout/i.test(c) ? 'No connection. Check the wifi and try again.' : 'Something went wrong: ' + c; };
 
-  return { PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, BANK, NOW, at, newKey, roundId, flagged, db, fbAuth, results, latest, left, clock, ERR };
+  return { KS_ORDER, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, BANK, NOW, at, newKey, roundId, flagged, db, fbAuth, results, latest, left, clock, ERR };
 })();

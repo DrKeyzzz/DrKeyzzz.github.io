@@ -148,6 +148,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Music&text=%F0%9D%84%9E&display=swap" rel="stylesheet"><!-- the treble clef on key signature questions -->
 <link rel="stylesheet" href="live.css">
 <!-- Live Class, student page and ?screen=1 projector (added 2026-11-12). Shared code: live-core.js; teacher console: teach/. -->
 </head>
@@ -210,7 +211,7 @@ if (SCREEN) {
       : '<p class="muted">Results show here when this computer is signed in to your teacher dashboard.</p>';
     app.innerHTML = `<main class="proj">
       <div class="row between"><span class="label" style="font-size:16px">${esc(TYPES[L.type] || '')}</span>${s != null ? `<span class="ptimer mono" id="cd">${clock(s)}</span>` : L.open ? '<span class="chip ok" style="font-size:18px">Answers open</span>' : '<span class="chip no" style="font-size:18px">Locked</span>'}</div>
-      <h1>${esc(L.q)}</h1>
+      <h1>${esc(L.q)}</h1>${LC.ksStaff(L.ks)}
       ${L.type === 'mc' ? `<div class="row" style="font-size:24px;gap:14px">${(L.opts || []).map((o, i) => `<span class="chip" style="font-size:22px;padding:6px 16px">${'ABCDEF'[i]}. ${esc(o)}</span>`).join('')}</div>` : ''}
       <div class="projmain"><section class="card">${res}</section>${spot ? `<section class="stack">${spot}</section>` : `<section class="card stack" style="justify-content:center;align-items:center;text-align:center"><span class="big" style="font-size:90px">${P.teacher ? A.length : '–'}</span><span class="muted" style="font-size:24px">answers in</span></section>`}</div>
       <footer class="card row between" style="font-size:22px"><span>Join: <b>musictheoryacademy.org/live</b> · class code <b class="joincode mono">${esc(code)}</b></span><span class="muted">Only your teacher sees your answers.</span></footer></main>`;
@@ -274,7 +275,7 @@ function questionCard() {
     input = `<div class="row" style="flex-wrap:nowrap"><input id="ans" type="${L.type === 'num' ? 'number' : 'text'}" ${L.type === 'num' ? 'inputmode="decimal" step="any"' : 'maxlength="24" autocapitalize="off"'} value="${esc(S.draft)}" placeholder="${L.type === 'num' ? 'Type a number' : 'One word'}"><button type="button" class="btn pri" data-send ${S.busy ? 'disabled' : ''}>${mine ? 'Update' : 'Send'}</button></div>`;
   }
   return `<section class="card stack qhead"><div class="row between"><span class="label">${esc(TYPES[L.type] || '')}</span>${s != null ? `<span class="chip gold">⏱ <span class="mono" id="cd">${clock(s)}</span></span>` : ''}</div>
-    <h2>${esc(L.q)}</h2>${input}${mine ? `<p class="sent">✓ Sent: “${esc(mine.text)}”</p>` : ''}
+    <h2>${esc(L.q)}</h2>${LC.ksStaff(L.ks)}${input}${mine ? `<p class="sent">✓ Sent: “${esc(mine.text)}”</p>` : ''}
     <p class="dim small" style="margin:0">Only your teacher sees your answer.</p></section>`;
 }
 function spotCard() {

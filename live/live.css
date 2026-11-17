@@ -116,3 +116,13 @@ input[type=range] { width: 100%; accent-color: var(--gold); }
 .toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); background: var(--card2); border: 1px solid var(--line2); border-radius: 12px; padding: 10px 16px; z-index: 50; }
 .toast:empty { display: none; }
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+/* key signature staff (2026-11-17): a white card so it reads on the dark page and the projector */
+.ksbox { background: #fbf8f1; border-radius: 14px; padding: 6px 10px; align-self: flex-start; width: min(100%, 300px); }
+.ksbox svg { display: block; width: 100%; height: auto; }
+.proj .ksbox { width: min(100%, 520px); }
+.kskeys { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 6px; }
+.kskeys .btn { justify-content: center; padding: 6px 4px; font-size: 14px; flex-direction: column; gap: 0; }
+.kskeys .btn small { font-weight: 500; color: var(--muted); font-size: 11px; }
+.seg { display: inline-flex; border: 1px solid var(--line2); border-radius: 10px; overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 6px 12px; cursor: pointer; font-weight: 600; }
+.seg button[aria-pressed="true"] { background: var(--gold); color: #1a1406; }
