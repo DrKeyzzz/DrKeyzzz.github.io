@@ -368,20 +368,27 @@ html[data-skin="day"] .newbar { box-shadow: 0 10px 24px -14px rgba(23, 35, 58, .
   </section>
 
   <div id="report" hidden style="display:flex;flex-direction:column;gap:18px">
-    <section class="player" aria-label="Player card">
-      <div class="avatar" id="avatar" aria-hidden="true">?</div>
+    <section class="player hero2" aria-label="Your avatar and rank">
+      <div class="stage2"><div class="beam2" aria-hidden="true"></div><div class="avatar" id="avatar" aria-hidden="true">?</div></div>
       <div class="who">
         <h1 id="p-name"></h1>
         <p class="cls" id="p-class"></p>
         <div class="lvl"><b id="p-level"></b><div class="xp" id="p-xpbar"><i id="p-xp"></i></div><small id="p-xptext"></small></div>
+        <div class="chips2">
+          <div class="chip2"><b>🔥 <span id="p-streak">0 days</span></b><span>in a row</span></div>
+          <div class="chip2"><b id="p-time">⏱ –</b><span id="p-timetier">practiced</span></div>
+          <div class="chip2"><b id="p-coins">🪙 –</b><span>coins to spend</span></div>
+          <div class="chip2"><b id="p-pts">★ –</b><span>points to spend</span></div>
+        </div>
         <p class="avwallet" id="p-wallet" hidden></p>
+        <button class="editav" id="editav" type="button" hidden>✏️ Edit avatar &amp; Store</button>
       </div>
-      <div class="streak"><div class="f" aria-hidden="true">🔥</div><b id="p-streak">0 days</b><span>Practice streak</span></div>
     </section>
+    <a class="next2" id="next2" hidden></a>
     <button class="newbar" id="newbar" type="button" hidden></button>
     <nav class="tabs" role="tablist" aria-label="Games" id="tabs"></nav>
     <section class="panel" id="panel" role="tabpanel"></section>
-    <p class="note" id="note">Your trophies come from your leaderboard scores. Your strengths and quests come from the practice saved on this computer. Hover over or tap a badge to see what it's for.</p>
+    <p class="note" id="note">Tap a badge to see what it's for.</p>
   </div>
 </div>
 <div class="tipcard" id="tip" role="tooltip" hidden></div>
@@ -1019,10 +1026,24 @@ async function boot() {
   }
   const tabs = [{ id: 'all', name: 'All games', acc: GOLD_ACC }].concat(GAMES, [{ id: 'time', name: 'Practice time', acc: DAYSKIN ? '#0f7a70' : '#7ff0e0' }, { id: 'tests', name: 'Tests', acc: '#ff5d6c' }]);
   let current = 0;
-  $('tabs').innerHTML = tabs.map((g, i) => `<button role="tab" id="tab-${g.id}" aria-controls="panel" style="--acc:${g.acc}" data-i="${i}"><i></i>${esc(g.name)}</button>`).join('');
+  // My Report redesign (2026-11-16, David): four tabs instead of eleven. "Games" shows one tile per game; a tile opens that game's details.
+  const TI = { time: tabs.findIndex(t => t.id === 'time'), tests: tabs.findIndex(t => t.id === 'tests') };
+  const NAV = [{ i: 0, ic: '🏠', name: 'Overview' }, { i: -1, ic: '🎮', name: 'Games' }, { i: TI.time, ic: '⏱', name: 'Practice time' }, { i: TI.tests, ic: '📝', name: 'Tests' }];
+  $('tabs').innerHTML = NAV.map(n => `<button role="tab" id="tab-${n.i < 0 ? 'games' : tabs[n.i].id}" aria-controls="panel" style="--acc:${n.i < 0 ? '#7c9cff' : tabs[n.i].acc}" data-i="${n.i}"><i></i><span aria-hidden="true">${n.ic}</span> ${n.name}</button>`).join('');
+  const isGame = i => i > 0 && i < TI.time;
+  function showGames() {
+    current = -1; hideTip(); BMAP = {};
+    for (const b of $('tabs').children) { b.setAttribute('aria-selected', String(+b.dataset.i === -1)); b.tabIndex = +b.dataset.i === -1 ? 0 : -1; }
+    const panel = $('panel'); panel.style.setProperty('--acc', '#7c9cff'); panel.setAttribute('aria-labelledby', 'tab-games');
+    panel.innerHTML = `<div class="box"><h2>Your games</h2><p class="sub">How many badges you have in each game. Tap a game for its details.</p><div class="gtiles">${GAMES.map((g, i) => {
+      const l = ctx.perGame[g.id], e = l.filter(b => b.tier > 0).length, pc = l.length ? Math.round(100 * e / l.length) : 0, C = 2 * Math.PI * 26;
+      return `<button type="button" class="gtile" data-goto="${i + 1}" style="--gacc:${g.acc}"><span class="ring2"><svg viewBox="0 0 62 62" aria-hidden="true"><circle cx="31" cy="31" r="26" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="7"/><circle cx="31" cy="31" r="26" fill="none" stroke="${g.acc}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${(C * pc / 100).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 31 31)"/></svg><b>${pc}%</b></span><span class="gt"><b>${esc(g.name)}</b><span>${e} of ${l.length} badges</span></span></button>`;
+    }).join('')}</div></div>`;
+  }
   function showTab(i) {
     current = i; const g = tabs[i]; hideTip(); BMAP = {};
-    for (const b of $('tabs').children) { b.setAttribute('aria-selected', String(+b.dataset.i === i)); b.tabIndex = +b.dataset.i === i ? 0 : -1; }
+    const navI = isGame(i) ? -1 : i;
+    for (const b of $('tabs').children) { b.setAttribute('aria-selected', String(+b.dataset.i === navI)); b.tabIndex = +b.dataset.i === navI ? 0 : -1; }
     const panel = $('panel'); panel.style.setProperty('--acc', g.acc); panel.setAttribute('aria-labelledby', 'tab-' + g.id);
     // Practice time: the same leaderboard as the time box in every game (shared/mtg-time.snippet.html); it reads only when opened
     if (g.id === 'time') {
@@ -1031,7 +1052,7 @@ async function boot() {
       return;
     }
     if (g.id === 'tests') { panel.innerHTML = '<div class="box"><h2>Tests</h2><p class="sub">Loading your tests…</p></div>'; testsPanel(p, cls).then(h => { if (current === i) panel.innerHTML = h; }); return; }
-    panel.innerHTML = i === 0 ? allPanel(ctx) : gamePanel(g, T[g.id], A[g.id], ctx.perGame[g.id], ctx);
+    panel.innerHTML = i === 0 ? allPanel(ctx) : '<button type="button" class="back2" data-games="1">← All games</button>' + gamePanel(g, T[g.id], A[g.id], ctx.perGame[g.id], ctx);
     confetti(panel, g.acc);
   }
   const render = () => {
@@ -1047,12 +1068,23 @@ async function boot() {
     const bar = $('newbar');
     bar.hidden = !fresh && !rankUp;
     bar.innerHTML = [rankUp ? `🎉 RANK UP! You're now a ${esc(RANKS[rank][1])}!` : '', fresh ? `🏅 You unlocked ${fresh} new badge${fresh > 1 ? 's' : ''}${fresh > 1 ? ' and levels' : ''}!` : ''].filter(Boolean).join(' ') + ' <small>See them →</small>';
-    showTab(current);
+    nextCard();
+    if (current === -1) showGames(); else showTab(current);
   };
   $('newbar').addEventListener('click', () => { showTab(0); const m = $('panel').querySelector('.medal.new'); (m || $('panel')).scrollIntoView({ behavior: 'smooth', block: 'center' }); });
-  $('tabs').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (b) showTab(+b.dataset.i); });
-  $('tabs').addEventListener('keydown', e => { if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return; const n = (current + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length; showTab(n); $('tabs').children[n].focus(); });
-  $('panel').addEventListener('click', e => { const c = e.target.closest('[data-goto]'); if (c) { showTab(+c.dataset.goto); $('tabs').children[+c.dataset.goto].focus(); } });
+  $('tabs').addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (b) { if (+b.dataset.i === -1) showGames(); else showTab(+b.dataset.i); } });
+  $('tabs').addEventListener('keydown', e => { if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return; const at = NAV.findIndex(n => n.i === (isGame(current) ? -1 : current)), k = (at + (e.key === 'ArrowRight' ? 1 : NAV.length - 1)) % NAV.length, n = NAV[k].i; if (n === -1) showGames(); else showTab(n); $('tabs').children[k].focus(); });
+  $('panel').addEventListener('click', e => { if (e.target.closest('[data-games]')) { showGames(); return; } const c = e.target.closest('[data-goto]'); if (c) { showTab(+c.dataset.goto); $('panel').scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
+  // "Do this next": the skill closest to mastery (85%) in any game, else a game not tried yet, else the game played least
+  function nextCard() {
+    const el = $('next2'); let best = null;
+    for (const g of GAMES) for (const [lab, [r, n]] of Object.entries((ctx.T[g.id] || {}).skills || {})) { const a = pct(r, n); if (n >= 4 && a < 85 && (!best || a > best.a)) best = { g, lab, a }; }
+    let h;
+    if (best) h = `<span class="ic" aria-hidden="true">🎯</span><span class="tx"><span class="k">Do this next · ${esc(best.g.name)}</span><b>Get ${esc(best.lab)} to 85%</b><span class="pg"><i style="width:${best.a}%"></i></span><small>You're at ${best.a}%. Almost there!</small></span>`;
+    else { const g = [...GAMES].sort((x, y) => Math.max(ctx.T[x.id].plays, ctx.A[x.id].n) - Math.max(ctx.T[y.id].plays, ctx.A[y.id].n))[0]; best = { g };
+      h = `<span class="ic" aria-hidden="true">🎮</span><span class="tx"><span class="k">Do this next</span><b>${Math.max(ctx.T[g.id].plays, ctx.A[g.id].n) ? 'Play more ' : 'Try '}${esc(g.name)}</b><small>New badges are waiting there.</small></span>`; }
+    el.href = best.g.url; el.innerHTML = h + '<span class="go2">▶ Play</span>'; el.hidden = false;
+  }
   render();
   try { await syncScores(p, store); } catch {}
   save(SKEY, store);
@@ -2745,20 +2777,63 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     if (A.off() || !A.signedIn()) return;
     box.classList.add('av', 'hasav'); box.removeAttribute('aria-hidden'); box.setAttribute('role', 'button'); box.tabIndex = 0;
     box.title = 'Your avatar: tap to change it or open the Store';
-    const draw = () => { box.innerHTML = A.svg({ crop: 1, label: 'Your avatar' }); const w = A.wallet(), k = A.rank(), el = document.getElementById('p-wallet');
-      el.hidden = false; el.innerHTML = `🪙 <b>${w.coins.toLocaleString()}</b> coins · ★ <b>${w.points.toLocaleString()}</b> points · Avatar rank ${k.n}${k.encores ? ' · Encore ' + '★'.repeat(Math.min(5, k.encores)) : ''}`; };
+    const draw = () => { box.innerHTML = A.svg({ label: 'Your avatar' }); box.dataset.idle = (A.look() || {}).idle || 'bounce'; const w = A.wallet(), k = A.rank();
+      document.getElementById('p-coins').textContent = '🪙 ' + w.coins.toLocaleString(); document.getElementById('p-pts').textContent = '★ ' + w.points.toLocaleString();
+      if (k && k.encores) { const lv = document.getElementById('p-level'); if (lv && !lv.querySelector('.enc2')) lv.insertAdjacentHTML('beforeend', ' <span class="enc2">' + (k.encores <= 5 ? '★'.repeat(k.encores) : '★' + k.encores) + '</span>'); }
+      const ed = document.getElementById('editav'); ed.hidden = false; ed.onclick = () => A.open(); };
+    box.dataset.act = ((window.MTGAvatar.look() || {}).dance) || 'groove'; setTimeout(() => { delete box.dataset.act; }, 3000);   // a dance when the page opens
     draw();
     box.onclick = () => A.open();
     box.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); A.open(); } };
     document.addEventListener('close', draw, true);   // redraw when the Store closes
   };
   addEventListener('load', show);
+  // practice time chip (from the shared time box): total and the Practice Hero tier
+  const tm = () => { const T = window.MTGTime; if (!T || !T.allTimeMin) return ++tries < 60 && setTimeout(tm, 400); const m = Math.round(T.allTimeMin() || 0), h = Math.floor(m / 60);
+    document.getElementById('p-time').textContent = '⏱ ' + (h ? h + 'h ' : '') + (m % 60) + 'm';
+    const tiers = [[6000, 'Legend'], [3000, 'Diamond'], [1500, 'Platinum'], [600, 'Gold'], [300, 'Silver'], [60, 'Bronze']], t = tiers.find(x => m >= x[0]);
+    document.getElementById('p-timetier').textContent = 'practiced' + (t ? ' · ' + t[1] + ' hero' : ''); };
+  addEventListener('load', tm);
 })();
 </script>
 <style>
   .avatar.hasav { padding: 0; overflow: hidden; cursor: pointer; background: #1d2547; }
   .avatar.hasav svg { width: 100%; height: 100%; display: block; }
   .avwallet { margin: 6px 0 0; font-size: 14px; color: var(--muted, #a8b3d6); }
+  /* ---- My Report redesign (2026-11-16): the avatar's home ---- */
+  .player.hero2 { display: grid; grid-template-columns: minmax(240px, 38%) 1fr; gap: 22px; align-items: stretch; padding: 18px 22px; border-radius: 24px; position: relative; overflow: hidden;
+    background: radial-gradient(120% 120% at 15% 20%, rgba(124,156,255,.28), rgba(255,255,255,.03) 60%), var(--card, #182048); }
+  .hero2 .stage2 { position: relative; display: flex; align-items: flex-end; justify-content: center; min-height: 300px; }
+  .hero2 .beam2 { position: absolute; top: -30%; left: 50%; width: 90%; height: 130%; transform: translateX(-50%); pointer-events: none;
+    background: conic-gradient(from 180deg at 50% 0%, transparent 160deg, rgba(255,240,200,.14) 172deg, rgba(255,240,200,.22) 180deg, rgba(255,240,200,.14) 188deg, transparent 200deg); }
+  .hero2 .avatar { width: min(100%, 290px); height: auto; aspect-ratio: 100/120; border-radius: 0; border: 0; background: none; font-size: 90px; display: grid; place-items: center; box-shadow: none; position: relative; }
+  .hero2 .avatar.hasav { background: none; }
+  .hero2 .who { display: flex; flex-direction: column; justify-content: center; gap: 12px; min-width: 0; }
+  .hero2 h1 { font-size: 38px; line-height: 1.05; margin: 0; }
+  .hero2 .lvl { background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.12); border-radius: 16px; padding: 12px 14px; }
+  .hero2 .xp { height: 14px; }
+  .enc2 { color: #b07cff; font-weight: 900; }
+  .chips2 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .chip2 { background: rgba(0,0,0,.22); border: 1px solid rgba(255,255,255,.1); border-radius: 16px; padding: 10px 12px; display: flex; flex-direction: column; }
+  .chip2 b { font-size: 20px; white-space: nowrap; } .chip2 span { color: var(--muted, #a8b3d6); font-size: 12.5px; font-weight: 700; }
+  .editav { align-self: flex-start; border: 0; border-radius: 14px; padding: 12px 20px; font: inherit; font-weight: 900; font-size: 16px; cursor: pointer; background: linear-gradient(#ffd25a, #ffb020); color: #2a1a00; box-shadow: 0 4px 0 #b97800; }
+  .next2 { display: flex; align-items: center; gap: 16px; text-decoration: none; color: #fff; background: linear-gradient(120deg, #2f6bff, #7a3cff); border-radius: 22px; padding: 16px 20px; box-shadow: 0 10px 30px rgba(60,80,255,.3); }
+  .next2[hidden] { display: none; }
+  .next2 .ic { font-size: 40px; } .next2 .tx { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .next2 .k { font-size: 12px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; opacity: .85; } .next2 b { font-size: 21px; }
+  .next2 .pg { height: 10px; border-radius: 999px; background: rgba(255,255,255,.25); overflow: hidden; width: min(360px, 60vw); } .next2 .pg i { display: block; height: 100%; background: #fff; }
+  .next2 .go2 { margin-left: auto; background: #fff; color: #2a2f80; font-weight: 900; font-size: 18px; padding: 12px 22px; border-radius: 14px; box-shadow: 0 4px 0 rgba(0,0,0,.25); white-space: nowrap; }
+  .gtiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; margin-top: 12px; }
+  .gtile { display: flex; gap: 12px; align-items: center; text-align: left; font: inherit; color: inherit; background: rgba(255,255,255,.05); border: 2px solid rgba(255,255,255,.08); border-radius: 18px; padding: 12px; cursor: pointer; }
+  .gtile:hover { border-color: var(--gacc); } .gtile .gt { display: flex; flex-direction: column; } .gtile .gt b { font-size: 16px; } .gtile .gt span { color: var(--muted, #a8b3d6); font-size: 13px; }
+  .ring2 { width: 62px; height: 62px; position: relative; flex: none; } .ring2 svg { width: 100%; height: 100%; } .ring2 b { position: absolute; inset: 0; display: grid; place-items: center; font-size: 14px; }
+  .back2 { font: inherit; font-weight: 800; color: inherit; background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); border-radius: 999px; padding: 7px 14px; margin-bottom: 12px; cursor: pointer; }
+  @media (max-width: 760px) {
+    .player.hero2 { grid-template-columns: 1fr; padding: 12px; gap: 8px; }
+    .hero2 .stage2 { min-height: 0; height: 240px; } .hero2 .avatar { width: auto; height: 100%; }
+    .hero2 h1 { font-size: 28px; } .chips2 { grid-template-columns: repeat(2, 1fr); }
+    .next2 { flex-wrap: wrap; } .next2 .go2 { margin-left: 0; width: 100%; text-align: center; }
+  }
   .avwallet b { color: #ffd166; }
 </style>
 </body>
