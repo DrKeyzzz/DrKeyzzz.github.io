@@ -228,8 +228,9 @@ if (SCREEN) {
       <p class="txt">${esc(x.t)}</p><div class="row" style="font-size:28px;gap:18px">${REACTS.map(e => { const c = rx.filter(r => r.e === e).length; return c ? `<span>${e} <span class="mono">${c}</span></span>` : ''; }).join('')}</div></div>`; }).join('');
     // While answers are open the class screen hides the bars, so nobody just goes with the crowd (David, 2026-11-17);
     // they appear the moment the teacher locks the answers. The teacher's own screen always shows them.
-    const res = P.teacher && L.open ? `<div class="stack" style="justify-content:center;align-items:center;text-align:center;min-height:220px"><span style="font-size:64px">🙈</span><p style="font-size:28px;margin:0">Results appear when answers are locked</p><p class="muted" style="font-size:20px;margin:0">Answer on your own: no peeking at the crowd!</p></div>`
-      : P.teacher ? results(L, A, { big: true, correct: L.open ? '' : correctOf() })
+    const hideRes = L.open && !(L.ends_at && s === 0);   // revealed when the timer runs out or the teacher locks (Lock & reveal)
+    const res = P.teacher && hideRes ? `<div class="stack" style="justify-content:center;align-items:center;text-align:center;min-height:220px"><span style="font-size:64px">🙈</span><p style="font-size:28px;margin:0">${s != null ? 'Results appear when time runs out' : 'Results appear when your teacher reveals them'}</p><p class="muted" style="font-size:20px;margin:0">Answer on your own: no peeking at the crowd!</p></div>`
+      : P.teacher ? results(L, A, { big: true, correct: hideRes ? '' : correctOf() })
       : '<p class="muted">Results show here when this computer is signed in to your teacher dashboard.</p>';
     app.innerHTML = `<main class="proj">
       <div class="row between"><span class="label" style="font-size:16px">${esc(TYPES[L.type] || '')}</span>${s != null ? '' : L.open ? '<span class="chip ok" style="font-size:18px">Answers open</span>' : '<span class="chip no" style="font-size:18px">Locked</span>'}</div>
@@ -274,7 +275,7 @@ if (SCREEN) {
   if (code) db.watchDoc('bc_live/' + code, d => { P.live = d; watchRound(); draw(); }, e => { app.innerHTML = `<main class="proj"><h1>${esc(ERR(e))}</h1></main>`; });
   if (!PREVIEW && code) LC.fbAuth().then(({ am, auth }) => am.onAuthStateChanged(auth, u => { P.teacher = u && u.email ? String(u.email).toLowerCase() : ''; P.round = '__'; watchRound(); draw(); })).catch(() => {});
   window.addEventListener('storage', e => { if (e.key === 'mtg_live_teach_v1:' + code) draw(); });
-  setInterval(() => { const el = $('cd'); if (el && P.live) { if (P.live.game && P.live.open) draw(); else tbarTick(P.live); } }, 500);
+  setInterval(() => { const el = $('cd'); if (el && P.live) { if (P.live.game && P.live.open) draw(); else { tbarTick(P.live); if (left(P.live) === 0 && P.revealed !== P.live.round + '|' + P.live.ends_at) { P.revealed = P.live.round + '|' + P.live.ends_at; draw(); } } } }, 500);   // time's up: show the results once
   draw();
   return;
 }

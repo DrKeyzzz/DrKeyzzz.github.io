@@ -265,7 +265,7 @@ function roundCard() {
     ${L.type === 'mc' ? `<div class="row">${(L.opts || []).map((o, i) => `<span class="chip">${'ABCDEF'[i]}. ${esc(o)}</span>`).join('')}</div>` : ''}
     <div class="row"><b class="mono">${A.length}${n ? ' of ' + Math.max(n, A.length) : ''}</b><span class="muted">answered</span><div class="meter" style="flex:1;min-width:120px"><i style="width:${n ? Math.min(100, 100 * A.length / Math.max(n, A.length)) : 0}%"></i></div></div>
     <div class="row">
-      <button class="btn" type="button" data-act="lock">${L.open ? '🔒 Lock answers' : '🔓 Unlock answers'}</button>
+      <button class="btn ${L.open ? 'pri' : ''}" type="button" data-act="lock" title="${L.open ? 'Stop answers and show the results and the correct answer on the class screen' : 'Let students answer again'}">${L.open ? '👁 Lock &amp; reveal' : '🔓 Unlock answers'}</button>
       <button class="btn" type="button" data-act="timer" data-v="30">⏱ 30s</button><button class="btn" type="button" data-act="timer" data-v="60">1 min</button><button class="btn" type="button" data-act="timer" data-v="120">2 min</button>
       ${(L.spot || []).length ? '<button class="btn" type="button" data-act="spotClear">Clear spotlight</button>' : ''}
       <button class="btn" type="button" data-act="csv">Download CSV</button>
