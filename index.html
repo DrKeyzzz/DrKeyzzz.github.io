@@ -1776,6 +1776,17 @@ render(); refreshClass(); tipIds();
     try { localStorage.setItem(k, JSON.stringify({ key: s, lost: false, conf: 3, hist: [], react: null })); } catch(e){}
     return s;
   }
+  // FEEDBACK LIMIT (2026-11-17): one random id per browser (not the student's key), written to fb_gate/<gate> with each note;
+  // the rules allow one note a minute per gate.
+  function gateId(){
+    var k = 'mtgfb_gate_v1', g = '';
+    try { g = localStorage.getItem(k) || ''; } catch(e){}
+    if (/^[a-z0-9]{20}$/.test(g)) return g;
+    var a = 'abcdefghijklmnopqrstuvwxyz0123456789', r = crypto.getRandomValues(new Uint8Array(20)); g = '';
+    r.forEach(function(x){ g += a[x % 36]; });
+    try { localStorage.setItem(k, g); } catch(e){}
+    return g;
+  }
   function niceName(p){ var f = String(p.first); return (f.charAt(0).toUpperCase() + f.slice(1) + ' ' + p.init + '.').slice(0, 24); }
   function classList(p){
     var l = Array.isArray(p.classes) && p.classes.length ? p.classes : (p.classCode ? [{code: p.classCode, owner: p.classOwner || ''}] : []);
@@ -1860,9 +1871,12 @@ render(); refreshClass(); tipIds();
       Promise.all([import(SDK + 'firebase-app.js'), import(SDK + 'firebase-firestore.js')]).then(function(m){
         var a = m[0], f = m[1];
         var app = a.getApps().filter(function(x){ return x.name === 'mtg-feedback'; })[0] || a.initializeApp(CFG, 'mtg-feedback');
-        var doc = {}; for (var k in data) doc[k] = data[k];
-        doc.created_at = f.serverTimestamp();
-        return f.addDoc(f.collection(f.getFirestore(app), 'game_feedback'), doc);
+        var db = f.getFirestore(app), doc = {}; for (var k in data) doc[k] = data[k];
+        doc.created_at = f.serverTimestamp(); doc.gate = gateId();
+        var w = f.writeBatch(db);
+        w.set(f.doc(f.collection(db, 'game_feedback')), doc);
+        w.set(f.doc(db, 'fb_gate', doc.gate), { at: f.serverTimestamp() });   // one note a minute per browser (rules)
+        return w.commit();
       }),
       new Promise(function(_, bad){ setTimeout(function(){ bad(new Error('timeout')); }, 12000); })
     ]);
@@ -1874,7 +1888,7 @@ render(); refreshClass(); tipIds();
     if (text.length < 3) { err.textContent = 'Write a few words first.'; ta.focus(); return; }
     try {
       var last = +localStorage.getItem(LAST_KEY) || 0;
-      if (Date.now() - last < WAIT_MS) { err.textContent = 'Please wait a minute before sending another.'; return; }
+      if (Date.now() - last < WAIT_MS) { err.textContent = 'Thanks! You can send another note in a minute.'; return; }
     } catch(e){}
     var p = who(), anon = !p || $('anon').checked, cl = p ? classList(p) : [];
     var data = {
@@ -1898,8 +1912,9 @@ render(); refreshClass(); tipIds();
       try { localStorage.setItem(LAST_KEY, String(Date.now())); } catch(e){}
       ta.value = ''; $('count').textContent = '0 / ' + MAX; show('done');
       setTimeout(function(){ var c = $('close'); if (c) c.focus(); }, 30);
-    }).catch(function(){
-      err.textContent = 'Could not send. Check your internet and try again.';
+    }).catch(function(e){
+      // refused by the rules = the one-note-a-minute limit (a note sent from another tab, or a moment ago)
+      err.textContent = e && e.code === 'permission-denied' ? 'Thanks! You can send another note in a minute.' : 'Could not send. Check your internet and try again.';
     }).then(function(){ sending = false; $('send').disabled = false; $('send').textContent = 'Send'; });
   });
 
