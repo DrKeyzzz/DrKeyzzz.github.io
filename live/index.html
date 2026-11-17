@@ -249,7 +249,7 @@ if (SCREEN) {
     if (L.final) {
       const top = board.slice(0, 3), order = [1, 0, 2].filter(i => top[i]);
       return `<main class="proj"><section class="sd-curtain"><h1 style="margin:0;position:relative;z-index:1">🎭 Curtain call</h1>
-        <div class="sd-stage">${order.map(i => `<div class="sd-star ${i === 0 ? 'first' : ''}"><div class="av" data-idle="bounce" data-act="${i === 0 ? 'ovation' : 'groove'}" data-cc="${esc(top[i].s)}"></div><span class="sd-place">${['1st', '2nd', '3rd'][i]}</span><span>${esc(top[i].n)}</span><span class="mono">${top[i].p.toLocaleString()}</span></div>`).join('')}</div>
+        <div class="sd-stage">${order.map(i => `<div class="sd-star ${i === 0 ? 'first' : ''}"><div class="av" data-idle="bounce" data-cc="${esc(top[i].s)}"></div><span class="sd-place">${['1st', '2nd', '3rd'][i]}</span><span>${esc(top[i].n)}</span><span class="mono">${top[i].p.toLocaleString()}</span></div>`).join('')}</div>
         <p class="muted" style="position:relative;z-index:1;margin:0">Everyone earns ★ for the Locker. Check your phone!</p></section></main>`;
     }
     const keys = (L.opts || []).map((o, i) => { const n = F.filter(a => a.text === o).length;
@@ -261,7 +261,11 @@ if (SCREEN) {
   }
   // the Curtain call draws each star's own avatar (one read each, kept 10 minutes)
   const ccDraw = () => app.querySelectorAll('[data-cc]').forEach(el => { if (el.dataset.done || !window.MTGAvatar || !MTGAvatar.peer) return; el.dataset.done = 1;
-    MTGAvatar.peer(code, el.dataset.cc).then(v => { el.innerHTML = MTGAvatar.draw(v ? v.look : {}, { label: 'Avatar' }); }); });   // no avatar yet: the default one
+    MTGAvatar.peer(code, el.dataset.cc).then(v => { el.innerHTML = MTGAvatar.draw(v ? v.look : {}, { label: 'Avatar' });   // no avatar yet: the default one
+      el.dataset.dance = (v && v.look && v.look.dance) || 'groove'; el.dataset.act = el.dataset.dance; }); });
+  // each star loops their own dance move (the one they picked for 'End of a run'), restarted every 3.4 s (David, 2026-11-17)
+  // (also draws any star missed when the avatar code loaded after the Curtain call appeared)
+  setInterval(() => ccDraw() || app.querySelectorAll('[data-dance]').forEach(el => { delete el.dataset.act; void el.offsetWidth; el.dataset.act = el.dataset.dance; }), 3400);
   new MutationObserver(ccDraw).observe(app, { childList: true });
   const watchRound = () => {
     const r = P.live && P.live.round || '';
