@@ -208,7 +208,10 @@ if (SCREEN) {
     const spot = (L.spot || []).map((x, i) => { const rx = P.reacts.filter(r => r.to === i);
       return `<div class="spotcard"><span class="label" style="color:var(--gold)">★ Spotlight${x.n ? '' : ' · a classmate'}</span>${x.n ? `<div style="font-size:26px;font-weight:700">${esc(x.a || '')} ${esc(x.n)}</div>` : ''}
       <p class="txt">${esc(x.t)}</p><div class="row" style="font-size:28px;gap:18px">${REACTS.map(e => { const c = rx.filter(r => r.e === e).length; return c ? `<span>${e} <span class="mono">${c}</span></span>` : ''; }).join('')}</div></div>`; }).join('');
-    const res = P.teacher ? results(L, A, { big: true, correct: L.open ? '' : correctOf() })
+    // While answers are open the class screen hides the bars, so nobody just goes with the crowd (David, 2026-11-17);
+    // they appear the moment the teacher locks the answers. The teacher's own screen always shows them.
+    const res = P.teacher && L.open ? `<div class="stack" style="justify-content:center;align-items:center;text-align:center;min-height:220px"><span style="font-size:64px">🙈</span><p style="font-size:28px;margin:0">Results appear when answers are locked</p><p class="muted" style="font-size:20px;margin:0">Answer on your own: no peeking at the crowd!</p></div>`
+      : P.teacher ? results(L, A, { big: true, correct: L.open ? '' : correctOf() })
       : '<p class="muted">Results show here when this computer is signed in to your teacher dashboard.</p>';
     app.innerHTML = `<main class="proj">
       <div class="row between"><span class="label" style="font-size:16px">${esc(TYPES[L.type] || '')}</span>${s != null ? `<span class="ptimer mono" id="cd">${clock(s)}</span>` : L.open ? '<span class="chip ok" style="font-size:18px">Answers open</span>' : '<span class="chip no" style="font-size:18px">Locked</span>'}</div>
