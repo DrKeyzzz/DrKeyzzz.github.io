@@ -375,7 +375,7 @@ html[data-skin="day"] .newbar { box-shadow: 0 10px 24px -14px rgba(23, 35, 58, .
           <div class="chip2"><b>🔥 <span id="p-streak">0 days</span></b><span>in a row</span></div>
           <div class="chip2"><b id="p-time">⏱ –</b><span id="p-timetier">practiced</span></div>
           <div class="chip2"><b id="p-coins">🪙 –</b><span>coins to spend</span></div>
-          <div class="chip2"><b id="p-pts">★ –</b><span>points to spend</span></div>
+          <div class="chip2"><b id="p-pts">★ –</b><span>Stars to spend</span></div>
         </div>
         <p class="avwallet" id="p-wallet" hidden></p>
         <button class="editav" id="editav" type="button" hidden>✏️ Edit avatar &amp; Store</button>
@@ -1113,7 +1113,7 @@ boot();
       const ed = document.getElementById('editav'); ed.hidden = false; ed.onclick = () => A.open();
       // Today's quests and the daily streak (play more, 2026-11-16): from the avatar snippet
       if (A.questsHtml) { let qb = document.getElementById('questbox'); if (!qb) { qb = document.createElement('section'); qb.id = 'questbox'; qb.className = 'box'; document.getElementById('next2').insertAdjacentElement('afterend', qb); }
-        qb.innerHTML = '<h2>🎯 Today\u2019s quests</h2><p class="sub">New ones every day at midnight. Each one pays ★ points for the Store.</p>' + A.questsHtml(); } };
+        qb.innerHTML = '<h2>🎯 Today\u2019s quests</h2><p class="sub">New ones every day at midnight. Each quest pays 10 🪙; finish all 3 for +3 ★. Stars are rare: great runs, streaks, tests, new ranks, mastering a game and Showdowns.</p>' + A.questsHtml(); } };
     box.dataset.act = ((window.MTGAvatar.look() || {}).dance) || 'groove'; setTimeout(() => { delete box.dataset.act; }, 3000);   // a dance when the page opens
     draw();
     box.onclick = () => A.open();
@@ -1630,6 +1630,8 @@ boot();
    Maestro Baton opens at rank 9 and the Golden Wreath at rank 10.
    Step 4c (2026-11-16): Encore at the top rank (two taps): avatar rank restarts (xp - encXP), items/coins/points kept, ★ ring on the platform,
    ★ on the corner, +10% points per Encore (max +50%); saved as encores / encore_xp. Encore-only items: later.
+   Rare Stars (2026-11-17, David): ★ points are now Stars, earned only for big moments (never per answer); ★ prices / 10; old points / 10 once
+   (wallet flag sv); Firestore field 'stars' (old 'points' kept), first write from a device sets it (sSrv), then increments of at most 30.
    Step 4b (2026-11-16): mastery read from each game's own saves (see the mastery section), kept in mtg_mastery_v1:<sid>; unlocks rank gates
    and the Gold Piano Jacket, Detective Coat and Captain's Hat.
    Step 5a (2026-11-16): a teacher can turn avatars off for a class (classes/<code>.avatars_off, dashboard switch); checked once per tab.
@@ -1668,11 +1670,11 @@ boot();
     {id:'detective',slot:'top',name:'Detective Coat',ic:'🕵️',lock:'Finish a Big Score challenge on Extreme'},
     // hats
     {id:'none',slot:'hat',name:'No hat',ic:'🚫',free:1},{id:'beanie',slot:'hat',name:'Beanie',ic:'🧢',c:25},{id:'cap',slot:'hat',name:'Cap',ic:'🧢',c:30},
-    {id:'phones',slot:'hat',name:'Headphones',ic:'🎧',c:45},{id:'tophat',slot:'hat',name:'Top hat',ic:'🎩',p:300},{id:'crown',slot:'hat',name:'Crown',ic:'👑',p:1500},
+    {id:'phones',slot:'hat',name:'Headphones',ic:'🎧',c:45},{id:'tophat',slot:'hat',name:'Top hat',ic:'🎩',p:30},{id:'crown',slot:'hat',name:'Crown',ic:'👑',p:150},
     {id:'captain',slot:'hat',name:"Captain's Hat",ic:'⚓',lock:'Reach the top level in Tidal Tones'},
     // gear
     {id:'none',slot:'gear',name:'Empty hands',ic:'🚫',free:1},{id:'mic',slot:'gear',name:'Mic',ic:'🎤',art:'microphone',c:40},{id:'sticks',slot:'gear',name:'Drumsticks',ic:'🥁',c:50},
-    {id:'guitar',slot:'gear',name:'Guitar',ic:'🎸',art:'guitar',p:500},{id:'keytar',slot:'gear',name:'Keytar',ic:'🎹',p:900},
+    {id:'guitar',slot:'gear',name:'Guitar',ic:'🎸',art:'guitar',p:50},{id:'keytar',slot:'gear',name:'Keytar',ic:'🎹',p:90},
     // Real instrument pictures (Fluent Emoji 3D, David 2026-11-16 'go with your picks'). The 9 below: David's ChatGPT pictures (2026-11-16, 'swap all 9').
     {id:'flute',slot:'gear',name:'Flute',ic:'🪈',art:'concert_flute',c:100},{id:'clarinet',slot:'gear',name:'Clarinet',ic:'🎷',art:'clarinet',c:100},
     {id:'trombone',slot:'gear',name:'Trombone',ic:'🎺',art:'trombone',c:140},{id:'horn',slot:'gear',name:'French Horn',ic:'📯',art:'french_horn',c:160},
@@ -1688,24 +1690,24 @@ boot();
     {id:'baton',slot:'gear',name:'Maestro Baton',ic:'🪄',lock:'Reach rank 9: Maestro'},
     // moves
     {id:'bounce',slot:'idle',name:'Bounce',ic:'⬆️',free:1},{id:'sway',slot:'idle',name:'Sway',ic:'〰️',c:40},{id:'headbob',slot:'idle',name:'Head bob',ic:'🎶',c:80},
-    {id:'hop',slot:'happy',name:'Hop',ic:'🙌',free:1},{id:'fistpump',slot:'happy',name:'Fist pump',ic:'✊',c:30},{id:'spin',slot:'happy',name:'Spin',ic:'🌀',p:250},
+    {id:'hop',slot:'happy',name:'Hop',ic:'🙌',free:1},{id:'fistpump',slot:'happy',name:'Fist pump',ic:'✊',c:30},{id:'spin',slot:'happy',name:'Spin',ic:'🌀',p:25},
     {id:'shrug',slot:'aww',name:'Shrug',ic:'🤷',free:1},
-    {id:'groove',slot:'dance',name:'Groove',ic:'🕺',free:1},{id:'wave',slot:'dance',name:'Big Wave',ic:'👋',free:1},{id:'robot',slot:'dance',name:'Robot',ic:'🤖',p:400},
-    {id:'disco',slot:'dance',name:'Disco Point',ic:'🪩',p:700},{id:'spinout',slot:'dance',name:'Spin Out',ic:'💫',p:1200},
+    {id:'groove',slot:'dance',name:'Groove',ic:'🕺',free:1},{id:'wave',slot:'dance',name:'Big Wave',ic:'👋',free:1},{id:'robot',slot:'dance',name:'Robot',ic:'🤖',p:40},
+    {id:'disco',slot:'dance',name:'Disco Point',ic:'🪩',p:70},{id:'spinout',slot:'dance',name:'Spin Out',ic:'💫',p:120},
     // backdrops
     {id:'none',slot:'bg',name:'Plain',ic:'⬜',free:1},{id:'staff',slot:'bg',name:'Staff lines',ic:'🎼',c:40},{id:'stage',slot:'bg',name:'Stage lights',ic:'💡',c:70},
-    {id:'sunset',slot:'bg',name:'Sunset',ic:'🌅',c:90},{id:'galaxy',slot:'bg',name:'Galaxy',ic:'🌌',p:900},{id:'wreath',slot:'bg',name:'Golden Wreath',ic:'🏅',lock:'Reach rank 10: Superior Music Theory Master'},
+    {id:'sunset',slot:'bg',name:'Sunset',ic:'🌅',c:90},{id:'galaxy',slot:'bg',name:'Galaxy',ic:'🌌',p:90},{id:'wreath',slot:'bg',name:'Golden Wreath',ic:'🏅',lock:'Reach rank 10: Superior Music Theory Master'},
     // pets
     {id:'none',slot:'pet',name:'No pet',ic:'🚫',free:1},{id:'note',slot:'pet',name:'Note Buddy',ic:'🎵',c:60},{id:'cat',slot:'pet',name:'Cat',ic:'🐱',c:120},
-    {id:'owl',slot:'pet',name:'Owl',ic:'🦉',p:300},{id:'robo',slot:'pet',name:'Robo Pal',ic:'🤖',p:2500},
+    {id:'owl',slot:'pet',name:'Owl',ic:'🦉',p:30},{id:'robo',slot:'pet',name:'Robo Pal',ic:'🤖',p:250},
     // skins: full costumes over your look
     {id:'none',slot:'outfit',name:'My own clothes',ic:'👕',free:1},{id:'dj',slot:'outfit',name:'DJ',ic:'🎧',c:120},{id:'pirate',slot:'outfit',name:'Pirate',ic:'🏴‍☠️',c:150},
-    {id:'rockstar',slot:'outfit',name:'Rock Star',ic:'🤘',c:200},{id:'hero',slot:'outfit',name:'Super Hero',ic:'⚡',p:600},{id:'astronaut',slot:'outfit',name:'Astronaut',ic:'🚀',p:900},
-    {id:'robot',slot:'outfit',name:'Robot',ic:'🤖',p:1500},{id:'wizard',slot:'outfit',name:'Wizard',ic:'🧙',p:2000},
+    {id:'rockstar',slot:'outfit',name:'Rock Star',ic:'🤘',c:200},{id:'hero',slot:'outfit',name:'Super Hero',ic:'⚡',p:60},{id:'astronaut',slot:'outfit',name:'Astronaut',ic:'🚀',p:90},
+    {id:'robot',slot:'outfit',name:'Robot',ic:'🤖',p:150},{id:'wizard',slot:'outfit',name:'Wizard',ic:'🧙',p:200},
     {id:'step',slot:'idle',name:'Side step',ic:'👟',c:100},
     // new moves (2026-11-16)
-    {id:'airguitar',slot:'dance',name:'Air Guitar',ic:'🎸',p:600},{id:'conductor',slot:'dance',name:'Conductor',ic:'🪄',p:500},{id:'jacks',slot:'dance',name:'Jumping Jacks',ic:'⭐',c:140},
-    {id:'raiseroof',slot:'dance',name:'Raise the Roof',ic:'🙌',c:120},{id:'shuffle',slot:'dance',name:'Shuffle',ic:'👟',p:450},{id:'drumsolo',slot:'dance',name:'Drum Solo',ic:'🥁',c:150},
+    {id:'airguitar',slot:'dance',name:'Air Guitar',ic:'🎸',p:60},{id:'conductor',slot:'dance',name:'Conductor',ic:'🪄',p:50},{id:'jacks',slot:'dance',name:'Jumping Jacks',ic:'⭐',c:140},
+    {id:'raiseroof',slot:'dance',name:'Raise the Roof',ic:'🙌',c:120},{id:'shuffle',slot:'dance',name:'Shuffle',ic:'👟',p:45},{id:'drumsolo',slot:'dance',name:'Drum Solo',ic:'🥁',c:150},
     {id:'clap',slot:'happy',name:'Clap',ic:'👏',c:35},{id:'starjump',slot:'happy',name:'Star Jump',ic:'🌟',c:60},{id:'pointup',slot:'happy',name:'Point Up',ic:'☝️',c:40},
     {id:'tap',slot:'idle',name:'Foot Tap',ic:'🦶',c:50},{id:'look',slot:'idle',name:'Look Around',ic:'👀',c:60},
     // collection rewards and streak rewards (play more, 2026-11-16): earned, never bought
@@ -1714,7 +1716,7 @@ boot();
     {id:'beret',slot:'hat',name:'Jazz Beret',ic:'🎷',lock:'Collect the Woodwinds: flute, clarinet, alto sax',set:'winds'},
     {id:'shako',slot:'hat',name:'Drumline Hat',ic:'🥁',lock:'Collect the Percussion: snare, marching drum, hand drum',set:'perc'},
     {id:'flame',slot:'bg',name:'Flame Aura',ic:'🔥',lock:'Play 14 days in a row',streak:14},
-    {id:'inferno',slot:'bg',name:'Inferno',ic:'🌋',lock:'Play 30 days in a row',streak:30},{id:'kick',slot:'happy',name:'Kick',ic:'🦵',c:45},{id:'kickstep',slot:'dance',name:'Kick Step',ic:'🦶',p:800},
+    {id:'inferno',slot:'bg',name:'Inferno',ic:'🌋',lock:'Play 30 days in a row',streak:30},{id:'kick',slot:'happy',name:'Kick',ic:'🦵',c:45},{id:'kickstep',slot:'dance',name:'Kick Step',ic:'🦶',p:80},
     // Encore-only items (step 5): yours after that many Encores
     {id:'encjacket',slot:'top',name:'Encore Jacket',ic:'🎭',enc:1}, {id:'ovation',slot:'dance',name:'Standing Ovation',ic:'👏',enc:2},
     {id:'spotlight',slot:'bg',name:'Spotlight',ic:'🔦',enc:3}, {id:'goldmic',slot:'gear',name:'Golden Mic',ic:'🎤',enc:4},
@@ -1974,11 +1976,13 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   var P = who(), SID = P ? sidOf(P) : '', DOC = P ? (activeCode(P) || 'none') + '_' + SID : '', KEY = 'mtg_avatar_v1:' + SID;
   var today = function(){ var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
   // W = the wallet (build step 2): coins for playing (1 per active minute, 60 a day), points for doing well
-  var look = null, fresh = false, W = { coins: 0, points: 0, day: today(), dayCoins: 0, owned: [], encores: 0, encXP: 0 };
+  var look = null, fresh = false, W = { coins: 0, points: 0, day: today(), dayCoins: 0, owned: [], encores: 0, encXP: 0, sv: 1, sSrv: 0, dayRun: 0, dayAw: 0, sFrac: 0 }, hadWallet = false, starNote = false;
   if (P) { try { var raw = JSON.parse(localStorage.getItem(KEY) || 'null');
     if (raw && raw.look) look = clean(raw.look);
     if (raw && raw.w) W = { coins: Math.max(0, +raw.w.coins || 0), points: Math.max(0, +raw.w.points || 0), day: String(raw.w.day || today()), dayCoins: Math.max(0, +raw.w.dayCoins || 0), owned: Array.isArray(raw.w.owned) ? raw.w.owned.filter(function(k){ return typeof k === 'string' && k.length <= 40; }).slice(0, 300) : [],
-      encores: Math.max(0, Math.min(99, +raw.w.encores || 0)), encXP: Math.max(0, +raw.w.encXP || 0) };
+      encores: Math.max(0, Math.min(99, +raw.w.encores || 0)), encXP: Math.max(0, +raw.w.encXP || 0), sv: +raw.w.sv || 0, sSrv: +raw.w.sSrv || 0,
+      dayRun: +raw.w.dayRun || 0, dayAw: +raw.w.dayAw || 0, sFrac: +raw.w.sFrac || 0 };
+    if (raw && raw.w) { hadWallet = true; if (!W.sv) { starNote = W.points > 0; W.points = Math.floor(W.points / 10); W.sv = 1; } }   // rare Stars (2026-11-17): old points / 10
   } catch(e){} }
   if (!look) { look = randomLook(); fresh = !!P; }   // guests: a random avatar for this visit, never saved
   function wearOwned(L){   // a paid item that isn't in this student's owned list goes back to the free default
@@ -2066,19 +2070,20 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   function sendNow(){
     clearTimeout(sendT); sendT = 0;
     if (!P || LOCAL || (!dCoins && !dPoints && !lookDirty)) return;
-    var c = Math.min(dCoins, 30), p = Math.min(dPoints, 600);   // spending (negative) goes in one piece   // the rules allow at most this much per write; the rest goes next time
+    var c = Math.min(dCoins, 30), p = Math.min(dPoints, 30), seed = !W.sSrv;   // spending (negative) goes in one piece   // the rules allow at most this much per write; the rest goes next time
     var tf = [{ fieldPath: 'updated_at', setToServerValue: 'REQUEST_TIME' }];
     if (c) tf.push({ fieldPath: 'coins', increment: { integerValue: String(c) } });
-    if (p) tf.push({ fieldPath: 'points', increment: { integerValue: String(p) } });
+    if (p && !seed) tf.push({ fieldPath: 'stars', increment: { integerValue: String(p) } });
     var fields = { look: { mapValue: { fields: toFields(look) } }, sid: { stringValue: SID }, coin_day: { stringValue: W.day }, coins_today: { integerValue: String(Math.min(60, W.dayCoins)) },
       owned: { arrayValue: { values: W.owned.slice(0, 300).map(function(k){ return { stringValue: k }; }) } },
       encores: { integerValue: String(W.encores) }, encore_xp: { integerValue: String(Math.round(W.encXP)) }, rank: { integerValue: String(rankNow()) } };
+    if (seed) { fields.stars = { integerValue: String(Math.max(0, W.points)) }; p = dPoints; }   // the online Stars total starts from this device's
     dCoins -= c; dPoints -= p; lookDirty = false; lastSend = Date.now();
     try {
       fetch(FS.replace(/\/$/, '') + ':commit?key=' + FKEY, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ writes: [{ update: { name: FS.replace('https://firestore.googleapis.com/v1/', '') + 'avatars/' + DOC, fields: fields },
           updateMask: { fieldPaths: Object.keys(fields) }, updateTransforms: tf }] }) })
-        .then(function(r){ if (!r.ok) { dCoins += c; dPoints += p; } }).catch(function(){ dCoins += c; dPoints += p; });   // try again next time
+        .then(function(r){ if (!r.ok) { dCoins += c; dPoints += p; } else if (seed) { W.sSrv = 1; saveLocal(); } }).catch(function(){ dCoins += c; dPoints += p; });   // try again next time
     } catch(e){ dCoins += c; dPoints += p; }
   }
   function sendSoon(ms){ if (!sendT) sendT = setTimeout(sendNow, Math.max(ms, 60000 - (Date.now() - lastSend))); }
@@ -2096,7 +2101,9 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       if (lf && fresh) look = clean(fromFields(lf));
       look = wearOwned(look);
       var sc = f.coins ? +f.coins.integerValue : 0, sp = f.points ? +f.points.integerValue : 0;
-      W.coins = Math.max(W.coins, sc + dCoins); W.points = Math.max(W.points, sp + dPoints);   // online total + what this tab still has to send
+      W.coins = Math.max(W.coins, sc + dCoins);
+      if (f.stars) { W.points = Math.max(W.points, +f.stars.integerValue + dPoints); W.sSrv = 1; }   // online Stars total + what this tab still has to send
+      else if (!hadWallet) { W.points = Math.max(W.points, Math.floor(sp / 10)); starNote = starNote || sp > 0; }   // a new device: old online points / 10   // online total + what this tab still has to send
       ((f.owned && f.owned.arrayValue && f.owned.arrayValue.values) || []).forEach(function(v){ if (v.stringValue && W.owned.indexOf(v.stringValue) < 0 && W.owned.length < 300) W.owned.push(v.stringValue); });   // items bought on another computer
       if (f.encores && +f.encores.integerValue > W.encores) { W.encores = +f.encores.integerValue; W.encXP = f.encore_xp ? +f.encore_xp.integerValue : W.encXP; }   // an Encore taken on another computer
       if (f.coin_day && f.coin_day.stringValue === W.day) W.dayCoins = Math.max(W.dayCoins, +f.coins_today.integerValue || 0);
@@ -2142,30 +2149,32 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   }
 
   // ---------- earning (signed-in students only) ----------
-  // Points: a right answer = 1 x level (1-9), +5 for every 5 in a row, a finished run = 10 x level, +50 more for a test.
+  // ★ Stars are RARE (2026-11-17, David): never per answer. A run with 80%+ right = 1 ★ (2 at level 6+), at most 5 a day;
+  // a test +5; a new rank +10; a game mastered +25; quests and streaks below; Live Class Showdown through award(). Encore adds 10% each.
   // The level is the one the game reports with its runs (mapped to 1-9); before the first run of a visit it counts as 1.
   // Coins: 1 for every minute of real play (answers less than 2 minutes apart), at most 60 a day.
-  var lvl = 1, streak = 0, playMs = 0, lastAns = 0, runPts = 0;
-  function earn(pts, coins){
+  var lvl = 1, runR = 0, runT = 0, playMs = 0, lastAns = 0;
+  function earn(pts, coins, bonusCoins){
     if (!P) return;
-    if (W.day !== today()) { W.day = today(); W.dayCoins = 0; }
+    if (W.day !== today()) { W.day = today(); W.dayCoins = 0; W.dayRun = 0; W.dayAw = 0; }
     coins = Math.max(0, Math.min(coins, 60 - W.dayCoins));
-    if (!pts && !coins) return;
-    pts = Math.round(pts * (1 + .1 * Math.min(5, W.encores || 0)));   // Encore bonus
-    W.points += pts; W.coins += coins; W.dayCoins += coins; dPoints += pts; dCoins += coins;
+    var bc = Math.max(0, bonusCoins || 0);   // quest coins: on top of the 60 a day
+    if (!pts && !coins && !bc) return;
+    if (pts > 0 && W.encores) { W.sFrac = (W.sFrac || 0) + pts * .1 * Math.min(5, W.encores); var ex = Math.floor(W.sFrac); W.sFrac -= ex; pts += ex; }   // Encore bonus, saved up until it makes a whole Star
+    W.points += pts; W.coins += coins + bc; W.dayCoins += coins; dPoints += pts; dCoins += coins + bc;
     saveLocal(); sendSoon(60000);
     if (dlg && dlg.open) drawWallet();
   }
 
   // ---------- quests and the daily streak (play more, 2026-11-16, David 'go with your picks') ----------
   // On this device only (localStorage mtg_quests_v1:<sid> and mtg_streak_v1:<sid>), from the same mtghist events the avatar listens to.
-  // Rewards are ★ points (coins stay capped at 60 a day on purpose). Guests see them but earn nothing.
+  // Rewards (rare Stars, 2026-11-17): each quest +10 coins (on top of the 60 a day), all 3 = +3 ★, weekly +10 ★, streaks 5/10/20/30 ★. Guests earn nothing.
   // Daily: 3 quests picked from the date (the same for everyone), +30 ★ each. Weekly: play 60 minutes, +200 ★.
   // Streak: a day counts at 5 minutes of play; one Streak Saver a week covers one missed day. Rewards at 3, 7, 14, 30 days.
   var QPOOL = [['right15', 'Get 15 right in any game', 'right', 15], ['right30', 'Get 30 right in any game', 'right', 30], ['runs2', 'Finish 2 runs in any game', 'run', 2],
     ['runs3', 'Finish 3 runs in any game', 'run', 3], ['min10', 'Play for 10 minutes', 'min', 10], ['games2', 'Play 2 different games', 'games', 2]]
     .concat(['scale', 'tidal', 'earshot', 'rhythm', 'rooftop', 'brainwaves'].map(function(g){ return ['g_' + g, 'Get 10 right in ' + GNAME[g], 'gright', 10, g]; }));
-  var QRW = 30, WEEKMIN = 60, WEEKRW = 200, SMILES = { 3: 100, 7: 300, 14: 600, 30: 600 };
+  var QRW = 10, QALL = 3, WEEKMIN = 60, WEEKRW = 10, SMILES = { 3: 5, 7: 10, 14: 20, 30: 30 };   // QRW = coins per quest; the rest are ★ (rare Stars, 2026-11-17)
   var QK = 'mtg_quests_v1:' + (SID || 'guest'), SK = 'mtg_streak_v1:' + (SID || 'guest'), Qm = null, Sm = null;
   function wkOf(d){ var t = new Date(d || Date.now()); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() - ((t.getDay() + 6) % 7)); return t.getFullYear() + '-' + (t.getMonth() + 1) + '-' + t.getDate(); }   // the Monday of this week
   function dayStr(off){ var d = new Date(); d.setDate(d.getDate() + (off || 0)); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
@@ -2174,7 +2183,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     return out; }
   function qLoad(){
     if (!Qm) Qm = (P ? lsGet(QK) : null) || {};
-    if (Qm.day !== today()) { Qm.day = today(); Qm.list = qPick(); Qm.prog = {}; Qm.done = {}; Qm.games = {}; }
+    if (Qm.day !== today()) { Qm.day = today(); Qm.list = qPick(); Qm.prog = {}; Qm.done = {}; Qm.games = {}; Qm.allDone = 0; }
     if (Qm.wk !== wkOf()) { Qm.wk = wkOf(); Qm.wmin = 0; Qm.wdone = 0; }
     if (!Sm) Sm = (P ? lsGet(SK) : null) || { days: 0, last: '', min: 0, minDay: '', saverWk: '' };
     if (Sm.minDay !== today()) { Sm.minDay = today(); Sm.min = 0; }
@@ -2189,8 +2198,9 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       var q = QPOOL.filter(function(x){ return x[0] === id; })[0]; if (!q || Qm.done[id]) return;
       var add = q[2] === kind ? n : (q[2] === 'gright' && kind === 'right' && game === q[4]) ? n : 0;
       if (q[2] === 'games') Qm.prog[id] = Object.keys(Qm.games).length; else if (add) Qm.prog[id] = (Qm.prog[id] || 0) + add;
-      if ((Qm.prog[id] || 0) >= q[3]) { Qm.done[id] = 1; earn(QRW, 0); msg = '✅ Quest complete! +' + QRW + ' ★'; }
+      if ((Qm.prog[id] || 0) >= q[3]) { Qm.done[id] = 1; earn(0, 0, QRW); msg = '✅ Quest complete! +' + QRW + ' 🪙'; }
     });
+    if (!Qm.allDone && Qm.list.every(function(id){ return Qm.done[id]; })) { Qm.allDone = 1; earn(QALL, 0); msg = '🌟 All 3 quests done! +' + QALL + ' ★'; }
     if (kind === 'min') {
       Qm.wmin += n; if (!Qm.wdone && Qm.wmin >= WEEKMIN) { Qm.wdone = 1; earn(WEEKRW, 0); msg = '🏆 Weekly quest complete! +' + WEEKRW + ' ★'; }
       Sm.min += n;
@@ -2207,14 +2217,15 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   }
   function questsInfo(){
     qLoad();
-    return { list: Qm.list.map(function(id){ var q = QPOOL.filter(function(x){ return x[0] === id; })[0]; return { t: q[1], n: Math.min(q[3], Qm.prog[id] || 0), of: q[3], done: !!Qm.done[id], rw: QRW }; }),
+    return { list: Qm.list.map(function(id){ var q = QPOOL.filter(function(x){ return x[0] === id; })[0]; return { t: q[1], n: Math.min(q[3], Qm.prog[id] || 0), of: q[3], done: !!Qm.done[id], rw: QRW }; }), all: { done: !!Qm.allDone, rw: QALL },
       week: { t: 'Play ' + WEEKMIN + ' minutes this week', n: Math.min(WEEKMIN, Qm.wmin || 0), of: WEEKMIN, done: !!Qm.wdone, rw: WEEKRW },
       streak: { days: Sm.days, today: Sm.last === today(), min: Sm.min, saver: Sm.saverWk !== wkOf() }, signedIn: !!P };
   }
   function questsHtml(){
     var Q = questsInfo(), bar = function(n, of){ return '<span class="mav-qbar"><i style="width:' + Math.round(100 * n / of) + '%"></i></span>'; };
     return '<div class="mav-quests"><div class="mav-qs"><b>🔥 ' + Q.streak.days + '</b> day' + (Q.streak.days === 1 ? '' : 's') + ' in a row' + (Q.streak.today ? ' ✓' : ' · play 5 min today') + (Q.streak.saver ? ' · 🛟 Saver ready' : '') + '</div>'
-      + Q.list.map(function(q){ return '<div class="mav-q' + (q.done ? ' done' : '') + '"><span class="mav-qck">' + (q.done ? '✓' : '') + '</span><span class="mav-qt">' + q.t + bar(q.n, q.of) + '</span><span class="mav-qr">' + (q.done ? 'Done!' : q.n + '/' + q.of + ' · +' + q.rw + ' ★') + '</span></div>'; }).join('')
+      + Q.list.map(function(q){ return '<div class="mav-q' + (q.done ? ' done' : '') + '"><span class="mav-qck">' + (q.done ? '✓' : '') + '</span><span class="mav-qt">' + q.t + bar(q.n, q.of) + '</span><span class="mav-qr">' + (q.done ? 'Done!' : q.n + '/' + q.of + ' · +' + q.rw + ' 🪙') + '</span></div>'; }).join('')
+      + '<div class="mav-q' + (Q.all.done ? ' done' : '') + '"><span class="mav-qck">' + (Q.all.done ? '✓' : '🌟') + '</span><span class="mav-qt">Finish all 3 quests today</span><span class="mav-qr">' + (Q.all.done ? 'Done!' : '+' + Q.all.rw + ' ★') + '</span></div>'
       + '<div class="mav-q week' + (Q.week.done ? ' done' : '') + '"><span class="mav-qck">' + (Q.week.done ? '✓' : '🏆') + '</span><span class="mav-qt">Weekly: ' + Q.week.t + bar(Q.week.n, Q.week.of) + '</span><span class="mav-qr">' + (Q.week.done ? 'Done!' : Q.week.n + '/' + Q.week.of + ' min · +' + Q.week.rw + ' ★') + '</span></div>'
       + (P ? '' : '<p class="mav-sub">Sign in to earn quest rewards.</p>') + '</div>';
   }
@@ -2227,11 +2238,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       if (lastAns && now - lastAns < 120000) playMs += now - lastAns;
       lastAns = now;
       var coins = Math.floor(playMs / 60000); playMs -= coins * 60000;
-      var pts = 0;
-      if (d.ok) { streak++; pts = lvl + (streak % 5 === 0 ? 5 : 0); } else streak = 0;
-      if (d.ok) addXP(2);
-      runPts += pts;
-      earn(pts, coins);
+      runT++; if (d.ok) { runR++; addXP(2); }
+      earn(0, coins);
       if (coins) try { qStep('min', coins); } catch(x){}
       if (coins && P) pop('+' + coins + ' 🪙', '#ffd166');
     } else if (d.type === 'run') {
@@ -2239,14 +2247,16 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       try { qStep('run', 1, d.game); } catch(x){}
       var r = d.r || {}, L = Math.round(+r.level || 0);
       if (L > 0) lvl = Math.max(1, Math.min(9, L));
-      var bonus = 10 * lvl + (/[?&]test=/.test(location.search) ? 50 : 0);
+      if (W.day !== today()) { W.day = today(); W.dayCoins = 0; W.dayRun = 0; W.dayAw = 0; }
+      var good = runT >= 5 && runR / runT >= .8, isTest = /[?&]test=/.test(location.search), bonus = 0, why = '';
+      if (good && P && (W.dayRun || 0) < 5) { var rs = Math.min(lvl >= 6 ? 2 : 1, 5 - (W.dayRun || 0)); W.dayRun = (W.dayRun || 0) + rs; bonus += rs; why = 'great run'; }
+      if (isTest) { bonus += 5; why = 'test done'; }
+      runR = 0; runT = 0;
       var r0 = rankNow(); addXP(25); if (rankNow() !== r0) lookDirty = true;
-      setTimeout(function(){ var won = checkMastery() || []; if (won.length) { pop('🏆 ' + GNAME[won[0]] + ' mastered!', '#7af0ff'); drawAll(); } }, 1500);
+      setTimeout(function(){ var won = checkMastery() || []; if (won.length) { earn(25 * won.length, 0); pop('🏆 ' + GNAME[won[0]] + ' mastered! +' + 25 * won.length + ' ★', '#7af0ff'); drawAll(); } }, 1500);
       var r1 = rankNow();
-      if (r1 > r0) { setTimeout(function(){ pop('🎉 ' + RANKS[r1][1] + '!', '#ffd166'); drawAll(); }, 900); }
-      earn(bonus, 0);
-      if (P) pop('+' + (runPts + bonus) + ' ★', '#7be0c3');
-      runPts = 0;
+      if (r1 > r0) { earn(10, 0); setTimeout(function(){ pop('🎉 ' + RANKS[r1][1] + '! +10 ★', '#ffd166'); drawAll(); }, 900); }
+      if (bonus) { earn(bonus, 0); if (P) pop('+' + bonus + ' ★ · ' + why, '#ffd166'); }
     }
   });
 
@@ -2343,8 +2353,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   var RANK_ITEMS = { 'gear:baton': 8, 'bg:wreath': 9 };   // rank index that unlocks them
   var owns = function(it){ var k = key(it); return !!it.free || (it.enc && (W.encores || 0) >= it.enc) || W.owned.indexOf(k) >= 0 || (RANK_ITEMS[k] != null && rankNow() >= RANK_ITEMS[k]) || masteredGear(k) || (P && earnedIt(it)); };
   var TABS = [['shop', 'Shop', '🛒'], ['look', 'Look', '🙂'], ['outfit', 'Skins', '🦸'], ['clothes', 'Clothes', '👕'], ['hat', 'Hats', '🎩'], ['gear', 'Gear', '🎺'], ['moves', 'Moves', '🕺'], ['bg', 'Backdrops', '🌌'], ['pet', 'Pets', '🐾'], ['rank', 'Rank', '🏆']];
-  // THE LOCKER (2026-11-16). Rarity follows the price (no randomness): Common < 60 coins, Rare 60-149, Epic 150+ coins or points, Legendary 1000+ points / earned items.
-  function rarity(it){ if (it.free) return 'common'; if (it.lock || it.enc || (it.p && it.p >= 1000)) return 'legendary'; if (it.p || (it.c && it.c >= 150)) return 'epic'; return it.c >= 60 ? 'rare' : 'common'; }
+  // THE LOCKER (2026-11-16). Rarity follows the price (no randomness): Common < 60 coins, Rare 60-149, Epic 150+ coins or any ★ item, Legendary 100+ ★ / earned items.
+  function rarity(it){ if (it.free) return 'common'; if (it.lock || it.enc || (it.p && it.p >= 100)) return 'legendary'; if (it.p || (it.c && it.c >= 150)) return 'epic'; return it.c >= 60 ? 'rare' : 'common'; }
   var RN = { common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' };
   var buyable = function(it){ return !it.free && !it.lock && !it.enc && !!(it.c || it.p); };
   function thumb(it){
@@ -2449,8 +2459,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       var r = rankNow(), x = xpNow() - (W.encXP || 0), m = mastered();
       var next = r + 1 < RANKS.length ? RANKS[r + 1] : null;
       var head = '<p class="mav-rnow">Rank ' + (r + 1) + ' of 10 · <b>' + RANKS[r][1] + ' ' + ['I', 'II', 'III'][stepOf(r)] + '</b> · ' + x.toLocaleString() + ' XP</p>'
-        + (W.encores ? '<p class="mav-sub">Encores: <b style="color:' + encCol(W.encores) + '">' + encMark(W.encores) + '</b> · points +' + Math.min(50, 10 * W.encores) + '%</p>' : '')
-        + (r === 9 ? '<div class="mav-try"><span><b>🎭 Take an Encore?</b> Your avatar rank goes back to Rookie Listener and you climb again. You keep every item, coin and point, and you get ★ on your platform and +10% points (up to +50%). Nothing your teacher sees changes.</span><button type="button" class="mav-btn" data-do="encore">Take a bow</button></div>' : '')
+        + (W.encores ? '<p class="mav-sub">Encores: <b style="color:' + encCol(W.encores) + '">' + encMark(W.encores) + '</b> · Stars +' + Math.min(50, 10 * W.encores) + '%</p>' : '')
+        + (r === 9 ? '<div class="mav-try"><span><b>🎭 Take an Encore?</b> Your avatar rank goes back to Rookie Listener and you climb again. You keep every item, coin and Star, and you get ★ on your platform and +10% Stars (up to +50%). Nothing your teacher sees changes.</span><button type="button" class="mav-btn" data-do="encore">Take a bow</button></div>' : '')
         + (next ? '<p class="mav-sub">' + (x < next[0] ? (next[0] - x).toLocaleString() + ' XP to ' + next[1] : '') + (GATES[r + 1] && m < GATES[r + 1] ? (x < next[0] ? ' and ' : 'Next: ') + 'master ' + (GATES[r + 1] === 7 ? 'every game' : GATES[r + 1] + (GATES[r + 1] === 1 ? ' game' : ' games')) + ' (you have ' + m + ')' : '') + '</p>' : '<p class="mav-sub">Top rank! 👑</p>');
       var mg = ((lsGet(MASTK) || {}).games) || [];
       head += '<p class="mav-sub">Games mastered: ' + (mg.length ? mg.map(function(g){ return GNAME[g] || g; }).join(', ') : 'none yet') + ' (' + mg.length + ' of 7)</p>';
@@ -2469,10 +2479,10 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     var wrap = function(inner){ return '<div class="mav-try r-' + r + '">' + inner + '</div>'; };
     if (it.enc) return wrap(head + 'yours after Encore ' + encMark(it.enc) + ' (reach the top rank and take a bow)</small></span>');
     if (it.lock) return wrap(head + 'earned, not bought: ' + it.lock + '</small></span>');
-    if (!P) return wrap(head + price(it) + '</small></span><span class="mav-need">Sign in to earn coins and points</span>');
+    if (!P) return wrap(head + price(it) + '</small></span><span class="mav-need">Sign in to earn coins and Stars</span>');
     var have = it.c ? W.coins : W.points, need = (it.c || it.p) - have;
     return wrap(head + price(it) + '</small></span>'
-      + (need > 0 ? '<span class="mav-need">Need ' + need.toLocaleString() + (it.c ? ' more coins' : ' more points') + '</span>'
+      + (need > 0 ? '<span class="mav-need">Need ' + need.toLocaleString() + (it.c ? ' more coins' : ' more ★ Stars') + '</span>'
         : '<button type="button" class="mav-btn" data-do="buy">Buy · ' + price(it) + '</button>'));
   }
   function render(){
@@ -2540,8 +2550,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       + '<div class="mav-lo" aria-label="Saved outfits"></div><div class="mav-leftbtns"><button type="button" class="mav-btn ghost" data-do="try">▶ Try a move</button><button type="button" class="mav-btn ghost" data-do="random">🎲 Random look</button>'
       + (PERCH.length ? '<button type="button" class="mav-btn ghost" data-do="perch" title="Show your avatar sitting on the game, or only in the corner">' + perchLabel() + '</button>' : '') + '</div></div>'
       + '<div class="mav-right"><div class="mav-top"><h2>MY LOCKER</h2>'
-      + (P ? '<div class="mav-wallet"><span title="Coins: 1 for every minute you play, up to 60 a day">🪙 <b class="mav-c"></b></span><span title="Points: right answers and finished runs; harder levels pay more">★ <b class="mav-p"></b></span></div>'
-           : '<p class="mav-sub" style="margin:0 0 0 auto">Guest: <b>sign in to keep it</b> and earn coins and points.</p>')
+      + (P ? '<div class="mav-wallet"><span title="Coins: 1 for every minute you play, up to 60 a day">🪙 <b class="mav-c"></b></span><span title="★ Stars are rare: great runs (80% or better), all 3 daily quests, streaks, tests, new ranks, mastering a game and Live Class Showdowns">★ <b class="mav-p"></b></span></div>'
+           : '<p class="mav-sub" style="margin:0 0 0 auto">Guest: <b>sign in to keep it</b> and earn coins and Stars.</p>')
       + '<button type="button" class="mav-btn ghost" data-do="close">Cancel</button><button type="button" class="mav-btn" data-do="save">Save</button></div>'
       + '<div class="mav-tabs" role="toolbar" aria-label="Back to the locker"></div>'
       + '<div class="mav-rows"></div></div></div><div class="mav-tryrow" aria-live="polite"></div><div class="mav-rev"></div>';
@@ -2565,7 +2575,9 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     }).catch(function(){ cb(false); }); } catch(e){ cb(false); }
   }
   var OFF = false;
-  function start(){ if (OFF) return true; if (!place()) return false; drawAll(); perchStart(); return true; }
+  function start(){ if (OFF) return true; if (!place()) return false; drawAll(); perchStart();
+    if (starNote && P) { starNote = false; saveLocal(); setTimeout(function(){ pop('⭐ Your points are now ★ Stars! (' + W.points + ' ★)', '#ffd166'); }, 2500); }
+    return true; }
   avatarsOff(function(off){
     if (off) { OFF = true; P = null; corner.remove(); return; }   // P = null: no earning, no saving
     if (!start()) { var tries = 0, iv = setInterval(function(){ if (start() || ++tries > 40) clearInterval(iv); }, 250); }   // pages that build their header late
@@ -2600,8 +2612,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     });
   }
   window.MTGAvatar = { draw: function(L, o){ return avatar(clean(Object.assign({}, DEF, L)), o || {}); }, peer: peer, badge: badge, off: function(){ return OFF; }, signedIn: function(){ return !!P; }, rank: function(){ return P ? { n: rankNow() + 1, name: RANKS[rankNow()][1], encores: W.encores || 0 } : null; },
-    wallet: function(){ return { coins: W.coins, points: W.points }; }, look: function(){ return Object.assign({}, look); }, svg: function(o){ o = o || {}; if (o.rank == null && P) o.rank = rankNow(); return avatar(look, o); }, open: openBuilder, quests: questsInfo, questsHtml: questsHtml,
-    award: function(pts, why){ pts = Math.max(0, Math.min(2000, Math.round(+pts || 0))); if (!P || !pts) return false; earn(pts, 0); pop('+' + pts + ' ★' + (why ? ' · ' + why : ''), '#ffd166'); return true; } };   // Live Class Showdown rewards (2026-11-17)
+    wallet: function(){ return { coins: W.coins, points: W.points, stars: W.points }; }, look: function(){ return Object.assign({}, look); }, svg: function(o){ o = o || {}; if (o.rank == null && P) o.rank = rankNow(); return avatar(look, o); }, open: openBuilder, quests: questsInfo, questsHtml: questsHtml,
+    award: function(pts, why){ if (!P) return false; if (W.day !== today()) { W.day = today(); W.dayCoins = 0; W.dayRun = 0; W.dayAw = 0; } pts = Math.max(0, Math.min(15, 25 - (W.dayAw || 0), Math.round(+pts || 0))); if (!pts) return false; W.dayAw = (W.dayAw || 0) + pts; earn(pts, 0); pop('+' + pts + ' ★' + (why ? ' · ' + why : ''), '#ffd166'); return true; } };   // Live Class Showdown rewards (2026-11-17)
 
 })();
 </script>
