@@ -173,11 +173,37 @@ const toast = t => { $('toast').textContent = t; clearTimeout(toastT); toastT = 
 const ago = ms => { const s = Math.round((Date.now() - (ms || Date.now())) / 1000); return s < 60 ? 'just now' : s < 3600 ? Math.round(s / 60) + ' min ago' : Math.round(s / 3600) + ' h ago'; };
 
 const S = { email: '', classes: [], code: '', live: null, ans: [], pulses: [], priv: [], err: '', confirm: '', sort: 'new', offs: [], offA: null, round: '',
-  comp: { type: 'mc', q: '', opts: ['', '', '', ''], correct: '', timer: 0, skills: [], ks: null },
+  comp: { type: 'mc', q: '', opts: ['', '', '', ''], correct: '', timer: 0, skills: [], ks: null }, g: null,
   ksm: { open: false, minor: false, style: 'name' } };   // the 🎼 Key signature maker (2026-11-17)
 const TK = () => 'mtg_live_teach_v1:' + S.code;    // the correct answer stays on this computer (the projector reads it)
 const correct = () => { try { const t = JSON.parse(localStorage.getItem(TK()) || 'null'); return t && S.live && t.round === S.live.round ? t.correct || '' : ''; } catch { return ''; } };
 const livePath = () => 'bc_live/' + S.code;
+// ---------- Showdown (game mode, 2026-11-17, David 'go with your picks'; our own music look, not any quiz app's): right AND fast answers score; top 5 on the screen; Curtain call at the end ----------
+// Scores live on this computer (localStorage mtg_live_game_v1:<code>); the class sees only the top-5 board and, after time is up, the right choice.
+const GK = () => 'mtg_live_game_v1:' + S.code;
+const G = () => { if (!S.g || S.g.code !== S.code) { let o = null; try { o = JSON.parse(localStorage.getItem(GK()) || 'null'); } catch {} S.g = o && o.scores ? { ...o, code: S.code } : { code: S.code, on: false, scores: {}, qn: 0, starts: {}, done: {} }; } return S.g; };
+const saveG = () => { try { localStorage.setItem(GK(), JSON.stringify(S.g)); } catch {} };
+const GT = 20;   // seconds per game question unless a timer is picked
+function topBoard() { return Object.entries(G().scores).map(([s, x]) => ({ n: x.n, s, p: x.p })).sort((a, b) => b.p - a.p).slice(0, 5); }
+// score the round from each student's FIRST answer: right = 500 + up to 500 for speed, +100 per right answer in a row after the 2nd
+function scoreRound(L) {
+  const g = G(); if (g.done[L.round]) return;
+  const c = correct(), start = g.starts[L.round] || 0, dur = L.ends_at && start ? Math.max(5000, L.ends_at - start) : GT * 1000;
+  const first = {}; S.ans.slice().sort((a, b) => (a.at || 0) - (b.at || 0)).forEach(a => { if (!first[a.sid]) first[a.sid] = a; });
+  const seen = new Set(Object.keys(first));
+  Object.values(first).forEach(a => {
+    const x = g.scores[a.sid] || (g.scores[a.sid] = { n: a.name, p: 0, st: 0 }); x.n = a.name;
+    const ok = c && a.text === c, secs = start ? Math.max(0, ((a.at || start) - start) / 1000) : dur / 2000;
+    if (ok) { x.st++; x.p += 500 + Math.round(500 * Math.max(0, 1 - secs / (dur / 1000))) + (x.st > 2 ? 100 : 0); } else x.st = 0;
+  });
+  Object.entries(g.scores).forEach(([sid, x]) => { if (!seen.has(sid)) x.st = 0; });
+  g.done[L.round] = 1; saveG();
+}
+async function gameLock(L) {
+  scoreRound(L);
+  const c = correct(), idx = (L.opts || []).indexOf(c);
+  return upd({ open: false, reveal: idx >= 0 ? idx : null, board: topBoard() });
+}
 
 // ---------- sign-in and classes ----------
 async function start() {
@@ -205,7 +231,7 @@ function openClass(code) {
   S.offs.forEach(f => f && f()); S.offs = []; if (S.offA) S.offA(); S.offA = null;
   S.code = code; S.live = null; S.ans = []; S.pulses = []; S.priv = []; S.round = ''; S.err = '';
   const fail = e => { S.err = ERR(e); draw(); };
-  db.watchDoc(livePath(), d => { S.live = d; watchAnswers(); draw(); }, fail).then(f => S.offs.push(f));
+  db.watchDoc(livePath(), d => { S.live = d; if (d && d.game && d.round && d.updated_at && !G().starts[d.round]) { G().starts[d.round] = d.updated_at; saveG(); } watchAnswers(); draw(); }, fail).then(f => S.offs.push(f));
   db.watchCol('bc_pulse', { class_code: code, owner: S.email }, l => { S.pulses = l; draw(); }, fail).then(f => S.offs.push(f));
   db.watchCol('bc_private', { class_code: code, owner: S.email }, l => { S.priv = l; draw(); }, fail).then(f => S.offs.push(f));
   draw();
@@ -227,7 +253,7 @@ function headCard() {
   return `<section class="card row between">
     <div class="row">${S.classes.length > 1 ? `<label class="f" for="cls" style="flex-direction:row;align-items:center;gap:8px">Class <select id="cls" style="width:auto">${S.classes.map(c => `<option value="${esc(c.code)}" ${c.code === S.code ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>` : `<b>${esc((S.classes[0] || {}).name || S.code)}</b>`}
       <span class="muted small">Students open <b>musictheoryacademy.org/live</b> signed in with code <b class="mono">${esc(S.code)}</b> · ${recent().length} joined</span></div>
-    <div class="row"><a class="btn" href="${scr}" target="_blank" rel="noopener">📽 Open projector</a>${PREVIEW ? `<a class="btn" href="../?preview=1" target="_blank" rel="noopener">👀 Student view</a>` : ''}</div></section>`;
+    <div class="row"><button class="btn ${G().on ? 'pri' : ''}" type="button" data-act="game" aria-pressed="${G().on}" title="Showdown: right and fast answers score points; the top 5 show on the projector">🏁 Showdown: ${G().on ? 'On' : 'Off'}</button><a class="btn" href="${scr}" target="_blank" rel="noopener">📽 Open projector</a>${PREVIEW ? `<a class="btn" href="../?preview=1" target="_blank" rel="noopener">👀 Student view</a>` : ''}</div></section>`;
 }
 function roundCard() {
   const L = S.live, A = latest(S.ans), n = recent().length, s = left(L);
@@ -243,7 +269,7 @@ function roundCard() {
       <button class="btn" type="button" data-act="csv">Download CSV</button>
       ${S.confirm === 'end' ? '<button class="btn warn" type="button" data-act="end">End and clear the screen?</button>' : '<button class="btn warn" type="button" data-act="confirm" data-v="end">End question</button>'}
       ${PREVIEW ? '<button class="btn" type="button" data-act="sim">🤖 Pretend students answer</button>' : ''}
-    </div></section>`;
+    </div>${L.game ? `<div class="row"><span class="chip gold">🏁 Showdown · question ${G().qn}</span>${(L.board || []).slice(0, 3).map((b, i) => `<span class="chip">${i + 1}. ${esc(b.n)} · ${b.p}</span>`).join('')}<span class="grow"></span><button class="btn pri" type="button" data-act="podium">🎭 Curtain call</button>${S.confirm === 'gnew' ? '<button class="btn warn" type="button" data-act="gnew">Start a new Showdown (scores to 0)?</button>' : '<button class="btn" type="button" data-act="confirm" data-v="gnew">↺ New Showdown</button>'}</div>` : ''}</section>`;
 }
 function resultsCard() {
   const c = correct();
@@ -296,6 +322,7 @@ function composerCard() {
     ${c.type === 'emoji' ? `<p class="muted small" style="margin:0">Students pick ${EMOJIS.join(' ')}</p>` : ''}
     ${corr}
     <label class="f" for="c-timer">Timer<select id="c-timer"><option value="0">No timer</option>${[30, 60, 120, 300].map(t => `<option value="${t}" ${+c.timer === t ? 'selected' : ''}>${t < 60 ? t + ' seconds' : t / 60 + ' minute' + (t > 60 ? 's' : '')}</option>`).join('')}</select></label>
+    ${G().on ? `<p class="muted small" style="margin:0">🏁 Showdown: multiple choice with a correct answer; ${GT} seconds unless you pick a timer.</p>` : ''}
     <button class="btn pri" type="button" data-act="post">Post question</button>
     <p class="dim small" style="margin:0">Posting replaces the current question on every screen.</p></section>`;
 }
@@ -326,10 +353,12 @@ async function post() {
   if (!q) { toast('Type a question first.'); $('c-q') && $('c-q').focus(); return; }
   const opts = c.opts.map(o => o.trim().slice(0, 60)).filter(Boolean);
   if (c.type === 'mc' && opts.length < 2) { toast('Add at least two options.'); return; }
+  if (G().on && (c.type !== 'mc' || !opts.includes(c.correct))) { toast('Showdown needs a multiple-choice question with its correct answer picked.'); return; }
   const round = LC.roundId();
   const d = { round, q, type: c.type, skills: (c.skills || []).slice(0, 20), open: true, ends_at: c.timer ? at(Date.now() + c.timer * 1000) : null, spot: [], updated_at: NOW };
   if (c.type === 'mc') d.opts = opts;
   if (c.type === 'mc' && ksOk(c.ks)) d.ks = c.ks;
+  if (G().on) { d.game = true; d.reveal = null; d.final = false; d.board = topBoard(); if (!c.timer) d.ends_at = at(Date.now() + GT * 1000); G().qn++; saveG(); }
   try {
     await db.set(livePath(), d);
     try { localStorage.setItem(TK(), JSON.stringify({ round, correct: c.type === 'mc' && !opts.includes(c.correct) ? '' : String(c.correct || '') })); } catch {}
@@ -378,6 +407,9 @@ app.addEventListener('click', async e => {
   if (act !== 'confirm' && act !== 'del' && act !== 'end') S.confirm = '';
   if (act === 'confirm') { S.confirm = S.confirm === t.dataset.v ? '' : t.dataset.v; draw(); return; }
   if (act === 'post') return post();
+  if (act === 'game') { G().on = !G().on; saveG(); if (G().on) { S.comp.type = 'mc'; toast('Showdown on: pick the correct answer on every question.'); } draw(); return; }
+  if (act === 'gnew') { S.confirm = ''; const g = G(); g.scores = {}; g.qn = 0; g.done = {}; saveG(); if (L && L.game) upd({ board: [], final: false }); toast('New Showdown: scores reset.'); draw(); return; }
+  if (act === 'podium') { if (!L) return; if (L.open) await gameLock(L); return upd({ open: false, final: true, board: topBoard() }); }
   if (act === 'addopt') { S.comp.opts.push(''); draw(); return; }
   if (act === 'ksopen') { S.ksm.open = !S.ksm.open; draw(); return; }
   if (act === 'ksmode') { S.ksm.minor = t.dataset.v === 'minor'; draw(); return; }
@@ -385,7 +417,7 @@ app.addEventListener('click', async e => {
   if (act === 'kspick') { const q = ksQuestion(Number(t.dataset.v), S.ksm.minor, S.ksm.style); S.comp = { ...q, timer: S.comp.timer }; toast('Question filled in. Check it, then Post.'); draw(); return; }
   if (act === 'ksclear') { S.comp.ks = null; draw(); return; }
   if (!L) return;
-  if (act === 'lock') return upd(L.open ? { open: false, ends_at: null } : { open: true, ends_at: null });
+  if (act === 'lock') { if (L.game && L.open) return gameLock(L); return upd(L.open ? { open: false, ends_at: null } : { open: true, ends_at: null }); }
   if (act === 'timer') return upd({ open: true, ends_at: at(Date.now() + Number(t.dataset.v) * 1000) });
   if (act === 'spotClear') return upd({ spot: [] });
   if (act === 'spot') {
@@ -420,7 +452,7 @@ app.addEventListener('change', e => {
 setInterval(() => {
   const L = S.live; if (!L || !L.q || !L.ends_at) return;
   const s = left(L), el = $('cd'); if (el) el.textContent = clock(s);
-  if (s === 0 && L.open && start.locking !== L.round) { start.locking = L.round; upd({ open: false }); }
+  if (s === 0 && L.open && start.locking !== L.round) { start.locking = L.round; if (L.game) gameLock(L); else upd({ open: false }); }
 }, 500);
 start();
 })();

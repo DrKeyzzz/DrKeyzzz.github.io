@@ -203,6 +203,7 @@ if (SCREEN) {
     const L = P.live;
     if (!code) { app.innerHTML = '<main class="proj"><h1>Open the projector from the Live tab of your dashboard.</h1></main>'; return; }
     if (!L || !L.q) { app.innerHTML = `<main class="proj"><span class="label">Live Class</span><h1>Join at <span class="joincode">musictheoryacademy.org/live</span></h1><p class="muted" style="font-size:24px">Sign in on the home page with class code <b class="joincode">${esc(code)}</b>. Waiting for the first question…</p></main>`; return; }
+    if (L.game && L.type === 'mc') { app.innerHTML = sdProj(L); sdHeads(); return; }
     const A = latest(P.ans), s = left(L);
     const spot = (L.spot || []).map((x, i) => { const rx = P.reacts.filter(r => r.to === i);
       return `<div class="spotcard"><span class="label" style="color:var(--gold)">★ Spotlight${x.n ? '' : ' · a classmate'}</span>${x.n ? `<div style="font-size:26px;font-weight:700">${esc(x.a || '')} ${esc(x.n)}</div>` : ''}
@@ -216,6 +217,29 @@ if (SCREEN) {
       <div class="projmain"><section class="card">${res}</section>${spot ? `<section class="stack">${spot}</section>` : `<section class="card stack" style="justify-content:center;align-items:center;text-align:center"><span class="big" style="font-size:90px">${P.teacher ? A.length : '–'}</span><span class="muted" style="font-size:24px">answers in</span></section>`}</div>
       <footer class="card row between" style="font-size:22px"><span>Join: <b>musictheoryacademy.org/live</b> · class code <b class="joincode mono">${esc(code)}</b></span><span class="muted">Only your teacher sees your answers.</span></footer></main>`;
   };
+  // Showdown on the class screen: piano-key answers, a ring timer, the gold glow at the reveal, the top 5, the Curtain call
+  const NOTES = ['♩', '♪', '♫', '♬', '𝅗𝅥', '𝅝'];
+  function sdHeads() { if (!window.MTGAvatar || !MTGAvatar.badge) return; app.querySelectorAll('[data-avs]').forEach(el => MTGAvatar.badge(el, code, el.dataset.avs, 30)); }
+  function sdProj(L) {
+    const first = {}; P.ans.slice().sort((a, b) => (a.at || 0) - (b.at || 0)).forEach(a => { if (!first[a.sid]) first[a.sid] = a; });
+    const F = Object.values(first), rev = L.reveal != null && !L.open, s = left(L), board = L.board || [];
+    if (L.final) {
+      const top = board.slice(0, 3), order = [1, 0, 2].filter(i => top[i]);
+      return `<main class="proj"><section class="sd-curtain"><h1 style="margin:0;position:relative;z-index:1">🎭 Curtain call</h1>
+        <div class="sd-stage">${order.map(i => `<div class="sd-star ${i === 0 ? 'first' : ''}"><div class="av" data-idle="bounce" data-act="${i === 0 ? 'ovation' : 'groove'}" data-cc="${esc(top[i].s)}"></div><span class="sd-place">${['1st', '2nd', '3rd'][i]}</span><span>${esc(top[i].n)}</span><span class="mono">${top[i].p.toLocaleString()}</span></div>`).join('')}</div>
+        <p class="muted" style="position:relative;z-index:1;margin:0">Everyone earns ★ for the Locker. Check your phone!</p></section></main>`;
+    }
+    const keys = (L.opts || []).map((o, i) => { const n = F.filter(a => a.text === o).length;
+      return `<div class="sd-key ${rev ? (i === L.reveal ? 'win' : 'dim') : ''}" style="cursor:default"><span class="sd-l">${'ABCDEF'[i]}</span><span class="sd-n">${NOTES[i]}</span>${esc(o)}${rev ? `<span class="sd-eq" style="width:${F.length ? Math.max(4, Math.round(100 * n / F.length)) : 4}%"></span><span class="mono" style="font-size:14px">${n}</span>` : ''}</div>`; }).join('');
+    const dur = L.ends_at && L.updated_at ? Math.max(1, L.ends_at - L.updated_at) : 20000, p = s != null ? Math.max(0, Math.min(1, s * 1000 / dur)) : 0;
+    const top = rev && board.length ? `<section class="card"><h2 style="margin:0 0 8px">Top 5</h2><div class="sd-top">${board.map((b, i) => `<div class="sd-row"><b>${i + 1}</b><span data-avs="${esc(b.s)}"></span>${esc(b.n)}<span class="sd-pp">${b.p.toLocaleString()}</span></div>`).join('')}</div></section>` : '';
+    return `<main class="proj"><div class="row between"><span class="label" style="font-size:18px">🏁 Showdown</span><span class="chip" style="font-size:18px">${F.length} answered</span>${rev ? '<span class="chip gold" style="font-size:18px">Time!</span>' : `<span class="sd-ring" style="--p:${p.toFixed(3)}"><b class="mono" id="cd">${s == null ? '' : Math.ceil(s)}</b></span>`}</div>
+      <h1>${esc(L.q)}</h1>${LC.ksStaff(L.ks)}<div class="sd-keys">${keys}</div>${top}</main>`;
+  }
+  // the Curtain call draws each star's own avatar (one read each, kept 10 minutes)
+  const ccDraw = () => app.querySelectorAll('[data-cc]').forEach(el => { if (el.dataset.done || !window.MTGAvatar || !MTGAvatar.peer) return; el.dataset.done = 1;
+    MTGAvatar.peer(code, el.dataset.cc).then(v => { el.innerHTML = MTGAvatar.draw(v ? v.look : {}, { label: 'Avatar' }); }); });   // no avatar yet: the default one
+  new MutationObserver(ccDraw).observe(app, { childList: true });
   const watchRound = () => {
     const r = P.live && P.live.round || '';
     if (r === P.round) return; P.round = r;
@@ -228,7 +252,7 @@ if (SCREEN) {
   if (code) db.watchDoc('bc_live/' + code, d => { P.live = d; watchRound(); draw(); }, e => { app.innerHTML = `<main class="proj"><h1>${esc(ERR(e))}</h1></main>`; });
   if (!PREVIEW && code) LC.fbAuth().then(({ am, auth }) => am.onAuthStateChanged(auth, u => { P.teacher = u && u.email ? String(u.email).toLowerCase() : ''; P.round = '__'; watchRound(); draw(); })).catch(() => {});
   window.addEventListener('storage', e => { if (e.key === 'mtg_live_teach_v1:' + code) draw(); });
-  setInterval(() => { const el = $('cd'); if (el && P.live) el.textContent = clock(left(P.live)); }, 500);
+  setInterval(() => { const el = $('cd'); if (el && P.live) { if (P.live.game && P.live.open) draw(); else el.textContent = clock(left(P.live)); } }, 500);
   draw();
   return;
 }
@@ -262,6 +286,7 @@ function questionCard() {
   const L = S.live;
   if (!S.loaded) return '<section class="card"><p class="muted empty">Connecting…</p></section>';
   if (!L || !L.q) return `<section class="card stack"><span class="label">${esc(p.className || code)}</span><h2>Waiting for your teacher's question…</h2><p class="muted empty">Keep this page open. The question appears here by itself.</p></section>`;
+  if (L.game && L.type === 'mc') return sdCard(L);
   const mine = mineFor(L.round), s = left(L), closed = !L.open || s === 0;
   if (S.draftRound !== L.round) { S.draftRound = L.round; S.draft = mine && (L.type === 'text' || L.type === 'num' || L.type === 'word') ? mine.text : ''; }
   let input = '';
@@ -277,6 +302,36 @@ function questionCard() {
   return `<section class="card stack qhead"><div class="row between"><span class="label">${esc(TYPES[L.type] || '')}</span>${s != null ? `<span class="chip gold">⏱ <span class="mono" id="cd">${clock(s)}</span></span>` : ''}</div>
     <h2>${esc(L.q)}</h2>${LC.ksStaff(L.ks)}${input}${mine ? `<p class="sent">✓ Sent: “${esc(mine.text)}”</p>` : ''}
     <p class="dim small" style="margin:0">Only your teacher sees your answer.</p></section>`;
+}
+// ---------- Showdown on the phone (2026-11-17): tap one piano key (your first answer counts), then see how you did ----------
+const SDK = 'mtg_sd_v1:' + sid;
+const SD = (() => { try { const o = JSON.parse(localStorage.getItem(SDK) || 'null'); if (o && o.code === code) return o; } catch {} return { code, pts: 0, st: 0, done: {}, seen: {}, awarded: {} }; })();
+const saveSD = () => { try { localStorage.setItem(SDK, JSON.stringify(SD)); } catch {} };
+const NOTES = ['♩', '♪', '♫', '♬', '𝅗𝅥', '𝅝'];
+function sdScore(L) {   // my own points for this round (the class board uses the teacher's numbers)
+  if (SD.done[L.round]) return SD.done[L.round];
+  const mine = mineFor(L.round), ok = mine && L.reveal != null && mine.text === (L.opts || [])[L.reveal];
+  const seen = SD.seen[L.round] || 0, dur = L.ends_at && seen ? Math.max(5000, L.ends_at - seen) : 20000, secs = mine && seen ? Math.max(0, (mine.at - seen) / 1000) : dur / 2000;
+  let pts = 0; if (ok) { SD.st++; pts = 500 + Math.round(500 * Math.max(0, 1 - secs / (dur / 1000))) + (SD.st > 2 ? 100 : 0); } else SD.st = 0;
+  SD.pts += pts; SD.done[L.round] = { ok: !!ok, pts, mine: !!mine, st: SD.st }; saveSD(); return SD.done[L.round];
+}
+function sdCard(L) {
+  const mine = mineFor(L.round), s = left(L), board = L.board || [], place = board.findIndex(b => b.s === sid);
+  const head = `<div class="row between"><span class="label">🏁 Showdown</span><span class="chip gold">${SD.pts.toLocaleString()} points</span></div>`;
+  if (L.final) {
+    if (!SD.awarded[L.round]) { const bonus = place === 0 ? 100 : place === 1 ? 60 : place === 2 ? 30 : 0, stars = Math.round(SD.pts / 10) + bonus;
+      SD.awarded[L.round] = stars; saveSD(); if (stars && window.MTGAvatar && MTGAvatar.award) MTGAvatar.award(stars, 'Showdown'); }
+    const st = SD.awarded[L.round];
+    return `<section class="card stack">${head}<div class="sd-res good"><span class="sd-big">🎭</span><h2 style="margin:0">${place >= 0 && place < 3 ? 'You made the Curtain call!' : 'Showdown over!'}</h2><span class="sd-pts">+${st} ★</span><p class="muted" style="margin:0">${SD.pts.toLocaleString()} points ÷ 10${place >= 0 && place < 3 ? ' + a top 3 bonus' : ''}. Spend them in your Locker.</p></div></section>`;
+  }
+  if (!L.open && L.reveal != null) {
+    const r = sdScore(L), my = place >= 0 ? `You're #${place + 1} on the board` : 'Keep going to reach the top 5';
+    return `<section class="card stack">${head}<div class="sd-res ${r.ok ? 'good' : 'bad'}"><span class="sd-big">${r.ok ? '🎯' : r.mine ? '🎵' : '⏰'}</span><h2 style="margin:0">${r.ok ? 'Right on!' : r.mine ? 'Not this time' : 'Out of time'}</h2><span class="sd-pts">+${r.pts}</span>${r.st > 2 ? `<p style="margin:0">🔥 ${r.st} in a row!</p>` : ''}<p class="muted" style="margin:0">${my}. The answer was ${esc((L.opts || [])[L.reveal] || '')}.</p></div></section>`;
+  }
+  if (mine || !L.open || s === 0) return `<section class="card stack">${head}<h2>${esc(L.q)}</h2><div class="sd-res good" style="background:rgba(255,255,255,.05);border-color:#ffc85c"><span class="sd-big">🎼</span><h2 style="margin:0">${mine ? 'Locked in!' : 'Time!'}</h2><p class="muted" style="margin:0">${mine ? 'You picked ' + esc(mine.text) + '. ' : ''}Watch the class screen.</p></div></section>`;
+  return `<section class="card stack qhead">${head}<h2>${esc(L.q)}</h2>${LC.ksStaff(L.ks)}
+    <div class="sd-keys">${(L.opts || []).map((o, i) => `<button type="button" class="sd-key" data-pick="${esc(o)}" ${S.busy ? 'disabled' : ''}><span class="sd-l">${'ABCDEF'[i]}</span><span class="sd-n">${NOTES[i]}</span>${esc(o)}</button>`).join('')}</div>
+    <p class="dim small" style="margin:0">Your first tap counts. Fast and right scores the most.</p></section>`;
 }
 function spotCard() {
   const L = S.live; if (!L || !L.spot || !L.spot.length) return '';
@@ -313,6 +368,7 @@ async function send(text) {
   if (L.type === 'num' && isNaN(Number(text))) { toast('Type a number.'); return; }
   if (L.type === 'word') text = text.split(/\s+/)[0].slice(0, 24);
   const mine = mineFor(L.round);
+  if (mine && L.game) { toast('Your first answer counts.'); return; }
   if (mine && mine.text === text) { toast('Already sent.'); return; }
   S.busy = true; S.err = ''; draw();
   const d = { round: L.round, ...base(), key: ME.key, type: L.type, text, at: NOW };
@@ -358,11 +414,1450 @@ let wasOpen = null;
 db.watchDoc('bc_live/' + code, d => {
   const before = S.live; S.live = d; S.loaded = true;
   if (d && d.q && S.seen && (!before || before.round !== d.round)) { try { navigator.vibrate && navigator.vibrate(60); } catch {} }
+  if (d && d.game && d.round && !SD.seen[d.round]) { SD.seen[d.round] = Date.now(); saveSD(); }
+  if (d && d.game && d.board && !d.board.length && !d.final && Object.keys(SD.done).length && !(before && before.board && !before.board.length)) { SD.pts = 0; SD.st = 0; SD.done = {}; saveSD(); }   // the teacher started a new Showdown
   wasOpen = d && d.open; S.seen = true; draw();   // buzz the phone only for a NEW question, not on page load
 }, e => { S.loaded = true; S.err = ERR(e); draw(); });
 setInterval(() => { const L = S.live; if (!L || !L.ends_at) return; const s = left(L), el = $('cd'); if (el) el.textContent = clock(s); if (s === 0 && L.open && draw.locked !== L.round) { draw.locked = L.round; draw(); } }, 500);
 draw();
 })();
 </script>
+<!-- MTG_AVATAR start: identical in every game, only data-mount changes. Master copy: Music Games/shared/mtg-avatar.snippet.html -->
+<style id="mtg-avatar-css">
+/* Avatar (build step 1, 2026-11-16): the drawing and moves come from the approved preview (Claude outputs/avatar-preview.html);
+   keyframes are prefixed mav- so they never clash with a game's own. */
+.av .root,.av .head,.av .brows,.av .pet,.av .arm-l,.av .fore-l,.av .arm-r,.av .fore-r,.av .leg-l,.av .shin-l,.av .leg-r,.av .shin-r{transform-box:view-box}
+.av .root{transform-origin:50px 110px}.av .head{transform-origin:50px 58px}.av .brows{transform-origin:50px 34px}.av .pet{transform-origin:86px 112px}
+.av .arm-l{transform-origin:37px 64px}.av .fore-l{transform-origin:33px 75px}
+.av .arm-r{transform-origin:63px 64px}.av .fore-r{transform-origin:67px 75px}
+.av .leg-l{transform-origin:45px 91px}.av .shin-l{transform-origin:44.5px 99px}
+.av .leg-r{transform-origin:55px 91px}.av .shin-r{transform-origin:55.5px 99px}
+.av .plat-glow{transform-box:fill-box;transform-origin:center}
+.av:not([data-act]) .plat-glow{animation:mav-glow 2.4s ease-in-out infinite alternate}
+@keyframes mav-glow{from{opacity:.35}to{opacity:.8}}
+/* ---- idle (only when no move is playing) ---- */
+.av[data-idle=bounce]:not([data-act]) .root{animation:mav-i-dip .9s ease-in-out infinite alternate}
+.av[data-idle=bounce]:not([data-act]) .head{animation:mav-i-tilt 1.8s ease-in-out infinite alternate}
+.av[data-idle=bounce]:not([data-act]) .leg-l{animation:mav-k-ll .9s ease-in-out infinite alternate}
+.av[data-idle=bounce]:not([data-act]) .shin-l{animation:mav-k-sl .9s ease-in-out infinite alternate}
+.av[data-idle=bounce]:not([data-act]) .leg-r{animation:mav-k-lr .9s ease-in-out infinite alternate}
+.av[data-idle=bounce]:not([data-act]) .shin-r{animation:mav-k-sr .9s ease-in-out infinite alternate}
+.av[data-idle=bounce]:not([data-act]) .fore-l{animation:mav-f-l 1.8s ease-in-out infinite alternate}
+.av[data-idle=bounce]:not([data-act]) .fore-r{animation:mav-f-r 1.8s ease-in-out infinite alternate}
+.av[data-idle=sway]:not([data-act]) .root{animation:mav-i-sway 1.6s ease-in-out infinite alternate}
+.av[data-idle=sway]:not([data-act]) .arm-l{animation:mav-a-swing 1.6s ease-in-out infinite alternate}
+.av[data-idle=sway]:not([data-act]) .arm-r{animation:mav-a-swing 1.6s ease-in-out infinite alternate-reverse}
+.av[data-idle=sway]:not([data-act]) .fore-l{animation:mav-f-l 1.6s ease-in-out infinite alternate}
+.av[data-idle=sway]:not([data-act]) .fore-r{animation:mav-f-r 1.6s ease-in-out infinite alternate-reverse}
+.av[data-idle=sway]:not([data-act]) .leg-l{animation:mav-k-ll 1.6s ease-in-out infinite alternate}
+.av[data-idle=sway]:not([data-act]) .shin-l{animation:mav-k-sl 1.6s ease-in-out infinite alternate}
+.av[data-idle=headbob]:not([data-act]) .head{animation:mav-i-bob .42s ease-in-out infinite alternate}
+.av[data-idle=headbob]:not([data-act]) .root{animation:mav-i-dip .84s ease-in-out infinite alternate}
+.av[data-idle=headbob]:not([data-act]) .shin-l{animation:mav-k-sl .84s ease-in-out infinite alternate}
+.av[data-idle=headbob]:not([data-act]) .shin-r{animation:mav-k-sr .84s ease-in-out infinite alternate}
+.av[data-idle=headbob]:not([data-act]) .fore-r{animation:mav-f-snap .42s ease-in-out infinite alternate}
+.av[data-idle=step]:not([data-act]) .root{animation:mav-i-step .5s ease-in-out infinite alternate}
+.av[data-idle=step]:not([data-act]) .leg-l{animation:mav-st-l 1s ease-in-out infinite}
+.av[data-idle=step]:not([data-act]) .shin-l{animation:mav-st-sl 1s ease-in-out infinite}
+.av[data-idle=step]:not([data-act]) .leg-r{animation:mav-st-r 1s ease-in-out infinite}
+.av[data-idle=step]:not([data-act]) .shin-r{animation:mav-st-sr 1s ease-in-out infinite}
+.av[data-idle=step]:not([data-act]) .arm-l{animation:mav-a-swing .5s ease-in-out infinite alternate}
+.av[data-idle=step]:not([data-act]) .arm-r{animation:mav-a-swing .5s ease-in-out infinite alternate}
+.av[data-idle=step]:not([data-act]) .fore-l{animation:mav-f-l .5s ease-in-out infinite alternate}
+.av[data-idle=step]:not([data-act]) .fore-r{animation:mav-f-r .5s ease-in-out infinite alternate}
+.av:not([data-act]) .pet{animation:mav-p-hop .7s ease-in-out infinite alternate}
+@keyframes mav-i-dip{to{transform:translateY(1.6px)}}
+@keyframes mav-k-ll{to{transform:rotate(5deg)}}@keyframes mav-k-sl{to{transform:rotate(-10deg)}}
+@keyframes mav-k-lr{to{transform:rotate(-5deg)}}@keyframes mav-k-sr{to{transform:rotate(10deg)}}
+@keyframes mav-f-l{from{transform:rotate(-4deg)}to{transform:rotate(-22deg)}}@keyframes mav-f-r{from{transform:rotate(4deg)}to{transform:rotate(22deg)}}
+@keyframes mav-f-snap{from{transform:rotate(30deg)}to{transform:rotate(60deg)}}
+@keyframes mav-i-tilt{from{transform:rotate(-3deg)}to{transform:rotate(3deg)}}
+@keyframes mav-i-sway{from{transform:rotate(-3deg)}to{transform:rotate(3deg)}}
+@keyframes mav-a-swing{from{transform:rotate(10deg)}to{transform:rotate(-10deg)}}
+@keyframes mav-i-bob{to{transform:translateY(2px) rotate(4deg)}}
+@keyframes mav-i-step{to{transform:translateY(1.5px) rotate(2deg)}}
+@keyframes mav-st-l{0%,50%,100%{transform:none}25%{transform:rotate(12deg)}}@keyframes mav-st-sl{0%,50%,100%{transform:none}25%{transform:rotate(-35deg)}}
+@keyframes mav-st-r{0%,50%,100%{transform:none}75%{transform:rotate(-12deg)}}@keyframes mav-st-sr{0%,50%,100%{transform:none}75%{transform:rotate(35deg)}}
+@keyframes mav-p-hop{to{transform:translateY(-2.5px)}}
+/* ---- happy moves ---- */
+.av[data-act=hop] .root{animation:mav-h-hop .7s ease-out}
+.av[data-act=hop] .arm-l{animation:mav-h-arml .7s ease-out}.av[data-act=hop] .arm-r{animation:mav-h-armr .7s ease-out}
+.av[data-act=hop] .leg-l{animation:mav-h-tl .7s}.av[data-act=hop] .shin-l{animation:mav-h-tsl .7s}.av[data-act=hop] .leg-r{animation:mav-h-tr .7s}.av[data-act=hop] .shin-r{animation:mav-h-tsr .7s}
+@keyframes mav-h-hop{0%,100%{transform:none}12%{transform:translateY(2px)}38%{transform:translateY(-15px)}62%{transform:translateY(1px)}80%{transform:translateY(-4px)}}
+@keyframes mav-h-arml{0%,100%{transform:none}30%,70%{transform:rotate(145deg)}}
+@keyframes mav-h-armr{0%,100%{transform:none}30%,70%{transform:rotate(-145deg)}}
+@keyframes mav-h-tl{0%,100%{transform:none}38%{transform:rotate(18deg)}}@keyframes mav-h-tsl{0%,100%{transform:none}12%{transform:rotate(-20deg)}38%{transform:rotate(-55deg)}}
+@keyframes mav-h-tr{0%,100%{transform:none}38%{transform:rotate(-18deg)}}@keyframes mav-h-tsr{0%,100%{transform:none}12%{transform:rotate(20deg)}38%{transform:rotate(55deg)}}
+.av[data-act=fistpump] .arm-r{animation:mav-h-up .9s}.av[data-act=fistpump] .fore-r{animation:mav-h-pump .9s ease-in-out}
+.av[data-act=fistpump] .arm-l{animation:mav-h-hipl .9s}.av[data-act=fistpump] .fore-l{animation:mav-h-hipfl .9s}
+.av[data-act=fistpump] .root{animation:mav-h-small .9s}.av[data-act=fistpump] .shin-l{animation:mav-h-tsl .9s}
+@keyframes mav-h-up{0%,100%{transform:none}15%,85%{transform:rotate(-150deg)}}
+@keyframes mav-h-pump{0%,100%{transform:none}15%{transform:rotate(0)}30%{transform:rotate(60deg)}45%{transform:rotate(0)}60%{transform:rotate(60deg)}75%{transform:rotate(0)}}
+@keyframes mav-h-hipl{0%,100%{transform:none}15%,85%{transform:rotate(28deg)}}
+@keyframes mav-h-hipfl{0%,100%{transform:none}15%,85%{transform:rotate(-115deg)}}
+@keyframes mav-h-small{0%,100%{transform:none}30%,60%{transform:translateY(-5px)}}
+.av[data-act=spin] .root{animation:mav-h-spin .8s ease-in-out}
+.av[data-act=spin] .arm-l{animation:mav-h-out-l .8s}.av[data-act=spin] .arm-r{animation:mav-h-out-r .8s}
+.av[data-act=spin] .shin-l{animation:mav-h-tsl .8s}.av[data-act=spin] .shin-r{animation:mav-h-tsr .8s}
+@keyframes mav-h-spin{0%{transform:none}25%{transform:translateY(-10px) scaleX(-1)}50%{transform:translateY(-12px) scaleX(1)}75%{transform:translateY(-6px) scaleX(-1)}100%{transform:none}}
+@keyframes mav-h-out-l{0%,100%{transform:none}20%,80%{transform:rotate(95deg)}}@keyframes mav-h-out-r{0%,100%{transform:none}20%,80%{transform:rotate(-95deg)}}
+.av[data-act=kick] .leg-r{animation:mav-h-kick .8s ease-out}.av[data-act=kick] .shin-r{animation:mav-h-kicks .8s}
+.av[data-act=kick] .arm-l{animation:mav-h-arml .8s}.av[data-act=kick] .fore-l{animation:mav-h-wavef .8s}.av[data-act=kick] .root{animation:mav-h-lean .8s}
+@keyframes mav-h-kick{0%,100%{transform:none}20%{transform:rotate(-20deg)}45%,60%{transform:rotate(-75deg)}}
+@keyframes mav-h-kicks{0%,100%{transform:none}20%{transform:rotate(70deg)}45%,60%{transform:rotate(0)}}
+@keyframes mav-h-wavef{0%,100%{transform:none}35%{transform:rotate(-30deg)}55%{transform:rotate(25deg)}75%{transform:rotate(-30deg)}}
+@keyframes mav-h-lean{0%,100%{transform:none}45%,60%{transform:rotate(7deg)}}
+/* ---- "aww man" moves: funny, never sad ---- */
+.av[data-act=shrug] .arm-l{animation:mav-w-shl .9s ease-in-out}.av[data-act=shrug] .arm-r{animation:mav-w-shr .9s ease-in-out}
+.av[data-act=shrug] .fore-l{animation:mav-w-pl .9s ease-in-out}.av[data-act=shrug] .fore-r{animation:mav-w-pr .9s ease-in-out}
+.av[data-act=shrug] .head{animation:mav-w-tilt .9s ease-in-out}.av[data-act=shrug] .brows{animation:mav-w-brow .9s}
+.av[data-act=shrug] .shin-l{animation:mav-w-knee .9s}.av[data-act=shrug] .root{animation:mav-w-drop .9s}
+@keyframes mav-w-shl{0%,100%{transform:none}25%,75%{transform:rotate(30deg) translateY(-3px)}}
+@keyframes mav-w-shr{0%,100%{transform:none}25%,75%{transform:rotate(-30deg) translateY(-3px)}}
+@keyframes mav-w-pl{0%,100%{transform:none}25%,75%{transform:rotate(-90deg)}}@keyframes mav-w-pr{0%,100%{transform:none}25%,75%{transform:rotate(90deg)}}
+@keyframes mav-w-tilt{0%,100%{transform:none}25%,75%{transform:rotate(10deg) translateY(2px)}}
+@keyframes mav-w-brow{0%,100%{transform:none}25%,75%{transform:translateY(-3px)}}
+@keyframes mav-w-knee{0%,100%{transform:none}25%,75%{transform:rotate(-25deg)}}
+@keyframes mav-w-drop{0%,100%{transform:none}25%,75%{transform:translateY(1.5px)}}
+.av[data-act=scratch] .arm-r{animation:mav-w-scr 1s ease-in-out}.av[data-act=scratch] .fore-r{animation:mav-w-scrf 1s ease-in-out}
+.av[data-act=scratch] .head{animation:mav-w-tilt 1s}.av[data-act=scratch] .brows{animation:mav-w-brow 1s}
+.av[data-act=scratch] .arm-l{animation:mav-h-hipl 1s}.av[data-act=scratch] .fore-l{animation:mav-h-hipfl 1s}
+@keyframes mav-w-scr{0%,100%{transform:none}20%,85%{transform:rotate(-150deg)}}
+@keyframes mav-w-scrf{0%,100%{transform:none}20%{transform:rotate(-30deg)}35%{transform:rotate(-45deg)}50%{transform:rotate(-30deg)}65%{transform:rotate(-45deg)}85%{transform:rotate(-30deg)}}
+.av[data-act=facepalm] .arm-r{animation:mav-w-palm 1.1s ease-in-out}.av[data-act=facepalm] .fore-r{animation:mav-w-palmf 1.1s ease-in-out}
+.av[data-act=facepalm] .head{animation:mav-w-down 1.1s}.av[data-act=facepalm] .shin-l{animation:mav-w-knee 1.1s}.av[data-act=facepalm] .shin-r{animation:mav-k-sr 1.1s}
+@keyframes mav-w-palm{0%,100%{transform:none}30%,80%{transform:rotate(-105deg)}}
+@keyframes mav-w-palmf{0%,100%{transform:none}30%,80%{transform:rotate(-112deg)}}
+@keyframes mav-w-down{0%,100%{transform:none}30%,80%{transform:rotate(-7deg) translateY(3px)}}
+/* ---- victory dances (3 s) ---- */
+.av[data-act=groove] .root{animation:mav-d-groove .5s ease-in-out 6 alternate}
+.av[data-act=groove] .arm-l{animation:mav-d-al .5s ease-in-out 6 alternate}.av[data-act=groove] .arm-r{animation:mav-d-ar .5s ease-in-out 6 alternate}
+.av[data-act=groove] .fore-l{animation:mav-f-l .25s ease-in-out 12 alternate}.av[data-act=groove] .fore-r{animation:mav-f-r .25s ease-in-out 12 alternate}
+.av[data-act=groove] .leg-l{animation:mav-k-ll .5s ease-in-out 6 alternate}.av[data-act=groove] .shin-l{animation:mav-d-sl .5s ease-in-out 6 alternate}
+.av[data-act=groove] .leg-r{animation:mav-k-lr .5s ease-in-out 6 alternate-reverse}.av[data-act=groove] .shin-r{animation:mav-d-sr .5s ease-in-out 6 alternate-reverse}
+.av[data-act=groove] .head{animation:mav-i-bob .25s ease-in-out 12 alternate}
+@keyframes mav-d-groove{from{transform:rotate(-6deg) translateY(1px)}to{transform:rotate(6deg) translateY(-3px)}}
+@keyframes mav-d-al{from{transform:rotate(20deg)}to{transform:rotate(110deg)}}
+@keyframes mav-d-ar{from{transform:rotate(-110deg)}to{transform:rotate(-20deg)}}
+@keyframes mav-d-sl{to{transform:rotate(-35deg)}}@keyframes mav-d-sr{to{transform:rotate(35deg)}}
+.av[data-act=wave] .arm-l{animation:mav-d-wl 1s ease-in-out 3}.av[data-act=wave] .arm-r{animation:mav-d-wr 1s ease-in-out 3}
+.av[data-act=wave] .fore-l{animation:mav-d-wfl .5s ease-in-out 6 alternate}.av[data-act=wave] .fore-r{animation:mav-d-wfr .5s ease-in-out 6 alternate}
+.av[data-act=wave] .root{animation:mav-i-dip .25s 12 alternate}.av[data-act=wave] .shin-l{animation:mav-k-sl .25s 12 alternate}.av[data-act=wave] .shin-r{animation:mav-k-sr .25s 12 alternate}
+@keyframes mav-d-wl{0%,100%{transform:rotate(150deg)}50%{transform:rotate(115deg)}}
+@keyframes mav-d-wr{0%,100%{transform:rotate(-115deg)}50%{transform:rotate(-150deg)}}
+@keyframes mav-d-wfl{from{transform:rotate(-35deg)}to{transform:rotate(35deg)}}@keyframes mav-d-wfr{from{transform:rotate(35deg)}to{transform:rotate(-35deg)}}
+.av[data-act=robot] .arm-l{animation:mav-d-rl 3s steps(1)}.av[data-act=robot] .fore-l{animation:mav-d-rfl 3s steps(1)}
+.av[data-act=robot] .arm-r{animation:mav-d-rr 3s steps(1)}.av[data-act=robot] .fore-r{animation:mav-d-rfr 3s steps(1)}
+.av[data-act=robot] .head{animation:mav-d-rh 3s steps(1)}.av[data-act=robot] .root{animation:mav-d-rb 3s steps(1)}
+.av[data-act=robot] .leg-l{animation:mav-d-rll 3s steps(1)}.av[data-act=robot] .shin-l{animation:mav-d-rsl 3s steps(1)}
+@keyframes mav-d-rl{0%{transform:rotate(90deg)}12%{transform:rotate(0)}25%{transform:rotate(90deg)}37%{transform:rotate(90deg)}50%{transform:rotate(20deg)}62%{transform:rotate(90deg)}75%{transform:rotate(160deg)}87%{transform:rotate(90deg)}100%{transform:none}}
+@keyframes mav-d-rfl{0%{transform:rotate(-90deg)}12%{transform:rotate(0)}25%{transform:rotate(90deg)}37%{transform:rotate(-90deg)}50%{transform:rotate(0)}62%{transform:rotate(-90deg)}75%{transform:rotate(0)}87%{transform:rotate(90deg)}100%{transform:none}}
+@keyframes mav-d-rr{0%{transform:rotate(0)}12%{transform:rotate(-90deg)}25%{transform:rotate(-90deg)}37%{transform:rotate(-160deg)}50%{transform:rotate(-90deg)}62%{transform:rotate(-20deg)}75%{transform:rotate(-90deg)}87%{transform:rotate(-90deg)}100%{transform:none}}
+@keyframes mav-d-rfr{0%{transform:rotate(0)}12%{transform:rotate(90deg)}25%{transform:rotate(-90deg)}37%{transform:rotate(0)}50%{transform:rotate(90deg)}62%{transform:rotate(0)}75%{transform:rotate(90deg)}87%{transform:rotate(-90deg)}100%{transform:none}}
+@keyframes mav-d-rh{0%{transform:rotate(0)}25%{transform:rotate(-10deg)}50%{transform:rotate(10deg)}75%{transform:rotate(-10deg)}100%{transform:none}}
+@keyframes mav-d-rb{0%{transform:translateY(0)}25%{transform:translateY(-3px)}50%{transform:translateY(0)}75%{transform:translateY(-3px)}100%{transform:none}}
+@keyframes mav-d-rll{0%{transform:none}25%{transform:rotate(15deg)}50%{transform:none}75%{transform:rotate(15deg)}}
+@keyframes mav-d-rsl{0%{transform:none}25%{transform:rotate(-80deg)}50%{transform:none}75%{transform:rotate(-80deg)}}
+.av[data-act=disco] .arm-r{animation:mav-d-dr .75s ease-in-out 4}.av[data-act=disco] .fore-r{animation:mav-d-dfr .75s ease-in-out 4}
+.av[data-act=disco] .arm-l{animation:mav-h-hipl 3s}.av[data-act=disco] .fore-l{animation:mav-h-hipfl 3s}
+.av[data-act=disco] .root{animation:mav-d-groove .375s ease-in-out 8 alternate}
+.av[data-act=disco] .leg-r{animation:mav-d-dlr .75s ease-in-out 4}.av[data-act=disco] .shin-r{animation:mav-d-dsr .75s ease-in-out 4}
+@keyframes mav-d-dr{0%,100%{transform:rotate(-160deg)}50%{transform:rotate(-30deg)}}
+@keyframes mav-d-dfr{0%,100%{transform:rotate(0)}50%{transform:rotate(-40deg)}}
+@keyframes mav-d-dlr{0%,100%{transform:none}50%{transform:rotate(-30deg)}}@keyframes mav-d-dsr{0%,100%{transform:none}50%{transform:rotate(45deg)}}
+.av[data-act=spinout] .root{animation:mav-h-spin .75s ease-in-out 4}.av[data-act=spinout] .arm-l{animation:mav-h-out-l .75s 4}.av[data-act=spinout] .arm-r{animation:mav-h-out-r .75s 4}
+.av[data-act=spinout] .shin-l{animation:mav-h-tsl .75s 4}.av[data-act=spinout] .shin-r{animation:mav-h-tsr .75s 4}
+.av[data-act=kickstep] .leg-l{animation:mav-d-kl .75s ease-in-out 4}.av[data-act=kickstep] .leg-r{animation:mav-d-kr .75s ease-in-out 4}
+.av[data-act=kickstep] .shin-l{animation:mav-d-ksl .75s ease-in-out 4}.av[data-act=kickstep] .shin-r{animation:mav-d-ksr .75s ease-in-out 4}
+.av[data-act=kickstep] .arm-l{animation:mav-d-al .375s ease-in-out 8 alternate}.av[data-act=kickstep] .arm-r{animation:mav-d-ar .375s ease-in-out 8 alternate-reverse}
+.av[data-act=kickstep] .fore-l{animation:mav-f-l .375s 8 alternate}.av[data-act=kickstep] .fore-r{animation:mav-f-r .375s 8 alternate}
+.av[data-act=kickstep] .root{animation:mav-h-small .375s 8}
+@keyframes mav-d-kl{0%,50%,100%{transform:none}25%{transform:rotate(55deg)}}@keyframes mav-d-kr{0%,50%,100%{transform:none}75%{transform:rotate(-55deg)}}
+@keyframes mav-d-ksl{0%,50%,100%{transform:none}12%{transform:rotate(-60deg)}25%{transform:rotate(0)}}@keyframes mav-d-ksr{0%,50%,100%{transform:none}62%{transform:rotate(60deg)}75%{transform:rotate(0)}}
+/* ---- new moves (2026-11-16, David: develop more moves) ---- */
+/* dances, 3 s */
+.av[data-act=airguitar] .arm-l{animation:mav-n-agl 3s}.av[data-act=airguitar] .fore-l{animation:mav-n-agfl 3s}
+.av[data-act=airguitar] .arm-r{animation:mav-n-strum .25s ease-in-out 12 alternate}.av[data-act=airguitar] .fore-r{animation:mav-n-agfr 3s}
+.av[data-act=airguitar] .head{animation:mav-n-bang .5s ease-in-out 6}.av[data-act=airguitar] .root{animation:mav-n-dip .5s ease-in-out 6}
+.av[data-act=airguitar] .leg-l{animation:mav-n-kickl 1.5s ease-in-out 2}.av[data-act=airguitar] .shin-l{animation:mav-n-kicksl 1.5s ease-in-out 2}
+@keyframes mav-n-agl{0%,100%{transform:rotate(-35deg)}}@keyframes mav-n-agfl{0%,100%{transform:rotate(-70deg)}}
+@keyframes mav-n-strum{from{transform:rotate(-30deg)}to{transform:rotate(5deg)}}@keyframes mav-n-agfr{0%,100%{transform:rotate(-40deg)}}
+@keyframes mav-n-bang{0%,100%{transform:none}40%{transform:rotate(8deg) translateY(2px)}}@keyframes mav-n-dip{0%,100%{transform:none}50%{transform:translateY(3px)}}
+@keyframes mav-n-kickl{0%,100%{transform:none}50%{transform:rotate(25deg)}}@keyframes mav-n-kicksl{0%,100%{transform:none}50%{transform:rotate(-40deg)}}
+.av[data-act=conductor] .arm-r{animation:mav-n-car 1s ease-in-out 3}.av[data-act=conductor] .fore-r{animation:mav-n-cfr .5s ease-in-out 6 alternate}
+.av[data-act=conductor] .arm-l{animation:mav-n-cal 1s ease-in-out 3}.av[data-act=conductor] .fore-l{animation:mav-n-cfl .5s ease-in-out 6 alternate}
+.av[data-act=conductor] .head{animation:mav-n-sway 1s ease-in-out 3}.av[data-act=conductor] .root{animation:mav-n-rise 1s ease-in-out 3}
+@keyframes mav-n-car{0%,100%{transform:rotate(-110deg)}25%{transform:rotate(-150deg)}50%{transform:rotate(-80deg)}75%{transform:rotate(-130deg)}}
+@keyframes mav-n-cal{0%,100%{transform:rotate(100deg)}50%{transform:rotate(130deg)}}
+@keyframes mav-n-cfr{from{transform:rotate(-25deg)}to{transform:rotate(25deg)}}@keyframes mav-n-cfl{from{transform:rotate(20deg)}to{transform:rotate(-20deg)}}
+@keyframes mav-n-sway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}@keyframes mav-n-rise{0%,100%{transform:none}50%{transform:translateY(-3px)}}
+.av[data-act=jacks] .root{animation:mav-n-jump .5s ease-in-out 6}
+.av[data-act=jacks] .arm-l{animation:mav-n-jal .5s ease-in-out 6}.av[data-act=jacks] .arm-r{animation:mav-n-jar .5s ease-in-out 6}
+.av[data-act=jacks] .leg-l{animation:mav-n-jll .5s ease-in-out 6}.av[data-act=jacks] .leg-r{animation:mav-n-jlr .5s ease-in-out 6}
+@keyframes mav-n-jump{0%,100%{transform:none}50%{transform:translateY(-9px)}}
+@keyframes mav-n-jal{0%,100%{transform:none}50%{transform:rotate(165deg)}}@keyframes mav-n-jar{0%,100%{transform:none}50%{transform:rotate(-165deg)}}
+@keyframes mav-n-jll{0%,100%{transform:none}50%{transform:rotate(22deg)}}@keyframes mav-n-jlr{0%,100%{transform:none}50%{transform:rotate(-22deg)}}
+.av[data-act=raiseroof] .arm-l{animation:mav-n-rrl .5s ease-in-out 6}.av[data-act=raiseroof] .fore-l{animation:mav-n-rrfl 3s}
+.av[data-act=raiseroof] .arm-r{animation:mav-n-rrr .5s ease-in-out 6}.av[data-act=raiseroof] .fore-r{animation:mav-n-rrfr 3s}
+.av[data-act=raiseroof] .root{animation:mav-n-dip .5s ease-in-out 6}.av[data-act=raiseroof] .head{animation:mav-n-bang .5s ease-in-out 6}
+@keyframes mav-n-rrl{0%,100%{transform:rotate(120deg)}50%{transform:rotate(160deg)}}@keyframes mav-n-rrr{0%,100%{transform:rotate(-120deg)}50%{transform:rotate(-160deg)}}
+@keyframes mav-n-rrfl{0%,100%{transform:rotate(-80deg)}}@keyframes mav-n-rrfr{0%,100%{transform:rotate(80deg)}}
+.av[data-act=shuffle] .root{animation:mav-n-slide .5s ease-in-out 6 alternate}
+.av[data-act=shuffle] .leg-l{animation:mav-n-shl .25s ease-in-out 12 alternate}.av[data-act=shuffle] .shin-l{animation:mav-n-shsl .25s ease-in-out 12 alternate}
+.av[data-act=shuffle] .leg-r{animation:mav-n-shr .25s ease-in-out 12 alternate-reverse}.av[data-act=shuffle] .shin-r{animation:mav-n-shsr .25s ease-in-out 12 alternate-reverse}
+.av[data-act=shuffle] .arm-l{animation:mav-n-sal .5s ease-in-out 6 alternate}.av[data-act=shuffle] .arm-r{animation:mav-n-sar .5s ease-in-out 6 alternate}
+@keyframes mav-n-slide{from{transform:translateX(-4px)}to{transform:translateX(4px)}}
+@keyframes mav-n-shl{from{transform:none}to{transform:rotate(28deg)}}@keyframes mav-n-shsl{from{transform:none}to{transform:rotate(-35deg)}}
+@keyframes mav-n-shr{from{transform:none}to{transform:rotate(-28deg)}}@keyframes mav-n-shsr{from{transform:none}to{transform:rotate(35deg)}}
+@keyframes mav-n-sal{from{transform:rotate(20deg)}to{transform:rotate(60deg)}}@keyframes mav-n-sar{from{transform:rotate(-60deg)}to{transform:rotate(-20deg)}}
+.av[data-act=drumsolo] .arm-l{animation:mav-n-dl .3s ease-in-out 10 alternate}.av[data-act=drumsolo] .fore-l{animation:mav-n-dfl .3s ease-in-out 10 alternate}
+.av[data-act=drumsolo] .arm-r{animation:mav-n-dr .3s ease-in-out 10 alternate-reverse}.av[data-act=drumsolo] .fore-r{animation:mav-n-dfr .3s ease-in-out 10 alternate-reverse}
+.av[data-act=drumsolo] .head{animation:mav-n-bang .3s ease-in-out 10}.av[data-act=drumsolo] .root{animation:mav-n-dip .6s ease-in-out 5}
+@keyframes mav-n-dl{from{transform:rotate(-20deg)}to{transform:rotate(-55deg)}}@keyframes mav-n-dfl{from{transform:rotate(-30deg)}to{transform:rotate(-90deg)}}
+@keyframes mav-n-dr{from{transform:rotate(20deg)}to{transform:rotate(55deg)}}@keyframes mav-n-dfr{from{transform:rotate(30deg)}to{transform:rotate(90deg)}}
+/* right-answer moves, under 1 s */
+.av[data-act=clap] .arm-l{animation:mav-n-cpl .4s ease-in-out 2}.av[data-act=clap] .fore-l{animation:mav-n-cpfl .4s ease-in-out 2}
+.av[data-act=clap] .arm-r{animation:mav-n-cpr .4s ease-in-out 2}.av[data-act=clap] .fore-r{animation:mav-n-cpfr .4s ease-in-out 2}.av[data-act=clap] .root{animation:mav-n-dip .4s 2}
+@keyframes mav-n-cpl{0%,100%{transform:rotate(-20deg)}50%{transform:rotate(-55deg)}}@keyframes mav-n-cpfl{0%,100%{transform:rotate(-50deg)}50%{transform:rotate(-75deg)}}
+@keyframes mav-n-cpr{0%,100%{transform:rotate(20deg)}50%{transform:rotate(55deg)}}@keyframes mav-n-cpfr{0%,100%{transform:rotate(50deg)}50%{transform:rotate(75deg)}}
+.av[data-act=starjump] .root{animation:mav-n-sj .8s ease-out}.av[data-act=starjump] .arm-l{animation:mav-n-sjal .8s}.av[data-act=starjump] .arm-r{animation:mav-n-sjar .8s}
+.av[data-act=starjump] .leg-l{animation:mav-n-sjll .8s}.av[data-act=starjump] .leg-r{animation:mav-n-sjlr .8s}
+@keyframes mav-n-sj{0%,100%{transform:none}20%{transform:translateY(3px)}50%{transform:translateY(-14px)}}
+@keyframes mav-n-sjal{0%,100%{transform:none}50%{transform:rotate(140deg)}}@keyframes mav-n-sjar{0%,100%{transform:none}50%{transform:rotate(-140deg)}}
+@keyframes mav-n-sjll{0%,100%{transform:none}50%{transform:rotate(30deg)}}@keyframes mav-n-sjlr{0%,100%{transform:none}50%{transform:rotate(-30deg)}}
+.av[data-act=pointup] .arm-r{animation:mav-n-pu .9s}.av[data-act=pointup] .fore-r{animation:mav-n-pfu .9s}.av[data-act=pointup] .head{animation:mav-n-lu .9s}.av[data-act=pointup] .arm-l{animation:mav-h-hipl .9s}.av[data-act=pointup] .fore-l{animation:mav-h-hipfl .9s}
+@keyframes mav-n-pu{0%,100%{transform:none}25%,80%{transform:rotate(-170deg)}}@keyframes mav-n-pfu{0%,100%{transform:none}25%,80%{transform:rotate(-5deg)}}
+@keyframes mav-n-lu{0%,100%{transform:none}25%,80%{transform:rotate(-6deg) translateY(-1px)}}
+/* idles (loop while standing still) */
+.av[data-idle=tap]:not([data-act]) .shin-r{animation:mav-n-tap .5s ease-in-out infinite}.av[data-idle=tap]:not([data-act]) .head{animation:mav-n-nod 1s ease-in-out infinite}
+@keyframes mav-n-tap{0%,100%{transform:none}50%{transform:rotate(-18deg)}}@keyframes mav-n-nod{0%,100%{transform:none}50%{transform:rotate(4deg) translateY(1px)}}
+.av[data-idle=look]:not([data-act]) .head{animation:mav-n-look 5s ease-in-out infinite}.av[data-idle=look]:not([data-act]) .root{animation:mav-i-dip 1.2s ease-in-out infinite alternate}
+@keyframes mav-n-look{0%,20%{transform:none}30%,45%{transform:rotate(-10deg)}55%,70%{transform:rotate(10deg)}80%,100%{transform:none}}
+/* students whose device asks for less motion: no bouncing, just a small nod */
+@media (prefers-reduced-motion:reduce){
+  .av *{animation:none!important}
+  .av[data-act] .head{animation:mav-rm-nod .6s ease-in-out!important}
+  @keyframes mav-rm-nod{50%{transform:rotate(5deg)}}
+}
+.mav-corner{width:44px;height:44px;border-radius:13px;border:2px solid #7d88a8;background:#26305a;padding:0;overflow:hidden;flex:none;position:relative;cursor:pointer;vertical-align:middle;align-self:center}
+.mav-corner svg{width:100%;height:100%;display:block}
+.mav-corner:hover{border-color:#ffc85c}
+.mav-corner:focus-visible{outline:3px solid #ffc85c;outline-offset:2px}
+@media (max-width:600px){.mav-corner{width:40px;height:40px;border-radius:12px}}
+.mav-dlg{border:0;padding:0;border-radius:18px;background:#141a30;color:#eef1fb;max-width:min(860px,96vw);width:100%;max-height:92vh;font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif}
+.mav-dlg::backdrop{background:rgba(5,8,20,.7)}
+.mav-wrap{display:flex;gap:18px;padding:18px;max-height:92vh;box-sizing:border-box}
+.mav-left{flex:0 0 220px;display:flex;flex-direction:column;gap:8px}
+.mav-big{background:#1d2547;border-radius:16px;height:260px;display:flex;justify-content:center;align-items:center;overflow:hidden}
+.mav-big svg{height:100%;width:auto}
+.mav-right{flex:1;min-width:0;display:flex;flex-direction:column;min-height:0}
+.mav-right h2{margin:0;font-size:22px}
+.mav-sub{margin:4px 0 10px;color:#a8b3d6}
+.mav-wallet{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 2px;font-size:14px}
+.mav-wallet span{background:#1d2547;border:1px solid #34407a;border-radius:999px;padding:4px 11px}
+.mav-wallet b{color:#ffd166}
+.mav-wallet .mav-soon{background:none;border:0;color:#7d88a8;padding:4px 0}
+.mav-pop{position:fixed;z-index:2147483000;transform:translateX(-50%);font:800 15px system-ui,sans-serif;text-shadow:0 1px 3px #000;pointer-events:none;animation:mav-up 1.3s ease-out forwards}
+@keyframes mav-up{from{opacity:1;transform:translate(-50%,0)}to{opacity:0;transform:translate(-50%,-34px)}}
+@media (prefers-reduced-motion:reduce){.mav-pop{animation:none;opacity:0}}
+.mav-rows{overflow:auto;flex:1;min-height:0;padding-right:4px}
+.mav-row{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px solid #26305a}
+.mav-lab{flex:0 0 108px;font-weight:700;font-size:13px;letter-spacing:.04em;color:#c8d0ee;padding-top:6px}
+.mav-opts{display:flex;flex-wrap:wrap;gap:6px}
+.mav-ch{font:inherit;font-size:13px;color:#eef1fb;background:#1d2547;border:1.5px solid #34407a;border-radius:999px;padding:5px 11px;cursor:pointer}
+.mav-ch.on{border-color:#ffc85c;background:#3a3420;color:#ffe3a1}
+.mav-sw{width:26px;height:26px;border-radius:50%;border:2px solid #34407a;cursor:pointer;padding:0}
+.mav-sw.on{border-color:#ffc85c;box-shadow:0 0 0 2px #141a30,0 0 0 4px #ffc85c}
+.mav-tabs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 6px}
+.mav-tab{font:inherit;font-size:13px;font-weight:700;color:#c8d0ee;background:transparent;border:1.5px solid #34407a;border-radius:999px;padding:5px 12px;cursor:pointer}
+.mav-tab.on{background:#ffc85c;color:#1a1405;border-color:#ffc85c}
+.mav-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:8px;padding:6px 0}
+.mav-item{font:inherit;color:#eef1fb;background:#1d2547;border:1.5px solid #34407a;border-radius:14px;padding:8px 6px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;min-height:92px}
+.mav-item.on{border-color:#3ccf9a;background:#173a37}.mav-item.try{border-color:#ffc85c}.mav-item.locked{opacity:.75}
+.mav-ic{font-size:26px;line-height:1.1}.mav-ic img{width:34px;height:34px;display:block}.mav-in{font-size:12.5px;font-weight:700;text-align:center;line-height:1.2}
+.mav-tag{font-size:11.5px;font-weight:800;color:#a8b3d6}.mav-tag.on{color:#3ccf9a}.mav-tag.price{color:#ffd166}.mav-tag.lock{color:#a8b3d6}
+.mav-sec{font-weight:800;font-size:13px;letter-spacing:.04em;color:#c8d0ee;margin:8px 0 0}
+.mav-tryrow:empty{display:none}
+.mav-try{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:10px 12px;border-radius:12px;background:#22294d;border:1px solid #ffc85c55;font-size:14px}
+.mav-need{color:#ffd166;font-weight:700}
+.mav-enc{left:1px;right:auto}
+.av[data-act=ovation] .root{animation:mav-bow 3s ease-in-out}.av[data-act=ovation] .head{animation:mav-bowh 3s ease-in-out}
+.av[data-act=ovation] .arm-l{animation:mav-ovl 3s ease-in-out}.av[data-act=ovation] .arm-r{animation:mav-ovr 3s ease-in-out}
+@keyframes mav-bow{0%,100%,45%,55%{transform:none}20%,30%,70%,80%{transform:translateY(5px) scaleY(.93)}}
+@keyframes mav-bowh{0%,100%,45%,55%{transform:none}20%,30%,70%,80%{transform:translateY(5px) rotate(18deg)}}
+@keyframes mav-ovl{0%,100%{transform:none}10%,90%{transform:rotate(70deg)}}@keyframes mav-ovr{0%,100%{transform:none}10%,90%{transform:rotate(-70deg)}}
+.mav-head{display:inline-block;vertical-align:middle;border-radius:50%;border:2px solid #7d88a8;overflow:hidden;background:#26305a;margin-right:6px;flex:none}
+.mav-head svg{width:100%;height:100%;display:block}
+.mav-rk{position:absolute;right:1px;top:1px;min-width:14px;height:14px;border-radius:7px;font:900 9px/14px system-ui,sans-serif;color:#141a30;text-align:center;padding:0 2px}
+.mav-rnow{margin:8px 0 0;font-size:16px}
+.mav-ladder{list-style:none;margin:8px 0;padding:0;display:flex;flex-direction:column;gap:4px}
+.mav-ladder li{display:flex;align-items:center;gap:10px;padding:6px 10px;border-radius:10px;background:#1d2547;font-size:13.5px;opacity:.65}
+.mav-ladder li.done{opacity:.9}.mav-ladder li.on{opacity:1;outline:2px solid #ffc85c}
+.mav-ladder li span:last-child{margin-left:auto;color:#a8b3d6;font-size:12.5px}
+.mav-dot{width:12px;height:12px;border-radius:50%;flex:none}
+.mav-acts{display:flex;justify-content:flex-end;gap:10px;padding-top:12px}
+.mav-btn{font:inherit;font-weight:700;border-radius:12px;padding:10px 18px;min-height:44px;cursor:pointer;border:2px solid transparent;background:#ffc85c;color:#1a1405}
+.mav-btn.ghost{background:transparent;color:#eef1fb;border-color:#34407a}
+.mav-dlg button:focus-visible{outline:3px solid #ffc85c;outline-offset:2px}
+@media (max-width:640px){.mav-wrap{flex-direction:column;padding:14px;gap:10px}.mav-left{flex:none;flex-direction:row;flex-wrap:wrap}.mav-big{height:150px;flex:0 0 120px}.mav-left .mav-btn{flex:1}.mav-lab{flex-basis:84px}}
+.av .mav-fl{transform-box:fill-box;transform-origin:50% 100%;animation:mav-flk .7s ease-in-out infinite alternate}@keyframes mav-flk{from{transform:scaleY(.85) skewX(-4deg)}to{transform:scaleY(1.1) skewX(4deg)}}
+.av .mav-sheen{animation:mav-sheen 3.2s ease-in-out infinite}@keyframes mav-sheen{0%,55%{transform:skewX(-22deg) translateX(0)}100%{transform:skewX(-22deg) translateX(75px)}}
+.av .mav-tw{transform-box:fill-box;transform-origin:center;animation:mav-tw 1.8s ease-in-out infinite}.av .mav-tw2{animation-delay:-.9s}@keyframes mav-tw{0%,100%{opacity:0;transform:scale(.3)}50%{opacity:1;transform:scale(1)}}
+.mav-quests{background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.1);border-radius:16px;padding:10px 14px}
+.mav-qs{font-size:14px;color:#c8d0ee;margin-bottom:4px}.mav-qs b{color:#ffb020;font-size:16px}
+.mav-q{display:flex;align-items:center;gap:10px;padding:7px 0;border-top:1px solid rgba(255,255,255,.07)}
+.mav-qck{width:26px;height:26px;border-radius:50%;border:2px solid rgba(255,255,255,.3);display:grid;place-items:center;flex:none;font-weight:900;font-size:13px}
+.mav-q.done .mav-qck{background:#5cf0a0;border-color:#5cf0a0;color:#063}.mav-q.week .mav-qck{border-color:#ffb020}
+.mav-qt{flex:1;min-width:0;font-weight:700;font-size:14px}.mav-q.done .mav-qt{opacity:.65;text-decoration:line-through}
+.mav-qbar{display:block;height:7px;border-radius:999px;background:rgba(255,255,255,.12);overflow:hidden;margin-top:4px}.mav-qbar i{display:block;height:100%;background:linear-gradient(90deg,#3d8bff,#a45cff)}
+.mav-qr{font-weight:900;color:#ffb020;font-size:13px;white-space:nowrap}
+/* ---- THE LOCKER (Store redesign, 2026-11-16, David 'go with your picks'): full screen, stage, rarity cards, Shop tab, buy bar, reveal ---- */
+.mav-dlg{max-width:100vw;width:100vw;height:100vh;height:100dvh;max-height:100dvh;margin:0;border-radius:0;background:radial-gradient(120% 90% at 18% 30%,#24307a 0,#121842 45%,#0b0f24 100%);overflow:hidden}
+.mav-wrap{height:100%;max-height:none;gap:16px;padding:14px 18px 0}
+.mav-left{flex:0 0 min(36%,420px);position:relative;align-items:center;justify-content:flex-end;padding-bottom:14px;gap:8px;min-height:0}
+.mav-stage{position:relative;flex:1;width:100%;min-height:0;display:flex;align-items:flex-end;justify-content:center;overflow:hidden}
+.mav-beam{position:absolute;top:-25%;left:50%;width:80%;height:120%;transform:translateX(-50%);background:conic-gradient(from 180deg at 50% 0%,transparent 160deg,rgba(255,240,200,.15) 172deg,rgba(255,240,200,.24) 180deg,rgba(255,240,200,.15) 188deg,transparent 200deg);animation:mav-beam 6s ease-in-out infinite alternate;pointer-events:none}
+@keyframes mav-beam{from{transform:translateX(-52%) rotate(-3deg)}to{transform:translateX(-48%) rotate(3deg)}}
+.mav-big{background:none;border-radius:0;height:auto;width:min(100%,340px);aspect-ratio:100/120;max-height:100%;position:relative}
+.mav-big svg{width:100%;height:100%}
+.mav-big.pose{animation:mav-pose .7s cubic-bezier(.3,1.6,.5,1)}
+@keyframes mav-pose{0%{transform:scale(.96)}50%{transform:scale(1.05) translateY(-3%)}100%{transform:none}}
+.mav-lo{display:flex;flex-wrap:wrap;justify-content:center;gap:4px 10px;align-items:flex-start}
+.mav-lot{width:100%;text-align:center;font-size:11px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;color:#9aa3c7}
+.mav-slot{display:flex;flex-direction:column;align-items:center;gap:2px}
+.mav-lob{width:58px;height:66px;padding:2px;border-radius:12px;border:2px solid rgba(255,255,255,.22);background:rgba(10,14,40,.6);cursor:pointer;color:#eef1fb;font:inherit}
+.mav-lob svg{width:100%;height:100%;display:block}.mav-lob:hover{border-color:#ffb020}
+.mav-lob.empty{border-style:dashed;font-size:10.5px;font-weight:800;line-height:1.15;color:#9aa3c7}.mav-lob.empty b{display:block;font-size:20px;color:#eef1fb}
+.mav-rep{font:inherit;font-size:10.5px;font-weight:800;color:#9aa3c7;background:none;border:0;padding:0 2px;cursor:pointer;text-decoration:underline}
+.mav-leftbtns{display:flex;flex-wrap:wrap;gap:6px;justify-content:center}
+.mav-leftbtns .mav-btn{min-height:36px;padding:6px 12px;font-size:13px}
+.mav-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mav-right h2{font-size:28px;font-weight:900;letter-spacing:1px;text-shadow:0 3px 0 rgba(0,0,0,.35)}
+.mav-top .mav-wallet{margin:0 0 0 auto}
+.mav-wallet span{background:rgba(0,0,0,.35);border-color:rgba(255,255,255,.15);font-size:15px;font-weight:800}
+.mav-top .mav-btn{min-height:40px;padding:8px 16px}
+.mav-tabs{flex-wrap:nowrap;overflow-x:auto;gap:8px;margin:10px 0 6px;padding-bottom:4px;scrollbar-width:none}
+.mav-tab{flex:none;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:72px;border:2px solid transparent;background:rgba(255,255,255,.07);border-radius:14px;padding:7px 9px;font-size:11.5px;font-weight:900;text-transform:uppercase;letter-spacing:.4px;color:#dfe5ff}
+.mav-tab i{font-style:normal;font-size:22px;line-height:1.1}
+.mav-tab.on{background:linear-gradient(#ffd25a,#ffb020);color:#2a1a00;border-color:#fff3c4;box-shadow:0 4px 0 #b97800}
+.mav-rows{padding:2px 2px 96px}
+.mav-grid{grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px}
+.mav-card{position:relative;font:inherit;color:#fff;border:0;padding:0;border-radius:16px;overflow:hidden;aspect-ratio:3/4;cursor:pointer;text-align:left;background:var(--c1);box-shadow:inset 0 0 0 2px rgba(255,255,255,.18),0 6px 14px rgba(0,0,0,.35);transition:transform .12s}
+.mav-card:hover{transform:translateY(-3px) scale(1.02)}
+.mav-card.try{box-shadow:inset 0 0 0 3px #fff,0 0 0 3px var(--c2),0 10px 24px rgba(0,0,0,.45)}
+.mav-card.on{box-shadow:inset 0 0 0 3px #5cf0a0,0 6px 14px rgba(0,0,0,.35)}
+.mav-cbg{position:absolute;inset:0;background:radial-gradient(90% 70% at 50% 35%,var(--c2) 0,var(--c1) 70%)}
+.mav-cbg::after{content:'';position:absolute;inset:0;background:repeating-conic-gradient(from 0deg at 50% 38%,rgba(255,255,255,.07) 0 10deg,transparent 10deg 20deg)}
+.mav-pic{position:absolute;left:8%;right:8%;top:7%;height:60%;display:flex;align-items:center;justify-content:center}
+.mav-pic img{max-width:78%;max-height:88%;filter:drop-shadow(0 6px 8px rgba(0,0,0,.4))}
+.mav-pic .av{height:100%;aspect-ratio:100/120}.mav-pic .av svg{width:100%;height:100%}.mav-pic .mav-emo{font-size:46px}
+.mav-lbl{position:absolute;left:0;right:0;bottom:0;padding:6px 9px 8px;background:linear-gradient(transparent,rgba(0,0,0,.55) 30%)}
+.mav-lbl b{display:block;font-size:13.5px;line-height:1.15;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+.mav-lbl small{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:1px;opacity:.85}
+.mav-pr{position:absolute;top:7px;right:7px;background:rgba(0,0,0,.55);border-radius:999px;padding:2px 8px;font-weight:900;font-size:12.5px}
+.mav-ctag{position:absolute;top:7px;left:7px;border-radius:6px;padding:1px 6px;font-weight:900;font-size:10px;letter-spacing:.5px;background:#2fbf71}
+.mav-ctag.eq{background:#fff;color:#111}.mav-ctag.lk{background:#111}.mav-ctag.new{background:#ff4d6d}
+.mav-card.big{aspect-ratio:auto;min-height:230px}.mav-card.big .mav-lbl b{font-size:21px}
+.mav-feat{display:grid;grid-template-columns:1.3fr 1fr;gap:10px}
+.mav-h{display:flex;align-items:baseline;gap:10px;margin:10px 0 8px;font-size:20px;font-weight:900;letter-spacing:.5px}
+.mav-h small{color:#ffb020;font-size:12.5px;font-weight:900;letter-spacing:0}
+.r-common{--c1:#3b4256;--c2:#6c7690}.r-rare{--c1:#173b8a;--c2:#3d8bff}.r-epic{--c1:#3d1677;--c2:#a45cff}.r-legendary{--c1:#7a3b00;--c2:#ffb020}
+.mav-tryrow{position:absolute;right:18px;bottom:14px;left:calc(min(36%,420px) + 34px);z-index:3}
+.mav-try{margin:0;background:rgba(14,18,48,.94);border:2px solid var(--c2,#ffc85c);border-radius:18px;padding:10px 12px 10px 16px;box-shadow:0 10px 30px rgba(0,0,0,.5);animation:mav-up .25s cubic-bezier(.3,1.4,.5,1)}
+@keyframes mav-up{from{transform:translateY(120%)}to{transform:none}}
+.mav-try b{font-size:18px}.mav-try small{color:#a8b3d6;font-weight:700}
+.mav-try .mav-btn{background:linear-gradient(#5cf0a0,#2fbf71);color:#063;font-weight:900;font-size:16px;box-shadow:0 4px 0 #1b7a45}
+.mav-need{color:#ffb020;font-weight:800}
+.mav-rev{position:absolute;inset:0;z-index:6;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;background:radial-gradient(circle at 50% 45%,rgba(255,255,255,.12),rgba(5,7,20,.93) 60%);overflow:hidden}
+.mav-rev:empty{display:none}
+.mav-rev .mav-card{width:220px;flex:none;animation:mav-flip .9s cubic-bezier(.3,1.3,.5,1)}
+@keyframes mav-flip{0%{transform:rotateY(180deg) scale(.4)}60%{transform:rotateY(-12deg) scale(1.08)}100%{transform:none}}
+.mav-rev h3{margin:0;font-size:40px;font-weight:900;color:#ffb020;text-shadow:0 4px 0 rgba(0,0,0,.4);letter-spacing:1px}
+.mav-flash{position:absolute;inset:0;background:#fff;opacity:0;animation:mav-flash .5s ease-out;pointer-events:none}
+@keyframes mav-flash{0%{opacity:.85}100%{opacity:0}}
+.mav-conf{position:absolute;top:-14px;width:10px;height:14px;animation:mav-fall linear forwards;pointer-events:none}
+@keyframes mav-fall{to{transform:translateY(110vh) rotate(720deg)}}
+@media (max-width:760px){
+  .mav-wrap{flex-direction:column;padding:10px 12px 0;gap:6px}
+  .mav-left{flex:0 0 auto;height:34vh;flex-direction:column;flex-wrap:nowrap;padding-bottom:4px}
+  .mav-big{width:auto;height:100%;flex:none}
+  .mav-leftbtns .mav-btn{flex:none}
+  .mav-right h2{font-size:18px}
+  .mav-top{gap:6px}.mav-top .mav-sub{display:none}.mav-top .mav-btn{min-height:34px;padding:5px 12px;font-size:13px}.mav-top>.mav-btn.ghost{margin-left:auto}.mav-top .mav-wallet+.mav-btn.ghost{margin-left:0}
+  .mav-leftbtns .mav-btn{min-height:30px;padding:4px 9px;font-size:12px}.mav-lob{width:46px;height:52px}
+  .mav-feat{grid-template-columns:1fr}
+  .mav-grid{grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px}
+  .mav-tryrow{left:10px;right:10px;bottom:10px}
+}
+.mav-tabs.mav-back{align-items:center;gap:12px}.mav-sect{font-size:20px;font-weight:900;letter-spacing:.5px}
+/* ---- LOCKER DOOR (2026-11-17, David 'Build it'): the Locker opens on a school locker; its spots replace the tab row ---- */
+.mav-lk{position:relative;perspective:1600px;border-radius:16px;background:linear-gradient(#3d6fd8,#2b55b4);padding:10px;box-shadow:0 14px 34px rgba(0,0,0,.5),inset 0 0 0 2px rgba(255,255,255,.14);max-width:760px}
+.mav-lk-in{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:9px;background:#141b35;border-radius:10px;padding:9px;box-shadow:inset 0 8px 24px rgba(0,0,0,.65)}
+.mav-lk-side{background:linear-gradient(160deg,#2c4583,#1b2442);border-radius:8px;padding:9px;display:grid;grid-template-rows:auto 1fr auto;gap:9px;min-width:0}
+.mav-lk-body{display:grid;grid-template-rows:auto 1fr 1fr auto;gap:9px;min-width:0}
+.mav-lk-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px}
+.mav-lk-spot{position:relative;min-width:0;border:0;cursor:pointer;color:#eef1fb;font:inherit;background:#1b2442;border-radius:10px;padding:10px 8px 34px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:6px;min-height:104px;transition:transform .15s,box-shadow .15s;box-shadow:inset 0 -6px 0 rgba(0,0,0,.25)}
+.mav-lk-spot:hover,.mav-lk-spot:focus-visible{transform:translateY(-2px);box-shadow:0 0 0 3px #ffb020,inset 0 -6px 0 rgba(0,0,0,.25);outline:none}
+.mav-lk-spot img{width:60px;height:60px;object-fit:contain;filter:drop-shadow(0 6px 6px rgba(0,0,0,.45))}
+.mav-lk-lab{position:absolute;left:6px;right:6px;bottom:6px;background:rgba(11,16,40,.9);border-radius:999px;padding:3px 8px;font-weight:800;font-size:12.5px;text-align:center;line-height:1.15}
+.mav-lk-lab small{color:#ffb020;font-weight:900;margin-left:3px}
+.mav-lk-shelf{border-bottom:6px solid #8090b8;border-radius:10px 10px 4px 4px}
+.mav-lk-hooks::before{content:'';position:absolute;top:9px;left:22%;right:22%;height:6px;border-radius:3px;background:#8090b8}
+.mav-lk-case{background:linear-gradient(#3a2a1c,#22170e)}.mav-lk-case img{width:64px;height:64px}
+.mav-lk-mirror{min-height:140px;background:linear-gradient(135deg,#cfe3ff,#8fb2e6 45%,#dbe9ff 55%,#9bbbe8);box-shadow:inset 0 0 0 6px #b8c4dc}
+.mav-lk-mirror .av{width:80px;aspect-ratio:1}.mav-lk-mirror .av svg{width:100%;height:100%;display:block}
+.mav-lk-board{background:#c49a62;box-shadow:inset 0 0 0 5px #8a6436;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;align-content:center;justify-items:center}
+.mav-lk-board img{width:100%;max-width:40px;height:auto;aspect-ratio:1}.mav-lk-board .no{filter:grayscale(1) brightness(.6);opacity:.35}.mav-lk-board .yes{transform:rotate(-8deg)}
+.mav-lk-board .mav-lk-lab{grid-column:1/-1}
+.mav-lk-flyer{background:#fffbe8;color:#2b2200;transform:rotate(-1.5deg);flex-direction:column;align-items:flex-start;justify-content:flex-start;padding:12px 10px;min-height:112px;gap:2px}
+.mav-lk-flyer b{font-size:15px;font-weight:900;letter-spacing:.5px}.mav-lk-flyer .mav-clock{font-size:11.5px;color:#8a6a00;font-weight:800}
+.mav-lk-mini{display:flex;gap:5px;margin-top:4px;align-items:center}.mav-lk-mini img{width:32px;height:32px}.mav-lk-mini span{font-size:24px}
+.mav-lk-pin{position:absolute;top:-10px;right:10px;width:26px!important;height:26px!important}
+.mav-lk-door{position:absolute;inset:0;z-index:4;border:0;width:100%;border-radius:16px;transform-origin:0 50%;transition:transform .6s cubic-bezier(.3,.8,.3,1),opacity .2s .45s;background:linear-gradient(100deg,#3d6fd8 0%,#6f95e6 48%,#2b55b4 100%);box-shadow:inset 0 0 0 2px rgba(255,255,255,.2),inset -6px 0 12px rgba(0,0,0,.3);cursor:pointer;display:flex;flex-direction:column;align-items:center;padding-top:34px;gap:18px;color:inherit;font:inherit}
+.mav-lk-vents{width:46%;display:grid;gap:9px}.mav-lk-vents i{height:9px;border-radius:5px;background:#0d1838;box-shadow:inset 0 2px 3px rgba(0,0,0,.6),0 1px 0 rgba(255,255,255,.25)}
+.mav-lk-plate{background:#e9edf6;color:#28324f;font-weight:900;padding:6px 16px;border-radius:6px;letter-spacing:1px;box-shadow:inset 0 -2px 0 #b6bfd3}
+.mav-lk-dial{width:88px;height:88px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#f3f5fa,#9aa4bb 60%,#5d667e);box-shadow:0 6px 10px rgba(0,0,0,.4),inset 0 0 0 7px #2d3449;display:grid;place-items:center;transition:transform .4s}
+.mav-lk-dial::after{content:'';width:22px;height:22px;border-radius:50%;background:#2d3449}
+.mav-lk-handle{position:absolute;right:26px;top:46%;width:18px;height:72px;border-radius:9px;background:linear-gradient(90deg,#9aa4bb,#eef1f8,#8a93a8);box-shadow:0 4px 8px rgba(0,0,0,.4)}
+.mav-lk-tap{margin-top:auto;margin-bottom:26px;background:rgba(11,16,40,.85);padding:8px 18px;border-radius:999px;font-weight:800;animation:mav-lkp 1.6s infinite}
+@keyframes mav-lkp{50%{transform:scale(1.06)}}
+.mav-lk.spin .mav-lk-dial{transform:rotate(300deg)}.mav-lk.open .mav-lk-door{transform:rotateY(-104deg);opacity:0;pointer-events:none}
+@media (max-width:760px){
+  .mav-lk{padding:7px}.mav-lk-in{gap:6px;padding:6px;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr)}.mav-lk-side,.mav-lk-body{gap:6px}.mav-lk-row{gap:6px}.mav-lk-side{padding:6px}
+  .mav-lk-spot{min-height:78px;padding:6px 4px;align-content:center}.mav-lk-spot img{width:38px;height:38px}.mav-lk-case img{width:42px;height:42px}
+  .mav-lk-lab{position:static;flex-basis:100%;font-size:10.5px;padding:2px 5px}
+  .mav-lk-mirror{min-height:104px}.mav-lk-mirror .av{width:54px}
+  .mav-lk-board{grid-template-columns:repeat(2,minmax(0,1fr));padding:6px}.mav-lk-board img{max-width:30px}.mav-lk-board img:nth-child(n+5){display:none}
+  .mav-lk-flyer b{font-size:12.5px}.mav-lk-flyer .mav-clock{font-size:10px}.mav-lk-mini img{width:24px;height:24px}.mav-lk-mini span{font-size:18px}
+  .mav-lk-dial{width:66px;height:66px}.mav-lk-vents{width:56%}.mav-lk-door{padding-top:22px;gap:12px}
+  .mav-lob.empty{font-size:0}.mav-lob.empty b{font-size:20px}
+  .mav-top{flex-wrap:nowrap;gap:5px}.mav-right h2{font-size:16px!important;white-space:nowrap}.mav-top .mav-wallet{gap:4px}.mav-top .mav-wallet span{padding:3px 7px;font-size:13px}.mav-top .mav-btn{padding:5px 9px!important}
+}
+@media (prefers-reduced-motion:reduce){.mav-dlg *{animation:none!important;transition:none!important}}
+/* ---- the avatar on the game (perch, 2026-11-16): sits on the game's card or sign; legs swing, jumps on a right answer, slips on a miss ---- */
+.mav-perch{position:fixed;z-index:40;transform-origin:50% 77%;transition:transform .25s;-webkit-tap-highlight-color:transparent;pointer-events:none}
+.mav-perch .head,.mav-perch .root>path{pointer-events:auto;cursor:pointer}   /* only the head and body take a tap (opens the Store); legs never block the game */
+.mav-perch .av,.mav-perch .av svg{width:100%;height:100%;display:block}
+.mav-perch.mav-walk{transition:left 1.2s linear,top 1.2s linear}
+.mav-perch.mav-lift{transform:translateY(-16%)}
+.av[data-idle=sit]:not([data-act]) .leg-l{transform:rotate(16deg)}
+.av[data-idle=sit]:not([data-act]) .leg-r{transform:rotate(-16deg)}
+.av[data-idle=sit]:not([data-act]) .shin-l{animation:mav-p-swl .9s ease-in-out infinite alternate}
+.av[data-idle=sit]:not([data-act]) .shin-r{animation:mav-p-swr .9s ease-in-out -.45s infinite alternate}
+.av[data-idle=sit]:not([data-act]) .head{animation:mav-p-look 7s ease-in-out infinite}
+.av[data-idle=sit]:not([data-act]) .fore-r{animation:mav-p-tap 1.8s ease-in-out infinite alternate}
+@keyframes mav-p-swl{from{transform:rotate(-30deg)}to{transform:rotate(-4deg)}}
+@keyframes mav-p-swr{from{transform:rotate(4deg)}to{transform:rotate(30deg)}}
+@keyframes mav-p-look{0%,25%{transform:none}35%,50%{transform:rotate(-9deg) translateX(-1px)}60%,75%{transform:rotate(8deg) translateX(1px)}85%,100%{transform:none}}
+@keyframes mav-p-tap{from{transform:rotate(0)}to{transform:rotate(-12deg)}}
+.mav-perch.mav-jump{animation:mav-p-jump .9s ease-out}
+@keyframes mav-p-jump{0%{transform:none}14%{transform:translateY(4%) scaleY(.93)}45%{transform:translateY(-46%)}76%{transform:translateY(0)}86%{transform:translateY(3%) scaleY(.95)}100%{transform:none}}
+.mav-perch.mav-slip{animation:mav-p-slip 2s ease-in-out}
+.mav-perch.mav-slip .arm-l{animation:mav-p-al 2s ease-in-out!important}.mav-perch.mav-slip .arm-r{animation:mav-p-ar 2s ease-in-out!important}
+.mav-perch.mav-slip .fore-l,.mav-perch.mav-slip .fore-r,.mav-perch.mav-slip .shin-l,.mav-perch.mav-slip .shin-r,.mav-perch.mav-slip .head{animation:none!important}
+.mav-perch.mav-slip .leg-l{animation:mav-p-kl .25s ease-in-out .6s 3 alternate!important}.mav-perch.mav-slip .leg-r{animation:mav-p-kr .25s ease-in-out .6s 3 alternate!important}
+@keyframes mav-p-slip{0%{transform:none}12%{transform:rotate(-13deg)}24%{transform:rotate(10deg)}34%{transform:rotate(-5deg) translateY(6%)}46%,62%{transform:translateY(40%)}74%{transform:translateY(22%) rotate(4deg)}86%{transform:translateY(7%) rotate(-3deg)}100%{transform:none}}
+@keyframes mav-p-al{0%,8%{transform:none}14%{transform:rotate(120deg)}22%{transform:rotate(60deg)}30%{transform:rotate(140deg)}42%,64%{transform:rotate(168deg)}82%{transform:rotate(120deg)}100%{transform:none}}
+@keyframes mav-p-ar{0%,8%{transform:none}14%{transform:rotate(-60deg)}22%{transform:rotate(-130deg)}30%{transform:rotate(-80deg)}42%,64%{transform:rotate(-168deg)}82%{transform:rotate(-120deg)}100%{transform:none}}
+@keyframes mav-p-kl{from{transform:rotate(-14deg)}to{transform:rotate(16deg)}}
+@keyframes mav-p-kr{from{transform:rotate(14deg)}to{transform:rotate(-16deg)}}
+.mav-perch.mav-walk .leg-l{animation:mav-p-wl .35s ease-in-out infinite alternate!important}
+.mav-perch.mav-walk .leg-r{animation:mav-p-wl .35s ease-in-out infinite alternate-reverse!important}
+.mav-perch.mav-walk .arm-l{animation:mav-p-wa .35s ease-in-out infinite alternate!important}.mav-perch.mav-walk .arm-r{animation:mav-p-wa .35s ease-in-out infinite alternate-reverse!important}
+@keyframes mav-p-wl{from{transform:rotate(-16deg)}to{transform:rotate(16deg)}}
+@keyframes mav-p-wa{from{transform:rotate(-14deg)}to{transform:rotate(14deg)}}
+@media (prefers-reduced-motion:reduce){.mav-perch,.mav-perch *{animation:none!important;transition:none!important}}
+</style>
+<script id="mtg-avatar" data-mount="nav.top" data-perch="">
+/* Avatar, build step 1 (added 2026-11-16; spec: Claude outputs/avatar-spec.md). A small cartoon avatar sits right after the
+   Music Theory Academy and My Report pills in every game. Tap it to change how it looks (the free Look parts). It reacts to the
+   game's own 'mtghist' events: a right answer = happy move, a miss = shrug, a finished run = dance. No hooks inside the games.
+   Saved on this device (localStorage mtg_avatar_v1:<sid>) and, for signed-in students, in Firestore avatars/<class or none>_<sid>
+   = { look, sid, updated_at }: one write a few seconds after Save, one read only on a device that has no copy yet. Guests get a
+   random avatar for the visit, never saved. On localhost nothing is sent unless the address has ?avatar=1.
+   Step 2 (2026-11-16): coins (1 per minute of play, 60 a day) and points (right answer = level 1-9, +5 every 5 in a row, a run = 10 x level,
+   a test +50), shown in the builder and as a small pop; sent to the same doc as increments at most once a minute and when the page hides.
+   Step 3 (2026-11-16): the Store (tabs Look, Skins, Clothes, Hats, Gear, Moves, Backdrops, Pets); try an item on, buy it with coins or points;
+   owned items (W.owned, 'slot:id', <= 300) saved with the wallet and sent as the list 'owned'; spending goes online as a negative increment.
+   Step 4a (2026-11-16): ranks (see the ranks section); corner frame color + number, platform color and step dots, a Rank tab in the Store;
+   Maestro Baton opens at rank 9 and the Golden Wreath at rank 10.
+   Step 4c (2026-11-16): Encore at the top rank (two taps): avatar rank restarts (xp - encXP), items/coins/points kept, ★ ring on the platform,
+   ★ on the corner, +10% points per Encore (max +50%); saved as encores / encore_xp. Encore-only items: later.
+   Step 4b (2026-11-16): mastery read from each game's own saves (see the mastery section), kept in mtg_mastery_v1:<sid>; unlocks rank gates
+   and the Gold Piano Jacket, Detective Coat and Captain's Hat.
+   Step 5a (2026-11-16): a teacher can turn avatars off for a class (classes/<code>.avatars_off, dashboard switch); checked once per tab.
+   Step 5b (2026-11-16): MTGAvatar.peer / .badge (classmates' avatars, rank sent as 'rank'); Encore items: Encore Jacket (1), Standing Ovation (2),
+   Spotlight (3), Golden Mic (4), Rainbow platform (5).
+   Later steps: ranks, avatars on boards and reports, a class setting to turn avatars off. */
+(function(){
+  var me = document.currentScript, MOUNT = (me && me.getAttribute('data-mount')) || '.mtg-home';
+  if (window.MTGAvatar) return;
+  const SKIN = ['#fff0e1','#ffe0c7','#f9d0ae','#f6c9a0','#ecb98c','#e3a878','#d6976a','#c98a5a','#b87a4b','#a86a3e','#955b34','#8a5230','#6a3d22','#4a2a17',
+    '#8fd3ff','#9be89b','#c6a6ff','#ff9ec7','#ffd166','#b8c0cc'];   // 14 natural tones + 6 fun colors
+  const HAIRC = ['#1c1410','#3b2416','#6b3f22','#a8642c','#d9a54b','#f1d98a','#9a9a9a','#e85d8f','#4f7cff','#3ccf9a'];
+  const TOPC = ['#4f7cff','#ff6b6b','#3ccf9a','#ffb020','#9b6bff','#22b8cf','#f06595','#2b2f3a','#f1f3f5'];
+  const PANTC = ['#2b3550','#1d1f26','#5a6b8c','#6b4f2e','#c2c8d4'];
+  const LOOK = {
+    face:[['round','Round'],['oval','Oval'],['soft','Soft square']],
+    eyes:[['big','Big'],['dot','Dot'],['happy','Happy'],['sleepy','Chill'],['lash','Lashes'],['wink','Wink']],
+    brows:[['arch','Arched'],['flat','Straight'],['thick','Thick'],['none','None']],
+    nose:[['dot','Dot'],['button','Button'],['none','None']],
+    mouth:[['smile','Smile'],['grin','Big grin'],['o','Ooh'],['smirk','Smirk'],['tongue','Silly']],
+    hair:[['short','Short'],['buzz','Buzz'],['curly','Curly'],['afro','Afro'],['long','Long'],['braids','Braids'],['bun','Bun'],['spiky','Spiky'],['swoop','Swoop'],['bald','None']],
+    cover:[['none','None'],['hijab','Hijab'],['wrap','Head wrap']],
+    glasses:[['none','None'],['round','Round'],['square','Square'],['shades','Aviator shades']],
+    beard:[['none','None'],['stubble','Stubble'],['mustache','Mustache'],['goatee','Goatee'],['short','Short beard'],['full','Full beard']],   // David 2026-11-16; same color as the hair
+  };
+
+  // store items (from the approved preview): free = everyone has it, c = coins, p = points, lock = earned by mastery (step 4)
+  // real instrument pictures (Microsoft Fluent Emoji 3D, MIT; hosted in the hub: hub/avatar/instruments, credits there). Added 2026-11-16.
+  const ART = (location.port === '8770' ? '/hub' : '') + '/avatar/instruments/';
+  const pic = (f, w, x, y) => `<image href="${ART}${f}.png" x="${x - w / 2}" y="${y - w / 2}" width="${w}" height="${w}"/>`;
+  const ITEMS = [
+    // tops
+    {id:'hoodie',slot:'top',name:'Hoodie',ic:'🧥',free:1},{id:'tee',slot:'top',name:'Tee',ic:'👕',free:1},{id:'jacket',slot:'top',name:'Jacket',ic:'🧥',free:1},
+    {id:'varsity',slot:'top',name:'Varsity jacket',ic:'🎽',c:60},{id:'band',slot:'top',name:'Band uniform',ic:'🎖️',c:140},
+    {id:'goldpiano',slot:'top',name:'Gold Piano Jacket',ic:'🎹',lock:'Get ★ on all 15 major keys in Scale Quest'},
+    {id:'detective',slot:'top',name:'Detective Coat',ic:'🕵️',lock:'Finish a Big Score challenge on Extreme'},
+    // hats
+    {id:'none',slot:'hat',name:'No hat',ic:'🚫',free:1},{id:'beanie',slot:'hat',name:'Beanie',ic:'🧢',c:25},{id:'cap',slot:'hat',name:'Cap',ic:'🧢',c:30},
+    {id:'phones',slot:'hat',name:'Headphones',ic:'🎧',c:45},{id:'tophat',slot:'hat',name:'Top hat',ic:'🎩',p:300},{id:'crown',slot:'hat',name:'Crown',ic:'👑',p:1500},
+    {id:'captain',slot:'hat',name:"Captain's Hat",ic:'⚓',lock:'Reach the top level in Tidal Tones'},
+    // gear
+    {id:'none',slot:'gear',name:'Empty hands',ic:'🚫',free:1},{id:'mic',slot:'gear',name:'Mic',ic:'🎤',art:'microphone',c:40},{id:'sticks',slot:'gear',name:'Drumsticks',ic:'🥁',c:50},
+    {id:'guitar',slot:'gear',name:'Guitar',ic:'🎸',art:'guitar',p:500},{id:'keytar',slot:'gear',name:'Keytar',ic:'🎹',p:900},
+    // Real instrument pictures (Fluent Emoji 3D, David 2026-11-16 'go with your picks'). The 9 below: David's ChatGPT pictures (2026-11-16, 'swap all 9').
+    {id:'flute',slot:'gear',name:'Flute',ic:'🪈',art:'concert_flute',c:100},{id:'clarinet',slot:'gear',name:'Clarinet',ic:'🎷',art:'clarinet',c:100},
+    {id:'trombone',slot:'gear',name:'Trombone',ic:'🎺',art:'trombone',c:140},{id:'horn',slot:'gear',name:'French Horn',ic:'📯',art:'french_horn',c:160},
+    {id:'tuba',slot:'gear',name:'Tuba',ic:'🎺',art:'tuba',c:180},{id:'snare',slot:'gear',name:'Snare Drum',ic:'🥁',art:'snare_drum',c:110},
+    {id:'viola',slot:'gear',name:'Viola',ic:'🎻',art:'viola',c:120},{id:'cello',slot:'gear',name:'Cello',ic:'🎻',art:'cello',c:180},
+    {id:'bass',slot:'gear',name:'String Bass',ic:'🎻',art:'string_bass',c:200},
+    {id:'trumpet',slot:'gear',name:'Trumpet',ic:'🎺',art:'trumpet',c:120},{id:'sax',slot:'gear',name:'Alto Sax',ic:'🎷',art:'saxophone',c:140},
+    {id:'violin',slot:'gear',name:'Violin',ic:'🎻',art:'violin',c:120},   // Wood Flute taken out (David 2026-11-16): wait for a real metal concert flute
+    {id:'mdrum',slot:'gear',name:'Marching Drum',ic:'🥁',art:'drum',c:110},{id:'handdrum',slot:'gear',name:'Hand Drum',ic:'🪘',art:'long_drum',c:90},
+    {id:'banjo',slot:'gear',name:'Banjo',ic:'🪕',art:'banjo',c:120},{id:'accordion',slot:'gear',name:'Accordion',ic:'🪗',art:'accordion',c:150},
+    {id:'maracas',slot:'gear',name:'Maracas',ic:'🪇',art:'maracas',c:60},{id:'keyboard',slot:'gear',name:'Keyboard',ic:'🎹',art:'musical_keyboard',c:130},
+    {id:'studiomic',slot:'gear',name:'Studio Mic',ic:'🎙️',art:'studio_microphone',c:90},{id:'sheet',slot:'gear',name:'Sheet Music',ic:'🎼',art:'musical_score',c:60},
+    {id:'baton',slot:'gear',name:'Maestro Baton',ic:'🪄',lock:'Reach rank 9: Maestro'},
+    // moves
+    {id:'bounce',slot:'idle',name:'Bounce',ic:'⬆️',free:1},{id:'sway',slot:'idle',name:'Sway',ic:'〰️',c:40},{id:'headbob',slot:'idle',name:'Head bob',ic:'🎶',c:80},
+    {id:'hop',slot:'happy',name:'Hop',ic:'🙌',free:1},{id:'fistpump',slot:'happy',name:'Fist pump',ic:'✊',c:30},{id:'spin',slot:'happy',name:'Spin',ic:'🌀',p:250},
+    {id:'shrug',slot:'aww',name:'Shrug',ic:'🤷',free:1},
+    {id:'groove',slot:'dance',name:'Groove',ic:'🕺',free:1},{id:'wave',slot:'dance',name:'Big Wave',ic:'👋',free:1},{id:'robot',slot:'dance',name:'Robot',ic:'🤖',p:400},
+    {id:'disco',slot:'dance',name:'Disco Point',ic:'🪩',p:700},{id:'spinout',slot:'dance',name:'Spin Out',ic:'💫',p:1200},
+    // backdrops
+    {id:'none',slot:'bg',name:'Plain',ic:'⬜',free:1},{id:'staff',slot:'bg',name:'Staff lines',ic:'🎼',c:40},{id:'stage',slot:'bg',name:'Stage lights',ic:'💡',c:70},
+    {id:'sunset',slot:'bg',name:'Sunset',ic:'🌅',c:90},{id:'galaxy',slot:'bg',name:'Galaxy',ic:'🌌',p:900},{id:'wreath',slot:'bg',name:'Golden Wreath',ic:'🏅',lock:'Reach rank 10: Superior Music Theory Master'},
+    // pets
+    {id:'none',slot:'pet',name:'No pet',ic:'🚫',free:1},{id:'note',slot:'pet',name:'Note Buddy',ic:'🎵',c:60},{id:'cat',slot:'pet',name:'Cat',ic:'🐱',c:120},
+    {id:'owl',slot:'pet',name:'Owl',ic:'🦉',p:300},{id:'robo',slot:'pet',name:'Robo Pal',ic:'🤖',p:2500},
+    // skins: full costumes over your look
+    {id:'none',slot:'outfit',name:'My own clothes',ic:'👕',free:1},{id:'dj',slot:'outfit',name:'DJ',ic:'🎧',c:120},{id:'pirate',slot:'outfit',name:'Pirate',ic:'🏴‍☠️',c:150},
+    {id:'rockstar',slot:'outfit',name:'Rock Star',ic:'🤘',c:200},{id:'hero',slot:'outfit',name:'Super Hero',ic:'⚡',p:600},{id:'astronaut',slot:'outfit',name:'Astronaut',ic:'🚀',p:900},
+    {id:'robot',slot:'outfit',name:'Robot',ic:'🤖',p:1500},{id:'wizard',slot:'outfit',name:'Wizard',ic:'🧙',p:2000},
+    {id:'step',slot:'idle',name:'Side step',ic:'👟',c:100},
+    // new moves (2026-11-16)
+    {id:'airguitar',slot:'dance',name:'Air Guitar',ic:'🎸',p:600},{id:'conductor',slot:'dance',name:'Conductor',ic:'🪄',p:500},{id:'jacks',slot:'dance',name:'Jumping Jacks',ic:'⭐',c:140},
+    {id:'raiseroof',slot:'dance',name:'Raise the Roof',ic:'🙌',c:120},{id:'shuffle',slot:'dance',name:'Shuffle',ic:'👟',p:450},{id:'drumsolo',slot:'dance',name:'Drum Solo',ic:'🥁',c:150},
+    {id:'clap',slot:'happy',name:'Clap',ic:'👏',c:35},{id:'starjump',slot:'happy',name:'Star Jump',ic:'🌟',c:60},{id:'pointup',slot:'happy',name:'Point Up',ic:'☝️',c:40},
+    {id:'tap',slot:'idle',name:'Foot Tap',ic:'🦶',c:50},{id:'look',slot:'idle',name:'Look Around',ic:'👀',c:60},
+    // collection rewards and streak rewards (play more, 2026-11-16): earned, never bought
+    {id:'marching',slot:'top',name:'Marching Band Jacket',ic:'🎖️',lock:'Collect the Brass Section: trumpet, trombone, French horn, tuba',set:'brass'},
+    {id:'tux',slot:'top',name:'Orchestra Tux',ic:'🤵',lock:'Collect the Strings: violin, viola, cello, string bass',set:'strings'},
+    {id:'beret',slot:'hat',name:'Jazz Beret',ic:'🎷',lock:'Collect the Woodwinds: flute, clarinet, alto sax',set:'winds'},
+    {id:'shako',slot:'hat',name:'Drumline Hat',ic:'🥁',lock:'Collect the Percussion: snare, marching drum, hand drum',set:'perc'},
+    {id:'flame',slot:'bg',name:'Flame Aura',ic:'🔥',lock:'Play 14 days in a row',streak:14},
+    {id:'inferno',slot:'bg',name:'Inferno',ic:'🌋',lock:'Play 30 days in a row',streak:30},{id:'kick',slot:'happy',name:'Kick',ic:'🦵',c:45},{id:'kickstep',slot:'dance',name:'Kick Step',ic:'🦶',p:800},
+    // Encore-only items (step 5): yours after that many Encores
+    {id:'encjacket',slot:'top',name:'Encore Jacket',ic:'🎭',enc:1}, {id:'ovation',slot:'dance',name:'Standing Ovation',ic:'👏',enc:2},
+    {id:'spotlight',slot:'bg',name:'Spotlight',ic:'🔦',enc:3}, {id:'goldmic',slot:'gear',name:'Golden Mic',ic:'🎤',enc:4},
+  ];
+  let uid = 0;
+function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Math.max(0, Math.min(255, Math.round(((n >> s) & 255) * f))); return '#' + [16, 8, 0].map(s => c(s).toString(16).padStart(2, '0')).join(''); }
+
+  // rank shows later (build step 4); for now every avatar stands on the plain Rookie platform
+  function platform(r) {   // the glowing platform: color = rank tier, dots = step I, II, III inside the rank, sparkles at the top rank
+    var c = tier(r), n = r ? stepOf(r) + 1 : 0, dots = '', sparkle = '';
+    for (var i = 0; i < n; i++) dots += '<circle cx="' + (50 + (i - (n - 1) / 2) * 6) + '" cy="114.2" r="1.2" fill="' + c + '"/>';
+    if (r >= 9) sparkle = [[26, 106], [74, 107], [50, 117]].map(function(q){ var x = q[0], y = q[1]; return '<path d="M' + x + ' ' + (y - 3) + ' L' + (x + .8) + ' ' + (y - .8) + ' L' + (x + 3) + ' ' + y + ' L' + (x + .8) + ' ' + (y + .8) + ' L' + x + ' ' + (y + 3) + ' L' + (x - .8) + ' ' + (y + .8) + ' L' + (x - 3) + ' ' + y + ' L' + (x - .8) + ' ' + (y - .8) + 'Z" fill="#fff"/>'; }).join('');
+    var e = W.encores || 0, ec = e ? encCol(e) : '', ring = e ? '<ellipse cx="50" cy="111" rx="28" ry="5.6" fill="none" stroke="' + ec + '" stroke-width="1.4" stroke-dasharray="3 2"/><text x="50" y="121.5" font-size="6" font-weight="800" text-anchor="middle" fill="' + ec + '">' + encMark(e) + '</text>' : '';
+    if (e >= 5) ring = '<defs><linearGradient id="mavrb" x1="0" x2="1"><stop offset="0" stop-color="#ff4d6d"/><stop offset=".25" stop-color="#ffb020"/><stop offset=".5" stop-color="#3ccf9a"/><stop offset=".75" stop-color="#4f7cff"/><stop offset="1" stop-color="#b07cff"/></linearGradient></defs><ellipse cx="50" cy="111" rx="30" ry="6.4" fill="none" stroke="url(#mavrb)" stroke-width="2.4"/>' + ring;   // Rainbow platform (5th Encore)
+    return '<g class="plat">' + ring + '<ellipse class="plat-glow" cx="50" cy="111" rx="31" ry="7" fill="' + c + '" opacity="' + (r ? .5 : .2) + '"/><ellipse cx="50" cy="111" rx="24" ry="4.4" fill="' + c + '" fill-opacity=".22" stroke="' + c + '" stroke-width="1.4"/>' + dots + sparkle + '</g>';
+  }
+
+  // the drawing: one small SVG built from layers (shoulder, elbow, hip and knee joints)
+  function avatar(L, o = {}) {
+    const u = 'a' + (++uid), sk = SKIN[L.skin] || SKIN[2], hc = HAIRC[L.hairC], tc = TOPC[L.topC];
+    let pc = PANTC[L.pantC];
+    const dk = shade(sk, .82), line = '#1b1420';
+    const rank = o.rank || 0, OUT = L.outfit && L.outfit !== 'none' ? L.outfit : null;
+    let defs = '', bg = '', back = '', front = '', behind = '', headX = '';
+    // backdrop
+    const B = o.crop ? 'x="0" y="0" width="100" height="120"' : 'x="2" y="2" width="96" height="116" rx="18"';
+    if (L.bg === 'staff') bg = `<rect ${B} fill="#eef1fb"/>` + [30, 40, 50, 60, 70].map(y => `<line x1="0" x2="100" y1="${y}" y2="${y}" stroke="#b8c2e0" stroke-width="1"/>`).join('') + `<text x="8" y="66" font-size="40" fill="#b8c2e0">𝄞</text>`;
+    else if (L.bg === 'stage') { defs += `<radialGradient id="${u}s" cx=".5" cy=".2" r=".9"><stop offset="0" stop-color="#a77bff"/><stop offset="1" stop-color="#1a1240"/></radialGradient>`; bg = `<rect ${B} fill="url(#${u}s)"/><path d="M20 0 L5 120 L35 120Z M80 0 L65 120 L95 120Z" fill="#fff" opacity=".12"/>`; }
+    else if (L.bg === 'sunset') { defs += `<linearGradient id="${u}g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff9a5a"/><stop offset=".6" stop-color="#ff5f8f"/><stop offset="1" stop-color="#6a3cbc"/></linearGradient>`; bg = `<rect ${B} fill="url(#${u}g)"/><circle cx="50" cy="78" r="22" fill="#ffd36e" opacity=".8"/>`; }
+    else if (L.bg === 'flame') { defs += `<radialGradient id="${u}fl" cx=".5" cy=".85" r=".8"><stop offset="0" stop-color="#ffb020"/><stop offset=".45" stop-color="#ff4d2d"/><stop offset="1" stop-color="#3a0a12"/></radialGradient>`;
+      bg = `<rect ${B} fill="url(#${u}fl)"/>` + [[18, 96, 10], [32, 104, 8], [68, 104, 8], [82, 96, 10], [50, 108, 7]].map(([x, y, r]) => `<path class="mav-fl" d="M${x} ${y} Q${x - r} ${y - r * 1.4} ${x} ${y - r * 3} Q${x + r} ${y - r * 1.4} ${x} ${y}Z" fill="#ffd166" opacity=".55"/>`).join(''); }
+    else if (L.bg === 'inferno') { defs += `<linearGradient id="${u}in" x1="0" y1="1" x2="0" y2="0"><stop offset="0" stop-color="#ff7a00"/><stop offset=".5" stop-color="#b3001b"/><stop offset="1" stop-color="#1a0006"/></linearGradient>`;
+      bg = `<rect ${B} fill="url(#${u}in)"/>` + Array.from({length: 9}, (_, i) => { const x = 6 + i * 11, h = 18 + (i * 7) % 16; return `<path class="mav-fl" d="M${x - 6} 118 Q${x - 7} ${118 - h} ${x} ${118 - h * 1.9} Q${x + 7} ${118 - h} ${x + 6} 118Z" fill="${i % 2 ? '#ffb020' : '#ff4d2d'}" opacity=".8"/>`; }).join('')
+        + Array.from({length: 10}, (_, i) => `<circle cx="${(i * 29) % 94 + 3}" cy="${(i * 41) % 70 + 6}" r="${i % 3 ? .7 : 1.2}" fill="#ffd166" opacity=".8"/>`).join(''); }
+    else if (L.bg === 'galaxy') { bg = `<rect ${B} fill="#0b0b2a"/>` + Array.from({length: 26}, (_, i) => `<circle cx="${(i * 37) % 96 + 2}" cy="${(i * 53) % 114 + 3}" r="${i % 3 ? .7 : 1.3}" fill="#fff" opacity="${.5 + (i % 4) / 8}"/>`).join('') + `<ellipse cx="70" cy="30" rx="22" ry="7" fill="#7c5cff" opacity=".35" transform="rotate(-25 70 30)"/>`; }
+    else if (L.bg === 'spotlight') { defs += `<radialGradient id="${u}p" cx=".5" cy=".95" r=".7"><stop offset="0" stop-color="#3a2a6a"/><stop offset="1" stop-color="#0b0820"/></radialGradient>`; bg = `<rect ${B} fill="url(#${u}p)"/><path d="M44 0 L56 0 L84 120 L16 120Z" fill="#fff6c8" opacity=".18"/><ellipse cx="50" cy="112" rx="34" ry="6" fill="#fff6c8" opacity=".22"/>`; }
+  else if (L.bg === 'wreath') { defs += `<radialGradient id="${u}w"><stop offset="0" stop-color="#4a3800"/><stop offset="1" stop-color="#140f00"/></radialGradient>`; bg = `<rect ${B} fill="url(#${u}w)"/>` + Array.from({length: 16}, (_, i) => { const side = i < 8 ? 1 : -1, k = i % 8, a = Math.PI / 2 + side * (.45 + k * .33), x = 50 + 40 * Math.cos(a), y = 62 + 44 * Math.sin(a); return `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="5" ry="2.4" fill="#f5c542" transform="rotate(${(a * 180 / Math.PI + 90).toFixed(0)} ${x.toFixed(1)} ${y.toFixed(1)})"/>`; }).join(''); }
+    else if (o.crop) bg = `<rect ${B} fill="#26305a"/>`;
+    const covered = L.cover !== 'none' && !OUT;
+    // hair behind the head
+    if (L.cover === 'none' || OUT === 'astronaut' || OUT === 'hero' || OUT === 'rockstar') {
+      if (L.hair === 'afro') back += `<circle cx="50" cy="35" r="27" fill="${hc}"/>`;
+      if (L.hair === 'long') back += `<path d="M28 36 Q28 15 50 15 Q72 15 72 36 L74 70 Q67 75 62 67 L62 42 L38 42 L38 67 Q33 75 26 70Z" fill="${hc}"/>`;
+      if (L.hair === 'braids') back += [29, 71].map(x => [46, 52, 58, 64, 70].map(y => `<circle cx="${x}" cy="${y}" r="3.4" fill="${hc}" stroke="${shade(hc, .7)}" stroke-width=".6"/>`).join('')).join('');
+    }
+    const hijabC = tc === '#f1f3f5' ? '#c9b6e4' : shade(tc, .75);
+    if (L.cover === 'hijab') back += `<path d="M24 44 Q23 13 50 13 Q77 13 76 44 L80 72 Q50 82 20 72Z" fill="${hijabC}"/>`;
+    // face
+    const face = L.face === 'oval' ? `<ellipse cx="50" cy="40" rx="18" ry="22" fill="${sk}"/>` : L.face === 'soft' ? `<rect x="31" y="20" width="38" height="40" rx="13" fill="${sk}"/>` : `<circle cx="50" cy="40" r="20.5" fill="${sk}"/>`;
+    const ears = L.cover === 'hijab' ? '' : `<circle cx="30.5" cy="42" r="4" fill="${dk}"/><circle cx="69.5" cy="42" r="4" fill="${dk}"/>`;
+    const E = {
+      big: x => `<circle cx="${x}" cy="41" r="4.2" fill="#fff"/><circle cx="${x + .6}" cy="41.6" r="2.4" fill="${line}"/><circle cx="${x + 1.3}" cy="40.6" r=".8" fill="#fff"/>`,
+      dot: x => `<circle cx="${x}" cy="41" r="2.4" fill="${line}"/>`,
+      happy: x => `<path d="M${x - 3.2} 42.5 Q${x} 38 ${x + 3.2} 42.5" fill="none" stroke="${line}" stroke-width="1.8" stroke-linecap="round"/>`,
+      sleepy: x => `<path d="M${x - 3.4} 41 Q${x} 44.2 ${x + 3.4} 41Z" fill="${line}"/>`,
+      lash: x => `<circle cx="${x}" cy="41.4" r="2.6" fill="${line}"/><path d="M${x - 3} 38.6 l-1.4 -1.4 M${x} 38.1 v-1.8 M${x + 3} 38.6 l1.4 -1.4" stroke="${line}" stroke-width="1" stroke-linecap="round"/>`,
+    };
+    const eyes = L.eyes === 'wink' ? E.dot(42) + E.happy(58) : E[L.eyes](42) + E[L.eyes](58);
+    const bc = shade(hc, .9);
+    const BR = { arch: x => `<path d="M${x - 4} 35 Q${x} 31.5 ${x + 4} 35" fill="none" stroke="${bc}" stroke-width="1.6" stroke-linecap="round"/>`, flat: x => `<path d="M${x - 4} 34 H${x + 4}" stroke="${bc}" stroke-width="1.6" stroke-linecap="round"/>`, thick: x => `<path d="M${x - 4.5} 34.6 Q${x} 31.6 ${x + 4.5} 34" fill="none" stroke="${bc}" stroke-width="2.8" stroke-linecap="round"/>`, none: () => '' };
+    const brows = `<g class="brows">${BR[L.brows](42)}${BR[L.brows](58)}</g>`;
+    const nose = L.nose === 'dot' ? `<circle cx="50" cy="46" r="1.3" fill="${dk}"/>` : L.nose === 'button' ? `<path d="M47.6 46.5 Q50 48.8 52.4 46.5" fill="none" stroke="${dk}" stroke-width="1.4" stroke-linecap="round"/>` : '';
+    const M = {
+      smile: `<path d="M44 50.5 Q50 55.5 56 50.5" fill="none" stroke="${line}" stroke-width="1.8" stroke-linecap="round"/>`,
+      grin: `<path d="M43.5 50 Q50 58.5 56.5 50Z" fill="${line}"/><path d="M45 50.6 H55 V52 Q50 53 45 52Z" fill="#fff"/>`,
+      o: `<ellipse cx="50" cy="52" rx="2.6" ry="3.2" fill="${line}"/>`,
+      smirk: `<path d="M45 52 Q51 54 56 49.5" fill="none" stroke="${line}" stroke-width="1.8" stroke-linecap="round"/>`,
+      tongue: `<path d="M44 50.5 Q50 55.5 56 50.5" fill="none" stroke="${line}" stroke-width="1.8" stroke-linecap="round"/><path d="M48 52.8 Q50 57.5 52.6 52.6Z" fill="#ff6b8a"/>`,
+    };
+    // beard (David 2026-11-16): drawn under the mouth; the mustache goes over it. Color = hair color.
+    const stache = `<path d="M43.5 49.6 Q46.5 46.4 50 48.4 Q53.5 46.4 56.5 49.6 Q53.2 50.8 50 49.7 Q46.8 50.8 43.5 49.6Z" fill="${bc}"/>`;
+    const BD = {
+      none: ['', ''],
+      stubble: [`<path d="M31 44 Q32 60.5 50 61.5 Q68 60.5 69 44 Q66 55.5 50 57 Q34 55.5 31 44Z" fill="${bc}" opacity=".32"/><path d="M44 49.6 Q50 47.4 56 49.6" stroke="${bc}" stroke-width="1.6" opacity=".32" fill="none"/>`, ''],
+      mustache: ['', stache],
+      goatee: [`<path d="M45 55.8 Q50 64 55 55.8 Q50 57.8 45 55.8Z" fill="${bc}"/>`, stache],
+      short: [`<path d="M30.8 44 Q31 61.5 50 62.5 Q69 61.5 69.2 44 Q66.5 56 57 56 Q50 58.4 43 56 Q33.5 56 30.8 44Z" fill="${bc}"/>`, stache],
+      full: [`<path d="M30 41.5 Q28.5 67.5 50 68.5 Q71.5 67.5 70 41.5 Q67.5 55 58 55.4 Q50 57.6 42 55.4 Q32.5 55 30 41.5Z" fill="${bc}"/>`, stache],
+    };
+    const beard = BD[L.beard] || BD.none;
+    const blush = `<circle cx="37" cy="48" r="2.6" fill="#ff7a8a" opacity=".28"/><circle cx="63" cy="48" r="2.6" fill="#ff7a8a" opacity=".28"/>`;
+    // hair in front
+    if (L.cover === 'none' || (OUT && OUT !== 'robot')) {
+      const H = {
+        short: `<path d="M29.5 38 Q29 17 50 17 Q71 17 70.5 38 Q66 27 55 26.5 Q45 29.5 35 29.5 Q31 32 29.5 38Z"/>`,
+        buzz: `<path d="M30.5 36 Q31 19 50 19 Q69 19 69.5 36 Q60 26.5 50 26.5 Q40 26.5 30.5 36Z" opacity=".75"/>`,
+        curly: [[33, 29], [39, 22.5], [46.5, 19.5], [54, 19.5], [61, 22.5], [67, 29]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="7"/>`).join(''),
+        afro: [[32, 28], [38, 21], [46, 17.5], [54, 17.5], [62, 21], [68, 28]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="8"/>`).join(''),
+        long: `<path d="M29 40 Q28 16 50 16 Q72 16 71 40 Q65 26 50 27 Q36 27 29 40Z"/>`,
+        braids: `<path d="M29.5 37 Q29 17 50 17 Q71 17 70.5 37 Q61 26 50 26 Q39 26 29.5 37Z"/><path d="M50 17 V26" stroke="${shade(hc, .7)}" stroke-width="1"/>`,
+        bun: `<circle cx="50" cy="13" r="7.5"/><path d="M30.5 36 Q31 18 50 18 Q69 18 69.5 36 Q60 26 50 26 Q40 26 30.5 36Z"/>`,
+        spiky: `<path d="M29.5 37 L31 21 L37.5 25.5 L41 13 L47 22 L52 11 L56 22 L62 14 L63.5 25 L69.5 21 L70.5 37 Q61 27 50 27 Q39 27 29.5 37Z"/>`,
+        swoop: `<path d="M29.5 41 Q27 16 52 16.5 Q73 17.5 70.5 36 Q62 24 44 31.5 Q35 35 29.5 41Z"/>`,
+        bald: '',
+      };
+      if (L.cover === 'none' || OUT) front += `<g fill="${hc}">${H[L.hair]}</g>`;
+    }
+    if (!OUT && L.cover === 'hijab') front += `<path d="M28.5 38 Q29 16 50 16 Q71 16 71.5 38 Q63 24.5 50 24.5 Q37 24.5 28.5 38Z" fill="${hijabC}"/>`;
+    if (!OUT && L.cover === 'wrap') front += `<path d="M28 35 Q25 9 50 7 Q76 8 72 35 Q62 23.5 50 25.5 Q38 23.5 28 35Z" fill="#ffb020"/><path d="M30 26 Q50 15 70 26 M33 18 Q50 9 67 18" fill="none" stroke="#e8590c" stroke-width="2.2"/><circle cx="62" cy="10" r="5" fill="#ffb020" stroke="#e8590c" stroke-width="1.5"/>`;
+    const G = {
+      none: '',
+      round: `<g fill="none" stroke="${line}" stroke-width="1.3"><circle cx="42" cy="41" r="5.4"/><circle cx="58" cy="41" r="5.4"/><path d="M47.4 41 H52.6"/></g>`,
+      square: `<g fill="none" stroke="${line}" stroke-width="1.3"><rect x="36" y="36.5" width="11.5" height="9" rx="2"/><rect x="52.5" y="36.5" width="11.5" height="9" rx="2"/><path d="M47.5 40 H52.5"/></g>`,
+      shades: `<defs><linearGradient id="${u}mir" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f4f7fb"/><stop offset=".35" stop-color="#aeb8c8"/><stop offset=".55" stop-color="#5d6a80"/><stop offset=".8" stop-color="#dfe5ee"/><stop offset="1" stop-color="#8592a6"/></linearGradient></defs>`   // silver mirrored aviators (David 2026-11-16, silver 2026-11-17)
+        + `<g fill="url(#${u}mir)" stroke="#c4cbd6" stroke-width=".9" stroke-linejoin="round"><path d="M35.5 37.5 Q42 36 48.2 37.6 Q48.6 44.5 44 46.4 Q38.5 47.5 36 43.5 Q35 40.5 35.5 37.5Z"/><path d="M64.5 37.5 Q58 36 51.8 37.6 Q51.4 44.5 56 46.4 Q61.5 47.5 64 43.5 Q65 40.5 64.5 37.5Z"/></g>`
+        + `<path d="M48.2 38.2 Q50 36.9 51.8 38.2 M46.5 36.7 H53.5 M35.5 38 L31 38.6 M64.5 38 L69 38.6" fill="none" stroke="#c4cbd6" stroke-width=".9" stroke-linecap="round"/>`
+        + `<path d="M37.6 40.2 L42.4 38.4 M38.4 42.6 L40.6 41.8 M53.8 40.2 L58.6 38.4 M54.6 42.6 L56.8 41.8" stroke="#fff" stroke-width="1" stroke-linecap="round" opacity=".75"/>`,
+    };
+    let glasses = G[L.glasses];
+    const HT = {
+      none: '',
+      beanie: `<path d="M28.5 33 Q28.5 11 50 11 Q71.5 11 71.5 33Z" fill="#e8590c"/><rect x="27.5" y="29" width="45" height="7" rx="3" fill="#c2410c"/><circle cx="50" cy="9" r="4.5" fill="#fff"/>`,
+      cap: `<path d="M29.5 31 Q30.5 13 50 13 Q69.5 13 70.5 31Z" fill="#4f7cff"/><path d="M50 27.5 L82 29.5 Q83 34 67 34 L50 32Z" fill="#2f55d4"/><circle cx="50" cy="13.5" r="1.6" fill="#2f55d4"/>`,
+      phones: `<path d="M27 42 Q27 13 50 13 Q73 13 73 42" fill="none" stroke="#222" stroke-width="3.2"/><rect x="23" y="36" width="8" height="14" rx="3.5" fill="#ff4d6d"/><rect x="69" y="36" width="8" height="14" rx="3.5" fill="#ff4d6d"/>`,
+      tophat: `<rect x="35" y="-2" width="30" height="24" rx="2" fill="#151520"/><rect x="35" y="16" width="30" height="4" fill="#9b6bff"/><ellipse cx="50" cy="22.5" rx="23" ry="4" fill="#151520"/>`,
+      crown: `<path d="M32 22 L32 8 L40 15 L50 4 L60 15 L68 8 L68 22Z" fill="#f5c542" stroke="#b8860b" stroke-width="1"/><circle cx="50" cy="15" r="2.4" fill="#ff4d6d"/><circle cx="40" cy="18" r="1.6" fill="#3ccf9a"/><circle cx="60" cy="18" r="1.6" fill="#4f7cff"/>`,
+      beret: `<path d="M27 30 Q30 15 52 15 Q73 16 72 28 Q60 33 27 30Z" fill="#1d1d24"/><circle cx="57" cy="14.5" r="1.8" fill="#1d1d24"/><path d="M30 28 Q50 31 70 27" fill="none" stroke="#33333e" stroke-width="1"/>`,
+      shako: `<rect x="33" y="2" width="34" height="27" rx="3" fill="#1d2a52"/><rect x="33" y="22" width="34" height="5" fill="#f5c542"/><path d="M31 29 Q50 34 69 29 L69 31 Q50 37 31 31Z" fill="#111"/><circle cx="50" cy="13" r="4" fill="#f5c542"/><path d="M50 3 Q46.5 -1 50 -5 Q53.5 -1 50 3" fill="#fff"/><path d="M50 3 Q48.6 0 50 -3" stroke="#ff4d6d" stroke-width="1.4" fill="none"/>`,
+      captain: `<path d="M29 27 Q30 10 50 10 Q70 10 71 27Z" fill="#fff"/><rect x="28" y="24" width="44" height="6" rx="2" fill="#1d2a52"/><path d="M34 30 Q50 37 66 30 L66 31.5 Q50 39 34 31.5Z" fill="#111"/><text x="50" y="22" font-size="9" text-anchor="middle" fill="#f5c542">⚓</text>`,
+    };
+    let hat = HT[L.hat] || '';
+    const star = (cx, cy, rr, f) => { let p = ''; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, q = i % 2 ? rr * .45 : rr; p += (i ? 'L' : 'M') + (cx + q * Math.cos(a)).toFixed(2) + ' ' + (cy + q * Math.sin(a)).toFixed(2); } return `<path d="${p}Z" fill="${f}"/>`; };
+  // clothes: torso + sleeves (upper and lower arm) + shoes
+    let topFill = tc, sleeve = tc, fore = tc, shoe = '#f1f3f5', stripe = '#ff4d6d', extra = '';
+    let torsoD = 'M34 64 Q34 57.5 42 57 L58 57 Q66 57.5 66 64 L66 92 L34 92Z';
+    if (L.top === 'tee') { fore = sk; extra = `<path d="M45 57.2 Q50 62.5 55 57.2" fill="none" stroke="${shade(tc, .7)}" stroke-width="1.6"/>`; }
+    if (L.top === 'hoodie') extra = `<path d="M38 58 Q50 50 62 58 Q50 64 38 58Z" fill="${shade(tc, .75)}"/><rect x="41" y="78" width="18" height="8" rx="3" fill="${shade(tc, .85)}"/><path d="M47 60 V68 M53 60 V68" stroke="#fff" stroke-width="1" stroke-linecap="round"/>`;
+    if (L.top === 'jacket') extra = `<path d="M45 57 L50 74 L55 57Z" fill="#f1f3f5"/><path d="M50 74 V92" stroke="${shade(tc, .6)}" stroke-width="1.2"/>`;
+    if (L.top === 'varsity') { sleeve = fore = '#f1f3f5'; extra = `<text x="44" y="78" font-size="13" font-weight="900" fill="#fff">♪</text><path d="M34 88 H66" stroke="#fff" stroke-width="2"/>`; }
+    if (L.top === 'band') { topFill = sleeve = fore = '#c92a2a'; extra = `<path d="M38 57 L62 90" stroke="#fff" stroke-width="3.5"/>` + [64, 71, 78, 85].map(y => `<circle cx="45" cy="${y}" r="1.4" fill="#f5c542"/>`).join(''); }
+    if (L.top === 'goldpiano') {   // Gold Piano Jacket, redrawn 2026-11-16 (David: make it cooler): shiny gold tux, black satin lapels, bow tie, keyboard hem, a sheen that sweeps across and twinkles
+      topFill = `url(#${u}gold)`; sleeve = fore = '#e2ad27';
+      extra = `<defs><linearGradient id="${u}gold" gradientUnits="userSpaceOnUse" x1="34" y1="57" x2="66" y2="92"><stop offset="0" stop-color="#fff2a8"/><stop offset=".35" stop-color="#f5c542"/><stop offset=".65" stop-color="#c8901a"/><stop offset="1" stop-color="#f7d35e"/></linearGradient><clipPath id="${u}jc"><path d="${torsoD}"/></clipPath></defs>`
+        + `<g clip-path="url(#${u}jc)"><rect class="mav-sheen" x="14" y="50" width="7" height="50" fill="#fff" opacity=".45" transform="skewX(-22)"/></g>`
+        + `<path d="M44.5 57 L50 68 L55.5 57Z" fill="#fff"/><path d="M42.5 57 L50 76 L47.6 78.5 L39.2 63.5Z" fill="#15151c"/><path d="M57.5 57 L50 76 L52.4 78.5 L60.8 63.5Z" fill="#15151c"/><circle cx="50" cy="80.5" r="1" fill="#15151c"/>`
+        + `<path d="M50 76 V85" stroke="#9a6c12" stroke-width=".7"/><path d="M46.2 59.2 L50 61 L53.8 59.2 L53.8 63 L50 61.2 L46.2 63Z" fill="#15151c"/><circle cx="50" cy="61.1" r="1" fill="#2b2b38"/>`
+        + `<rect x="34.0" y="85" width="3.2" height="7" fill="#fffdf4" stroke="#1a1a1a" stroke-width=".35"/><rect x="37.2" y="85" width="3.2" height="7" fill="#fffdf4" stroke="#1a1a1a" stroke-width=".35"/><rect x="40.4" y="85" width="3.2" height="7" fill="#fffdf4" stroke="#1a1a1a" stroke-width=".35"/><rect x="43.6" y="85" width="3.2" height="7" fill="#fffdf4" stroke="#1a1a1a" stroke-width=".35"/><rect x="46.8" y="85" width="3.2" height="7" fill="#fffdf4" stroke="#1a1a1a" stroke-width=".35"/><rect x="50.0" y="85" width="3.2" height="7" fill="#fffdf4" stroke="#1a1a1a" stroke-width=".35"/><rect x="53.2" y="85" width="3.2" height="7" fill="#fffdf4" stroke="#1a1a1a" stroke-width=".35"/><rect x="56.4" y="85" width="3.2" height="7" fill="#fffdf4" stroke="#1a1a1a" stroke-width=".35"/><rect x="59.6" y="85" width="3.2" height="7" fill="#fffdf4" stroke="#1a1a1a" stroke-width=".35"/><rect x="62.8" y="85" width="3.2" height="7" fill="#fffdf4" stroke="#1a1a1a" stroke-width=".35"/><rect x="36.2" y="85" width="2" height="4.2" fill="#111"/><rect x="39.4" y="85" width="2" height="4.2" fill="#111"/><rect x="45.8" y="85" width="2" height="4.2" fill="#111"/><rect x="49.0" y="85" width="2" height="4.2" fill="#111"/><rect x="52.2" y="85" width="2" height="4.2" fill="#111"/><rect x="58.6" y="85" width="2" height="4.2" fill="#111"/><rect x="61.8" y="85" width="2" height="4.2" fill="#111"/>`
+        + `<text x="40.5" y="68.5" font-size="4.6" fill="#fff2a8" transform="rotate(-25 42 67)">♪</text>`
+        + `<path class="mav-tw" d="M60 66 l.8 2 2 .8 -2 .8 -.8 2 -.8 -2 -2 -.8 2 -.8Z" fill="#fff"/><path class="mav-tw mav-tw2" d="M38 77 l.6 1.5 1.5 .6 -1.5 .6 -.6 1.5 -.6 -1.5 -1.5 -.6 1.5 -.6Z" fill="#fff"/>`; }
+    if (L.top === 'marching') { topFill = sleeve = fore = '#b3202a'; extra = `<path d="M50 57 V92" stroke="#f5c542" stroke-width="1.2"/>` + [62, 68, 74, 80, 86].map(y => `<circle cx="46" cy="${y}" r="1.2" fill="#f5c542"/><circle cx="54" cy="${y}" r="1.2" fill="#f5c542"/><path d="M46 ${y} H54" stroke="#f5c542" stroke-width=".8"/>`).join('')
+      + `<path d="M34 61 Q37 57 42 57.5 L41 62 Z M66 61 Q63 57 58 57.5 L59 62 Z" fill="#f5c542"/><path d="M34 62.5 h7 M59 62.5 h7" stroke="#fff3b0" stroke-width=".8"/><rect x="34" y="88" width="32" height="4" fill="#1d2a52"/><path d="M37 66 Q44 76 40 86" fill="none" stroke="#fff" stroke-width="1.4"/>`; }
+    if (L.top === 'tux') { topFill = sleeve = fore = '#16161d'; extra = `<path d="M44 57 L50 72 L56 57Z" fill="#fff"/><path d="M42.5 57 L50 74 L47 80 L39 64Z M57.5 57 L50 74 L53 80 L61 64Z" fill="#2a2a36"/><path d="M46.4 59 L50 60.8 L53.6 59 L53.6 62.6 L50 60.8 L46.4 62.6Z" fill="#b3202a"/>` + [66, 70].map(y => `<circle cx="50" cy="${y}" r=".8" fill="#111"/>`).join('') + `<path d="M58 66 l2 -1.4 1.4 1.6Z" fill="#fff"/>`; }
+    if (L.top === 'encjacket') { topFill = sleeve = fore = '#5b2fb8'; extra = `<path d="M44 57 L50 70 L56 57Z" fill="#f5c542"/>` + [[39, 66], [60, 70], [42, 80], [58, 84], [47, 88]].map(([x, y]) => star(x, y, 1.8, '#ffe38a')).join('') + `<path d="M34 90 H66" stroke="#f5c542" stroke-width="1.6"/>`; }
+  if (L.top === 'detective') { topFill = sleeve = fore = '#b08a5a'; torsoD = 'M33 64 Q33 57.5 42 57 L58 57 Q67 57.5 67 64 L69 104 L31 104Z'; extra = `<path d="M43 57 L50 70 L57 57 L54 57 L50 64 L46 57Z" fill="#8a6a40"/><rect x="33" y="80" width="34" height="3.6" fill="#5a4026"/>`; }
+    // full skins (costumes) replace the clothes
+      if (OUT) { extra = ''; torsoD = 'M34 64 Q34 57.5 42 57 L58 57 Q66 57.5 66 64 L66 92 L34 92Z'; if (!['rockstar', 'hero'].includes(OUT)) hat = ''; }
+    if (OUT === 'astronaut') { topFill = sleeve = fore = '#eef1f6'; pc = '#e2e7ef'; shoe = '#cfd6e3'; stripe = '#ff8c42';
+      behind = `<rect x="30" y="58" width="40" height="30" rx="6" fill="#c3cad8"/>`;
+      extra = `<rect x="42" y="63" width="16" height="11" rx="2" fill="#cfd6e3"/><circle cx="46" cy="68.5" r="1.6" fill="#ff4d6d"/><circle cx="50" cy="68.5" r="1.6" fill="#3ccf9a"/><circle cx="54" cy="68.5" r="1.6" fill="#4f7cff"/><rect x="34" y="85" width="32" height="3" fill="#ff8c42"/>`;
+      headX = `<circle cx="50" cy="40" r="27" fill="#bfe3ff" fill-opacity=".22" stroke="#e6ebf3" stroke-width="3.2"/><path d="M34 29 Q41 19 52 18" stroke="#fff" stroke-width="2" fill="none" opacity=".7" stroke-linecap="round"/>`; }
+    if (OUT === 'rockstar') { topFill = sleeve = fore = '#1d1f26'; pc = '#3b5b9a'; shoe = '#1d1f26'; stripe = '#f5c542';
+      extra = `<path d="M44 57 L50 72 L56 57Z" fill="#f1f3f5"/><path d="M44 57 L40 71 L47 64Z M56 57 L60 71 L53 64Z" fill="#3a3d48"/>` + star(60, 77, 2.6, '#f5c542') + `<path d="M36 90 H64" stroke="#9aa0aa" stroke-width="1.2" stroke-dasharray="2 1.5"/>`;
+      glasses = star(42, 41, 5.6, '#ff4d9d') + star(58, 41, 5.6, '#ff4d9d') + `<path d="M47 40.5 H53" stroke="#ff4d9d" stroke-width="1.2"/>`; }
+    if (OUT === 'hero') { topFill = sleeve = fore = '#4f7cff'; pc = '#4f7cff'; shoe = '#e03131'; stripe = '#f5c542';
+      behind = `<path d="M36 60 L64 60 L77 108 Q50 115 23 108Z" fill="#e03131"/>`;
+      extra = `<circle cx="50" cy="70" r="6.5" fill="#f5c542"/><path d="M51.5 64.8 L46.5 71 H50 L48.5 75.5 L53.5 69 H50Z" fill="#e03131"/><rect x="34" y="84" width="32" height="3.6" fill="#f5c542"/>`;
+      headX = `<path fill-rule="evenodd" d="M32.5 36.5 Q50 32 67.5 36.5 L66.5 45.5 Q50 43 33.5 45.5Z M37.6 41 a4.4 3.4 0 1 0 8.8 0 a4.4 3.4 0 1 0 -8.8 0Z M53.6 41 a4.4 3.4 0 1 0 8.8 0 a4.4 3.4 0 1 0 -8.8 0Z" fill="#e03131"/>`; }
+    if (OUT === 'pirate') { topFill = sleeve = fore = '#7a1f2b'; pc = '#2b2f3a'; shoe = '#3a2a1a'; stripe = '#3a2a1a';
+      extra = `<path d="M45 57 L50 68 L55 57Z" fill="#f1f3f5"/><path d="M46 60 q4 2 8 0 M46.5 63 q3.5 2 7 0" stroke="#d0d4dc" fill="none"/>` + [70, 76].map(y => `<circle cx="43" cy="${y}" r="1.3" fill="#f5c542"/><circle cx="57" cy="${y}" r="1.3" fill="#f5c542"/>`).join('') + `<rect x="34" y="82" width="32" height="4" fill="#2a1a10"/><rect x="47" y="81" width="6" height="6" rx="1" fill="none" stroke="#f5c542" stroke-width="1.2"/>`;
+      headX = `<path d="M24 26 Q50 2 76 26 Q63 20 50 22 Q37 20 24 26Z" fill="#151520"/><path d="M26 25 Q50 17 74 25" stroke="#f5c542" stroke-width="1.4" fill="none"/><text x="50" y="18" font-size="8" text-anchor="middle" fill="#fff">☠</text>`; }
+    if (OUT === 'robot') { topFill = '#9aa6c8'; sleeve = fore = '#7d89ab'; pc = '#7d89ab'; shoe = '#5b678f'; stripe = '#3ccf9a';
+      extra = `<rect x="41" y="63" width="18" height="12" rx="2" fill="#141a30"/>` + [44, 48, 52, 56].map((x, i) => `<rect x="${x}" y="${72 - i * 2}" width="2.4" height="${2 + i * 2}" fill="#3ccf9a"/>`).join('') + [[37, 60], [63, 60], [37, 89], [63, 89]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1" fill="#5b678f"/>`).join('');
+      headX = `<path d="M50 19.5 V9" stroke="#9aa6c8" stroke-width="2"/><circle cx="50" cy="8" r="2.6" fill="#ff4d6d"/><rect x="25" y="36" width="7" height="11" rx="2" fill="#9aa6c8"/><rect x="68" y="36" width="7" height="11" rx="2" fill="#9aa6c8"/><path d="M30 28 Q50 16 70 28" stroke="#9aa6c8" stroke-width="2.4" fill="none"/>`; }
+    if (OUT === 'dj') { topFill = sleeve = fore = '#2b2f3a'; pc = '#1d1f26'; shoe = '#f1f3f5'; stripe = '#39ff88';
+      extra = `<path d="M38 58 Q50 50 62 58 Q50 64 38 58Z" fill="#1d1f26"/><path d="M34 76 H66 M34 80 H66" stroke="#39ff88" stroke-width="1.6"/><path d="M42 58 Q50 72 58 58" stroke="#f5c542" stroke-width="1.6" fill="none"/><circle cx="50" cy="70" r="2.6" fill="#f5c542"/>`;
+      headX = `<path d="M27 42 Q27 12 50 12 Q73 12 73 42" fill="none" stroke="#1d1f26" stroke-width="3.6"/><rect x="22" y="35" width="9" height="15" rx="4" fill="#39ff88"/><rect x="69" y="35" width="9" height="15" rx="4" fill="#39ff88"/>`; }
+    if (OUT === 'wizard') { topFill = sleeve = fore = '#5b3cc4'; pc = '#5b3cc4'; shoe = '#3a2490'; stripe = '#f5c542';
+      torsoD = 'M33 64 Q33 57.5 42 57 L58 57 Q67 57.5 67 64 L71 106 L29 106Z';
+      extra = star(42, 80, 2.4, '#f5c542') + star(57, 92, 2, '#f5c542') + star(49, 99, 1.6, '#f5c542') + `<path d="M50 57 V106" stroke="#4a2fa8" stroke-width="1"/>`;
+      headX = `<path d="M29 28 L55 -10 L71 28Z" fill="#5b3cc4"/><ellipse cx="50" cy="28" rx="24" ry="4" fill="#4a2fa8"/>` + star(52, 8, 2.6, '#f5c542') + star(45, 20, 1.8, '#f5c542'); }
+    const GR = {
+      none: '',
+      woodflute: pic('flute', 48, 74, 84), banjo: pic('banjo', 48, 76, 86), accordion: pic('accordion', 42, 74, 90), maracas: pic('maracas', 34, 74, 86),
+      studiomic: pic('studio_microphone', 31, 72, 84), sheet: pic('musical_score', 34, 74, 86),
+      mdrum: { hand: '', side: pic('drum', 38, 84, 98) }, handdrum: { hand: '', side: pic('long_drum', 36, 85, 101) }, keyboard: { hand: '', side: pic('musical_keyboard', 48, 84, 100) },   // stand beside the avatar
+      mic: pic('microphone', 28, 72, 84),
+      sticks: `<path d="M67 86 L60 101 M72 86 L77 101" stroke="#d9a54b" stroke-width="2" stroke-linecap="round"/>`,
+      trumpet: pic('trumpet', 42, 76, 84),
+      guitar: pic('guitar', 50, 76, 86),
+      keytar: `<g transform="rotate(-22 70 90)"><rect x="55" y="84" width="31" height="10" rx="3" fill="#9b6bff" stroke="#6a3fd0" stroke-width=".7"/><rect x="58" y="85.8" width="22" height="6.4" rx=".8" fill="#fff"/>` + [60.6, 63.4, 69, 71.8, 74.6].map(x => `<rect x="${x}" y="85.8" width="1.6" height="3.8" fill="#1f2230"/>`).join('') + [61.1, 64.2, 67.3, 70.4, 73.5, 76.6].map(x => `<path d="M${x + 1.4} 89.6 V92.2" stroke="#c9cfdb" stroke-width=".4"/>`).join('') + `<rect x="85.5" y="86.6" width="13" height="4.8" rx="1.6" fill="#2b2f3a"/><circle cx="82.5" cy="86.6" r=".9" fill="#ffd166"/><circle cx="82.5" cy="91" r=".9" fill="#3ccf9a"/></g>`,
+      flute: pic('concert_flute', 52, 74, 84),   // David's ChatGPT picture (2026-11-16)
+      clarinet: pic('clarinet', 46, 72, 84),   // David's ChatGPT picture (2026-11-16)
+      sax: pic('saxophone', 48, 76, 88),
+      trombone: pic('trombone', 52, 76, 84),   // David's ChatGPT picture (2026-11-16)
+      horn: pic('french_horn', 40, 76, 88),   // David's ChatGPT picture (2026-11-16)
+      choir: `<g transform="rotate(-8 72 88)"><rect x="61" y="79.5" width="22" height="15" rx="1.6" fill="#1f2230"/><rect x="63" y="81.3" width="18" height="11.4" fill="#fff"/>` + [83.2, 85.4, 87.6, 89.8].map(y => `<path d="M64 ${y} H80" stroke="#9aa3b5" stroke-width=".4"/>`).join('') + [[67, 87.2], [71, 86.1], [75, 85], [78.5, 88.3]].map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="1.1" ry=".8" fill="#1f2230"/><path d="M${x + 1} ${y} V${y - 3.4}" stroke="#1f2230" stroke-width=".5"/>`).join('') + `</g>`,
+      violin: pic('violin', 42, 76, 82),
+      viola: pic('viola', 42, 76, 82),   // David's ChatGPT picture (2026-11-16)
+      cello: { hand: '', side: pic('cello', 74, 86, 78) },   // David's ChatGPT picture (2026-11-16)
+      bass: { hand: '', side: pic('string_bass', 102, 84, 64) },   // David's ChatGPT picture (2026-11-16)
+      tuba: { hand: '', side: pic('tuba', 58, 83, 86) },   // David's ChatGPT picture (2026-11-16)
+      snare: { hand: `<path d="M67 86 L60 101 M72 86 L77 101" stroke="#d9a54b" stroke-width="2" stroke-linecap="round"/>`, side: pic('snare_drum', 36, 85, 104) },   // David's ChatGPT picture (2026-11-16)
+      goldmic: `<rect x="68" y="86" width="3.2" height="10" rx="1.4" fill="#b8860b"/><circle cx="69.5" cy="85" r="4.2" fill="#f5c542" stroke="#fff3b0" stroke-width=".8"/>`,
+    baton: `<path d="M70 88 L84 72" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><circle cx="70" cy="88" r="1.8" fill="#5a3a1e"/>`,
+    };
+    const PT = {
+      none: '',
+      note: `<g><ellipse cx="83" cy="110" rx="6.6" ry="4.8" transform="rotate(-22 83 110)" fill="#4f7cff"/><rect x="88.1" y="88" width="1.9" height="21" rx=".9" fill="#4f7cff"/><path d="M89.9 88 C91 92.5 97.6 94 97 100.8 C96.8 102.4 96.1 103.6 95.4 104.2 C96.3 99.6 93.6 96.6 89.9 95.6Z" fill="#4f7cff"/><circle cx="80.6" cy="109.4" r="1.25" fill="#fff"/><circle cx="84.6" cy="108.2" r="1.25" fill="#fff"/><circle cx="80.9" cy="109.6" r=".6" fill="#111"/><circle cx="84.9" cy="108.4" r=".6" fill="#111"/><path d="M80.8 112 Q83 113.4 85.2 111.4" fill="none" stroke="#fff" stroke-width=".7" stroke-linecap="round"/><ellipse cx="81" cy="108" rx="1.6" ry=".8" transform="rotate(-22 81 108)" fill="#fff" opacity=".35"/></g>`,   // Note Buddy: a smooth eighth note with a face (redrawn 2026-11-16)
+      cat: `<ellipse cx="86" cy="110" rx="8" ry="5.5" fill="#ffb020"/><circle cx="82" cy="102" r="5.5" fill="#ffb020"/><path d="M77.5 99 L78 93 L82 97.5Z M86.5 99 L86 93 L82 97.5Z" fill="#ffb020"/><circle cx="80" cy="102" r=".9" fill="#111"/><circle cx="84" cy="102" r=".9" fill="#111"/><path d="M94 109 Q99 102 96 99" fill="none" stroke="#ffb020" stroke-width="2" stroke-linecap="round"/>`,
+      owl: `<ellipse cx="85" cy="105" rx="7.5" ry="9" fill="#8a5a3a"/><circle cx="82" cy="102" r="3" fill="#fff"/><circle cx="88" cy="102" r="3" fill="#fff"/><circle cx="82" cy="102" r="1.4" fill="#111"/><circle cx="88" cy="102" r="1.4" fill="#111"/><path d="M84 105 L85 107 L86 105Z" fill="#ffb020"/>`,
+      robo: `<rect x="77" y="98" width="16" height="13" rx="3" fill="#9aa6c8"/><rect x="79.5" y="100.5" width="11" height="6" rx="1.5" fill="#0b1020"/><circle cx="82.5" cy="103.5" r="1.1" fill="#3ccf9a"/><circle cx="87.5" cy="103.5" r="1.1" fill="#3ccf9a"/><path d="M85 98 V93" stroke="#9aa6c8" stroke-width="1.4"/><circle cx="85" cy="92.5" r="1.6" fill="#ff4d6d"/><rect x="79" y="111" width="4" height="2" fill="#5b678f"/><rect x="87" y="111" width="4" height="2" fill="#5b678f"/>`,
+    };
+    // jointed limbs: shoulder > elbow > hand, hip > knee > foot
+    const gv = GR[L.gear] || '', gHand = typeof gv === 'string' ? gv : gv.hand, gSide = typeof gv === 'string' ? '' : gv.side;   // big instruments stand beside the avatar
+    const arm = s => { const l = s === 'l', sx = l ? 37 : 63, ex = l ? 33 : 67, wx = l ? 31 : 69, hx = l ? 30.5 : 69.5;
+      return `<g class="arm-${s}"><path d="M${sx} 64 L${ex} 75" stroke="${sleeve}" stroke-width="8.5" stroke-linecap="round"/><g class="fore-${s}"><path d="M${ex} 75 L${wx} 85" stroke="${fore}" stroke-width="7.2" stroke-linecap="round"/><circle cx="${hx}" cy="88" r="4.3" fill="${sk}"/>${l ? '' : gHand}</g></g>`; };
+    const leg = s => { const l = s === 'l', hx = l ? 45 : 55, kx = l ? 44.5 : 55.5, fx = l ? 43.5 : 56.5;
+      return `<g class="leg-${s}"><path d="M${hx} 90 L${kx} 99" stroke="${pc}" stroke-width="8.5" stroke-linecap="round"/><g class="shin-${s}"><path d="M${kx} 99 L${kx} 105" stroke="${pc}" stroke-width="7.8" stroke-linecap="round"/><ellipse cx="${fx}" cy="108" rx="6" ry="3.3" fill="${shoe}"/><path d="M${fx - 5.5} 109 H${fx + 5.5}" stroke="${stripe}" stroke-width="1.1"/></g></g>`; };
+    const vb = o.crop ? '18 4 64 64' : '0 0 100 120';
+    return `<svg viewBox="${vb}" role="img" aria-label="${o.label || 'Your avatar'}"><defs>${defs}</defs>${bg}${o.crop || o.bare ? '' : platform(rank)}
+  <g class="root">${behind}${back}${leg('l')}${leg('r')}<rect x="40" y="86" width="20" height="7" rx="3" fill="${pc}"/><rect x="45.5" y="54" width="9" height="7" fill="${dk}"/><path d="${torsoD}" fill="${topFill}"/>${extra}
+  <g class="head">${ears}${face}${blush}${eyes}${nose}${beard[0]}${M[L.mouth]}${beard[1]}${front}${glasses}${headX}${brows}${hat}</g>
+  ${o.bare ? '' : gSide}${arm('l')}${arm('r')}</g>
+  ${o.crop || o.bare ? '' : `<g class="pet">${PT[L.pet]}</g>`}</svg>`;
+  }
+
+  // ---------- who is playing (shared sign-in, same ids as the Practice time box) ----------
+  function who(){
+    try {
+      if (sessionStorage.getItem('music_guest') === '1') return null;
+      var p = JSON.parse(localStorage.getItem('rdt_profile_v1') || 'null');
+      return p && p.first && p.init ? p : null;
+    } catch(e){ return null; }
+  }
+  function sidOf(p){ return (p.first + p.init).toLowerCase().replace(/[^a-z]/g, '').slice(0, 16); }
+  function activeCode(p){
+    var l = Array.isArray(p.classes) && p.classes.length ? p.classes : (p.classCode ? [{ code: p.classCode }] : []);
+    l = l.filter(function(c){ return c && c.code; });
+    return l.length ? String(l[0].code).slice(0, 20) : '';
+  }
+
+  // ---------- the look: saved on this device, and online for signed-in students ----------
+  var DEF = { skin: 2, face: 'round', eyes: 'big', brows: 'arch', nose: 'dot', mouth: 'smile', hair: 'curly', hairC: 1, cover: 'none', glasses: 'none', beard: 'none',
+    top: 'hoodie', topC: 0, pantC: 0, hat: 'none', gear: 'none', bg: 'none', pet: 'none', outfit: 'none', idle: 'bounce', happy: 'hop', aww: 'shrug', dance: 'groove' };
+  var TOPS = [['hoodie', 'Hoodie'], ['tee', 'Tee'], ['jacket', 'Jacket']];   // the free tops (the Store adds more later)
+  var pick = function(a){ return a[Math.floor(Math.random() * a.length)]; };
+  function randomLook(){
+    var L = Object.assign({}, DEF);
+    ['face', 'eyes', 'brows', 'nose', 'mouth', 'hair', 'glasses'].forEach(function(k){ L[k] = pick(LOOK[k])[0]; });
+    L.skin = Math.floor(Math.random() * 14); L.hairC = Math.floor(Math.random() * HAIRC.length);
+    L.top = pick(TOPS)[0]; L.topC = Math.floor(Math.random() * TOPC.length); L.pantC = Math.floor(Math.random() * PANTC.length);
+    return L;
+  }
+  function clean(L){   // only known slots and values, so an old or broken copy can't break the drawing
+    var out = Object.assign({}, DEF);
+    if (!L || typeof L !== 'object') return out;
+    Object.keys(DEF).forEach(function(k){
+      var v = L[k];
+      if (typeof DEF[k] === 'number') { if (typeof v === 'number' && v >= 0 && v < 40) out[k] = Math.floor(v); }
+      else if (typeof v === 'string' && /^[a-z0-9]{1,16}$/.test(v)) out[k] = v;
+    });
+    if (out.skin >= SKIN.length) out.skin = 2; if (out.hairC >= HAIRC.length) out.hairC = 1;
+    if (out.topC >= TOPC.length) out.topC = 0; if (out.pantC >= PANTC.length) out.pantC = 0;
+    ['face', 'eyes', 'brows', 'nose', 'mouth', 'hair', 'cover', 'glasses'].forEach(function(k){ if (!LOOK[k].some(function(o){ return o[0] === out[k]; })) out[k] = DEF[k]; });
+    return out;
+  }
+  var P = who(), SID = P ? sidOf(P) : '', DOC = P ? (activeCode(P) || 'none') + '_' + SID : '', KEY = 'mtg_avatar_v1:' + SID;
+  var today = function(){ var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+  // W = the wallet (build step 2): coins for playing (1 per active minute, 60 a day), points for doing well
+  var look = null, fresh = false, W = { coins: 0, points: 0, day: today(), dayCoins: 0, owned: [], encores: 0, encXP: 0 };
+  if (P) { try { var raw = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if (raw && raw.look) look = clean(raw.look);
+    if (raw && raw.w) W = { coins: Math.max(0, +raw.w.coins || 0), points: Math.max(0, +raw.w.points || 0), day: String(raw.w.day || today()), dayCoins: Math.max(0, +raw.w.dayCoins || 0), owned: Array.isArray(raw.w.owned) ? raw.w.owned.filter(function(k){ return typeof k === 'string' && k.length <= 40; }).slice(0, 300) : [],
+      encores: Math.max(0, Math.min(99, +raw.w.encores || 0)), encXP: Math.max(0, +raw.w.encXP || 0) };
+  } catch(e){} }
+  if (!look) { look = randomLook(); fresh = !!P; }   // guests: a random avatar for this visit, never saved
+  function wearOwned(L){   // a paid item that isn't in this student's owned list goes back to the free default
+    ITEMS.forEach(function(it){ var k = it.slot + ':' + it.id; if (L[it.slot] === it.id && !it.free && W.owned.indexOf(k) < 0 && !(k === 'gear:baton' && rankNow() >= 8) && !(k === 'bg:wreath' && rankNow() >= 9) && !masteredGear(k) && !(it.enc && (W.encores || 0) >= it.enc) && !(P && typeof earnedIt === 'function' && earnedIt(it))) L[it.slot] = DEF[it.slot]; });
+    if (!ITEMS.some(function(it){ return it.slot === 'top' && it.id === L.top; })) L.top = DEF.top;
+    return L;
+  }
+  look = wearOwned(look);
+
+  // ---------- ranks (build step 4a): one ladder for the avatar, the home page and My Report ----------
+  // XP = what the home page / My Report last worked out (localStorage mtg_xp_v1:<sid> = { xp, extra }) + 'extra' that games add as
+  // students play (2 a right answer, 25 a finished run; the home page folds it back in next time it opens). Ranks 8-10 also need
+  // games mastered (mtg_mastery_v1:<sid>, build step 4b). Nobody goes down: mtg_rank_best_v1:<sid> keeps the best rank seen.
+  var RANKS = [[0, 'Rookie Listener'], [200, 'Beat Keeper'], [600, 'Note Reader'], [1400, 'Rhythm Rider'], [2800, 'Scale Climber'], [5000, 'Harmony Hero'],
+    [8500, 'Theory Wizard'], [14000, 'Virtuoso'], [22000, 'Maestro'], [35000, 'Superior Music Theory Master']];
+  var GATES = { 7: 1, 8: 3, 9: 7 };   // rank index -> games mastered (7 = every game)
+  var XPK = 'mtg_xp_v1:' + SID, BESTK = 'mtg_rank_best_v1:' + SID, MASTK = 'mtg_mastery_v1:' + SID;
+  function lsGet(k){ try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch(e){ return null; } }
+  function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+  function xpNow(){ var x = P && lsGet(XPK); return x ? Math.max(0, (+x.xp || 0) + (+x.extra || 0)) : 0; }
+  function addXP(n){ if (!P || !n) return; var x = lsGet(XPK) || { xp: 0, extra: 0 }; x.extra = (+x.extra || 0) + n; lsSet(XPK, x); }
+  function mastered(){ var m = P && lsGet(MASTK); return m && Array.isArray(m.games) ? m.games.length : 0; }
+  function ladderRank(xp, m){ var r = 0; while (r + 1 < RANKS.length && xp >= RANKS[r + 1][0] && (!GATES[r + 1] || m >= GATES[r + 1])) r++; return r; }
+  function rankNow(){
+    if (!P) return 0;
+    var r = ladderRank(xpNow() - (W.encXP || 0), mastered()), b = W.encores ? 0 : (+lsGet(BESTK) || 0);   // after an Encore only the new climb counts
+    if (r > b && !W.encores) lsSet(BESTK, r);
+    return Math.max(r, b);
+  }
+  function stepOf(r){ if (r >= 9) return 2; var x = xpNow() - (W.encXP || 0), lo = RANKS[r][0], hi = RANKS[r + 1][0]; return Math.max(0, Math.min(2, Math.floor(3 * (x - lo) / (hi - lo)))); }
+  // ---------- mastery (build step 4b): read what the games already save on this device; once found it is kept ----------
+  // mtg_mastery_v1:<sid> = { games: [...], gear: ['top:goldpiano', ...] }. Games: scale (every map level and key signature level
+  // starred), brainwaves (every area's levels finished; Tuner has none), rhythm (an Extreme challenge at 90%+), tidal and rooftop
+  // (level 16 reached: their top badge tier, both games go on forever), earshot (town 8, the last before they repeat), genius
+  // (a full flight). Gear: Gold Piano Jacket (all 15 major keys answered in Scale Quest), Detective Coat (the Big Score one),
+  // Captain's Hat (the Tidal Tones one). Scale Quest's and the Big Score's logs keep only 7 days, which is why the result is kept.
+  function checkMastery(){
+    if (!P) return;
+    var sk = SID + ':' + (P.classCode || ''), m = lsGet(MASTK) || { games: [], gear: [] }, add = function(list, v){ if (m[list].indexOf(v) < 0) m[list].push(v); };
+    m.games = Array.isArray(m.games) ? m.games : []; m.gear = Array.isArray(m.gear) ? m.gear : [];
+    var hist = lsGet('mtg_hist_v1:' + SID), topLevel = function(g){ var best = 0; Object.values((hist && hist.days) || {}).forEach(function(d){ if (d && d[g]) best = Math.max(best, +d[g].level || 0); }); return best; };
+    try {
+      var map = lsGet('scalequest.map:' + sk), lad = lsGet('scalequest.ksladder:' + sk), s = (map && map.s) || {};
+      var worldsDone = [[0, 8], [1, 7], [2, 9], [4, 8]].every(function(w){ for (var i = 0; i < w[1]; i++) if (!(s[w[0] + ':' + i] >= 1)) return false; return true; });
+      var ladDone = !!lad && [0, 1, 2, 3, 4, 5, 6, 7, 8].every(function(i){ return lad[i] >= 1; });
+      if (worldsDone && ladDone) add('games', 'scale');
+      var MAJ = ['C', 'G', 'D', 'A', 'E', 'B', 'F#', 'C#', 'F', 'Bb', 'Eb', 'Ab', 'Db', 'Gb', 'Cb'], log = lsGet('scalequest.log:' + sk) || {}, seen = {};
+      Object.values(log).forEach(function(d){ ((d && d.q) || []).forEach(function(e){ if (e && e.y !== 'k') seen[String(e.k).replace('♯', '#').replace('♭', 'b')] = 1; }); });
+      if (MAJ.every(function(k){ return seen[k]; })) add('gear', 'top:goldpiano');
+    } catch(e){}
+    try {
+      var bw = lsGet('earbrain_prog_v1:' + SID), syn = lsGet('synapse_best_v1:' + SID), N = { synapse: 6, intervals: 6, chords: 8, progressions: 6, scales: 8, voice: 9, pitch: 9 };
+      if (bw && Object.keys(N).every(function(a){ var arr = bw[a] || []; for (var i = 0; i < N[a]; i++) if (!arr[i] && !(a === 'synapse' && syn && i < (+syn.floor || 0) - 1)) return false; return true; })) add('games', 'brainwaves');
+    } catch(e){}
+    try {
+      var rl = lsGet('rdt_log_v1:' + sk) || {};
+      if (Object.values(rl).some(function(d){ return ((d && d.runs) || []).some(function(r){ return r && r.lv === 'extreme' && +r.score >= 90; }); })) { add('games', 'rhythm'); add('gear', 'top:detective'); }
+    } catch(e){}
+    if (topLevel('tidal') >= 16) { add('games', 'tidal'); add('gear', 'hat:captain'); }
+    if (topLevel('rooftop') >= 16) add('games', 'rooftop');
+    if (topLevel('earshot') >= 8) add('games', 'earshot');
+    try { var g = lsGet('mtg_super_genius_v1:' + SID); if (g && g.version === 2 && ((g.ranks && g.ranks[2] === true) || (g.best && g.best.won))) add('games', 'genius'); } catch(e){}
+    var before = (lsGet(MASTK) || {}).games || [];
+    lsSet(MASTK, m);
+    return m.games.length > before.length ? m.games.filter(function(x){ return before.indexOf(x) < 0; }) : [];
+  }
+  var GNAME = { scale: 'Scale Quest', brainwaves: 'Brainwaves', rhythm: 'The Big Score', tidal: 'Tidal Tones', rooftop: 'Rooftop Runner', earshot: 'Earshot Saloon', genius: 'Super Genius' };
+  function masteredGear(k){ var m = P && lsGet(MASTK); return !!(m && Array.isArray(m.gear) && m.gear.indexOf(k) >= 0); }
+  checkMastery();
+
+  var ENC_COLS = ['#b07cff', '#2fd6c4', '#ff6fb5', '#f5c542', '#ffffff'];
+  var encCol = function(e){ return ENC_COLS[Math.floor((e - 1) / 5) % 5]; };   // the color steps up every 5 Encores, then starts over
+  var encMark = function(e){ return e <= 5 ? new Array(e + 1).join('★') : '★' + e; };
+  var tier = function(r){ return r === 0 ? '#7d88a8' : r <= 3 ? '#d08a4a' : r <= 6 ? '#d9e1f0' : r <= 8 ? '#f5c542' : '#7af0ff'; };   // Rookie, Bronze, Silver, Gold, Diamond
+
+  var FS = 'https://firestore.googleapis.com/v1/projects/rhythm-trainer-fc313/databases/(default)/documents/', FKEY = 'AIzaSyDU9vbCWJ4yWuD8bAX984DmQF4dvo13BHs';
+  var LOCAL = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname) && !/[?&]avatar=1\b/.test(location.search);
+  function toFields(L){ var f = {}; Object.keys(L).forEach(function(k){ f[k] = typeof L[k] === 'number' ? { integerValue: String(L[k]) } : { stringValue: L[k] }; }); return f; }
+  function fromFields(f){ var L = {}; Object.keys(f || {}).forEach(function(k){ var v = f[k]; L[k] = 'integerValue' in v ? +v.integerValue : v.stringValue; }); return L; }
+  function saveLocal(){ if (!P) return; try { localStorage.setItem(KEY, JSON.stringify({ look: look, w: W, at: Date.now() })); } catch(e){} }
+
+  // Online copy: earnings go up as increments (dCoins / dPoints not sent yet), so two computers can't overwrite each other.
+  // One write at most a minute (or a few seconds after Save), plus one when the page is hidden. Nothing per question.
+  var dCoins = 0, dPoints = 0, lookDirty = false, lastSend = 0, sendT = 0;
+  function sendNow(){
+    clearTimeout(sendT); sendT = 0;
+    if (!P || LOCAL || (!dCoins && !dPoints && !lookDirty)) return;
+    var c = Math.min(dCoins, 30), p = Math.min(dPoints, 600);   // spending (negative) goes in one piece   // the rules allow at most this much per write; the rest goes next time
+    var tf = [{ fieldPath: 'updated_at', setToServerValue: 'REQUEST_TIME' }];
+    if (c) tf.push({ fieldPath: 'coins', increment: { integerValue: String(c) } });
+    if (p) tf.push({ fieldPath: 'points', increment: { integerValue: String(p) } });
+    var fields = { look: { mapValue: { fields: toFields(look) } }, sid: { stringValue: SID }, coin_day: { stringValue: W.day }, coins_today: { integerValue: String(Math.min(60, W.dayCoins)) },
+      owned: { arrayValue: { values: W.owned.slice(0, 300).map(function(k){ return { stringValue: k }; }) } },
+      encores: { integerValue: String(W.encores) }, encore_xp: { integerValue: String(Math.round(W.encXP)) }, rank: { integerValue: String(rankNow()) } };
+    dCoins -= c; dPoints -= p; lookDirty = false; lastSend = Date.now();
+    try {
+      fetch(FS.replace(/\/$/, '') + ':commit?key=' + FKEY, { method: 'POST', keepalive: true, headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ writes: [{ update: { name: FS.replace('https://firestore.googleapis.com/v1/', '') + 'avatars/' + DOC, fields: fields },
+          updateMask: { fieldPaths: Object.keys(fields) }, updateTransforms: tf }] }) })
+        .then(function(r){ if (!r.ok) { dCoins += c; dPoints += p; } }).catch(function(){ dCoins += c; dPoints += p; });   // try again next time
+    } catch(e){ dCoins += c; dPoints += p; }
+  }
+  function sendSoon(ms){ if (!sendT) sendT = setTimeout(sendNow, Math.max(ms, 60000 - (Date.now() - lastSend))); }
+  function sendOnline(){ lookDirty = true; clearTimeout(sendT); sendT = setTimeout(sendNow, 3000); }   // after Save
+  document.addEventListener('visibilitychange', function(){ if (document.hidden) sendNow(); });
+  addEventListener('pagehide', sendNow);
+
+  // once per visit (this tab): pick up the online look and totals (another computer may have earned or saved some)
+  var READ = 'mtg_avatar_read_v1:' + SID;
+  if (P && !LOCAL && (fresh || !sessionStorage.getItem(READ))) {
+    try { sessionStorage.setItem(READ, '1'); } catch(e){}
+    try { fetch(FS + 'avatars/' + DOC + '?key=' + FKEY).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
+      var f = d && d.fields; if (!f) { if (fresh) { lookDirty = true; sendSoon(5000); } return; }
+      var lf = f.look && f.look.mapValue && f.look.mapValue.fields;
+      if (lf && fresh) look = clean(fromFields(lf));
+      look = wearOwned(look);
+      var sc = f.coins ? +f.coins.integerValue : 0, sp = f.points ? +f.points.integerValue : 0;
+      W.coins = Math.max(W.coins, sc + dCoins); W.points = Math.max(W.points, sp + dPoints);   // online total + what this tab still has to send
+      ((f.owned && f.owned.arrayValue && f.owned.arrayValue.values) || []).forEach(function(v){ if (v.stringValue && W.owned.indexOf(v.stringValue) < 0 && W.owned.length < 300) W.owned.push(v.stringValue); });   // items bought on another computer
+      if (f.encores && +f.encores.integerValue > W.encores) { W.encores = +f.encores.integerValue; W.encXP = f.encore_xp ? +f.encore_xp.integerValue : W.encXP; }   // an Encore taken on another computer
+      if (f.coin_day && f.coin_day.stringValue === W.day) W.dayCoins = Math.max(W.dayCoins, +f.coins_today.integerValue || 0);
+      saveLocal(); drawAll();
+    }).catch(function(){}); } catch(e){}
+  }
+  if (fresh && LOCAL) saveLocal();
+
+  // ---------- the corner avatar, right after the home and My Report pills ----------
+  var corner = document.createElement('button');
+  corner.type = 'button'; corner.className = 'mav-corner av'; corner.setAttribute('aria-label', 'Your avatar: change how it looks');
+  corner.title = P ? 'Your avatar: click to change how it looks' : 'Your avatar (guest): click to try looks. Sign in to keep it.';
+  function place(){
+    var mount = document.querySelector(MOUNT);
+    if (!mount) return false;
+    var rep = mount.querySelector(':scope > a[href*="report"]') || mount.querySelector(':scope > a');   // after My Report, else after the home pill
+    if (rep) rep.insertAdjacentElement('afterend', corner); else mount.appendChild(corner);
+    return true;
+  }
+  function drawAll(){
+    var r = rankNow(), c = tier(r);
+    corner.innerHTML = avatar(look, { crop: 1, label: 'Your avatar' }) + (P ? '<span class="mav-rk" style="background:' + c + '">' + (r + 1) + '</span>' : '') + (P && W.encores ? '<span class="mav-rk mav-enc" style="background:' + encCol(W.encores) + '">' + (W.encores <= 3 ? encMark(W.encores) : '★' + W.encores) + '</span>' : '');
+    corner.style.borderColor = c; corner.style.boxShadow = r >= 7 ? '0 0 10px ' + c : '';
+    corner.title = P ? 'Rank ' + (r + 1) + ': ' + RANKS[r][1] + '. Click to change your avatar or open the Store' : corner.title;
+    corner.dataset.idle = look.idle;
+    if (dlg && dlg.open) { drawBig(); drawWallet(); }
+    perchDraw();
+  }
+  // a small "+12 ★" that floats up from the avatar
+  function pop(txt, color){
+    if (!corner.isConnected) return;
+    var r = corner.getBoundingClientRect(), p = document.createElement('div');
+    p.className = 'mav-pop'; p.textContent = txt; p.style.color = color;
+    p.style.left = (r.left + r.width / 2) + 'px'; p.style.top = (r.top - 2) + 'px';
+    document.body.appendChild(p); setTimeout(function(){ p.remove(); }, 1300);
+  }
+
+  // ---------- moves: right answer = happy move, miss = shrug (never sad), finished run = dance ----------
+  var LEN = { ovation: 3000, airguitar: 3000, conductor: 3000, jacks: 3000, raiseroof: 3000, shuffle: 3000, drumsolo: 3000, clap: 800, starjump: 800, pointup: 900, hop: 700, fistpump: 800, spin: 800, shrug: 900, scratch: 1000, facepalm: 1100, kick: 800, kickstep: 3000, groove: 3000, wave: 3000, robot: 3000, disco: 3000, spinout: 3000 }, actT = 0;
+  function act(move){
+    clearTimeout(actT); delete corner.dataset.act; void corner.offsetWidth; corner.dataset.act = move;
+    actT = setTimeout(function(){ delete corner.dataset.act; }, LEN[move] || 1000);
+  }
+
+  // ---------- earning (signed-in students only) ----------
+  // Points: a right answer = 1 x level (1-9), +5 for every 5 in a row, a finished run = 10 x level, +50 more for a test.
+  // The level is the one the game reports with its runs (mapped to 1-9); before the first run of a visit it counts as 1.
+  // Coins: 1 for every minute of real play (answers less than 2 minutes apart), at most 60 a day.
+  var lvl = 1, streak = 0, playMs = 0, lastAns = 0, runPts = 0;
+  function earn(pts, coins){
+    if (!P) return;
+    if (W.day !== today()) { W.day = today(); W.dayCoins = 0; }
+    coins = Math.max(0, Math.min(coins, 60 - W.dayCoins));
+    if (!pts && !coins) return;
+    pts = Math.round(pts * (1 + .1 * Math.min(5, W.encores || 0)));   // Encore bonus
+    W.points += pts; W.coins += coins; W.dayCoins += coins; dPoints += pts; dCoins += coins;
+    saveLocal(); sendSoon(60000);
+    if (dlg && dlg.open) drawWallet();
+  }
+
+  // ---------- quests and the daily streak (play more, 2026-11-16, David 'go with your picks') ----------
+  // On this device only (localStorage mtg_quests_v1:<sid> and mtg_streak_v1:<sid>), from the same mtghist events the avatar listens to.
+  // Rewards are ★ points (coins stay capped at 60 a day on purpose). Guests see them but earn nothing.
+  // Daily: 3 quests picked from the date (the same for everyone), +30 ★ each. Weekly: play 60 minutes, +200 ★.
+  // Streak: a day counts at 5 minutes of play; one Streak Saver a week covers one missed day. Rewards at 3, 7, 14, 30 days.
+  var QPOOL = [['right15', 'Get 15 right in any game', 'right', 15], ['right30', 'Get 30 right in any game', 'right', 30], ['runs2', 'Finish 2 runs in any game', 'run', 2],
+    ['runs3', 'Finish 3 runs in any game', 'run', 3], ['min10', 'Play for 10 minutes', 'min', 10], ['games2', 'Play 2 different games', 'games', 2]]
+    .concat(['scale', 'tidal', 'earshot', 'rhythm', 'rooftop', 'brainwaves'].map(function(g){ return ['g_' + g, 'Get 10 right in ' + GNAME[g], 'gright', 10, g]; }));
+  var QRW = 30, WEEKMIN = 60, WEEKRW = 200, SMILES = { 3: 100, 7: 300, 14: 600, 30: 600 };
+  var QK = 'mtg_quests_v1:' + (SID || 'guest'), SK = 'mtg_streak_v1:' + (SID || 'guest'), Qm = null, Sm = null;
+  function wkOf(d){ var t = new Date(d || Date.now()); t.setHours(0, 0, 0, 0); t.setDate(t.getDate() - ((t.getDay() + 6) % 7)); return t.getFullYear() + '-' + (t.getMonth() + 1) + '-' + t.getDate(); }   // the Monday of this week
+  function dayStr(off){ var d = new Date(); d.setDate(d.getDate() + (off || 0)); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+  function qPick(){ var sd = (function(){ var d = new Date(); return d.getFullYear() * 400 + d.getMonth() * 32 + d.getDate(); })() * 7 + 3, out = [], kinds = {};
+    while (out.length < 3) { sd = (sd * 9301 + 49297) % 233280; var q = QPOOL[Math.floor(sd / 233280 * QPOOL.length)], k = q[2] === 'gright' ? 'gright' : q[2]; if (!kinds[k]) { kinds[k] = 1; out.push(q[0]); } }
+    return out; }
+  function qLoad(){
+    if (!Qm) Qm = (P ? lsGet(QK) : null) || {};
+    if (Qm.day !== today()) { Qm.day = today(); Qm.list = qPick(); Qm.prog = {}; Qm.done = {}; Qm.games = {}; }
+    if (Qm.wk !== wkOf()) { Qm.wk = wkOf(); Qm.wmin = 0; Qm.wdone = 0; }
+    if (!Sm) Sm = (P ? lsGet(SK) : null) || { days: 0, last: '', min: 0, minDay: '', saverWk: '' };
+    if (Sm.minDay !== today()) { Sm.minDay = today(); Sm.min = 0; }
+    if (Sm.last && Sm.last !== today() && Sm.last !== dayStr(-1) && !(Sm.last === dayStr(-2) && Sm.saverWk !== wkOf())) Sm.days = 0;   // missed: the streak is over
+    return Qm;
+  }
+  function qSave(){ if (P) { lsSet(QK, Qm); lsSet(SK, Sm); } }
+  function qStep(kind, n, game){
+    qLoad(); var msg = '';
+    if (game) Qm.games[game] = 1;
+    Qm.list.forEach(function(id){
+      var q = QPOOL.filter(function(x){ return x[0] === id; })[0]; if (!q || Qm.done[id]) return;
+      var add = q[2] === kind ? n : (q[2] === 'gright' && kind === 'right' && game === q[4]) ? n : 0;
+      if (q[2] === 'games') Qm.prog[id] = Object.keys(Qm.games).length; else if (add) Qm.prog[id] = (Qm.prog[id] || 0) + add;
+      if ((Qm.prog[id] || 0) >= q[3]) { Qm.done[id] = 1; earn(QRW, 0); msg = '✅ Quest complete! +' + QRW + ' ★'; }
+    });
+    if (kind === 'min') {
+      Qm.wmin += n; if (!Qm.wdone && Qm.wmin >= WEEKMIN) { Qm.wdone = 1; earn(WEEKRW, 0); msg = '🏆 Weekly quest complete! +' + WEEKRW + ' ★'; }
+      Sm.min += n;
+      if (Sm.min >= 5 && Sm.last !== today()) {
+        if (Sm.last === dayStr(-2) && Sm.saverWk !== wkOf()) { Sm.saverWk = wkOf(); Sm.days++; }   // the Streak Saver covers yesterday
+        else if (Sm.last === dayStr(-1)) Sm.days++; else Sm.days = 1;
+        Sm.last = today(); Sm.best = Math.max(Sm.best || 0, Sm.days);
+        var rw = SMILES[Sm.days]; if (rw) earn(rw, 0);
+        msg = '🔥 ' + Sm.days + (Sm.days === 1 ? ' day' : ' days in a row!') + (rw ? ' +' + rw + ' ★' : '');
+      }
+    }
+    qSave();
+    if (msg && P) pop(msg, '#ffd166');
+  }
+  function questsInfo(){
+    qLoad();
+    return { list: Qm.list.map(function(id){ var q = QPOOL.filter(function(x){ return x[0] === id; })[0]; return { t: q[1], n: Math.min(q[3], Qm.prog[id] || 0), of: q[3], done: !!Qm.done[id], rw: QRW }; }),
+      week: { t: 'Play ' + WEEKMIN + ' minutes this week', n: Math.min(WEEKMIN, Qm.wmin || 0), of: WEEKMIN, done: !!Qm.wdone, rw: WEEKRW },
+      streak: { days: Sm.days, today: Sm.last === today(), min: Sm.min, saver: Sm.saverWk !== wkOf() }, signedIn: !!P };
+  }
+  function questsHtml(){
+    var Q = questsInfo(), bar = function(n, of){ return '<span class="mav-qbar"><i style="width:' + Math.round(100 * n / of) + '%"></i></span>'; };
+    return '<div class="mav-quests"><div class="mav-qs"><b>🔥 ' + Q.streak.days + '</b> day' + (Q.streak.days === 1 ? '' : 's') + ' in a row' + (Q.streak.today ? ' ✓' : ' · play 5 min today') + (Q.streak.saver ? ' · 🛟 Saver ready' : '') + '</div>'
+      + Q.list.map(function(q){ return '<div class="mav-q' + (q.done ? ' done' : '') + '"><span class="mav-qck">' + (q.done ? '✓' : '') + '</span><span class="mav-qt">' + q.t + bar(q.n, q.of) + '</span><span class="mav-qr">' + (q.done ? 'Done!' : q.n + '/' + q.of + ' · +' + q.rw + ' ★') + '</span></div>'; }).join('')
+      + '<div class="mav-q week' + (Q.week.done ? ' done' : '') + '"><span class="mav-qck">' + (Q.week.done ? '✓' : '🏆') + '</span><span class="mav-qt">Weekly: ' + Q.week.t + bar(Q.week.n, Q.week.of) + '</span><span class="mav-qr">' + (Q.week.done ? 'Done!' : Q.week.n + '/' + Q.week.of + ' min · +' + Q.week.rw + ' ★') + '</span></div>'
+      + (P ? '' : '<p class="mav-sub">Sign in to earn quest rewards.</p>') + '</div>';
+  }
+  addEventListener('mtghist', function(e){
+    var d = e.detail || {};
+    if (d.type === 'note') {
+      act(d.ok ? look.happy : look.aww); perchDo(d.ok ? 'right' : 'miss');
+      try { if (d.ok) qStep('right', 1, d.game); else if (d.game) qStep('seen', 0, d.game); } catch(x){}
+      var now = Date.now();
+      if (lastAns && now - lastAns < 120000) playMs += now - lastAns;
+      lastAns = now;
+      var coins = Math.floor(playMs / 60000); playMs -= coins * 60000;
+      var pts = 0;
+      if (d.ok) { streak++; pts = lvl + (streak % 5 === 0 ? 5 : 0); } else streak = 0;
+      if (d.ok) addXP(2);
+      runPts += pts;
+      earn(pts, coins);
+      if (coins) try { qStep('min', coins); } catch(x){}
+      if (coins && P) pop('+' + coins + ' 🪙', '#ffd166');
+    } else if (d.type === 'run') {
+      act(look.dance); perchDo('run');
+      try { qStep('run', 1, d.game); } catch(x){}
+      var r = d.r || {}, L = Math.round(+r.level || 0);
+      if (L > 0) lvl = Math.max(1, Math.min(9, L));
+      var bonus = 10 * lvl + (/[?&]test=/.test(location.search) ? 50 : 0);
+      var r0 = rankNow(); addXP(25); if (rankNow() !== r0) lookDirty = true;
+      setTimeout(function(){ var won = checkMastery() || []; if (won.length) { pop('🏆 ' + GNAME[won[0]] + ' mastered!', '#7af0ff'); drawAll(); } }, 1500);
+      var r1 = rankNow();
+      if (r1 > r0) { setTimeout(function(){ pop('🎉 ' + RANKS[r1][1] + '!', '#ffd166'); drawAll(); }, 900); }
+      earn(bonus, 0);
+      if (P) pop('+' + (runPts + bonus) + ' ★', '#7be0c3');
+      runPts = 0;
+    }
+  });
+
+  // ---------- the avatar on the game (perch, 2026-11-16) ----------
+  // data-perch on this script = the spots to try, "selector|mode" separated by ";;" (mode sit-r / sit-l / sit-c = sits on the top edge
+  // near the right / left / middle; stand = stands on it, like a map dot; beside-l / beside-r = stands in the margin next to it, feet
+  // level with its bottom; at:0.2,0.6 = stands with its feet at that spot inside it, e.g. on a table). The first visible spot with room wins. It never covers
+  // buttons, pictures or text (checked with elementFromPoint); with no good spot the avatar is only in the corner, as before.
+  // The corner head stays and still opens the Store. Store button "On the game" = localStorage mtg_avatar_perch_v1 ('0' = corner only).
+  var PERCH = ((me && me.getAttribute('data-perch')) || '').split(';;').map(function(x){ x = x.split('|'); return x[0] && x[0].trim() ? { sel: x[0].trim(), mode: (x[1] || 'sit-r').trim() } : null; }).filter(Boolean);
+  var PK = 'mtg_avatar_perch_v1', perch = null, pAv = null, pSpot = null, pBusy = 0;
+  function perchWanted(){ try { return localStorage.getItem(PK) !== '0'; } catch(e){ return true; } }
+  function perchLabel(){ return perchWanted() ? '🪑 On the game: on' : '🪑 On the game: off'; }
+  function pStand(m){ return m === 'stand' || m === 'beside-l' || m === 'beside-r' || m.slice(0, 3) === 'at:'; }
+  function pSize(){ return innerWidth < 600 ? 60 : innerWidth < 1100 ? 78 : 92; }
+  function perchDraw(){
+    if (!perch) return;
+    pAv.innerHTML = avatar(look, { bare: 1, label: 'Your avatar' });
+    if (!pAv.dataset.act && !perch.classList.contains('mav-lift')) pAv.dataset.idle = pSpot && pStand(pSpot.m) ? look.idle : 'sit';
+  }
+  function perchStart(){
+    if (perch || !PERCH.length || OFF) return;
+    perch = document.createElement('div'); perch.className = 'mav-perch'; perch.style.display = 'none';
+    perch.title = 'Your avatar: click to change how it looks'; perch.innerHTML = '<div class="av" data-idle="sit"></div>'; pAv = perch.firstChild;
+    perch.addEventListener('click', openBuilder);
+    document.body.appendChild(perch); perchDraw(); perchPlace();
+    setInterval(perchPlace, 600); addEventListener('resize', perchPlace); addEventListener('scroll', perchPlace, { passive: true });
+  }
+  function pFree(x, y, t, own){   // true when nothing a student needs is under this point
+    var el = document.elementFromPoint(x, y);
+    if (!el || el === document.body || el === document.documentElement) return true;
+    if (own && t.contains(el)) return true;
+    if (el.tagName === 'CANVAS' && el.offsetWidth >= innerWidth * .9 && el.offsetHeight >= innerHeight * .9) return true;   // a full-page background picture
+    if (el.closest('button,a,input,select,textarea,label,canvas,video,img,svg,iframe,[role=button],[contenteditable],.mav-corner')) return false;
+    var rg = document.createRange();   // words: only where the letters really are, not the whole width of a paragraph
+    for (var n = el.firstChild; n; n = n.nextSibling) if (n.nodeType === 3 && n.textContent.trim()) {
+      rg.selectNodeContents(n); var rs = rg.getClientRects();
+      for (var i = 0; i < rs.length; i++) if (x >= rs[i].left - 6 && x <= rs[i].right + 6 && y >= rs[i].top - 6 && y <= rs[i].bottom + 6) return false;
+    }
+    return true;
+  }
+  function perchPlace(){
+    if (!perch || pBusy) return;
+    var w = pSize(), h = Math.round(w * 1.2), spot = null, x = 0, y = 0;
+    if (perchWanted() && !OFF) {
+      perch.style.visibility = 'hidden';
+      for (var i = 0; i < PERCH.length && !spot; i++) {
+        var list; try { list = document.querySelectorAll(PERCH[i].sel); } catch(e){ list = []; }
+        for (var j = 0; j < list.length && !spot; j++) {
+          var t = list[j], r = t.getBoundingClientRect(), m = PERCH[i].mode, st = pStand(m);
+          if (!r.width || !r.height) continue;
+          if (m.slice(0, 3) === 'at:') { var f = m.slice(3).split(','); x = r.left + r.width * +f[0] - w / 2; y = r.top + r.height * +f[1] - h * 111 / 120; }
+          else if (m === 'beside-l' || m === 'beside-r') { x = m === 'beside-l' ? r.left - w - 6 : r.right + 6; y = r.bottom - h * 111 / 120; }
+          else if (st) { x = r.left + r.width / 2 - w / 2; y = r.top + r.height * .25 - h * 111 / 120; }   // feet near its top, so its label still shows
+          else { if (r.width < w * 1.6) continue; x = m === 'sit-l' ? r.left + 14 : m === 'sit-c' ? r.left + r.width / 2 - w / 2 : r.right - w - 14; y = r.top - h * 92 / 120; }
+          if (y < 2 || x < 2 || x + w > innerWidth - 2 || y + h > innerHeight) continue;
+          var top = document.elementFromPoint(Math.min(innerWidth - 1, Math.max(0, r.left + r.width / 2)), Math.min(innerHeight - 1, Math.max(0, r.top + Math.min(8, r.height / 2))));
+          if (!top || !(t === top || t.contains(top))) continue;   // a pop-up covers the game: not here
+          var ok = true, cols = [.22, .5, .78], rows = st ? [.08, .35, .6] : [.06, .3, .55, .8, .95];
+          for (var a = 0; a < cols.length && ok; a++) for (var b = 0; b < rows.length && ok; b++) if (!pFree(x + w * cols[a], y + h * rows[b], t, m === 'stand' || (!st && rows[b] > .77))) ok = false;   // sitting: the legs may hang over the spot itself
+          if (ok) spot = { t: t, m: m };
+        }
+      }
+      perch.style.visibility = '';
+    }
+    if (!spot) { perch.style.display = 'none'; pSpot = null; return; }   // no room, or a pop-up covers the game: corner only
+    var walk = pSpot && perch.style.display !== 'none' && spot.m === 'stand' && pSpot.m === 'stand' && spot.t !== pSpot.t;
+    if (walk) { perch.classList.add('mav-walk'); pBusy = 1; setTimeout(function(){ perch.classList.remove('mav-walk'); pBusy = 0; }, 1250); }
+    var was = pSpot; pSpot = spot;
+    perch.style.display = ''; perch.style.width = w + 'px'; perch.style.height = h + 'px';
+    perch.style.left = Math.round(x) + 'px'; perch.style.top = Math.round(y) + 'px';
+    if (!was || was.m !== spot.m) perchDraw();
+  }
+  function perchDo(kind){
+    if (!perch || !pSpot || perch.style.display === 'none' || pBusy) return;
+    var mv = kind === 'right' ? look.happy : kind === 'miss' ? look.aww : look.dance;
+    function pAct(m, ms){ delete pAv.dataset.act; void pAv.offsetWidth; pAv.dataset.act = m; setTimeout(function(){ delete pAv.dataset.act; }, ms || LEN[m] || 1000); }
+    function cls(c, ms, done){ perch.classList.remove(c); void perch.offsetWidth; perch.classList.add(c); pBusy = 1; setTimeout(function(){ perch.classList.remove(c); pBusy = 0; if (done) done(); }, ms); }
+    if (pStand(pSpot.m)) { pAct(mv); return; }
+    if (kind === 'right') { cls('mav-jump', 900); pAct(mv, 800); }
+    else if (kind === 'miss') cls('mav-slip', 2000, function(){ pAct('scratch'); });
+    else { pAv.dataset.idle = look.idle; perch.classList.add('mav-lift'); pAct(mv, 3000); pBusy = 1;
+      setTimeout(function(){ perch.classList.remove('mav-lift'); pBusy = 0; perchDraw(); }, 3100); }
+  }
+
+  // ---------- the Store (build step 3): tap the corner avatar ----------
+  // Look = the free face, hair and colors. The other tabs sell items: everyday ones for coins (c), dream ones for points (p).
+  // Items with "lock" are earned by mastering a game (build step 4); until then they show the lock and how to get them.
+  var SETS = { brass: ['trumpet', 'trombone', 'horn', 'tuba'], strings: ['violin', 'viola', 'cello', 'bass'], winds: ['flute', 'clarinet', 'sax'], perc: ['snare', 'mdrum', 'handdrum'] };
+  function setDone(set){ return !!(SETS && SETS[set]) && SETS[set].every(function(id){ return W.owned.indexOf('gear:' + id) >= 0; }); }
+  function streakBest(){ var x = lsGet('mtg_streak_v1:' + (SID || 'guest')) || {}; return Math.max(+x.best || 0, +x.days || 0); }
+  function earnedIt(it){ return (it.set && setDone(it.set)) || (it.streak && streakBest() >= it.streak); }
+  var key = function(it){ return it.slot + ':' + it.id; };
+  var RANK_ITEMS = { 'gear:baton': 8, 'bg:wreath': 9 };   // rank index that unlocks them
+  var owns = function(it){ var k = key(it); return !!it.free || (it.enc && (W.encores || 0) >= it.enc) || W.owned.indexOf(k) >= 0 || (RANK_ITEMS[k] != null && rankNow() >= RANK_ITEMS[k]) || masteredGear(k) || (P && earnedIt(it)); };
+  var TABS = [['shop', 'Shop', '🛒'], ['look', 'Look', '🙂'], ['outfit', 'Skins', '🦸'], ['clothes', 'Clothes', '👕'], ['hat', 'Hats', '🎩'], ['gear', 'Gear', '🎺'], ['moves', 'Moves', '🕺'], ['bg', 'Backdrops', '🌌'], ['pet', 'Pets', '🐾'], ['rank', 'Rank', '🏆']];
+  // THE LOCKER (2026-11-16). Rarity follows the price (no randomness): Common < 60 coins, Rare 60-149, Epic 150+ coins or points, Legendary 1000+ points / earned items.
+  function rarity(it){ if (it.free) return 'common'; if (it.lock || it.enc || (it.p && it.p >= 1000)) return 'legendary'; if (it.p || (it.c && it.c >= 150)) return 'epic'; return it.c >= 60 ? 'rare' : 'common'; }
+  var RN = { common: 'Common', rare: 'Rare', epic: 'Epic', legendary: 'Legendary' };
+  var buyable = function(it){ return !it.free && !it.lock && !it.enc && !!(it.c || it.p); };
+  function thumb(it){
+    if (it.art) return '<img src="' + ART + it.art + '.png" alt="" loading="lazy">';
+    if (it.id === 'none') return '<span class="mav-emo">' + it.ic + '</span>';
+    var L = Object.assign({}, draft, { gear: 'none', pet: 'none', bg: 'none', outfit: 'none' }); L[it.slot] = it.id;
+    var mv = /^(happy|dance)$/.test(it.slot);
+    return '<span class="av" data-idle="' + (it.slot === 'idle' ? it.id : 'bounce') + '"' + (mv ? ' data-act="' + it.id + '"' : '') + '>' + avatar(clean(L), { crop: it.slot === 'hat' ? 1 : 0, label: it.name }) + '</span>';
+  }
+  function daySeed(){ var d = new Date(); return d.getFullYear() * 400 + d.getMonth() * 32 + d.getDate(); }
+  function todays(skip){   // Today's Shop: the same 6 items for everyone on a given day, new ones at midnight
+    var pool = ITEMS.filter(function(it){ return buyable(it) && key(it) !== skip; }), out = [], sd = daySeed(), n = 0;
+    while (out.length < Math.min(6, pool.length) && n++ < 400) { sd = (sd * 9301 + 49297) % 233280; var it = pool[Math.floor(sd / 233280 * pool.length)]; if (out.indexOf(it) < 0) out.push(it); }
+    return out;
+  }
+  function featured(){ var pool = ITEMS.filter(function(it){ return buyable(it) && /epic|legendary/.test(rarity(it)); }), wk = Math.floor(Date.now() / 6048e5); return pool[wk % pool.length]; }
+  function untilMidnight(){ var n = new Date(), m = new Date(n); m.setHours(24, 0, 0, 0); var x = Math.floor((m - n) / 1000); return Math.floor(x / 3600) + 'h ' + Math.floor(x % 3600 / 60) + 'm ' + (x % 60) + 's'; }
+  // Loadouts A/B/C: three saved outfits on this device (guests: only for this visit)
+  var LOK = 'mtg_avatar_lo_v1:' + (SID || 'guest'), LO = [null, null, null];
+  try { if (P) { var lo0 = JSON.parse(localStorage.getItem(LOK) || 'null'); if (Array.isArray(lo0) && lo0.length === 3) LO = lo0; } } catch(e){}
+  function saveLO(){ if (!P) return; try { localStorage.setItem(LOK, JSON.stringify(LO)); } catch(e){} }
+  function loHtml(){   // "My outfits": a mini picture of each saved outfit (tap = wear it), an empty slot saves the current look, "Replace" saves over it (David 2026-11-16: the A/B/C + floppy buttons were confusing)
+    return '<span class="mav-lot">My outfits</span>' + LO.map(function(o, i){
+      if (!o) return '<span class="mav-slot"><button type="button" class="mav-lob empty" data-lo="' + i + '" title="Save what you are wearing as an outfit"><b>+</b>Save this look</button></span>';
+      return '<span class="mav-slot"><button type="button" class="mav-lob" data-lo="' + i + '" title="Wear this outfit">' + avatar(clean(Object.assign({}, o, { bg: 'none', pet: 'none' })), { crop: 0, label: 'Saved outfit ' + (i + 1) }) + '</button><button type="button" class="mav-rep" data-losave="' + i + '" title="Save what you are wearing here instead">Replace</button></span>';
+    }).join('');
+  }
+  // quiet sounds (Web Audio): a click on tabs and cards, a chime when something is unlocked
+  var sac = null;
+  function tone(f, t, d, v){ try { sac = sac || new (window.AudioContext || window.webkitAudioContext)(); var o = sac.createOscillator(), g = sac.createGain(), n = sac.currentTime + t; o.frequency.value = f; g.gain.setValueAtTime(0, n); g.gain.linearRampToValueAtTime(v, n + .01); g.gain.exponentialRampToValueAtTime(.0001, n + d); o.connect(g).connect(sac.destination); o.start(n); o.stop(n + d + .05); } catch(e){} }
+  function tick(){ tone(880, 0, .05, .02); }
+  function chime(){ [523, 659, 784, 1047].forEach(function(f, i){ tone(f, i * .08, .5, .05); }); }
+  var MOVE_SLOTS = [['idle', 'Standing still'], ['happy', 'Right answer'], ['dance', 'End of a run']];   // a miss always gets the friendly shrug (David, 2026-11-16: no 'missed' moves for sale)
+  var LOOKROWS = [
+    ['Skin', 'skin', 'swatch', SKIN], ['Face', 'face'], ['Eyes', 'eyes'], ['Brows', 'brows'], ['Nose', 'nose'], ['Mouth', 'mouth'],
+    ['Hair', 'hair'], ['Hair color', 'hairC', 'swatch', HAIRC], ['Beard', 'beard'], ['Head covering', 'cover'], ['Glasses', 'glasses'],
+  ];
+  var CLOTHROWS = [['Top color', 'topC', 'swatch', TOPC], ['Pants', 'pantC', 'swatch', PANTC]];
+  var dlg = null, draft = null, tab = 'shop', trying = null, note = '', clockT = 0;
+  function drawWallet(){ var c = dlg.querySelector('.mav-c'), p = dlg.querySelector('.mav-p'); if (c) c.textContent = W.coins.toLocaleString(); if (p) p.textContent = W.points.toLocaleString(); }
+  function shown(){ var L = Object.assign({}, draft); if (trying) L[trying.slot] = trying.id; return L; }
+  function drawBig(pose){ var L = shown(), big = dlg.querySelector('.mav-big'); big.innerHTML = avatar(L, { label: 'Your avatar', rank: rankNow() }); big.dataset.idle = L.idle;
+    if (pose) { big.classList.remove('pose'); void big.offsetWidth; big.classList.add('pose'); } }
+  function play(move){ var big = dlg.querySelector('.mav-big'); delete big.dataset.act; void big.offsetWidth; big.dataset.act = move; setTimeout(function(){ delete big.dataset.act; }, LEN[move] || 1000); }
+  function rowsHtml(rows){
+    return rows.map(function(r){
+      var label = r[0], k = r[1], kind = r[2], list = r[3], opts;
+      if (kind === 'swatch') opts = list.map(function(c, i){ return '<button type="button" class="mav-sw' + (draft[k] === i ? ' on' : '') + '" data-k="' + k + '" data-v="' + i + '" style="background:' + c + '" aria-label="' + label + ' ' + (i + 1) + '" aria-pressed="' + (draft[k] === i) + '"></button>'; }).join('');
+      else opts = (list || LOOK[k]).map(function(o){ return '<button type="button" class="mav-ch' + (draft[k] === o[0] ? ' on' : '') + '" data-k="' + k + '" data-v="' + o[0] + '" aria-pressed="' + (draft[k] === o[0]) + '">' + o[1] + '</button>'; }).join('');
+      return '<div class="mav-row"><div class="mav-lab">' + label + '</div><div class="mav-opts">' + opts + '</div></div>';
+    }).join('');
+  }
+  function price(it){ return it.c ? it.c + ' 🪙' : it.p ? it.p.toLocaleString() + ' ★' : ''; }
+  function card(it, big){
+    var on = draft[it.slot] === it.id, have = owns(it), t = trying && key(trying) === key(it), r = rarity(it);
+    var tag = on ? '<span class="mav-ctag eq">EQUIPPED</span>' : have ? (it.free ? '' : '<span class="mav-ctag">OWNED</span>') : it.enc ? '<span class="mav-ctag lk">🎭 ENCORE ' + it.enc + '</span>' : it.lock ? '<span class="mav-ctag lk">🔒 MASTERY</span>' : '';
+    var pr = have || it.lock || it.enc ? '' : '<span class="mav-pr">' + (it.c ? '🪙 ' + it.c : '★ ' + it.p.toLocaleString()) + '</span>';
+    return '<button type="button" class="mav-card r-' + r + (big ? ' big' : '') + (on ? ' on' : '') + (t ? ' try' : '') + '" data-item="' + key(it) + '" title="' + (it.lock && !have ? 'How to get it: ' + it.lock : it.name) + '">'
+      + '<span class="mav-cbg"></span><span class="mav-pic">' + thumb(it) + '</span>' + tag + pr + '<span class="mav-lbl"><b>' + it.name + '</b><small>' + RN[r] + '</small></span></button>';
+  }
+  function itemsOf(slot){ return ITEMS.filter(function(it){ return it.slot === slot; }); }
+  // LOCKER DOOR (2026-11-17): the Locker's home screen. Each spot opens a section (data-tab); the door swings open once per visit.
+  var LKART = (location.port === '8770' ? '/hub' : '') + '/avatar/locker/', lkDoor = true;
+  try { lkDoor = sessionStorage.getItem('mtg_locker_door_v1') !== '1'; } catch(e){}
+  var SECT = { look: 'Mirror · Look', outfit: 'Costumes', clothes: 'Hooks · Clothes', hat: 'Top shelf · Hats', gear: 'Instrument case · Gear', moves: 'Boombox · Moves', bg: 'Poster · Backdrops', pet: 'Pets', shop: 'Today’s Shop', rank: 'Rank' };
+  function lkImg(f){ return '<img src="' + LKART + f + '.png" alt="">'; }
+  function lockerHtml(){
+    var mg = ((lsGet(MASTK) || {}).games) || [], f = featured(), td = todays(f && key(f)).slice(0, 3);
+    var spot = function(t, cls, inner, lab){ return '<button type="button" class="mav-lk-spot ' + cls + '" data-tab="' + t + '">' + inner + '<span class="mav-lk-lab">' + lab + '</span></button>'; };
+    var stickers = lkImg('trophy').replace('<img', '<img class="' + (P && rankNow() > 0 ? 'yes' : 'no') + '"');
+    for (var i = 0; i < 7; i++) stickers += lkImg('star').replace('<img', '<img class="' + (i < mg.length ? 'yes' : 'no') + '"');
+    var mini = td.map(function(it){ return it.art ? '<img src="' + ART + it.art + '.png" alt="">' : '<span>' + it.ic + '</span>'; }).join('');
+    var plate = P ? (P.first + ' ' + P.init).toUpperCase().slice(0, 18) : 'GUEST';
+    return '<div class="mav-lk' + (lkDoor ? '' : ' open') + '"><div class="mav-lk-in"><div class="mav-lk-side">'
+      + spot('look', 'mav-lk-mirror', '<span class="av">' + avatar(clean(Object.assign({}, draft, { bg: 'none', pet: 'none' })), { crop: 1, label: 'Mirror' }) + '</span>', 'Mirror · Look')
+      + spot('rank', 'mav-lk-board', stickers, 'Rank' + (P ? ' <small>' + (rankNow() + 1) + '/10</small>' : ''))
+      + '<button type="button" class="mav-lk-spot mav-lk-flyer" data-tab="shop"><img class="mav-lk-pin" src="' + LKART + 'pushpin.png" alt=""><b>TODAY’S SHOP</b><span class="mav-clock">New items in ' + untilMidnight() + '</span><span class="mav-lk-mini">' + mini + '</span></button>'
+      + '</div><div class="mav-lk-body">'
+      + spot('hat', 'mav-lk-shelf', lkImg('top_hat') + lkImg('crown'), 'Top shelf · Hats')
+      + '<div class="mav-lk-row">' + spot('clothes', 'mav-lk-hooks', lkImg('coat'), 'Hooks · Clothes') + spot('outfit', '', lkImg('shopping_bags'), 'Costumes') + '</div>'
+      + '<div class="mav-lk-row">' + spot('moves', '', lkImg('radio'), 'Boombox · Moves') + spot('bg', '', lkImg('framed_picture'), 'Poster · Backdrops') + '</div>'
+      + '<div class="mav-lk-row" style="grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)">' + spot('gear', 'mav-lk-case', '<img src="' + ART + 'trumpet.png" alt=""><img src="' + ART + 'violin.png" alt="">', 'Instrument case · Gear') + spot('pet', '', lkImg('cat_face'), 'Pets') + '</div>'
+      + '</div></div>'
+      + (lkDoor ? '<button type="button" class="mav-lk-door" data-do="door" aria-label="Open your locker"><span class="mav-lk-vents"><i></i><i></i><i></i><i></i><i></i></span><span class="mav-lk-plate">' + plate + '</span><span class="mav-lk-dial"></span><span class="mav-lk-handle"></span><span class="mav-lk-tap">Tap to open</span></button>' : '')
+      + '</div>';
+  }
+  function clunk(){ try { sac = sac || new (window.AudioContext || window.webkitAudioContext)(); var c = sac, t = c.currentTime, o = c.createOscillator(), g = c.createGain();
+    o.type = 'triangle'; o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(55, t + .18); g.gain.setValueAtTime(.3, t); g.gain.exponentialRampToValueAtTime(.001, t + .25); o.connect(g).connect(c.destination); o.start(t); o.stop(t + .3);
+  } catch(e){} }
+  function tabHtml(){
+    if (tab === 'home') return lockerHtml();
+    if (tab === 'look') return rowsHtml(LOOKROWS);
+    if (tab === 'shop') {
+      var f = featured(), brass = ['trumpet', 'trombone', 'horn', 'tuba'], got = brass.filter(function(id){ return W.owned.indexOf('gear:' + id) >= 0; }).length;
+      return '<div class="mav-h">FEATURED <small>this week</small></div><div class="mav-feat">' + (f ? card(f, 1) : '')
+        + '<button type="button" class="mav-card big r-epic" data-tab="gear"><span class="mav-cbg"></span><span class="mav-pic" style="flex-wrap:wrap;gap:4px">' + brass.map(function(id){ var it = ITEMS.filter(function(x){ return x.slot === 'gear' && x.id === id; })[0]; return it && it.art ? '<img src="' + ART + it.art + '.png" alt="" style="max-width:42%;max-height:44%">' : ''; }).join('') + '</span>'
+        + '<span class="mav-ctag new">COLLECTION</span><span class="mav-lbl"><b>Brass Section</b><small>' + got + ' of 4 · ' + (got === 4 ? '🎉 Marching Band Jacket is yours' : 'all 4 = Marching Band Jacket') + '</small></span></button></div>'
+        + '<div class="mav-h">TODAY’S SHOP <small class="mav-clock">New items in ' + untilMidnight() + '</small></div><div class="mav-grid">' + todays(f && key(f)).map(function(x){ return card(x); }).join('') + '</div>';
+    }
+    if (tab === 'rank') {
+      if (!P) return '<p class="mav-sub">Sign in to climb the ranks. Every right answer and finished run counts.</p>';
+      var r = rankNow(), x = xpNow() - (W.encXP || 0), m = mastered();
+      var next = r + 1 < RANKS.length ? RANKS[r + 1] : null;
+      var head = '<p class="mav-rnow">Rank ' + (r + 1) + ' of 10 · <b>' + RANKS[r][1] + ' ' + ['I', 'II', 'III'][stepOf(r)] + '</b> · ' + x.toLocaleString() + ' XP</p>'
+        + (W.encores ? '<p class="mav-sub">Encores: <b style="color:' + encCol(W.encores) + '">' + encMark(W.encores) + '</b> · points +' + Math.min(50, 10 * W.encores) + '%</p>' : '')
+        + (r === 9 ? '<div class="mav-try"><span><b>🎭 Take an Encore?</b> Your avatar rank goes back to Rookie Listener and you climb again. You keep every item, coin and point, and you get ★ on your platform and +10% points (up to +50%). Nothing your teacher sees changes.</span><button type="button" class="mav-btn" data-do="encore">Take a bow</button></div>' : '')
+        + (next ? '<p class="mav-sub">' + (x < next[0] ? (next[0] - x).toLocaleString() + ' XP to ' + next[1] : '') + (GATES[r + 1] && m < GATES[r + 1] ? (x < next[0] ? ' and ' : 'Next: ') + 'master ' + (GATES[r + 1] === 7 ? 'every game' : GATES[r + 1] + (GATES[r + 1] === 1 ? ' game' : ' games')) + ' (you have ' + m + ')' : '') + '</p>' : '<p class="mav-sub">Top rank! 👑</p>');
+      var mg = ((lsGet(MASTK) || {}).games) || [];
+      head += '<p class="mav-sub">Games mastered: ' + (mg.length ? mg.map(function(g){ return GNAME[g] || g; }).join(', ') : 'none yet') + ' (' + mg.length + ' of 7)</p>';
+      return head + '<ol class="mav-ladder">' + RANKS.map(function(k, i){ return '<li class="' + (i === r ? 'on' : i < r ? 'done' : '') + '"><span class="mav-dot" style="background:' + tier(i) + '"></span><b>' + k[1] + '</b><span>' + k[0].toLocaleString() + ' XP' + (GATES[i] ? ' + master ' + (GATES[i] === 7 ? 'every game' : GATES[i] + (GATES[i] === 1 ? ' game' : ' games')) : '') + '</span></li>'; }).join('') + '</ol>';
+    }
+    var html = '';
+    if (tab === 'clothes') html = '<div class="mav-grid">' + itemsOf('top').map(card).join('') + '</div>' + rowsHtml(CLOTHROWS);
+    else if (tab === 'moves') html = MOVE_SLOTS.map(function(m){ return '<div class="mav-sec">' + m[1] + '</div><div class="mav-grid">' + itemsOf(m[0]).map(card).join('') + '</div>'; }).join('');
+    else html = '<div class="mav-grid">' + itemsOf(tab).map(card).join('') + '</div>';
+    return html;
+  }
+  function tryHtml(){
+    if (note) return '<div class="mav-try"><span>' + note + '</span></div>';
+    if (!trying || owns(trying)) return '';
+    var it = trying, r = rarity(it), head = '<span><b>' + it.name + '</b><br><small>' + RN[r] + ' · ';
+    var wrap = function(inner){ return '<div class="mav-try r-' + r + '">' + inner + '</div>'; };
+    if (it.enc) return wrap(head + 'yours after Encore ' + encMark(it.enc) + ' (reach the top rank and take a bow)</small></span>');
+    if (it.lock) return wrap(head + 'earned, not bought: ' + it.lock + '</small></span>');
+    if (!P) return wrap(head + price(it) + '</small></span><span class="mav-need">Sign in to earn coins and points</span>');
+    var have = it.c ? W.coins : W.points, need = (it.c || it.p) - have;
+    return wrap(head + price(it) + '</small></span>'
+      + (need > 0 ? '<span class="mav-need">Need ' + need.toLocaleString() + (it.c ? ' more coins' : ' more points') + '</span>'
+        : '<button type="button" class="mav-btn" data-do="buy">Buy · ' + price(it) + '</button>'));
+  }
+  function render(){
+    var tb0 = dlg.querySelector('.mav-tabs'); tb0.className = 'mav-tabs mav-back';
+    tb0.innerHTML = tab === 'home' ? '' : '<button type="button" class="mav-btn ghost" data-tab="home">\u2190 Locker</button><span class="mav-sect">' + (SECT[tab] || '') + '</span>';
+    if (0) tb0.innerHTML = TABS.map(function(t){ return '<button type="button" class="mav-tab' + (t[0] === tab ? ' on' : '') + '" data-tab="' + t[0] + '" aria-pressed="' + (t[0] === tab) + '"><i aria-hidden="true">' + t[2] + '</i>' + t[1] + '</button>'; }).join('');
+    var lo = dlg.querySelector('.mav-lo'); if (lo) lo.innerHTML = loHtml();
+    dlg.querySelector('.mav-rows').innerHTML = tabHtml();
+    var tr = dlg.querySelector('.mav-tryrow'); tr.innerHTML = tryHtml(); var tb = tr.firstChild; if (tb && trying) tb.style.setProperty('--c2', { common: '#6c7690', rare: '#3d8bff', epic: '#a45cff', legendary: '#ffb020' }[rarity(trying)]);
+    drawBig(); drawWallet();
+  }
+  function buy(it){
+    var cost = it.c || it.p, pot = it.c ? 'coins' : 'points';
+    if (!P || it.lock || owns(it) || !cost || W[pot] < cost) return;
+    W[pot] -= cost; if (it.c) dCoins -= cost; else dPoints -= cost;
+    W.owned.push(key(it)); draft[it.slot] = it.id; trying = null;
+    look[it.slot] = it.id;   // a new item goes on right away (and stays on after Cancel)
+    lookDirty = true; saveLocal(); drawAll(); clearTimeout(sendT); sendT = setTimeout(sendNow, 3000);
+    render(); play(look.happy); reveal(it);
+  }
+  function reveal(it){   // the purchase moment: the card flips in, a flash, confetti and a chime
+    var rv = dlg.querySelector('.mav-rev');
+    rv.innerHTML = '<div class="mav-flash"></div>' + card(it) + '<h3>UNLOCKED!</h3><button type="button" class="mav-btn" data-do="revok">Awesome!</button>';
+    var cols = ['#ffb020', '#a45cff', '#3d8bff', '#ff4d6d', '#5cf0a0', '#fff'];
+    for (var i = 0; i < 60; i++) { var c = document.createElement('span'); c.className = 'mav-conf'; c.style.left = Math.random() * 100 + '%'; c.style.background = cols[i % 6];
+      c.style.animationDuration = (1.4 + Math.random() * 1.6) + 's'; c.style.animationDelay = Math.random() * .4 + 's'; rv.appendChild(c); }
+    chime();
+  }
+  function openBuilder(){
+    if (!dlg) {
+      dlg = document.createElement('dialog'); dlg.className = 'mav-dlg'; dlg.setAttribute('aria-label', 'Your avatar and the Store');
+      document.body.appendChild(dlg);
+      dlg.addEventListener('click', function(e){
+        var b = e.target.closest('button'); if (!b) { if (e.target === dlg) dlg.close(); return; }
+        if (b.dataset.do === 'revok') { dlg.querySelector('.mav-rev').innerHTML = ''; return; }
+        if (b.dataset.tab) { tick(); tab = b.dataset.tab; trying = null; render(); dlg.querySelector('.mav-rows').scrollTop = 0; return; }
+        if (b.dataset.lo) { tick(); var i = +b.dataset.lo; if (LO[i]) { draft = wearOwned(clean(Object.assign({}, LO[i]))); trying = null; drawBig(1); } else { LO[i] = Object.assign({}, draft); saveLO(); } render(); return; }
+        if (b.dataset.losave) { tick(); LO[+b.dataset.losave] = Object.assign({}, draft); saveLO(); render(); return; }
+        if (b.dataset.k) { var k = b.dataset.k; draft[k] = typeof DEF[k] === 'number' ? +b.dataset.v : b.dataset.v; render(); return; }
+        if (b.dataset.item) {
+          var it = ITEMS.filter(function(x){ return key(x) === b.dataset.item; })[0]; if (!it) return;
+          tick(); if (owns(it)) { draft[it.slot] = it.id; trying = null; } else trying = it;   // not yours yet: try it on
+          render(); drawBig(1);
+          if (/^(idle|happy|aww|dance)$/.test(it.slot) && it.slot !== 'idle') play(it.id);
+          return;
+        }
+        if (b.dataset.do === 'door') { var lk = dlg.querySelector('.mav-lk'); lk.classList.add('spin'); lkDoor = false; try { sessionStorage.setItem('mtg_locker_door_v1', '1'); } catch(e){}
+          setTimeout(function(){ clunk(); lk.classList.add('open'); setTimeout(function(){ var d = lk.querySelector('.mav-lk-door'); if (d) d.remove(); }, 700); }, 350); return; }
+        if (b.dataset.do === 'buy') { if (trying) buy(trying); return; }
+        if (b.dataset.do === 'encore') {
+          if (!P || rankNow() !== 9) return;
+          if (!b.dataset.sure) { b.dataset.sure = '1'; b.textContent = 'Yes, Encore!'; return; }   // a second tap to be sure
+          W.encores = Math.min(99, W.encores + 1); W.encXP = xpNow(); lookDirty = true; saveLocal(); clearTimeout(sendT); sendT = setTimeout(sendNow, 3000);
+          drawAll(); note = '🎭 Encore ' + encMark(W.encores) + '! The crowd goes wild. Climb again!'; render(); play(look.dance); note = ''; return;
+        }
+        if (b.dataset.do === 'random') { var keep = {}; Object.keys(DEF).forEach(function(k){ if (!/^(skin|face|eyes|brows|nose|mouth|hair|hairC|beard|cover|glasses|topC|pantC)$/.test(k)) keep[k] = draft[k]; }); draft = Object.assign(randomLook(), keep); trying = null; render(); return; }
+        if (b.dataset.do === 'perch') { try { localStorage.setItem(PK, perchWanted() ? '0' : '1'); } catch(e){} b.textContent = perchLabel(); perchPlace(); return; }
+        if (b.dataset.do === 'try') { play(pick([draft.happy, draft.aww, draft.dance])); return; }
+        if (b.dataset.do === 'save') { look = wearOwned(clean(draft)); saveLocal(); sendOnline(); drawAll(); dlg.close(); act(look.happy); return; }
+        if (b.dataset.do === 'close') dlg.close();
+      });
+    }
+    draft = Object.assign({}, look); trying = null; note = ''; tab = 'home';
+    dlg.innerHTML = '<div class="mav-wrap"><div class="mav-left"><div class="mav-stage"><div class="mav-beam"></div><div class="mav-big av"></div></div>'
+      + '<div class="mav-lo" aria-label="Saved outfits"></div><div class="mav-leftbtns"><button type="button" class="mav-btn ghost" data-do="try">▶ Try a move</button><button type="button" class="mav-btn ghost" data-do="random">🎲 Random look</button>'
+      + (PERCH.length ? '<button type="button" class="mav-btn ghost" data-do="perch" title="Show your avatar sitting on the game, or only in the corner">' + perchLabel() + '</button>' : '') + '</div></div>'
+      + '<div class="mav-right"><div class="mav-top"><h2>MY LOCKER</h2>'
+      + (P ? '<div class="mav-wallet"><span title="Coins: 1 for every minute you play, up to 60 a day">🪙 <b class="mav-c"></b></span><span title="Points: right answers and finished runs; harder levels pay more">★ <b class="mav-p"></b></span></div>'
+           : '<p class="mav-sub" style="margin:0 0 0 auto">Guest: <b>sign in to keep it</b> and earn coins and points.</p>')
+      + '<button type="button" class="mav-btn ghost" data-do="close">Cancel</button><button type="button" class="mav-btn" data-do="save">Save</button></div>'
+      + '<div class="mav-tabs" role="toolbar" aria-label="Back to the locker"></div>'
+      + '<div class="mav-rows"></div></div></div><div class="mav-tryrow" aria-live="polite"></div><div class="mav-rev"></div>';
+    clearInterval(clockT); clockT = setInterval(function(){ var c = dlg.querySelector('.mav-clock'); if (c) c.textContent = 'New items in ' + untilMidnight(); if (!dlg.open) clearInterval(clockT); }, 1000);
+    render();
+    if (dlg.showModal) dlg.showModal(); else dlg.setAttribute('open', '');
+  }
+  corner.addEventListener('click', openBuilder);
+
+  // A teacher can turn avatars off for a class (classes/<code>.avatars_off, set in the dashboard): then nothing shows and nothing
+  // is earned, and the game keeps its old icon. Checked once per tab (sessionStorage mtg_avatar_off_v1:<code>).
+  var CODE = P ? activeCode(P) : '';
+  function avatarsOff(cb){
+    if (!CODE || LOCAL) return cb(false);
+    var k = 'mtg_avatar_off_v1:' + CODE, v = null; try { v = sessionStorage.getItem(k); } catch(e){}
+    if (v !== null) return cb(v === '1');
+    try { fetch(FS + 'classes/' + encodeURIComponent(CODE) + '?key=' + FKEY + '&mask.fieldPaths=avatars_off').then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
+      var off = !!(d && d.fields && d.fields.avatars_off && d.fields.avatars_off.booleanValue);
+      try { sessionStorage.setItem(k, off ? '1' : '0'); } catch(e){}
+      cb(off);
+    }).catch(function(){ cb(false); }); } catch(e){ cb(false); }
+  }
+  var OFF = false;
+  function start(){ if (OFF) return true; if (!place()) return false; drawAll(); perchStart(); return true; }
+  avatarsOff(function(off){
+    if (off) { OFF = true; P = null; corner.remove(); return; }   // P = null: no earning, no saving
+    if (!start()) { var tries = 0, iv = setInterval(function(){ if (start() || ++tries > 40) clearInterval(iv); }, 250); }   // pages that build their header late
+  });
+  // ---------- classmates' avatars (step 5): for class boards and the teacher's view ----------
+  // MTGAvatar.peer(code, sid) -> Promise of { look, rank, encores } or null. One read per student per tab, kept 10 minutes in
+  // sessionStorage (mtg_avatar_peer_v1:<doc>); reads of the same student at once share one request.
+  var peerWait = {};
+  function peer(code, sid){
+    sid = String(sid || '').toLowerCase().replace(/[^a-z]/g, '').slice(0, 16); if (!sid) return Promise.resolve(null);
+    var doc = (code || 'none') + '_' + sid, k = 'mtg_avatar_peer_v1:' + doc, c = null;
+    try { c = JSON.parse(sessionStorage.getItem(k) || 'null'); } catch(e){}
+    if (c && Date.now() - c.at < 600000) return Promise.resolve(c.v);
+    if (peerWait[doc]) return peerWait[doc];
+    return peerWait[doc] = fetch(FS + 'avatars/' + doc + '?key=' + FKEY).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
+      var f = d && d.fields, v = null;
+      if (f && f.look && f.look.mapValue) v = { look: clean(fromFields(f.look.mapValue.fields)), rank: f.rank ? Math.max(0, Math.min(9, +f.rank.integerValue || 0)) : 0, encores: f.encores ? +f.encores.integerValue || 0 : 0 };
+      try { sessionStorage.setItem(k, JSON.stringify({ at: Date.now(), v: v })); } catch(e){}
+      delete peerWait[doc]; return v;
+    }).catch(function(){ delete peerWait[doc]; return null; });
+  }
+  // MTGAvatar.badge(el, code, sid, size): puts a small round head (with the rank color ring) at the start of el. Does nothing for
+  // students without an avatar, or when avatars are off for the viewer's class.
+  function badge(el, code, sid, size){
+    if (!el || OFF) return; size = size || 26;
+    peer(code, sid).then(function(v){
+      if (!v || !el.isConnected || el.querySelector(':scope > .mav-head')) return;
+      var h = document.createElement('span'); h.className = 'mav-head';
+      h.style.cssText = 'width:' + size + 'px;height:' + size + 'px;border-color:' + tier(v.rank) + (v.encores ? ';box-shadow:0 0 0 2px ' + encCol(v.encores) : '');
+      h.title = RANKS[v.rank][1] + (v.encores ? ' · Encore ' + encMark(v.encores) : '');
+      h.innerHTML = avatar(v.look, { crop: 1, label: 'Avatar' }); el.insertBefore(h, el.firstChild);
+    });
+  }
+  window.MTGAvatar = { draw: function(L, o){ return avatar(clean(Object.assign({}, DEF, L)), o || {}); }, peer: peer, badge: badge, off: function(){ return OFF; }, signedIn: function(){ return !!P; }, rank: function(){ return P ? { n: rankNow() + 1, name: RANKS[rankNow()][1], encores: W.encores || 0 } : null; },
+    wallet: function(){ return { coins: W.coins, points: W.points }; }, look: function(){ return Object.assign({}, look); }, svg: function(o){ o = o || {}; if (o.rank == null && P) o.rank = rankNow(); return avatar(look, o); }, open: openBuilder, quests: questsInfo, questsHtml: questsHtml,
+    award: function(pts, why){ pts = Math.max(0, Math.min(2000, Math.round(+pts || 0))); if (!P || !pts) return false; earn(pts, 0); pop('+' + pts + ' ★' + (why ? ' · ' + why : ''), '#ffd166'); return true; } };   // Live Class Showdown rewards (2026-11-17)
+
+})();
+</script>
+<!-- MTG_AVATAR end -->
 </body>
 </html>
