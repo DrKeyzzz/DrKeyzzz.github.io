@@ -350,6 +350,41 @@ function composerCard() {
 }
 // The Key signature maker: pick major or minor and a style, tap a key, and the question and its four choices fill in
 // (one accidental more or less, the same number of the other accidental, the relative major on minor keys). Edit anything before posting.
+// ---------- Questions asked: a list kept on this computer per class (localStorage mtg_live_asked_v1:<code>, newest last, up to 100),
+// and a study sheet (questions, then an answer key) that opens ready to Save as PDF for Google Classroom (David, 2026-11-17)
+const AK = () => 'mtg_live_asked_v1:' + S.code;
+const asked = () => { try { return JSON.parse(localStorage.getItem(AK()) || '[]'); } catch { return []; } };
+const saveAsked = l => { try { localStorage.setItem(AK(), JSON.stringify(l.slice(-100))); } catch {} };
+function askedCard() {
+  const l = asked();
+  return `<section class="card stack"><div class="row between"><h2 style="margin:0">📝 Questions asked <span class="chip">${l.length}</span></h2>
+    ${l.length ? `<div class="row"><button class="btn sm pri" data-act="sheet">📄 Generate PDF</button>${S.confirm === 'asked' ? '<button class="btn sm" data-act="askedClear" style="background:#c0392b;color:#fff">Yes, clear</button>' : '<button class="btn sm" data-act="askedAsk">Clear</button>'}</div>` : ''}</div>
+    ${l.length ? `<ol class="stack" style="margin:0;padding-left:22px;max-height:300px;overflow:auto;gap:6px">${l.map((x, i) => `<li><div class="row between" style="align-items:flex-start;flex-wrap:nowrap"><span>${esc(x.q)}${x.correct ? ` <span class="muted small">→ ${esc(x.correct)}</span>` : ''}</span><button class="btn sm" data-act="askedDel" data-v="${i}" title="Leave this one off the study sheet" aria-label="Remove">✕</button></div></li>`).join('')}</ol>`
+      : '<p class="muted small" style="margin:0">Every question you post shows up here. At the end, Generate PDF makes a study sheet to post on Google Classroom.</p>'}</section>`;
+}
+function studySheet() {
+  const l = asked(); if (!l.length) return;
+  const cls = (S.classes.find(c => c.code === S.code) || {}).name || S.code, day = new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+  const qs = l.map((x, i) => `<li><p class="q">${esc(x.q)}</p>${ksStaff(x.ks)}${x.type === 'mc' && x.opts ? `<ol type="A" class="opts">${x.opts.map(o => `<li>${esc(o)}</li>`).join('')}</ol>`
+    : x.type === 'yn' ? '<p class="opts">Yes &nbsp;/&nbsp; No</p>' : '<p class="line"></p>'}</li>`).join('');
+  const key = l.map((x, i) => { const k = x.type === 'mc' && x.opts ? x.opts.indexOf(x.correct) : -1;
+    return `<li>${x.correct ? (k >= 0 ? `<b>${'ABCDEF'[k]}</b> · ` : '') + esc(x.correct) : '<span class="muted">(open answer)</span>'}</li>`; }).join('');
+  const w = window.open('', '_blank'); if (!w) { toast('Allow pop-ups for this page, then try again.'); return; }
+  w.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Study sheet · ${esc(cls)} · ${esc(day)}</title><style>
+    body{font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:#141d2c;background:#fff;max-width:760px;margin:24px auto;padding:0 20px}
+    h1{font-size:26px;margin:0}.sub{color:#5b6784;margin:4px 0 20px}.bar{display:flex;gap:10px;margin:0 0 18px}
+    button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 16px;background:#2b5bd7;color:#fff;cursor:pointer}
+    ol.qs>li{margin:0 0 18px;break-inside:avoid}.q{font-weight:700;margin:0 0 6px}.opts{margin:4px 0}.line{border-bottom:1px solid #aab;height:26px;margin:0;width:70%}
+    .ksbox{width:230px;margin:4px 0 6px}.ksbox svg{display:block;width:100%;height:auto}.muted{color:#5b6784}
+    .key{break-before:page;border-top:2px solid #141d2c;padding-top:12px}.key li{margin:2px 0}.foot{color:#5b6784;font-size:13px;margin-top:24px}
+    @media print{.bar{display:none}body{margin:0 auto}}</style></head><body>
+    <div class="bar"><button onclick="print()">📄 Save as PDF</button></div>
+    <h1>Study sheet</h1><p class="sub">${esc(cls)} · Live Class · ${esc(day)} · ${l.length} question${l.length === 1 ? '' : 's'}</p>
+    <ol class="qs">${qs}</ol><section class="key"><h2>Answers</h2><ol>${key}</ol></section>
+    <p class="foot">Music Theory Academy · musictheoryacademy.org</p>
+    <script>setTimeout(function(){print()},400)<\/script></body></html>`);
+  w.document.close();
+}
 function ksMaker() {
   const m = S.ksm, seg = (act, cur, list) => `<span class="seg">${list.map(([v, l]) => `<button type="button" data-act="${act}" data-v="${v}" aria-pressed="${cur === v}">${l}</button>`).join('')}</span>`;
   return `<div class="stack" style="gap:10px;border:1px solid var(--line2);border-radius:14px;padding:12px">
@@ -363,7 +398,7 @@ function draw() {
   const L = S.live && S.live.q ? S.live : null;
   app.innerHTML = shell(`${headCard()}<p class="msg" role="alert">${esc(S.err)}</p>
     <div class="cols"><div class="stack">${L ? roundCard() + resultsCard() + answersCard() : '<section class="card"><p class="muted empty">No question on the screen. Ask one on the right.</p></section>'}</div>
-    <aside class="stack">${composerCard()}${pulseCard()}${inboxCard()}</aside></div>`);
+    <aside class="stack">${composerCard()}${askedCard()}${pulseCard()}${inboxCard()}</aside></div>`);
   if (keep && $(keep.id)) { const el = $(keep.id); el.focus(); try { if (keep.s != null) el.setSelectionRange(keep.s, keep.e); } catch {} }
   if (EMBED) try { parent.postMessage({ mtgLiveHeight: document.documentElement.scrollHeight }, location.origin); } catch {}
 }
@@ -384,6 +419,8 @@ async function post() {
   try {
     await db.set(livePath(), d);
     try { localStorage.setItem(TK(), JSON.stringify({ round, correct: c.type === 'mc' && !opts.includes(c.correct) ? '' : String(c.correct || '') })); } catch {}
+    const okC = c.type === 'mc' && !opts.includes(c.correct) ? '' : String(c.correct || '').slice(0, 60);
+    saveAsked([...asked(), { q, type: c.type, opts: c.type === 'mc' ? opts : null, correct: okC, ks: d.ks != null ? d.ks : null, at: Date.now() }]);
     S.comp = { type: c.type, q: '', opts: c.type === 'mc' ? ['', '', '', ''] : c.opts, correct: '', timer: c.timer, skills: [], ks: null };
     S.err = ''; S.confirm = ''; toast('Posted.'); draw();
   } catch (e) { S.err = ERR(e); draw(); }
@@ -440,6 +477,10 @@ app.addEventListener('click', async e => {
   if (act === 'game') { G().on = !G().on; saveG(); if (G().on) { S.comp.type = 'mc'; toast('Showdown on: pick the correct answer on every question.'); } draw(); return; }
   if (act === 'gnew') { S.confirm = ''; const g = G(); g.scores = {}; g.qn = 0; g.done = {}; saveG(); if (L && L.game) upd({ board: [], final: false }); toast('New Showdown: scores reset.'); draw(); return; }
   if (act === 'podium') { if (!L) return; if (L.open) await gameLock(L); return upd({ open: false, final: true, board: topBoard() }); }
+  if (act === 'sheet') { studySheet(); return; }
+  if (act === 'askedAsk') { S.confirm = 'asked'; draw(); return; }
+  if (act === 'askedClear') { S.confirm = ''; saveAsked([]); toast('List cleared.'); draw(); return; }
+  if (act === 'askedDel') { const l = asked(); l.splice(Number(t.dataset.v), 1); saveAsked(l); draw(); return; }
   if (act === 'addopt') { S.comp.opts.push(''); draw(); return; }
   if (act === 'ksopen') { S.ksm.open = !S.ksm.open; draw(); return; }
   if (act === 'ksmode') { S.ksm.minor = t.dataset.v === 'minor'; draw(); return; }
