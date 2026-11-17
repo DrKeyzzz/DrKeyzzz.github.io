@@ -161,6 +161,11 @@ window.LC = (() => {
       return `<div class="cloud">${Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 40).map(([w, c], i) => `<span style="font-size:${(big ? 22 : 15) + (big ? 54 : 28) * (c / max)}px;color:${cols[i % 5]}">${esc(w)}</span>`).join('')}</div>`;
     }
     if (live.type === 'emoji') return `<div class="emo">${EMOJIS.map(e => `<div><b>${e}</b><span class="mono">${A.filter(x => x === e).length}</span></div>`).join('')}</div>`;
+    if (big) {   // short answers on the class screen once revealed (David, 2026-11-17): what students typed, no names, same answers grouped
+      const cnt = {}, shown = {}; A.forEach(t => { const k = t.trim().toLowerCase().replace(/\s+/g, ' '); if (!k) return; cnt[k] = (cnt[k] || 0) + 1; if (!shown[k]) shown[k] = t.trim(); });
+      const ok = k => correct && k === String(correct).trim().toLowerCase().replace(/\s+/g, ' ');
+      return `<div class="typed">${Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 30).map(([k, c]) => `<div class="typed-a${ok(k) ? ' correct' : ''}"><span>${ok(k) ? '✓ ' : ''}${esc(shown[k])}</span>${c > 1 ? `<b class="mono">×${c}</b>` : ''}</div>`).join('')}</div>`;
+    }
     return `<div class="row"><span class="big">${A.length}</span><span class="muted">written answer${A.length === 1 ? '' : 's'} in.${opt.hint ? ' Spotlight one to share it with the class.' : ''}</span></div>`;
   }
   // newest answer per student, newest first

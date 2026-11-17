@@ -166,3 +166,9 @@ input[type=range] { width: 100%; accent-color: var(--gold); }
 .tbar.big .tbar-tr { height: 22px; } .tbar.big .tbar-c { font-size: 40px; }
 .tbar.low .tbar-tr i { background: linear-gradient(90deg, #ff5d6c, #ff8a7a); } .tbar.low .tbar-c { color: #ff5d6c; }
 @media (prefers-reduced-motion: reduce) { .tbar-tr i { transition: none; } }
+
+/* Short answers on the class screen after the reveal (2026-11-17) */
+.typed { display: flex; flex-wrap: wrap; gap: 10px; align-content: flex-start; max-height: 52vh; overflow: auto; }
+.typed-a { display: inline-flex; align-items: center; gap: 10px; padding: 10px 16px; border-radius: 14px; background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); font-size: 24px; overflow-wrap: anywhere; }
+.typed-a b { color: var(--gold); font-size: 20px; }
+.typed-a.correct { border-color: var(--mint); color: var(--mint); }
