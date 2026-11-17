@@ -89,14 +89,14 @@ function boot() {
     support: [{ from: 'support', text: 'Thanks for the feedback! I found the leaderboard bug and fixed it.', at: Date.now() - 2 * 36e5 }], support2: [] };
   function save() { try { localStorage.setItem(CK, JSON.stringify({ t: Date.now(), st: ST })); } catch (e) {} }
   function check(force) {
-    if (PREVIEW) { ST = { on: true, blocked: false, t: { teacher: { unread: 1, last_text: PV.teacher[1].text, last_from: 'teacher' }, support: { unread: 1, last_text: PV.support[0].text, last_from: 'support', note_text: 'the game is amazing but my 248k score did not load on the leader board :c' } } }; return Promise.resolve(); }
+    if (PREVIEW) { ST = { on: true, blocked: false, t: { teacher: { unread: 1, waiting: 0, last_text: PV.teacher[1].text, last_from: 'teacher' }, support: { unread: 1, last_text: PV.support[0].text, last_from: 'support', note_text: 'the game is amazing but my 248k score did not load on the leader board :c' } } }; return Promise.resolve(); }
     if (!force) { try { var c = JSON.parse(localStorage.getItem(CK) || 'null'); if (c && Date.now() - c.t < 120000) { ST = c.st; return Promise.resolve(); } } catch (e) {} }
     return fb().then(function (x) {
       return Promise.all([x.fs.getDoc(x.fs.doc(x.db, 'classes', code))].concat(CONV.map(function (cv) { return x.fs.getDoc(x.fs.doc(x.db, cv.col, cv.tid)).catch(function () { return null; }); })));
     }).then(function (d) {
       var c = d[0].exists() ? d[0].data() : {}; owner = c.ownerEmail || owner;
       ST = { on: c.sm_on === true, blocked: Array.isArray(c.sm_blocked) && c.sm_blocked.indexOf(sid) >= 0, t: {} };
-      CONV.forEach(function (cv, i) { var s = d[i + 1]; if (s && s.exists()) { var v = s.data(); ST.t[cv.id] = { unread: +v.unread_student || 0, last_text: v.last_text || '', last_from: v.last_from || '', note_text: v.note_text || '' }; } });
+      CONV.forEach(function (cv, i) { var s = d[i + 1]; if (s && s.exists()) { var v = s.data(); ST.t[cv.id] = { unread: +v.unread_student || 0, waiting: +(cv.id === 'teacher' ? v.unread_teacher : v.unread_admin) || 0, last_text: v.last_text || '', last_from: v.last_from || '', note_text: v.note_text || '' }; } });
       save();
     });
   }
@@ -145,6 +145,9 @@ function boot() {
   function fmt(t) { var d = new Date(t); return d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) + ', ' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }); }
   function cv(id) { return CONV.filter(function (c) { return c.id === id; })[0]; }
   function canWrite(c) { return c.id === 'teacher' ? ST.on && !ST.blocked : !!ST.t[c.id]; }
+  // LIMIT (2026-11-17, a student sent 58 in a row; the rules enforce it too): 3 messages until a reply, 30 s apart
+  var MAXWAIT = 3, GAPMS = 30000, lastSent = 0;
+  function waiting(c) { var t = ST.t[c.id]; return t ? (t.waiting || 0) : 0; }
   function drawBox() {
     var el = document.getElementById('mtg-msg'); if (!el) return;
     var c = cv(CUR), tabs = shown();
@@ -157,7 +160,8 @@ function boot() {
     }).join('') : (first ? '' : '<p class="mm-empty">' + (c.id === 'teacher' ? 'Ask a question or tell your teacher something. Your teacher will reply here.' : 'No messages yet.') + '</p>'));
     log.scrollTop = log.scrollHeight;
     var ft = el.querySelector('.mm-ft');
-    ft.innerHTML = canWrite(c) ? '<textarea maxlength="300" placeholder="' + (c.id === 'teacher' ? 'Write to your teacher' : 'Answer Music Theory Academy') + ' (300 characters)" aria-label="Your message"></textarea>'
+    ft.innerHTML = canWrite(c) && waiting(c) >= MAXWAIT ? '<p class="mm-empty" style="margin:0">You sent ' + MAXWAIT + ' messages. Wait for ' + (c.id === 'teacher' ? 'your teacher' : 'Music Theory Academy') + ' to reply before sending more.</p>'
+      : canWrite(c) ? '<textarea maxlength="300" placeholder="' + (c.id === 'teacher' ? 'Write to your teacher' : 'Answer Music Theory Academy') + ' (300 characters)" aria-label="Your message"></textarea>'
       + '<div class="mm-bar"><small>' + (c.id === 'teacher' ? 'Only your teacher can read this.' : 'Only Music Theory Academy can read this.') + ' Be kind; messages may be shared with your school.</small><button type="button" class="mm-send">Send</button></div><p class="mm-err" hidden></p>'
       : '<p class="mm-empty" style="margin:0">' + (c.id === 'teacher' && ST.blocked ? 'Your teacher has turned off messages for you. Talk to them in class.' : 'Messages to your teacher are turned off right now.') + '</p>';
     var send = ft.querySelector('.mm-send'), ta = ft.querySelector('textarea');
@@ -196,8 +200,10 @@ function boot() {
     var el = document.getElementById('mtg-msg'); if (!el || busy) return;
     var c = cv(CUR), ta = el.querySelector('textarea'), btn = el.querySelector('.mm-send'), err = el.querySelector('.mm-err');
     var text = ta.value.trim().slice(0, 300); if (!text) return;
+    if (waiting(c) >= MAXWAIT) { drawBox(); return; }
+    if (Date.now() - lastSent < GAPMS) { err.textContent = 'Wait ' + Math.ceil((GAPMS - (Date.now() - lastSent)) / 1000) + ' seconds before sending another message.'; err.hidden = false; return; }
     busy = true; btn.disabled = true; err.hidden = true;
-    var done = function () { MSGS.push({ from: 'student', text: text, at: Date.now() }); ta.value = ''; ST.t[c.id] = ST.t[c.id] || { unread: 0 }; ST.t[c.id].last_text = text.slice(0, 120); ST.t[c.id].last_from = 'student'; save(); drawBox(); draw(); };
+    var done = function () { lastSent = Date.now(); MSGS.push({ from: 'student', text: text, at: Date.now() }); ta.value = ''; ST.t[c.id] = ST.t[c.id] || { unread: 0, waiting: 0 }; ST.t[c.id].waiting = (ST.t[c.id].waiting || 0) + 1; ST.t[c.id].last_text = text.slice(0, 120); ST.t[c.id].last_from = 'student'; save(); drawBox(); draw(); };
     if (PREVIEW) { done(); busy = false; btn.disabled = false; return; }
     fb().then(function (x) {
       var fs = x.fs, db = x.db, w = fs.writeBatch(db), ref = fs.doc(db, c.col, c.tid), ts = fs.serverTimestamp(), last = text.slice(0, 120);

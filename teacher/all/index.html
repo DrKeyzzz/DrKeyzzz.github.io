@@ -2043,7 +2043,8 @@ function renderSm() {
       + (canReply ? `<button type="button" class="bx" data-smdel="${esc(m.id)}" aria-label="Delete this message">✕</button>` : '') + '</span></div>').join('') || '<p class="mx-none">No messages.</p>';
   const right = !t ? '<section class="mx-thread mx-empty"><p>Pick a student to read and reply.</p></section>'
     : `<section class="mx-thread"><div class="mx-head"><button class="btn ghost sm mx-back" type="button" data-smback="1">← Back</button><h3>${esc(t.name)}</h3><small>${esc(cname(t.class_code))}</small><span class="grow"></span>`
-      + (smMine(t) ? `<button type="button" class="btn ghost sm" data-smblock="${esc(t.sid)}">${isBlocked ? 'Unblock' : 'Block from messaging'}</button>` : '') + `</div>`
+      + (smMine(t) ? `<button type="button" class="btn ghost sm" data-smblock="${esc(t.sid)}">${isBlocked ? 'Unblock' : 'Block from messaging'}</button>` : '')
+      + (canReply ? ` <button type="button" class="btn ghost sm" data-smdelall="1" title="Delete every message in this conversation">Delete conversation</button>` : '') + `</div>`
       + `<div class="mx-log" id="sm-log" tabindex="0">${log}</div>`
       + (canReply ? `<div class="reply"><textarea id="sm-text" maxlength="300" placeholder="Reply to ${esc(t.name)}…" aria-label="Reply"></textarea><div class="reply-bar"><span class="hint">Only ${esc(t.name)}'s device and you can read this · 300 characters</span><button class="btn sm" type="button" data-smsend="1">Send</button></div></div>` : '')
       + '</section>';
@@ -2066,6 +2067,22 @@ function smWire() {
       const cur = Array.isArray(c.sm_blocked) ? c.sm_blocked : [], on = cur.includes(sid);
       if (!on && !confirm(`Stop ${t ? t.name : sid} from sending you messages? You can unblock them later.`)) return;
       return smClass(code, { sm_blocked: on ? cur.filter(x => x !== sid) : [...cur, sid].slice(-200) });
+    }
+    if (b.dataset.smdelall && t) {   // 2026-11-17: clear a flood of messages at once (a student sent 58)
+      if (!confirm(`Delete the whole conversation with ${t.name}? Every message goes, for the student too. This cannot be undone.`)) return;
+      try {
+        if (PREVIEW) { delete SMS.msgs[t.id]; SMS.threads = SMS.threads.filter(x => x.id !== t.id); }
+        else await run(async ({ fs, db }) => {
+          for (;;) {
+            const snap = await fs.getDocs(fs.query(fs.collection(db, 'sm_threads', t.id, 'msgs'), fs.limit(400)));
+            if (snap.empty) break;
+            const w = fs.writeBatch(db); snap.docs.forEach(d => w.delete(d.ref)); await w.commit();
+          }
+          await fs.deleteDoc(fs.doc(db, 'sm_threads', t.id));
+        });
+        SM.threads = SM.threads.filter(x => x.id !== t.id); SM.open = ''; SM.msgs = []; smBadge(); renderSm(); msg(`Conversation with ${t.name} deleted.`, true);
+      } catch (er) { msg(errText(er)); }
+      return;
     }
     if (b.dataset.smdel && t) {
       if (!confirm('Delete this message? It disappears for the student too.')) return;
