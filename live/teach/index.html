@@ -172,7 +172,7 @@ let toastT = 0;
 const toast = t => { $('toast').textContent = t; clearTimeout(toastT); toastT = setTimeout(() => { $('toast').textContent = ''; }, 2600); };
 const ago = ms => { const s = Math.round((Date.now() - (ms || Date.now())) / 1000); return s < 60 ? 'just now' : s < 3600 ? Math.round(s / 60) + ' min ago' : Math.round(s / 3600) + ' h ago'; };
 
-const S = { email: '', classes: [], code: '', live: null, ans: [], pulses: [], priv: [], err: '', confirm: '', sort: 'first', offs: [], offA: null, round: '',
+const S = { email: '', classes: [], code: '', live: null, ans: [], pulses: [], priv: [], err: '', confirm: '', sort: 'first', curtain: (() => { try { return localStorage.getItem('mtg_live_curtain_v1') === '1'; } catch (e) { return false; } })(), offs: [], offA: null, round: '',
   comp: { type: 'mc', q: '', opts: ['', '', '', ''], correct: '', timer: 0, skills: [], ks: null }, g: null,
   ksm: { open: false, minor: false, style: 'name' } };   // the 🎼 Key signature maker (2026-11-17)
 const TK = () => 'mtg_live_teach_v1:' + S.code;    // the correct answer stays on this computer (the projector reads it)
@@ -269,12 +269,16 @@ function roundCard() {
       <button class="btn" type="button" data-act="csv">Download CSV</button>
       ${S.confirm === 'end' ? '<button class="btn warn" type="button" data-act="end">End and clear the screen?</button>' : '<button class="btn warn" type="button" data-act="confirm" data-v="end">End question</button>'}
       ${PREVIEW ? '<button class="btn" type="button" data-act="sim">🤖 Pretend students answer</button>' : ''}
-    </div>${L.game ? `<div class="row"><span class="chip gold">🏁 Showdown · question ${G().qn}</span>${(L.board || []).slice(0, 3).map((b, i) => `<span class="chip">${i + 1}. ${esc(b.n)} · ${b.p}</span>`).join('')}<span class="grow"></span><button class="btn pri" type="button" data-act="podium">🎭 Curtain call</button>${S.confirm === 'gnew' ? '<button class="btn warn" type="button" data-act="gnew">Start a new Showdown (scores to 0)?</button>' : '<button class="btn" type="button" data-act="confirm" data-v="gnew">↺ New Showdown</button>'}</div>` : ''}</section>`;
+    </div>${L.game ? `<div class="row"><span class="chip gold">🏁 Showdown · question ${G().qn}</span>${(L.board || []).slice(0, 3).map((b, i) => `<span class="chip">${i + 1}. ${esc(S.curtain ? "Player " + (i + 1) : b.n)} · ${b.p}</span>`).join('')}<span class="grow"></span><button class="btn pri" type="button" data-act="podium">🎭 Curtain call</button>${S.confirm === 'gnew' ? '<button class="btn warn" type="button" data-act="gnew">Start a new Showdown (scores to 0)?</button>' : '<button class="btn" type="button" data-act="confirm" data-v="gnew">↺ New Showdown</button>'}</div>` : ''}</section>`;
 }
 function resultsCard() {
   const c = correct();
   return `<section class="card stack"><div class="row between"><h3>Live results</h3>${c ? `<span class="muted small">Correct answer: <b>${esc(c)}</b> (shown on the projector once you lock)</span>` : ''}</div>${results(S.live, latest(S.ans), { correct: c, hint: true })}</section>`;
 }
+// Curtain (2026-11-17, David): hides every student name on this screen (safe to project), and Spotlight / Compare go up with no
+// name. Answers become "Student 1, 2…" in the order they first answered; the teacher can lift it any time.
+const curtainBtn = () => `<button type="button" class="btn sm ${S.curtain ? 'pri' : ''}" data-act="curtain" aria-pressed="${S.curtain}" title="Hide every student name on this screen; Spotlight shows no names">${S.curtain ? '🎭 Names hidden' : '🎭 Hide names'}</button>`;
+const hidName = x => S.curtain ? 'Hidden' : x.name;
 function answersCard() {
   const L = S.live, A = latest(S.ans), spot = L.spot || [];
   const isSpot = a => spot.some(x => x.id === a.id);
@@ -287,12 +291,12 @@ function answersCard() {
   const by = { first: (a, b) => (place[a.sid] || 1e9) - (place[b.sid] || 1e9), new: (a, b) => (b.at || 0) - (a.at || 0), name: (a, b) => a.name.localeCompare(b.name) };
   A.sort(by[S.sort] || by.first);
   return `<section class="card stack">
-    <div class="row between"><h3>Answers <span class="muted small">(only you can see these)</span></h3>
+    <div class="row between"><h3>Answers <span class="muted small">(only you can see these)</span></h3>${curtainBtn()}
       <label class="row muted small" style="gap:6px">Sort <select id="sort" style="width:auto">${[['first', 'First to answer'], ['new', 'Newest'], ['name', 'Name']].map(([v, l]) => `<option value="${v}" ${S.sort === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
     ${A.length ? `<div class="grid">${A.map(a => { const sp = isSpot(a);
-      return `<article class="ans ${sp ? 'spot' : ''}"><header><span style="font-size:22px">${esc(a.avatar || '🙂')}</span><div style="min-width:0;flex:1"><b>${esc(a.name)}</b><span class="t">${ago(a.at)}</span></div>${placeTag(a)}${a.flag ? '<span class="chip flag">Check</span>' : ''}${sp ? '<span class="chip gold">★</span>' : ''}</header>
+      return `<article class="ans ${sp ? 'spot' : ''}"><header><span style="font-size:22px">${esc(S.curtain ? '🎭' : a.avatar || '🙂')}</span><div style="min-width:0;flex:1"><b>${esc(S.curtain ? 'Student ' + (place[a.sid] || '') : a.name)}</b><span class="t">${ago(a.at)}</span></div>${placeTag(a)}${a.flag ? '<span class="chip flag">Check</span>' : ''}${sp ? '<span class="chip gold">★</span>' : ''}</header>
       <p class="txt">${esc(a.text)}</p>
-      <footer>${sp ? '' : `<button class="btn sm" type="button" data-act="spot" data-id="${esc(a.id)}">★ Spotlight</button><button class="btn sm" type="button" data-act="spot" data-id="${esc(a.id)}" data-anon="1">★ No name</button>${spot.length === 1 ? `<button class="btn sm" type="button" data-act="spot" data-id="${esc(a.id)}" data-add="1">+ Compare</button>` : ''}`}
+      <footer>${sp ? '' : `${S.curtain ? '' : `<button class="btn sm" type="button" data-act="spot" data-id="${esc(a.id)}">★ Spotlight</button>`}<button class="btn sm" type="button" data-act="spot" data-id="${esc(a.id)}" data-anon="1">${S.curtain ? '★ Spotlight' : '★ No name'}</button>${spot.length === 1 ? `<button class="btn sm" type="button" data-act="spot" data-id="${esc(a.id)}" data-add="1">+ Compare</button>` : ''}`}
         ${S.confirm === 'del:' + a.sid ? `<button class="btn sm warn" type="button" data-act="del" data-sid="${esc(a.sid)}">Delete?</button>` : `<button class="btn sm" type="button" data-act="confirm" data-v="del:${esc(a.sid)}" aria-label="Delete answer">🗑</button>`}</footer></article>`; }).join('')}</div>` : '<p class="muted empty">No answers yet.</p>'}
   </section>`;
 }
@@ -301,17 +305,17 @@ function pulseCard() {
   const got = new Set(S.ans.map(a => a.sid)), un = S.live && S.live.q ? P.filter(x => !got.has(x.sid)) : [];
   return `<section class="card stack"><h3>Class pulse</h3>
     <div><div class="row between"><span class="label">"I'm lost"</span><b class="mono">${lost.length} of ${P.length}</b></div><div class="meter rose" style="margin-top:6px"><i style="width:${P.length ? 100 * lost.length / P.length : 0}%"></i></div>
-      ${lost.length ? `<div class="namechips" style="margin-top:8px">${lost.map(x => `<button type="button" class="chip no" data-act="unlost" data-id="${esc(x.id)}" title="Clear ${esc(x.name)}'s I'm lost">${esc(x.name)} ✕</button>`).join('')}
+      ${lost.length ? `<div class="namechips" style="margin-top:8px">${lost.map(x => `<button type="button" class="chip no" data-act="unlost" data-id="${esc(x.id)}" title="Clear ${esc(hidName(x))}'s I'm lost">${esc(hidName(x))} ✕</button>`).join('')}
         <button type="button" class="btn sm" data-act="unlost" data-id="*">Clear all</button></div><p class="dim small" style="margin:6px 0 0">Students can tap "I'm lost" once; it stays on until you clear it.</p>` : ''}</div>
     <div><div class="row between"><span class="label">Confidence</span><b class="mono">${P.length ? avg.toFixed(1) : '–'} / 5</b></div><div class="meter vio" style="margin-top:6px"><i style="width:${avg * 20}%"></i></div></div>
-    ${S.live && S.live.q ? `<div><span class="label">Not answered yet</span><div class="namechips" style="margin-top:6px">${un.length ? un.map(x => `<span class="chip">${esc(x.name)}</span>`).join('') : P.length ? '<span class="chip ok">Everyone is in</span>' : '<span class="muted small">Nobody has joined yet.</span>'}</div></div>` : ''}
+    ${S.live && S.live.q ? `<div><span class="label">Not answered yet</span><div class="namechips" style="margin-top:6px">${un.length ? un.map(x => `<span class="chip">${esc(hidName(x))}</span>`).join('') : P.length ? '<span class="chip ok">Everyone is in</span>' : '<span class="muted small">Nobody has joined yet.</span>'}</div></div>` : ''}
     <p class="dim small" style="margin:0">Students who opened Live Class in the last 3 hours.</p></section>`;
 }
 function inboxCard() {
   const L = S.priv.slice().sort((a, b) => (!!a.done - !!b.done) || (b.at || 0) - (a.at || 0)).slice(0, 30);
   const open = L.filter(x => !x.done).length;
   return `<section class="card stack"><h3>Private questions ${open ? `<span class="chip no">${open} new</span>` : ''}</h3>
-    ${L.length ? L.map(x => `<div class="ans" style="${x.done ? 'opacity:.55' : ''}"><header><b style="flex:1">${esc(x.name)}</b><span class="t">${ago(x.at)}</span></header><p class="txt" style="font-size:15px">${esc(x.text)}</p>
+    ${L.length ? L.map(x => `<div class="ans" style="${x.done ? 'opacity:.55' : ''}"><header><b style="flex:1">${esc(hidName(x))}</b><span class="t">${ago(x.at)}</span></header><p class="txt" style="font-size:15px">${esc(x.text)}</p>
       <footer>${x.done ? '<span class="chip ok">Done</span>' : `<button class="btn sm" type="button" data-act="done" data-id="${esc(x.id)}">✓ Done</button>`}<button class="btn sm" type="button" data-act="pdel" data-id="${esc(x.id)}" aria-label="Delete">🗑</button></footer></div>`).join('') : '<p class="muted empty small">Questions students send privately show up here.</p>'}</section>`;
 }
 function composerCard() {
@@ -433,9 +437,12 @@ app.addEventListener('click', async e => {
   if (act === 'lock') { if (L.game && L.open) return gameLock(L); return upd(L.open ? { open: false, ends_at: null } : { open: true, ends_at: null }); }
   if (act === 'timer') return upd({ open: true, ends_at: at(Date.now() + Number(t.dataset.v) * 1000) });
   if (act === 'spotClear') return upd({ spot: [] });
+  if (act === 'curtain') { S.curtain = !S.curtain; try { localStorage.setItem('mtg_live_curtain_v1', S.curtain ? '1' : '0'); } catch (e) {}
+    if (S.curtain && L && (L.spot || []).some(x => x.n)) upd({ spot: L.spot.map(x => ({ id: x.id, n: '', t: x.t })) });   // names come off the projector too
+    draw(); return; }
   if (act === 'spot') {
     const a = S.ans.find(x => x.id === t.dataset.id); if (!a) return;
-    const item = t.dataset.anon ? { id: a.id, n: '', t: a.text } : { id: a.id, n: a.name, a: a.avatar || '', t: a.text };
+    const item = t.dataset.anon || S.curtain ? { id: a.id, n: '', t: a.text } : { id: a.id, n: a.name, a: a.avatar || '', t: a.text };
     return upd({ spot: t.dataset.add ? [...(L.spot || []).slice(0, 1), { ...item, n: (L.spot[0] && !L.spot[0].n) ? '' : item.n }] : [item] });
   }
   if (act === 'del') return delAnswers(t.dataset.sid);
