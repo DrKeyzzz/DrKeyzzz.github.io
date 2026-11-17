@@ -1354,7 +1354,7 @@ boot();
     mouth:[['smile','Smile'],['grin','Big grin'],['o','Ooh'],['smirk','Smirk'],['tongue','Silly']],
     hair:[['short','Short'],['buzz','Buzz'],['curly','Curly'],['afro','Afro'],['long','Long'],['braids','Braids'],['bun','Bun'],['spiky','Spiky'],['swoop','Swoop'],['bald','None']],
     cover:[['none','None'],['hijab','Hijab'],['wrap','Head wrap']],
-    glasses:[['none','None'],['round','Round'],['square','Square'],['shades','Shades']],
+    glasses:[['none','None'],['round','Round'],['square','Square'],['shades','Aviator shades']],
     beard:[['none','None'],['stubble','Stubble'],['mustache','Mustache'],['goatee','Goatee'],['short','Short beard'],['full','Full beard']],   // David 2026-11-16; same color as the hair
   };
 
@@ -1503,7 +1503,10 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       none: '',
       round: `<g fill="none" stroke="${line}" stroke-width="1.3"><circle cx="42" cy="41" r="5.4"/><circle cx="58" cy="41" r="5.4"/><path d="M47.4 41 H52.6"/></g>`,
       square: `<g fill="none" stroke="${line}" stroke-width="1.3"><rect x="36" y="36.5" width="11.5" height="9" rx="2"/><rect x="52.5" y="36.5" width="11.5" height="9" rx="2"/><path d="M47.5 40 H52.5"/></g>`,
-      shades: `<g fill="#111827" stroke="#111827" stroke-width="1"><rect x="35.5" y="37" width="12.5" height="8" rx="3.5"/><rect x="52" y="37" width="12.5" height="8" rx="3.5"/><path d="M48 39.5 H52"/></g><path d="M38 39 l3 0" stroke="#fff" opacity=".5" stroke-width="1"/>`,
+      shades: `<defs><linearGradient id="${u}mir" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1e3a8a"/><stop offset=".45" stop-color="#7c3aed"/><stop offset=".75" stop-color="#f97316"/><stop offset="1" stop-color="#fde68a"/></linearGradient></defs>`   // mirrored aviators (David 2026-11-16)
+        + `<g fill="url(#${u}mir)" stroke="#d4af37" stroke-width=".9" stroke-linejoin="round"><path d="M35.5 37.5 Q42 36 48.2 37.6 Q48.6 44.5 44 46.4 Q38.5 47.5 36 43.5 Q35 40.5 35.5 37.5Z"/><path d="M64.5 37.5 Q58 36 51.8 37.6 Q51.4 44.5 56 46.4 Q61.5 47.5 64 43.5 Q65 40.5 64.5 37.5Z"/></g>`
+        + `<path d="M48.2 38.2 Q50 36.9 51.8 38.2 M46.5 36.7 H53.5 M35.5 38 L31 38.6 M64.5 38 L69 38.6" fill="none" stroke="#d4af37" stroke-width=".9" stroke-linecap="round"/>`
+        + `<path d="M37.6 40.2 L42.4 38.4 M38.4 42.6 L40.6 41.8 M53.8 40.2 L58.6 38.4 M54.6 42.6 L56.8 41.8" stroke="#fff" stroke-width="1" stroke-linecap="round" opacity=".75"/>`,
     };
     let glasses = G[L.glasses];
     const HT = {
