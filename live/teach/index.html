@@ -362,15 +362,15 @@ const saveAsked = l => { try { localStorage.setItem(AK(), JSON.stringify(l.slice
 function askedCard() {
   const l = asked();
   return `<section class="card stack"><div class="row between"><h2 style="margin:0">📝 Questions asked <span class="chip">${l.length}</span></h2>
-    ${l.length ? `<div class="row"><button class="btn sm pri" data-act="sheet" data-v="1" title="Questions, then an answer key on its own page">📄 PDF with answers</button><button class="btn sm" data-act="sheet" title="Questions only, no answers">📄 Questions only</button>${S.confirm === 'asked' ? '<button class="btn sm" data-act="askedClear" style="background:#c0392b;color:#fff">Yes, clear</button>' : '<button class="btn sm" data-act="askedAsk">Clear</button>'}</div>` : ''}</div>
+    ${l.length ? `<div class="row"><button class="btn sm pri" data-act="sheet" data-v="1" title="Each question with its answer right under it">📄 PDF with answers</button><button class="btn sm" data-act="sheet" title="Questions only, no answers">📄 Questions only</button>${S.confirm === 'asked' ? '<button class="btn sm" data-act="askedClear" style="background:#c0392b;color:#fff">Yes, clear</button>' : '<button class="btn sm" data-act="askedAsk">Clear</button>'}</div>` : ''}</div>
     ${l.length ? `<ol class="stack" style="margin:0;padding-left:22px;max-height:300px;overflow:auto;gap:6px">${l.map((x, i) => `<li><div class="row between" style="align-items:flex-start;flex-wrap:nowrap"><span>${esc(x.q)}${x.correct ? ` <span class="muted small">→ ${esc(x.correct)}</span>` : ''}</span><button class="btn sm" data-act="askedDel" data-v="${i}" title="Leave this one off the study sheet" aria-label="Remove">✕</button></div></li>`).join('')}</ol>`
       : '<p class="muted small" style="margin:0">Every question you post shows up here. At the end, make a PDF study sheet (with or without answers) to post on Google Classroom.</p>'}</section>`;
 }
 function studySheet(withKey) {
   const l = asked(); if (!l.length) return;
   const cls = (S.classes.find(c => c.code === S.code) || {}).name || S.code, day = new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
-  const qs = l.map((x, i) => `<li><p class="q">${esc(x.q)}</p>${ksStaff(x.ks, '', x.clef)}${x.type === 'mc' && x.opts ? `<ol type="A" class="opts">${x.opts.map(o => `<li>${esc(o)}</li>`).join('')}</ol>`
-    : x.type === 'yn' ? '<p class="opts">Yes &nbsp;/&nbsp; No</p>' : '<p class="line"></p>'}</li>`).join('');
+  const qs = l.map((x, i) => `<li><p class="q">${esc(x.q)}</p>${ksStaff(x.ks, '', x.clef)}${x.type === 'mc' && x.opts ? `<ol type="A" class="opts">${x.opts.map(o => `<li class="${withKey && o === x.correct ? 'r' : ''}">${esc(o)}${withKey && o === x.correct ? ' ✓' : ''}</li>`).join('')}</ol>`
+    : x.type === 'yn' ? '<p class="opts">Yes &nbsp;/&nbsp; No</p>' : '<p class="line"></p>'}${withKey ? `<p class="ans">Answer: ${x.correct ? `<b>${esc(x.correct)}</b>` : '<i>open answer</i>'}</p>` : ''}</li>`).join('');
   const key = l.map((x, i) => { const k = x.type === 'mc' && x.opts ? x.opts.indexOf(x.correct) : -1;
     return `<li>${x.correct ? (k >= 0 ? `<b>${'ABCDEF'[k]}</b> · ` : '') + esc(x.correct) : '<span class="muted">(open answer)</span>'}</li>`; }).join('');
   const w = window.open('', '_blank'); if (!w) { toast('Allow pop-ups for this page, then try again.'); return; }
@@ -380,11 +380,11 @@ function studySheet(withKey) {
     button{font:inherit;font-weight:700;border:0;border-radius:10px;padding:10px 16px;background:#2b5bd7;color:#fff;cursor:pointer}
     ol.qs>li{margin:0 0 18px;break-inside:avoid}.q{font-weight:700;margin:0 0 6px}.opts{margin:4px 0}.line{border-bottom:1px solid #aab;height:26px;margin:0;width:70%}
     .ksbox{width:230px;margin:4px 0 6px}.ksbox svg{display:block;width:100%;height:auto}.muted{color:#5b6784}
-    .key{break-before:page;border-top:2px solid #141d2c;padding-top:12px}.key li{margin:2px 0}.foot{color:#5b6784;font-size:13px;margin-top:24px}
+    .opts .r{font-weight:700;color:#1f7a45}.ans{margin:6px 0 0;padding:4px 10px;background:#eef7f1;border-left:4px solid #2e9e5b;border-radius:4px}.foot{color:#5b6784;font-size:13px;margin-top:24px}
     @media print{.bar{display:none}body{margin:0 auto}}</style></head><body>
     <div class="bar"><button onclick="print()">📄 Save as PDF</button></div>
     <h1>Study sheet</h1><p class="sub">${esc(cls)} · Live Class · ${esc(day)} · ${l.length} question${l.length === 1 ? '' : 's'}</p>
-    <ol class="qs">${qs}</ol>${withKey ? `<section class="key"><h2>Answers</h2><ol>${key}</ol></section>` : ''}
+    <ol class="qs">${qs}</ol>
     <p class="foot">Music Theory Academy · musictheoryacademy.org</p>
     <script>setTimeout(function(){print()},400)<\/script></body></html>`);
   w.document.close();
