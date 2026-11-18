@@ -147,13 +147,13 @@
 <meta name="description" content="Answer your teacher's questions live in class. Only your teacher sees your answers.">
 <link href="/fonts/fonts.css" rel="stylesheet">
 <!-- fonts.css has Noto Music for the treble clef on key signature questions -->
-<link rel="stylesheet" href="live.css?v=20261118e">
+<link rel="stylesheet" href="live.css?v=20261118f">
 <!-- Live Class, student page and ?screen=1 projector (added 2026-11-12). Shared code: live-core.js; teacher console: teach/. -->
 </head>
 <body>
 <div id="app"></div>
 <p class="toast" id="toast" role="status"></p>
-<script src="live-core.js?v=20261118e"></script>
+<script src="live-core.js?v=20261118f"></script>
 <script>
 (() => {
 const { PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, NOW, db, results, latest, left, clock, ERR } = LC;
@@ -218,6 +218,10 @@ if (SCREEN) {
   const draw = () => {
     const L = P.live;
     if (!code) { app.innerHTML = '<main class="proj"><h1>Open the projector from the Live tab of your dashboard.</h1></main>'; return; }
+    if (LC.isLobby(L)) { const who = L.show.who || [];
+      app.innerHTML = `<main class="proj sd-fit"><span class="label">🏁 Showdown${L.show.n ? ' · ' + L.show.n + ' questions' : ''}</span><h1>Join at <span class="joincode">musictheoryacademy.org/live</span> · class code <b class="joincode mono">${esc(code)}</b></h1>
+        <div class="row" style="align-items:baseline;gap:14px"><span class="sd-cd" style="font-size:72px">${who.length}</span><span style="font-size:28px">player${who.length === 1 ? '' : 's'} in · waiting for your teacher to press Begin</span></div>
+        <div class="sd-lobby">${who.map(w => `<span class="sd-who">${w.n ? `<span class="av" data-avs="${esc(w.s)}"></span>${esc(w.n)}` : '🎭'}</span>`).join('')}</div></main>`; sdHeads(); return; }
     if (!L || !L.q) { app.innerHTML = `<main class="proj"><span class="label">Live Class</span><h1>Join at <span class="joincode">musictheoryacademy.org/live</span></h1><p class="muted" style="font-size:24px">Sign in on the home page with class code <b class="joincode">${esc(code)}</b>. Waiting for the first question…</p></main>`; return; }
     if (L.game && L.type === 'mc') { app.innerHTML = sdProj(L); sdHeads(); return; }
     const A = latest(P.ans), s = left(L);
@@ -244,11 +248,12 @@ if (SCREEN) {
   function sdProj(L) {
     const first = {}; P.ans.slice().sort((a, b) => (a.at || 0) - (b.at || 0)).forEach(a => { if (!first[a.sid]) first[a.sid] = a; });
     const F = Object.values(first), rev = L.reveal != null && !L.open, s = left(L), board = L.board || [];
+    const cd = LC.cdNum(L); if (cd > 0) return `<main class="proj sd-fit" style="align-items:center;justify-content:center;text-align:center"><span class="label" style="font-size:22px">${L.show.n ? `Question ${L.show.i} of ${L.show.n}` : 'Showdown'}</span><span class="sd-cd" style="font-size:200px;line-height:1">${cd}</span><h1>Get ready…</h1></main>`;
     if (L.final) {
       const top = board.slice(0, 3), order = [1, 0, 2].filter(i => top[i]);
       return `<main class="proj"><section class="sd-curtain"><h1 style="margin:0;position:relative;z-index:1">🎭 Curtain call</h1>
         <div class="sd-stage">${order.map(i => `<div class="sd-star ${i === 0 ? 'first' : ''}">${top[i].h ? '<div class="sd-mask" aria-label="Hidden player">🎭</div>' : `<div class="av" data-idle="bounce" data-cc="${esc(top[i].s)}"></div>`}<span class="sd-place">${['1st', '2nd', '3rd'][i]}</span><span>${esc(top[i].n)}</span><span class="mono">${top[i].p.toLocaleString()}</span></div>`).join('')}</div>
-        <p class="muted" style="position:relative;z-index:1;margin:0">Everyone earns ★ for the Locker. Check your phone!</p></section></main>`;
+        <p class="muted" style="position:relative;z-index:1;margin:0">Great game, everyone! Thanks for playing.</p></section></main>`;
     }
     const keys = (L.opts || []).map((o, i) => { const n = F.filter(a => a.text === o).length;
       return `<div class="sd-key ${rev ? (i === L.reveal ? 'win' : 'dim') : ''}" style="cursor:default"><span class="sd-l">${'ABCDEF'[i]}</span><span class="sd-n">${NOTES[i]}</span>${esc(o)}${rev && i === L.reveal ? `<span class="mono" style="font-size:16px">✓ ${n} got it</span>` : ''}</div>`; }).join('');
@@ -278,6 +283,7 @@ if (SCREEN) {
   // sound questions (2026-11-17): this screen plays them for the class; a heartbeat tells the teacher's console it's open
   const autoPlay = d => { if (LC.isSound(d) && d.open && P.played !== d.round && LC.unlocked()) { P.played = d.round; setTimeout(() => LC.play(d.gen.m, d.gen.p), 800); } };
   setInterval(() => { try { localStorage.setItem('mtg_live_proj_v1:' + code, String(Date.now())); } catch {} }, 2000);
+  setInterval(() => { const n = LC.cdNum(P.live); if (n !== draw.cd) { draw.cd = n; draw(); } }, 200);   // the 3-2-1 (2026-11-18)
   window.addEventListener('storage', e => { if (e.key === 'mtg_live_play_v1:' + code && LC.isSound(P.live)) LC.play(P.live.gen.m, P.live.gen.p); });
   app.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return;
     if (b.dataset.unlock) { LC.audio(); setTimeout(() => { draw(); if (LC.isSound(P.live)) { P.played = P.live.round; LC.play(P.live.gen.m, P.live.gen.p); } }, 150); }
@@ -358,6 +364,8 @@ const starLine = r => !r ? '' : r.paid ? `<p style="margin:0;color:#ffd166;font-
 function questionCard() {
   const L = S.live;
   if (!S.loaded) return '<section class="card"><p class="muted empty">Connecting…</p></section>';
+  if (LC.isLobby(L)) { const who = L.show.who || [], me = who.some(w => w.s === sid);
+    return `<section class="card stack"><div class="sd-res good" style="background:rgba(255,255,255,.05);border-color:#ffc85c"><span class="sd-big">🏁</span><h2 style="margin:0">${me ? "You're in!" : 'Joining…'}</h2><p class="muted" style="margin:0">The Showdown starts when your teacher presses Begin. ${L.show.n ? L.show.n + ' questions. ' : ''}Fast and right scores the most.</p><span class="chip gold">${who.length} player${who.length === 1 ? '' : 's'} in</span></div><p class="dim small" style="margin:0">On a computer you can answer with the keys 1-4 or A-D.</p></section>`; }
   if (!L || !L.q) return `<section class="card stack"><span class="label">${esc(p.className || code)}</span><h2>Waiting for your teacher's question…</h2><p class="muted empty">Keep this page open. The question appears here by itself.</p></section>`;
   if (L.game && L.type === 'mc') return sdCard(L);
   const mine = mineFor(L.round), s = left(L), closed = !L.open || s === 0;
@@ -397,7 +405,8 @@ function sdScore(L) {   // my own points for this round (the class board uses th
 }
 function sdCard(L) {
   const mine = mineFor(L.round), s = left(L), board = L.board || [], place = board.findIndex(b => b.s === sid);
-  const head = `<div class="row between"><span class="label">🏁 Showdown</span><span class="chip gold">${SD.pts.toLocaleString()} points</span></div>`;
+  const head = `<div class="row between"><span class="label">🏁 Showdown${L.show && L.show.n ? ` · question ${L.show.i} of ${L.show.n}` : ''}</span><span class="chip gold">${SD.pts.toLocaleString()} points</span></div>`;
+  const cd = LC.cdNum(L); if (cd > 0) return `<section class="card stack">${head}<div class="sd-res good" style="background:rgba(255,255,255,.05);border-color:#ffc85c"><span class="label">Get ready</span><span class="sd-cd">${cd}</span></div></section>`;
   if (L.final) {
 
     return `<section class="card stack">${head}<div class="sd-res good"><span class="sd-big">🎭</span><h2 style="margin:0">${place >= 0 && place < 3 ? 'You made the Curtain call!' : 'Showdown over!'}</h2><span class="sd-pts">${SD.pts.toLocaleString()} points</span><p class="muted" style="margin:0">Stars come from Brutal questions and fast answers on Challenge or Brutal. Spend them in your Locker.</p></div></section>`;
@@ -593,10 +602,11 @@ db.watchDoc('bc_live/' + code, d => {
   if (d && d.q) { const m = mineFor(d.round); shSee(d, m ? m.text : null); }
   if (d && d.q && S.seen && (!before || before.round !== d.round)) { try { navigator.vibrate && navigator.vibrate(60); } catch {} }
   if (d && d.round && !seenAt[d.round]) seenAt[d.round] = Date.now();
-  if (d && d.game && d.round && !SD.seen[d.round]) { SD.seen[d.round] = Date.now(); saveSD(); }
+  if (d && d.game && d.round && !SD.seen[d.round]) { SD.seen[d.round] = Math.max(Date.now(), d.show && d.show.at || 0); saveSD(); }
   if (d && d.game && d.board && !d.board.length && !d.final && Object.keys(SD.done).length && !(before && before.board && !before.board.length)) { SD.pts = 0; SD.st = 0; SD.done = {}; saveSD(); }   // the teacher started a new Showdown
   wasOpen = d && d.open; S.seen = true; draw();   // buzz the phone only for a NEW question, not on page load
 }, e => { S.loaded = true; S.err = ERR(e); draw(); });
+setInterval(() => { const n = LC.cdNum(S.live); if (n !== draw.cd) { draw.cd = n; draw(); } }, 200);   // the 3-2-1 (2026-11-18)
 setInterval(() => { const L = S.live; if (!L || !L.ends_at) return; const s = left(L); tbarTick(L); if (s === 0 && L.open && draw.locked !== L.round) { draw.locked = L.round; draw(); } }, 500);
 draw();
 })();

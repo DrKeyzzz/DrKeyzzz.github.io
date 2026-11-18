@@ -544,8 +544,12 @@ window.LC = (() => {
     return Object.values(by).sort((a, b) => (b.at || 0) - (a.at || 0));
   }
   const left = live => live && live.open && live.ends_at ? Math.max(0, Math.ceil((live.ends_at - Date.now()) / 1000)) : null;
+  // Showdown game-show mode (2026-11-18): bc_live.show = { st: lobby | play | done, n: questions in the game, i: this one, at: when answers open
+  // (ms, the teacher's clock; the 3-2-1 runs until then), who: the waiting room [{ n: name, s: sid }] }. cdNum = the 3-2-1 number now (0 = go).
+  const cdNum = L => L && L.show && L.show.at && L.open ? Math.max(0, Math.ceil((L.show.at - Date.now()) / 1000)) : 0;
+  const isLobby = L => !!(L && L.show && L.show.st === 'lobby');
   const clock = s => s == null ? '' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const ERR = e => { const c = String(e && (e.code || e.message) || e); return /permission/i.test(c) ? 'Live Class is not switched on yet (the new database rules are not in place).' : /offline|unavailable|timeout/i.test(c) ? 'No connection. Check the wifi and try again.' : 'Something went wrong: ' + c; };
 
-  return { KQ, play, audio, unlocked, isSound, staffFor, noteStaff, OPT_DEF, DIFFS, QGAMES, qgame, makeQ, keyNotes, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, BANK, NOW, at, newKey, roundId, flagged, db, fbAuth, results, latest, left, clock, ERR };
+  return { cdNum, isLobby, KQ, play, audio, unlocked, isSound, staffFor, noteStaff, OPT_DEF, DIFFS, QGAMES, qgame, makeQ, keyNotes, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, BANK, NOW, at, newKey, roundId, flagged, db, fbAuth, results, latest, left, clock, ERR };
 })();
