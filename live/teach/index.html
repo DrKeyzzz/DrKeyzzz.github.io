@@ -495,17 +495,22 @@ function answersCard() {
   const isSpot = a => spot.some(x => x.id === a.id);
   // Who answered first (2026-11-17, David): each student's FIRST answer time this round (an edit later doesn't move them back)
   const firstAt = {}; S.ans.forEach(a => { const t = a.at || Infinity; if (!(a.sid in firstAt) || t < firstAt[a.sid]) firstAt[a.sid] = t; });
-  const order = Object.keys(firstAt).sort((x, y) => firstAt[x] - firstAt[y]), place = Object.fromEntries(order.map((sid, i) => [sid, i + 1])), t0 = firstAt[order[0]];
+  const seqOrder = Object.keys(firstAt).sort((x, y) => firstAt[x] - firstAt[y]), seq = Object.fromEntries(seqOrder.map((sid, i) => [sid, i + 1]));
+  // 2026-11-18 (David): when the question has a right answer, the medals go to the fastest RIGHT answers (Showdown: the first answer must be right;
+  // otherwise the time a student first picked the right answer, if it is still their answer). Wrong answers get no place.
+  const c = correct(), rightAt = {};
+  if (c) S.ans.slice().sort((x, y) => (x.at || 0) - (y.at || 0)).forEach(a => { if (a.sid in rightAt) return; if (L.game ? firstAt[a.sid] === (a.at || Infinity) && a.text === c : a.text === c && (A.find(z => z.sid === a.sid) || {}).text === c) rightAt[a.sid] = a.at || Infinity; });
+  const at0 = c ? rightAt : firstAt, order = Object.keys(at0).sort((x, y) => at0[x] - at0[y]), place = Object.fromEntries(order.map((sid, i) => [sid, i + 1])), t0 = at0[order[0]];
   const ord = n => n + (n % 100 >= 11 && n % 100 <= 13 ? 'th' : ['th', 'st', 'nd', 'rd'][n % 10] || 'th');
-  const placeTag = a => { const n = place[a.sid]; if (!n) return ''; const gap = n > 1 && isFinite(firstAt[a.sid]) && isFinite(t0) ? ` · +${Math.max(0, Math.round((firstAt[a.sid] - t0) / 100) / 10)} s` : '';
-    return `<span class="chip ${n === 1 ? 'ok' : ''}" title="Order of first answers">${n === 1 ? '🥇 ' : n === 2 ? '🥈 ' : n === 3 ? '🥉 ' : ''}${ord(n)}${gap}</span>`; };
-  const by = { first: (a, b) => (place[a.sid] || 1e9) - (place[b.sid] || 1e9), new: (a, b) => (b.at || 0) - (a.at || 0), name: (a, b) => a.name.localeCompare(b.name) };
+  const placeTag = a => { const n = place[a.sid]; if (!n) return c && firstAt[a.sid] ? '<span class="chip no" title="Not right, so no place">✗</span>' : ''; const gap = n > 1 && isFinite(at0[a.sid]) && isFinite(t0) ? ` · +${Math.max(0, Math.round((at0[a.sid] - t0) / 100) / 10)} s` : '';
+    return `<span class="chip ${n === 1 ? 'ok' : ''}" title="${c ? 'Order of the right answers' : 'Order of first answers'}">${n === 1 ? '🥇 ' : n === 2 ? '🥈 ' : n === 3 ? '🥉 ' : ''}${ord(n)}${gap}</span>`; };
+  const by = { first: (a, b) => (place[a.sid] || 1e6 + (seq[a.sid] || 0)) - (place[b.sid] || 1e6 + (seq[b.sid] || 0)), new: (a, b) => (b.at || 0) - (a.at || 0), name: (a, b) => a.name.localeCompare(b.name) };
   A.sort(by[S.sort] || by.first);
   return `<section class="card stack">
     <div class="row between"><h3>Answers <span class="muted small">(only you can see these)</span></h3>${curtainBtn()}
-      <label class="row muted small" style="gap:6px">Sort <select id="sort" style="width:auto">${[['first', 'First to answer'], ['new', 'Newest'], ['name', 'Name']].map(([v, l]) => `<option value="${v}" ${S.sort === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
+      <label class="row muted small" style="gap:6px">Sort <select id="sort" style="width:auto">${[['first', c ? 'First right answer' : 'First to answer'], ['new', 'Newest'], ['name', 'Name']].map(([v, l]) => `<option value="${v}" ${S.sort === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label></div>
     ${A.length ? `<div class="grid">${A.map(a => { const sp = isSpot(a);
-      return `<article class="ans ${sp ? 'spot' : ''}"><header><span style="font-size:22px">${esc(S.curtain ? '🎭' : a.avatar || '🙂')}</span><div style="min-width:0;flex:1"><b>${esc(S.curtain ? 'Student ' + (place[a.sid] || '') : a.name)}</b><span class="t">${ago(a.at)}</span></div>${placeTag(a)}${a.flag ? '<span class="chip flag">Check</span>' : ''}${sp ? '<span class="chip gold">★</span>' : ''}</header>
+      return `<article class="ans ${sp ? 'spot' : ''}"><header><span style="font-size:22px">${esc(S.curtain ? '🎭' : a.avatar || '🙂')}</span><div style="min-width:0;flex:1"><b>${esc(S.curtain ? 'Student ' + (seq[a.sid] || '') : a.name)}</b><span class="t">${ago(a.at)}</span></div>${placeTag(a)}${a.flag ? '<span class="chip flag">Check</span>' : ''}${sp ? '<span class="chip gold">★</span>' : ''}</header>
       <p class="txt">${esc(a.text)}</p>
       <footer>${sp ? '' : `${S.curtain ? '' : `<button class="btn sm" type="button" data-act="spot" data-id="${esc(a.id)}">★ Spotlight</button>`}<button class="btn sm" type="button" data-act="spot" data-id="${esc(a.id)}" data-anon="1">${S.curtain ? '★ Spotlight' : '★ No name'}</button>${spot.length === 1 ? `<button class="btn sm" type="button" data-act="spot" data-id="${esc(a.id)}" data-add="1">+ Compare</button>` : ''}`}
         ${S.confirm === 'del:' + a.sid ? `<button class="btn sm warn" type="button" data-act="del" data-sid="${esc(a.sid)}">Delete?</button>` : `<button class="btn sm" type="button" data-act="confirm" data-v="del:${esc(a.sid)}" aria-label="Delete answer">🗑</button>`}</footer></article>`; }).join('')}</div>` : '<p class="muted empty">No answers yet.</p>'}
