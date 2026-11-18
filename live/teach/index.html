@@ -216,7 +216,7 @@ const S = { email: '', classes: [], code: '', live: null, ans: [], pulses: [], p
 // ---------- Game questions (2026-11-17, David 'go'): game + Warm-up / Challenge / Brutal + Go; then Lock, Skip, Next ----------
 // The last pick is remembered per class on this computer (localStorage mtg_live_pick_v1:<code>).
 const PK = () => 'mtg_live_pick_v1:' + S.code;
-const gpick = () => { let o = null; try { o = JSON.parse(localStorage.getItem(PK()) || 'null'); } catch {} return { g: o && qgame(o.g) ? o.g : QGAMES[0].id, d: o && DIFFS[o.d] ? o.d : 'challenge', o: { ...OPT_DEF, ...(o && o.o || {}) }, k: o && o.k || null }; };
+const gpick = () => { let o = null; try { o = JSON.parse(localStorage.getItem(PK()) || 'null'); } catch {} return { g: o && qgame(o.g) ? o.g : QGAMES[0].id, d: o && DIFFS[o.d] ? o.d : 'challenge', o: { ...OPT_DEF, ...(o && o.o || {}) }, k: o && o.k || null, t: o && o.t != null ? o.t : null }; };
 // Key signatures tile (2026-11-18): its own picks (p.k = { keys, mode, clef }) instead of a difficulty; they only apply to that tile.
 const KDEF = { keys: [], mode: 'major', clef: 'treble', qt: {} };   // qt = question types per tile ({ scale: [...], keysig: [...] }; none = the tile's mix)
 const kpick = p => ({ ...KDEF, ...(p.k || {}) });
@@ -236,7 +236,10 @@ const GQ_TIMER = 30;   // seconds for a game question unless Customize changes i
 // Customize (step 3): a drawer under Go. The choices change a draft (S.cust); the sample question redraws on every tap; Use these saves it.
 const custLabel = (G, o) => { const parts = Object.entries(G.opts).filter(([k]) => Array.isArray(o[k]) ? o[k].length : o[k] && o[k] !== OPT_DEF[k])
     .map(([k, l]) => Array.isArray(o[k]) ? (o[k].length === 1 ? (l.find(x => String(x[0]) === String(o[k][0])) || [, ''])[1] + ' only' : o[k].length + ' ' + (k === 'ivs' ? 'intervals' : 'chords')) : (l.find(x => String(x[0]) === String(o[k])) || [, ''])[1]);
-  if (o.timer !== OPT_DEF.timer) parts.push(o.timer ? o.timer + ' s' : 'No timer'); return parts.join(' · '); };
+  return parts.join(' · '); };
+// the timer for game questions sits on the Start card (David 2026-11-18: not hidden in Customize); p.t, the same for every game
+const gtimer = p => p.t != null ? +p.t : p.o.timer != null ? +p.o.timer : GQ_TIMER;
+const timerSeg = p => `<span class="row" style="gap:6px;margin-left:auto"><span class="label">⏱ Timer</span><span class="seg">${[[15, '15 s'], [20, '20 s'], [30, '30 s'], [0, 'Off']].map(([v, l]) => `<button type="button" data-act="gtime" data-v="${v}" aria-pressed="${gtimer(p) === v}" title="${v ? 'Answers lock after ' + v + ' seconds' : G().on ? 'Showdown still uses ' + GT + ' seconds' : 'No timer: you lock it'}">${l}</button>`).join('')}</span></span>`;
 function custDrawer() {
   const p = gpick(), G = qgame(p.g), o = S.cust.o, multi = G.multi || [], seg = (k, list) => { const m = multi.includes(k), cur = Array.isArray(o[k]) ? o[k].map(String) : [];
     return `<div class="crow"><span class="label">${{ type: 'Question type', play: 'Play as', clef: 'Clef', acc: 'Keys', mode: 'Major or minor', ivs: 'Intervals', chords: 'Chords', inv: 'Inversions', root: 'Starting note', range: 'Range', timer: 'Timer' }[k]}${m ? ' <span class="dim" style="text-transform:none;letter-spacing:0;font-weight:500">(tap any number; none = the difficulty decides; one = always that one)</span>' : ''}</span><span class="chipset">${list.map(([v, l]) => `<button type="button" data-act="cset" data-k="${k}" data-v="${v}"${m ? ' data-multi="1"' : ''} aria-pressed="${m ? cur.includes(String(v)) : String(o[k]) === String(v)}">${l}</button>`).join('')}${m && cur.length ? `<button type="button" data-act="cclear" data-k="${k}">✕ Clear</button>` : ''}</span></div>`; };
@@ -245,7 +248,7 @@ function custDrawer() {
   return `<div class="cust stack">
     <div class="sample"><span class="label">Sample${G.pick ? '' : ' · ' + esc(DIFFS[p.d])}</span><b>${esc(q.q)}</b>${LC.staffFor(q, 'teach')}<div class="row">${q.opts.map(x => `<span class="chip ${x === q.correct ? 'ok' : ''}">${x === q.correct ? '✓ ' : ''}${esc(x)}</span>`).join('')}</div>
       <button class="btn sm" type="button" data-act="csample" style="align-self:flex-start">↻ Another sample</button></div>
-    ${Object.entries(G.opts).map(([k, l]) => seg(k, l)).join('')}${seg('timer', [[15, '15 s'], [20, '20 s'], [30, '30 s'], [0, 'Off']])}
+    ${Object.entries(G.opts).map(([k, l]) => seg(k, l)).join('')}
     <div class="row"><button class="btn pri" type="button" data-act="cuse">Use these</button><button class="btn" type="button" data-act="creset">Back to normal</button><button class="btn" type="button" data-act="cclose">Cancel</button></div></div>`;
 }
 function startCard() {
@@ -255,7 +258,7 @@ function startCard() {
     <div class="gtiles" role="group" aria-label="Game">${QGAMES.map(g => `<button type="button" class="gtile" data-act="ggame" data-v="${g.id}" aria-pressed="${g.id === p.g}"><b>${esc(g.name)}</b><small>${esc(g.what)}</small></button>`).join('')}</div>
     ${G.pick ? kPanel(p) : `<div class="diffs" role="group" aria-label="Difficulty">${Object.entries(DIFFS).map(([k, v]) => `<button type="button" class="diff d-${k}" data-act="gdiff" data-v="${k}" aria-pressed="${p.d === k}">${v}<small>${k === 'warmup' ? 'Get everyone in' : k === 'challenge' ? 'Solid practice' : 'Really hard'}</small></button>`).join('')}</div>`}
     <button class="btn pri go" type="button" data-act="go">Go ▶</button>
-    ${S.cust ? custDrawer() : `<div class="row between"><button class="btn" type="button" data-act="copen">⚙ Customize</button>${custLabel(G, p.o) ? `<span class="chip">${esc(custLabel(G, p.o))}</span>` : ''}${G.pick ? '<span class="dim small" style="margin-left:auto">Go asks one now. Next keeps asking your keys.</span>' : ''}</div>`}
+    ${S.cust ? custDrawer() : `<div class="row between"><button class="btn" type="button" data-act="copen">⚙ Customize</button>${custLabel(G, p.o) ? `<span class="chip">${esc(custLabel(G, p.o))}</span>` : ''}${timerSeg(p)}</div>`}
     ${G.pick ? '' : `<p class="dim small" style="margin:0">Go asks one now. Next keeps asking new ${esc(G.name)} questions.</p>`}</section>`;
 }   // the 🎼 Key signature maker (2026-11-17)
 const TK = () => 'mtg_live_teach_v1:' + S.code;    // the correct answer stays on this computer (the projector reads it)
@@ -591,7 +594,7 @@ async function goGame(skip) {
   LC.audio();   // the Go / Next click unlocks sound on this page
   const p = gpick(), q = makeQ(p.g, p.d, gopts(p)), L = S.live;
   if (skip && L && L.round) { const l = asked(); if (l.length && l[l.length - 1].round === L.round) { l.pop(); saveAsked(l); } }
-  S.comp = { ...q, timer: G().on ? 0 : (p.o.timer != null ? +p.o.timer : GQ_TIMER) };
+  S.comp = { ...q, timer: gtimer(p) };   // Showdown with the timer Off still gets GT seconds (post)
   await post({ skip: !!skip });
   if (LC.isSound(S.live) && !projOpen()) setTimeout(() => playLive(S.live, true), 600);
 }
@@ -644,6 +647,7 @@ app.addEventListener('click', async e => {
   if (act === 'kkey') { const p = gpick(), k = kpick(p), n = Number(t.dataset.v), a = k.keys.map(Number), i = a.indexOf(n); if (i >= 0) a.splice(i, 1); else a.push(n); p.k = { ...k, keys: a }; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
   if (act === 'kqt') { const p = gpick(), k = kpick(p), own = ((k.qt || {})[p.g] || []).length, a = own ? kTypes(p).slice() : [], i = a.indexOf(t.dataset.v); if (!own) a.push(t.dataset.v); else if (i >= 0) { if (a.length > 1) a.splice(i, 1); } else a.push(t.dataset.v); /* first tap = only that type; then tap to add or remove */ p.k = { ...k, qt: { ...(k.qt || {}), [p.g]: a } }; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
   if (act === 'kclear') { const p = gpick(); p.k = { ...kpick(p), keys: [] }; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
+  if (act === 'gtime') { const p = gpick(); p.t = Number(t.dataset.v); savePick(p); draw(); return; }
   if (act === 'gdiff') { const p = gpick(); p.d = t.dataset.v; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
   if (act === 'go') { S.cust = null; return goGame(false); }
   if (act === 'lead') { if (S.lead) return stopLead(); return startLead(); }
