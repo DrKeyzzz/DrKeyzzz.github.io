@@ -2090,7 +2090,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     if (!ITEMS.some(function(it){ return it.slot === 'top' && it.id === L.top; })) L.top = DEF.top;
     return L;
   }
-  look = wearOwned(look);
+  // (the first wearOwned check runs further down, once the rank, mastery and collection lists exist: fixed 2026-11-18, the Orchestra Tux kept coming off)
 
   // ---------- ranks (build step 4a): one ladder for the avatar, the home page and My Report ----------
   // XP = what the home page / My Report last worked out (localStorage mtg_xp_v1:<sid> = { xp, extra }) + 'extra' that games add as
@@ -2461,6 +2461,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   var key = function(it){ return it.slot + ':' + it.id; };
   var RANK_ITEMS = { 'gear:baton': 8, 'bg:wreath': 9 };   // rank index that unlocks them
   var owns = function(it){ var k = key(it); return !!it.free || (it.enc && (W.encores || 0) >= it.enc) || W.owned.indexOf(k) >= 0 || (RANK_ITEMS[k] != null && rankNow() >= RANK_ITEMS[k]) || masteredGear(k) || (P && earnedIt(it)); };
+  look = wearOwned(look);   // moved here 2026-11-18: before this, SETS / RANKS / MASTK were not set yet, so earned items came off on every page load (and the Baton crashed it)
   var TABS = [['shop', 'Shop', '🛒'], ['look', 'Look', '🙂'], ['outfit', 'Skins', '🦸'], ['clothes', 'Clothes', '👕'], ['hat', 'Hats', '🎩'], ['gear', 'Gear', '🎺'], ['moves', 'Moves', '🕺'], ['bg', 'Backdrops', '🌌'], ['pet', 'Pets', '🐾'], ['rank', 'Rank', '🏆']];
   // THE LOCKER (2026-11-16). Rarity follows the price (no randomness): Common < 60 coins, Rare 60-149, Epic 150+ coins or any ★ item, Legendary 100+ ★ / earned items.
   function rarity(it){ if (it.free) return 'common'; if (it.lock || it.enc || (it.p && it.p >= 100)) return 'legendary'; if (it.p || (it.c && it.c >= 150)) return 'epic'; return it.c >= 60 ? 'rare' : 'common'; }
