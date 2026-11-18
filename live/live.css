@@ -104,10 +104,28 @@ input[type=range] { width: 100%; accent-color: var(--gold); }
 .optgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
 /* projector */
+.projector-viewport { position: fixed; inset: 0; overflow: clip; }
+.projector-viewport > .proj {
+  position: absolute; top: 0; left: 50%; width: min(100%, 1500px); margin: 0;
+  transform: translateX(-50%) scale(var(--projector-scale, 1)); transform-origin: top center;
+  overflow-wrap: anywhere;
+}
+.projector-viewport > .proj .ksbox svg { max-height: min(26vh, 240px); }
+.projector-viewport .proj .sd-key { min-width: 0; }
 .proj { max-width: 1500px; margin: 0 auto; padding: 24px 24px 40px; display: flex; flex-direction: column; gap: 22px; min-height: 100vh; }
 .proj h1 { font-size: clamp(30px, 4.4vw, 58px); }
-.projmain { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 22px; flex: 1; }
-@media (max-width: 900px) { .projmain { grid-template-columns: 1fr; } }
+.proj-question-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 22px; align-items: start; }
+@media (min-width: 901px) { .proj-question-body { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); } }
+.projmain { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.projmain .big { line-height: 1; }
+.proj-question-body:has(.typed) { grid-template-columns: minmax(0, 1fr); }
+.projmain .typed { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; max-height: none; overflow: visible; }
+.projmain .typed-a { min-width: 0; font-size: 18px; line-height: 1.25; padding: 6px 9px; border-radius: 8px; }
+@media (min-width: 901px) { .projmain .typed { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.proj-question-body .chip, .proj-question-body .btn { white-space: normal; }
+.proj-numeric .bars { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.proj .proj-numeric .bar { grid-template-columns: auto minmax(0, 1fr) auto; font-size: 18px; }
+.proj .proj-numeric .bar .tr { height: 20px; }
 .proj .card { padding: 26px; }
 .proj .bar { grid-template-columns: minmax(0, 280px) minmax(0, 1fr) 56px; font-size: 22px; }
 .proj .bar .tr { height: 40px; }
@@ -180,7 +198,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); }
 .pqlist .q { margin: 0 0 4px; } .pqlist .rep { margin: 0; color: var(--mint); }
 
 /* Showdown after the reveal: one screen, no scrolling (2026-11-17) */
-.proj.sd-fit { height: 100vh; min-height: 0; overflow: hidden; gap: 14px; padding-bottom: 20px; }
+.proj.sd-fit { gap: 14px; padding-bottom: 20px; }
 .proj.sd-fit h1 { font-size: clamp(26px, 3.4vw, 46px); margin: 0; }
 .sd-split { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 18px; align-items: start; }
 .sd-split .sd-keys { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -188,7 +206,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); }
 .sd-split .ksbox { width: min(100%, 360px); }
 .sd-split > .card { padding: 18px; }
 .sd-split .sd-row { padding: 6px 12px; }
-@media (max-width: 800px) { .sd-split { grid-template-columns: 1fr; } .proj.sd-fit { height: auto; overflow: visible; } }
+@media (max-width: 800px) { .sd-split { grid-template-columns: 1fr; } }
 
 /* the A B C D letter sits above the answer, never on top of it (2026-11-17) */
 .sd-key { padding-top: 34px; }

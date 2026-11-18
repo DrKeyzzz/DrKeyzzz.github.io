@@ -147,7 +147,7 @@
 <meta name="description" content="Answer your teacher's questions live in class. Only your teacher sees your answers.">
 <link href="/fonts/fonts.css" rel="stylesheet">
 <!-- fonts.css has Noto Music for the treble clef on key signature questions -->
-<link rel="stylesheet" href="live.css?v=20261118f">
+<link rel="stylesheet" href="live.css?v=20261118g">
 <!-- Live Class, student page and ?screen=1 projector (added 2026-11-12). Shared code: live-core.js; teacher console: teach/. -->
 </head>
 <body>
@@ -210,6 +210,7 @@ const toast = t => { $('toast').textContent = t; clearTimeout(toastT); toastT = 
 // Projector (?screen=1&code=XXXX): the question, results (when this browser is the class's teacher), spotlight, join code
 // =====================================================================================
 if (SCREEN) {
+  app.classList.add('projector-viewport');
   const p = getProfile();
   const code = String(Q.get('code') || (p && p.classCode) || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
   const P = { live: null, ans: [], reacts: [], teacher: PREVIEW ? 'sample@preview' : '', offA: null, offR: null, round: '' };
@@ -231,15 +232,15 @@ if (SCREEN) {
     // While answers are open the class screen hides the bars, so nobody just goes with the crowd (David, 2026-11-17);
     // they appear the moment the teacher locks the answers. The teacher's own screen always shows them.
     const hideRes = L.open && !(L.ends_at && s === 0);   // revealed when the timer runs out or the teacher locks (Lock & reveal)
-    const res = P.teacher && hideRes ? `<div class="stack" style="justify-content:center;align-items:center;text-align:center;min-height:220px"><span style="font-size:64px">🙈</span><p style="font-size:28px;margin:0">${s != null ? 'Results appear when time runs out' : 'Results appear when your teacher reveals them'}</p><p class="muted" style="font-size:20px;margin:0">Answer on your own: no peeking at the crowd!</p></div>`
+    const res = P.teacher && hideRes ? `<div class="stack" style="justify-content:center;align-items:center;text-align:center"><span style="font-size:64px">🙈</span><p style="font-size:28px;margin:0">${s != null ? 'Results appear when time runs out' : 'Results appear when your teacher reveals them'}</p><p class="muted" style="font-size:20px;margin:0">Answer on your own: no peeking at the crowd!</p></div>`
       : P.teacher ? results(L, A, { big: true, correct: hideRes ? '' : correctOf() })
       : '<p class="muted">Results show here when this computer is signed in to your teacher dashboard.</p>';
     app.innerHTML = `<main class="proj">
       <div class="row between"><span class="label" style="font-size:16px">${esc(TYPES[L.type] || '')}</span>${s != null ? '' : L.open ? '<span class="chip ok" style="font-size:18px">Answers open</span>' : '<span class="chip no" style="font-size:18px">Locked</span>'}</div>
       ${s != null ? tbar(L, s, true) : ''}
-      <h1>${esc(L.q)}</h1>${LC.staffFor(L, 'proj')}${LC.isSound(L) && !LC.unlocked() ? '<button type="button" class="btn pri" data-unlock="1" style="font-size:22px;padding:14px 22px;align-self:flex-start">🔊 Click once to turn on sound</button>' : ''}
-      ${L.type === 'mc' ? `<div class="row" style="font-size:24px;gap:14px">${(L.opts || []).map((o, i) => `<span class="chip" style="font-size:22px;padding:6px 16px">${'ABCDEF'[i]}. ${esc(o)}</span>`).join('')}</div>` : ''}
-      <div class="projmain"><section class="card">${res}</section>${spot ? `<section class="stack">${spot}</section>` : `<section class="card stack" style="justify-content:center;align-items:center;text-align:center"><span class="big" style="font-size:90px">${P.teacher ? A.length : '–'}</span><span class="muted" style="font-size:24px">answers in</span></section>`}</div>
+      <div class="proj-question-body"><div class="stack"><h1>${esc(L.q)}</h1>${LC.staffFor(L, 'proj')}${LC.isSound(L) && !LC.unlocked() ? '<button type="button" class="btn pri" data-unlock="1" style="font-size:22px;padding:14px 22px;align-self:flex-start">🔊 Click once to turn on sound</button>' : ''}
+      ${L.type === 'mc' ? `<div class="row" style="font-size:24px;gap:14px">${(L.opts || []).map((o, i) => `<span class="chip" style="font-size:22px;padding:6px 16px">${'ABCDEF'[i]}. ${esc(o)}</span>`).join('')}</div>` : ''}</div>
+      <div class="projmain"><section class="card${L.type === 'num' ? ' proj-numeric' : ''}">${res}</section>${spot ? `<section class="stack">${spot}</section>` : `<section class="card stack" style="justify-content:center;align-items:center;text-align:center"><span class="big" style="font-size:90px">${P.teacher ? A.length : '–'}</span><span class="muted" style="font-size:24px">answers in</span></section>`}</div></div>
       <footer class="card row between" style="font-size:22px"><span>Join: <b>musictheoryacademy.org/live</b> · class code <b class="joincode mono">${esc(code)}</b></span><span class="muted">Only your teacher sees your answers.</span></footer></main>`;
   };
   // Showdown on the class screen: piano-key answers, a ring timer, the gold glow at the reveal, the top 5, the Curtain call
@@ -270,7 +271,22 @@ if (SCREEN) {
   // each star loops their own dance move (the one they picked for 'End of a run'), restarted every 3.4 s (David, 2026-11-17)
   // (also draws any star missed when the avatar code loaded after the Curtain call appeared)
   setInterval(() => ccDraw() || app.querySelectorAll('[data-dance]').forEach(el => { delete el.dataset.act; void el.offsetWidth; el.dataset.act = el.dataset.dance; }), 3400);
-  new MutationObserver(ccDraw).observe(app, { childList: true });
+  // Measure the full scene, including revealed results and wrapped answers, before fitting it on screen.
+  const fitProjector = () => {
+    const scene = app.firstElementChild;
+    if (!scene) return;
+    const scale = Math.min(1, app.clientWidth / scene.scrollWidth, app.clientHeight / scene.scrollHeight);
+    scene.style.setProperty('--projector-scale', scale);
+  };
+  const projectorSize = new ResizeObserver(fitProjector);
+  projectorSize.observe(app);
+  new MutationObserver(() => {
+    projectorSize.disconnect();
+    projectorSize.observe(app);
+    if (app.firstElementChild) projectorSize.observe(app.firstElementChild);
+    fitProjector();
+    ccDraw();
+  }).observe(app, { childList: true });
   const watchRound = () => {
     const r = P.live && P.live.round || '';
     if (r === P.round) return; P.round = r;
