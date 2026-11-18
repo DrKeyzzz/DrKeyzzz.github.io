@@ -1813,13 +1813,22 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     };
     // beard (David 2026-11-16): drawn under the mouth; the mustache goes over it. Color = hair color.
     const stache = `<path d="M43.5 49.6 Q46.5 46.4 50 48.4 Q53.5 46.4 56.5 49.6 Q53.2 50.8 50 49.7 Q46.8 50.8 43.5 49.6Z" fill="${bc}"/>`;
+    // The beard follows this face's own chin (2026-11-18, David: it sat below the face like a band on the neck).
+    // chin(y0, g): the face outline from the left side at height y0, round the chin, to the right side; g grows it a little (full beard).
+    const chin = (y0, g) => {
+      if (L.face === 'soft') { const a = 31 - g, b = 69 + g, bot = 60 + g, r = 13 + g; return { l: a, r: b, bot, d: `M${a} ${y0} V${bot - r} Q${a} ${bot} ${a + r} ${bot} H${b - r} Q${b} ${bot} ${b} ${bot - r} V${y0}` }; }
+      const rx = (L.face === 'oval' ? 18 : 20.5) + g, ry = (L.face === 'oval' ? 22 : 20.5) + g, dy = y0 - 40, dx = rx * Math.sqrt(Math.max(0, 1 - dy * dy / (ry * ry)));
+      return { l: 50 - dx, r: 50 + dx, bot: 40 + ry, d: `M${(50 - dx).toFixed(2)} ${y0} A${rx} ${ry} 0 0 0 ${(50 + dx).toFixed(2)} ${y0}` };
+    };
+    const bshape = (y0, g, top) => { const c = chin(y0, g); return `${c.d} Q${(c.r - 5).toFixed(2)} ${top + 1} 57 ${top - 1.5} Q50 ${top + 1.5} 43 ${top - 1.5} Q${(c.l + 5).toFixed(2)} ${top + 1} ${c.l.toFixed(2)} ${y0}Z`; };
+    const cb = chin(44, 0).bot;
     const BD = {
       none: ['', ''],
-      stubble: [`<path d="M31 44 Q32 60.5 50 61.5 Q68 60.5 69 44 Q66 55.5 50 57 Q34 55.5 31 44Z" fill="${bc}" opacity=".32"/><path d="M44 49.6 Q50 47.4 56 49.6" stroke="${bc}" stroke-width="1.6" opacity=".32" fill="none"/>`, ''],
+      stubble: [`<path d="${bshape(44, 0, 55.5)}" fill="${bc}" opacity=".32"/><path d="M44 49.6 Q50 47.4 56 49.6" stroke="${bc}" stroke-width="1.6" opacity=".32" fill="none"/>`, ''],
       mustache: ['', stache],
-      goatee: [`<path d="M45 55.8 Q50 64 55 55.8 Q50 57.8 45 55.8Z" fill="${bc}"/>`, stache],
-      short: [`<path d="M30.8 44 Q31 61.5 50 62.5 Q69 61.5 69.2 44 Q66.5 56 57 56 Q50 58.4 43 56 Q33.5 56 30.8 44Z" fill="${bc}"/>`, stache],
-      full: [`<path d="M30 41.5 Q28.5 67.5 50 68.5 Q71.5 67.5 70 41.5 Q67.5 55 58 55.4 Q50 57.6 42 55.4 Q32.5 55 30 41.5Z" fill="${bc}"/>`, stache],
+      goatee: [`<path d="M45 55.6 Q50 ${cb + .3} 55 55.6 Q50 57.6 45 55.6Z" fill="${bc}"/>`, stache],
+      short: [`<path d="${bshape(45, .5, 56)}" fill="${bc}"/>`, stache],
+      full: [`<path d="${bshape(41, 1.8, 55)}" fill="${bc}"/>`, stache],
     };
     const beard = BD[L.beard] || BD.none;
     const blush = `<circle cx="37" cy="48" r="2.6" fill="#ff7a8a" opacity=".28"/><circle cx="63" cy="48" r="2.6" fill="#ff7a8a" opacity=".28"/>`;
