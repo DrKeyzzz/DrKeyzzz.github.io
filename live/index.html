@@ -1063,6 +1063,44 @@ draw();
   .mav-tabs.mav-back .mav-btn{min-height:34px;padding:4px 10px;font-size:13px}
   .mav-ib i{width:38px;height:38px;font-size:17px}
 }
+
+/* ---- THE STAR VAULT (2026-11-18, David 'go with your picks') ---- */
+.av .mav-rain{transform-box:fill-box;transform-origin:center;animation:mav-rain 3.6s ease-in-out infinite}@keyframes mav-rain{50%{opacity:.6;transform:scale(1.07)}}
+.av .mav-sf{animation:mav-sf 4s linear infinite}@keyframes mav-sf{0%{transform:translateY(-6px);opacity:0}12%{opacity:1}100%{transform:translateY(118px);opacity:0}}
+.av .mav-orb{animation:mav-orb 3.6s linear infinite}
+@keyframes mav-orb{0%{transform:translate(31px,0) scale(.9)}12.5%{transform:translate(22px,5px) scale(1.05)}25%{transform:translate(0,7px) scale(1.15)}37.5%{transform:translate(-22px,5px) scale(1.05)}50%{transform:translate(-31px,0) scale(.9);opacity:1}62.5%{transform:translate(-22px,-5px) scale(.75);opacity:.55}75%{transform:translate(0,-7px) scale(.65);opacity:.45}87.5%{transform:translate(22px,-5px) scale(.75);opacity:.55}100%{transform:translate(31px,0) scale(.9)}}
+.av .mav-wing{transform-box:fill-box;transform-origin:100% 100%;animation:mav-wing .45s ease-in-out infinite alternate}@keyframes mav-wing{to{transform:rotate(-22deg) scaleY(.82)}}
+.av .mav-puff{animation:mav-puff 2.4s ease-out infinite;opacity:0}.av .mav-puff2{animation-delay:1.2s}@keyframes mav-puff{0%{opacity:0;transform:translate(0,0)}20%{opacity:1}100%{opacity:0;transform:translate(6px,-12px)}}
+.mav-burst{position:fixed;z-index:2147483000;pointer-events:none;font:900 16px system-ui,sans-serif;color:#ffd23f;text-shadow:0 0 8px #ffdf70;animation:mav-burst .8s cubic-bezier(.2,.8,.3,1) forwards}
+@keyframes mav-burst{from{transform:translate(-50%,-50%) scale(.3);opacity:1}to{transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y))) scale(1.1) rotate(180deg);opacity:0}}
+.mav-goldname{color:#ffc83d!important;text-shadow:0 0 8px rgba(255,200,61,.55)}.mav-goldname::after{content:' ★';color:#ffc83d;animation:mav-gtw 1.4s ease-in-out infinite}@keyframes mav-gtw{50%{opacity:.35}}
+/* the Vault spot on the Locker */
+.mav-lk-vault{width:100%;margin-top:9px;display:flex;align-items:center;justify-content:center;gap:14px;min-height:74px;border:0;border-radius:12px;cursor:pointer;font:inherit;color:#2a1a00;position:relative;overflow:hidden;
+  background:radial-gradient(circle at 50% 50%,#ffe9a3 0,#f2b632 40%,#b97800 100%);box-shadow:inset 0 0 0 4px #8a5a00,inset 0 0 0 6px #ffd770,0 0 22px rgba(255,200,61,.6);animation:mav-leak 2.2s ease-in-out infinite}
+@keyframes mav-leak{50%{box-shadow:inset 0 0 0 4px #8a5a00,inset 0 0 0 6px #ffd770,0 0 38px rgba(255,215,112,.9)}}
+.mav-lk-vault b{font-size:20px;letter-spacing:3px;text-shadow:0 2px 0 #ffe9a3}.mav-lk-vault small{display:block;font-weight:800;font-size:12px;letter-spacing:0}
+.mav-whl{width:46px;height:46px;border-radius:50%;flex:none;background:radial-gradient(circle,#fff6d0 0 16%,#c98f00 17% 24%,#ffd96b 25% 58%,#a06c00 59% 66%,#ffe39a 67%);box-shadow:0 3px 8px rgba(0,0,0,.35);position:relative;transition:transform .6s}
+.mav-lk-vault:hover .mav-whl{transform:rotate(120deg)}
+/* the Vault room */
+.mav-dlg.mav-vaultmode{background:radial-gradient(90% 70% at 60% 0%,#4a3405 0,#17110a 55%,#07060a 100%)}
+.mav-dlg.mav-vaultmode .mav-sect{color:#ffc83d;letter-spacing:2px;text-shadow:0 0 14px rgba(255,200,61,.55)}
+.mav-vweek{display:flex;align-items:center;gap:12px;margin:2px 0 12px;padding:10px 14px;border-radius:14px;background:linear-gradient(90deg,rgba(255,200,61,.2),rgba(255,200,61,.04));border:1px solid #7a5a12;color:#d9cfae;font-size:13px}
+.mav-vweek b{color:#ffc83d;font-size:15px}
+.mav-vsec{margin:14px 0 8px;font-size:12px;font-weight:900;letter-spacing:2px;color:#d9b45a;text-transform:uppercase}
+.mav-card.vault{background:linear-gradient(160deg,#5a3d00,#1c1404 60%,#3d2a03);box-shadow:inset 0 0 0 2px #c99a2e,0 8px 20px rgba(0,0,0,.5)}
+.mav-card.vault .mav-cbg{background:radial-gradient(circle at 50% 38%,rgba(255,215,90,.4),transparent 60%)}
+.mav-card.vault .mav-cbg::after{background:linear-gradient(115deg,transparent 20%,rgba(255,80,160,.35) 35%,rgba(80,220,255,.35) 45%,rgba(255,240,120,.4) 55%,transparent 70%);background-size:250% 250%;mix-blend-mode:color-dodge;animation:mav-holo 3.5s linear infinite}
+@keyframes mav-holo{from{background-position:120% 0}to{background-position:-120% 0}}
+.mav-card.vault.legend{box-shadow:inset 0 0 0 2px #ff8a3d,0 0 22px rgba(255,120,40,.55)}
+.mav-card.vault .mav-pr{background:linear-gradient(#ffe08a,#ffb820);color:#2a1a00;box-shadow:0 0 10px rgba(255,200,61,.6)}
+.mav-card.vault .mav-pr.no small{color:#7a4a00}
+.mav-rib{position:absolute;bottom:47px;left:0;right:0;z-index:2;text-align:center;font-size:8.5px;font-weight:900;letter-spacing:1.5px;color:#ffe08a}
+.mav-vbar{display:block;height:5px;border-radius:999px;background:rgba(255,255,255,.15);overflow:hidden;margin-top:4px}.mav-vbar i{display:block;height:100%;background:linear-gradient(90deg,#ffe08a,#ffb820)}
+.mav-card.vault.gone{filter:saturate(.35) brightness(.7)}
+.mav-rev.vault{background:radial-gradient(circle at 50% 45%,rgba(255,215,90,.25),rgba(10,7,2,.95) 60%)}
+.mav-rev.vault::before{content:'';position:absolute;inset:-30%;background:repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,215,90,.22) 0 6deg,transparent 6deg 18deg);animation:mav-rays 8s linear infinite}
+@keyframes mav-rays{to{transform:rotate(360deg)}}
+.mav-rev.vault h3{color:#ffd23f;text-shadow:0 0 20px rgba(255,200,61,.8),0 4px 0 rgba(0,0,0,.4)}
 </style>
 <script id="mtg-avatar" data-mount="nav.top" data-perch="">
 /* Avatar, build step 1 (added 2026-11-16; spec: Claude outputs/avatar-spec.md). A small cartoon avatar sits right after the
@@ -1147,6 +1185,13 @@ draw();
     {id:'none',slot:'bg',name:'Plain',ic:'⬜',free:1},{id:'staff',slot:'bg',name:'Staff lines',ic:'🎼',c:40},{id:'stage',slot:'bg',name:'Stage lights',ic:'💡',c:70},
     {id:'sunset',slot:'bg',name:'Sunset',ic:'🌅',c:90},{id:'galaxy',slot:'bg',name:'Galaxy',ic:'🌌',p:90},{id:'wreath',slot:'bg',name:'Golden Wreath',ic:'🏅',lock:'Reach rank 10: Superior Music Theory Master'},
     // pets
+    // THE STAR VAULT (2026-11-18, David 'go with your picks'): everything with a ★ price lives in the Vault; these move, glow and show off
+    {id:'none',slot:'aura',name:'No aura',ic:'🚫',free:1},{id:'none',slot:'fx',name:'No burst',ic:'🚫',free:1},{id:'none',slot:'glow',name:'Plain name',ic:'🚫',free:1},
+    {id:'fall',slot:'aura',name:'Starfall',ic:'✨',p:40,d:'Little gold stars drift down around you'},{id:'orbit',slot:'aura',name:'Note Orbit',ic:'🎵',p:60,d:'Music notes circle your head'},
+    {id:'burst',slot:'fx',name:'Star Burst',ic:'💥',p:60,d:'Gold stars pop out on every right answer, in every game'},{id:'gold',slot:'glow',name:'Gold Name',ic:'🏅',p:80,d:'Your name glows gold with a ★ on class boards'},
+    {id:'holo',slot:'top',name:'Holo Jacket',ic:'🧥',p:100,d:'Shimmers like a hologram'},{id:'rain',slot:'aura',name:'Rainbow Aura',ic:'🌈',p:120,d:'A rainbow glow pulses behind you'},
+    {id:'galaxy',slot:'top',name:'Galaxy Hoodie',ic:'🌌',p:150,d:'Moving stars inside it'},{id:'dragon',slot:'pet',name:'Baby Dragon',ic:'🐉',p:200,d:'Flaps and puffs music notes'},
+    {id:'phoenix',slot:'pet',name:'Phoenix',ic:'🔥',p:300,d:'Legendary: a fire bird that leaves sparks'},
     {id:'none',slot:'pet',name:'No pet',ic:'🚫',free:1},{id:'note',slot:'pet',name:'Note Buddy',ic:'🎵',c:60},{id:'cat',slot:'pet',name:'Cat',ic:'🐱',c:120},
     {id:'owl',slot:'pet',name:'Owl',ic:'🦉',p:30},{id:'robo',slot:'pet',name:'Robo Pal',ic:'🤖',p:250},
     // skins: full costumes over your look
@@ -1319,6 +1364,16 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     if (L.top === 'tux') { topFill = sleeve = fore = '#16161d'; extra = `<path d="M44 57 L50 72 L56 57Z" fill="#fff"/><path d="M42.5 57 L50 74 L47 80 L39 64Z M57.5 57 L50 74 L53 80 L61 64Z" fill="#2a2a36"/><path d="M46.4 59 L50 60.8 L53.6 59 L53.6 62.6 L50 60.8 L46.4 62.6Z" fill="#b3202a"/>` + [66, 70].map(y => `<circle cx="50" cy="${y}" r=".8" fill="#111"/>`).join('') + `<path d="M58 66 l2 -1.4 1.4 1.6Z" fill="#fff"/>`; }
     if (L.top === 'encjacket') { topFill = sleeve = fore = '#5b2fb8'; extra = `<path d="M44 57 L50 70 L56 57Z" fill="#f5c542"/>` + [[39, 66], [60, 70], [42, 80], [58, 84], [47, 88]].map(([x, y]) => star(x, y, 1.8, '#ffe38a')).join('') + `<path d="M34 90 H66" stroke="#f5c542" stroke-width="1.6"/>`; }
   if (L.top === 'detective') { topFill = sleeve = fore = '#b08a5a'; torsoD = 'M33 64 Q33 57.5 42 57 L58 57 Q67 57.5 67 64 L69 104 L31 104Z'; extra = `<path d="M43 57 L50 70 L57 57 L54 57 L50 64 L46 57Z" fill="#8a6a40"/><rect x="33" y="80" width="34" height="3.6" fill="#5a4026"/>`; }
+    if (L.top === 'holo') {   // Star Vault (2026-11-18): the colors slide across like a hologram
+      topFill = sleeve = fore = `url(#${u}holo)`;
+      defs += `<linearGradient id="${u}holo" gradientUnits="userSpaceOnUse" x1="20" y1="55" x2="80" y2="95" spreadMethod="reflect"><stop offset="0" stop-color="#ff9ad5"/><stop offset=".25" stop-color="#9ad8ff"/><stop offset=".5" stop-color="#c6a8ff"/><stop offset=".75" stop-color="#a8ffd9"/><stop offset="1" stop-color="#fff3a8"/><animateTransform attributeName="gradientTransform" type="translate" values="-30 -10;30 10;-30 -10" dur="5s" repeatCount="indefinite"/></linearGradient>`;
+      extra = `<path d="M45 57 L50 72 L55 57Z" fill="#fff" opacity=".9"/><path d="M43 57 L50 74 L47.5 77 L40 63Z M57 57 L50 74 L52.5 77 L60 63Z" fill="#fff" opacity=".45"/><path d="M50 74 V92" stroke="#fff" stroke-width=".8" opacity=".7"/><path class="mav-tw" d="M59 70 l.8 2 2 .8 -2 .8 -.8 2 -.8 -2 -2 -.8 2 -.8Z" fill="#fff"/><path class="mav-tw mav-tw2" d="M39 82 l.6 1.5 1.5 .6 -1.5 .6 -.6 1.5 -.6 -1.5 -1.5 -.6 1.5 -.6Z" fill="#fff"/>`; }
+    if (L.top === 'galaxy') {   // Star Vault (2026-11-18): a night-sky hoodie with twinkling stars
+      topFill = sleeve = fore = '#1a1650';
+      extra = `<defs><clipPath id="${u}gx"><path d="${torsoD}"/></clipPath></defs><g clip-path="url(#${u}gx)"><circle cx="57" cy="76" r="9" fill="#7c5cff" opacity=".22"/><circle cx="42" cy="68" r="6" fill="#ff6fb5" opacity=".14"/>`
+        + [[38, 66, .7], [44, 72, .5], [61, 64, .6], [57, 84, .5], [48, 88, .7], [63, 78, .4], [40, 78, .45]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="#fff"/>`).join('')
+        + `<path class="mav-tw" d="M53 68 l.8 2 2 .8 -2 .8 -.8 2 -.8 -2 -2 -.8 2 -.8Z" fill="#fff"/><path class="mav-tw mav-tw2" d="M43 80 l.7 1.7 1.7 .7 -1.7 .7 -.7 1.7 -.7 -1.7 -1.7 -.7 1.7 -.7Z" fill="#ffe38a"/></g>`
+        + `<path d="M38 58 Q50 50 62 58 Q50 64 38 58Z" fill="#2a2470"/><path d="M47 60 V68 M53 60 V68" stroke="#ffe38a" stroke-width="1" stroke-linecap="round"/>`; }
     // full skins (costumes) replace the clothes
       if (OUT) { extra = ''; torsoD = 'M34 64 Q34 57.5 42 57 L58 57 Q66 57.5 66 64 L66 92 L34 92Z'; if (!['rockstar', 'hero'].includes(OUT)) hat = ''; }
     if (OUT === 'astronaut') { topFill = sleeve = fore = '#eef1f6'; pc = '#e2e7ef'; shoe = '#cfd6e3'; stripe = '#ff8c42';
@@ -1375,6 +1430,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       note: `<g><ellipse cx="83" cy="110" rx="6.6" ry="4.8" transform="rotate(-22 83 110)" fill="#4f7cff"/><rect x="88.1" y="88" width="1.9" height="21" rx=".9" fill="#4f7cff"/><path d="M89.9 88 C91 92.5 97.6 94 97 100.8 C96.8 102.4 96.1 103.6 95.4 104.2 C96.3 99.6 93.6 96.6 89.9 95.6Z" fill="#4f7cff"/><circle cx="80.6" cy="109.4" r="1.25" fill="#fff"/><circle cx="84.6" cy="108.2" r="1.25" fill="#fff"/><circle cx="80.9" cy="109.6" r=".6" fill="#111"/><circle cx="84.9" cy="108.4" r=".6" fill="#111"/><path d="M80.8 112 Q83 113.4 85.2 111.4" fill="none" stroke="#fff" stroke-width=".7" stroke-linecap="round"/><ellipse cx="81" cy="108" rx="1.6" ry=".8" transform="rotate(-22 81 108)" fill="#fff" opacity=".35"/></g>`,   // Note Buddy: a smooth eighth note with a face (redrawn 2026-11-16)
       cat: `<ellipse cx="86" cy="110" rx="8" ry="5.5" fill="#ffb020"/><circle cx="82" cy="102" r="5.5" fill="#ffb020"/><path d="M77.5 99 L78 93 L82 97.5Z M86.5 99 L86 93 L82 97.5Z" fill="#ffb020"/><circle cx="80" cy="102" r=".9" fill="#111"/><circle cx="84" cy="102" r=".9" fill="#111"/><path d="M94 109 Q99 102 96 99" fill="none" stroke="#ffb020" stroke-width="2" stroke-linecap="round"/>`,
       owl: `<ellipse cx="85" cy="105" rx="7.5" ry="9" fill="#8a5a3a"/><circle cx="82" cy="102" r="3" fill="#fff"/><circle cx="88" cy="102" r="3" fill="#fff"/><circle cx="82" cy="102" r="1.4" fill="#111"/><circle cx="88" cy="102" r="1.4" fill="#111"/><path d="M84 105 L85 107 L86 105Z" fill="#ffb020"/>`,
+      dragon: `<g transform="translate(70 84) scale(.29)"><g class="mav-wing"><path d="M46 40 Q30 6 10 14 Q22 22 18 34 Q32 30 46 40Z" fill="#b48cff" stroke="#6a3fd0" stroke-width="2"/></g><ellipse cx="55" cy="50" rx="22" ry="16" fill="#5cd68f" stroke="#2d8a55" stroke-width="2"/><path d="M33 52 Q18 62 22 74 Q28 64 38 60Z" fill="#5cd68f" stroke="#2d8a55" stroke-width="2"/><circle cx="74" cy="36" r="14" fill="#5cd68f" stroke="#2d8a55" stroke-width="2"/><path d="M68 23 L66 13 L73 21 M79 23 L83 13 L82 24" fill="#ffd166" stroke="#c98f00" stroke-width="1.5"/><circle cx="70" cy="33" r="3.2" fill="#fff"/><circle cx="70.6" cy="33.4" r="1.8" fill="#1f2230"/><path d="M78 41 Q83 43 87 40" stroke="#2d8a55" stroke-width="2" fill="none" stroke-linecap="round"/><ellipse cx="57" cy="55" rx="12" ry="7" fill="#c8f5d9"/><path d="M48 63 v8 M62 64 v8" stroke="#2d8a55" stroke-width="4" stroke-linecap="round"/></g><text class="mav-puff" x="97" y="93" font-size="6" fill="#7af0ff">♪</text><text class="mav-puff mav-puff2" x="97" y="93" font-size="5" fill="#b48cff">♫</text>`,   // Star Vault (2026-11-18)
+      phoenix: `<g transform="translate(69 82) scale(.3)"><path d="M34 50 Q8 54 2 76 Q16 62 26 66 Q14 74 14 88 Q26 70 38 62Z" fill="#ff4d2d"/><path d="M34 52 Q16 60 12 74 Q24 62 36 60Z" fill="#ffd166"/><ellipse cx="50" cy="52" rx="19" ry="13" fill="#ff8a3d" stroke="#c2410c" stroke-width="2"/><g class="mav-wing"><path d="M48 46 Q34 10 8 18 Q24 26 20 38 Q34 34 48 46Z" fill="#ffb020" stroke="#c2410c" stroke-width="2"/><path d="M44 42 Q32 22 18 22" stroke="#ff4d2d" stroke-width="2.5" fill="none"/></g><circle cx="68" cy="36" r="11" fill="#ffb020" stroke="#c2410c" stroke-width="2"/><path d="M62 26 Q60 12 66 6 Q66 16 70 18 Q72 8 78 6 Q74 16 74 27Z" fill="#ff4d2d"/><path d="M78 35 L90 39 L78 42Z" fill="#ffd166" stroke="#c98f00" stroke-width="1.2"/><circle cx="70" cy="34" r="2.8" fill="#fff"/><circle cx="70.8" cy="34.2" r="1.6" fill="#1f2230"/><path d="M44 64 v9 M56 64 v9" stroke="#c2410c" stroke-width="3.5" stroke-linecap="round"/></g><circle class="mav-tw" cx="74" cy="88" r=".9" fill="#ffd166"/><circle class="mav-tw mav-tw2" cx="72" cy="104" r=".8" fill="#ff8a3d"/><circle class="mav-tw" cx="95" cy="86" r=".7" fill="#ffd166" style="animation-delay:-.4s"/>`,
       robo: `<rect x="77" y="98" width="16" height="13" rx="3" fill="#9aa6c8"/><rect x="79.5" y="100.5" width="11" height="6" rx="1.5" fill="#0b1020"/><circle cx="82.5" cy="103.5" r="1.1" fill="#3ccf9a"/><circle cx="87.5" cy="103.5" r="1.1" fill="#3ccf9a"/><path d="M85 98 V93" stroke="#9aa6c8" stroke-width="1.4"/><circle cx="85" cy="92.5" r="1.6" fill="#ff4d6d"/><rect x="79" y="111" width="4" height="2" fill="#5b678f"/><rect x="87" y="111" width="4" height="2" fill="#5b678f"/>`,
     };
     // jointed limbs: shoulder > elbow > hand, hip > knee > foot
@@ -1384,11 +1441,18 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     const leg = s => { const l = s === 'l', hx = l ? 45 : 55, kx = l ? 44.5 : 55.5, fx = l ? 43.5 : 56.5;
       return `<g class="leg-${s}"><path d="M${hx} 90 L${kx} 99" stroke="${pc}" stroke-width="8.5" stroke-linecap="round"/><g class="shin-${s}"><path d="M${kx} 99 L${kx} 105" stroke="${pc}" stroke-width="7.8" stroke-linecap="round"/><ellipse cx="${fx}" cy="108" rx="6" ry="3.3" fill="${shoe}"/><path d="M${fx - 5.5} 109 H${fx + 5.5}" stroke="${stripe}" stroke-width="1.1"/></g></g>`; };
     const vb = o.crop ? '18 4 64 64' : '0 0 100 120';
-    return `<svg viewBox="${vb}" role="img" aria-label="${o.label || 'Your avatar'}"><defs>${defs}</defs>${bg}${o.crop || o.bare ? '' : platform(rank)}
+    // Star Vault auras (2026-11-18): Rainbow glows behind, Starfall and Note Orbit play in front
+    let auraB = '', auraF = '';
+    if (L.aura === 'rain' && !o.bare) { defs += `<radialGradient id="${u}rb"><stop offset=".38" stop-color="#ff5f6d" stop-opacity="0"/><stop offset=".5" stop-color="#ff5f6d" stop-opacity=".55"/><stop offset=".6" stop-color="#ffc371" stop-opacity=".55"/><stop offset=".7" stop-color="#fff36b" stop-opacity=".5"/><stop offset=".8" stop-color="#5cf0a0" stop-opacity=".5"/><stop offset=".9" stop-color="#47c2ff" stop-opacity=".45"/><stop offset="1" stop-color="#a45cff" stop-opacity="0"/></radialGradient>`;
+      auraB = `<ellipse class="mav-rain" cx="50" cy="62" rx="44" ry="54" fill="url(#${u}rb)"/>`; }
+    if (L.aura === 'fall') auraF = `<g class="mav-fall">` + [[12, 0, 2.4, 3.4], [27, -1.6, 1.6, 4.2], [41, -2.8, 2, 3.8], [58, -.9, 1.5, 4.6], [73, -2.2, 2.3, 3.6], [88, -3.1, 1.7, 4], [64, -3.6, 1.3, 5], [20, -2.5, 1.3, 4.8]]
+      .map(([x, dl, r, du]) => `<g class="mav-sf" style="animation-delay:${dl}s;animation-duration:${du}s">${star(x, 0, r, '#ffd23f')}</g>`).join('') + `</g>`;
+    if (L.aura === 'orbit') auraF = `<g transform="translate(50 ${o.crop ? 30 : 31})">` + ['♪', '♫', '♩'].map((n, i) => `<g class="mav-orb" style="animation-delay:${-i * 1.2}s"><text x="0" y="3" font-size="9" text-anchor="middle" fill="#fff" stroke="#7c4dff" stroke-width=".6" paint-order="stroke">${n}</text></g>`).join('') + `</g>`;
+    return `<svg viewBox="${vb}" role="img" aria-label="${o.label || 'Your avatar'}"><defs>${defs}</defs>${bg}${auraB}${o.crop || o.bare ? '' : platform(rank)}
   <g class="root">${behind}${back}${leg('l')}${leg('r')}<rect x="40" y="86" width="20" height="7" rx="3" fill="${pc}"/><rect x="45.5" y="54" width="9" height="7" fill="${dk}"/><path d="${torsoD}" fill="${topFill}"/>${extra}
   <g class="head">${ears}${face}${blush}${eyes}${nose}${beard[0]}${M[L.mouth]}${beard[1]}${front}${glasses}${headX}${brows}${hat}</g>
   ${o.bare ? '' : gSide}${arm('l')}${arm('r')}</g>
-  ${o.crop || o.bare ? '' : `<g class="pet">${PT[L.pet]}</g>`}</svg>`;
+  ${o.crop || o.bare ? '' : `<g class="pet">${PT[L.pet] || ''}</g>`}${auraF}</svg>`;
   }
 
   // ---------- who is playing (shared sign-in, same ids as the Practice time box) ----------
@@ -1408,7 +1472,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
 
   // ---------- the look: saved on this device, and online for signed-in students ----------
   var DEF = { skin: 2, face: 'round', eyes: 'big', brows: 'arch', nose: 'dot', mouth: 'smile', hair: 'curly', hairC: 1, cover: 'none', glasses: 'none', beard: 'none',
-    top: 'hoodie', topC: 0, pantC: 0, hat: 'none', gear: 'none', bg: 'none', pet: 'none', outfit: 'none', idle: 'bounce', happy: 'hop', aww: 'shrug', dance: 'groove' };
+    top: 'hoodie', topC: 0, pantC: 0, hat: 'none', gear: 'none', bg: 'none', pet: 'none', outfit: 'none', idle: 'bounce', happy: 'hop', aww: 'shrug', dance: 'groove', aura: 'none', fx: 'none', glow: 'none' };   // aura / fx / glow: Star Vault (2026-11-18)
   var TOPS = [['hoodie', 'Hoodie'], ['tee', 'Tee'], ['jacket', 'Jacket']];   // the free tops (the Store adds more later)
   var pick = function(a){ return a[Math.floor(Math.random() * a.length)]; };
   function randomLook(){
@@ -1599,6 +1663,14 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     document.body.appendChild(p); setTimeout(function(){ p.remove(); }, 1300);
   }
 
+  // Star Burst (Star Vault, 2026-11-18): gold stars fly out of an element
+  function burstAt(el, n){
+    if (!el || !el.isConnected) return; var r = el.getBoundingClientRect(); if (!r.width) return;
+    for (var i = 0; i < n; i++) { var s = document.createElement('span'), a = i / n * Math.PI * 2, d = Math.max(36, r.width * .9) * (.8 + Math.random() * .5);
+      s.className = 'mav-burst'; s.textContent = '★'; s.style.left = (r.left + r.width / 2) + 'px'; s.style.top = (r.top + r.height / 2) + 'px';
+      s.style.fontSize = (r.width > 100 ? 22 : 13) + 'px'; s.style.setProperty('--x', Math.cos(a) * d + 'px'); s.style.setProperty('--y', Math.sin(a) * d + 'px');
+      document.body.appendChild(s); setTimeout(function(x){ x.remove(); }.bind(null, s), 850); }
+  }
   // ---------- moves: right answer = happy move, miss = shrug (never sad), finished run = dance ----------
   var LEN = { ovation: 3000, airguitar: 3000, conductor: 3000, jacks: 3000, raiseroof: 3000, shuffle: 3000, drumsolo: 3000, clap: 800, starjump: 800, pointup: 900, hop: 700, fistpump: 800, spin: 800, shrug: 900, scratch: 1000, facepalm: 1100, kick: 800, kickstep: 3000, groove: 3000, wave: 3000, robot: 3000, disco: 3000, spinout: 3000 }, actT = 0;
   function act(move){
@@ -1691,6 +1763,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     var d = e.detail || {};
     if (d.type === 'note') {
       act(d.ok ? look.happy : look.aww); perchDo(d.ok ? 'right' : 'miss');
+      if (d.ok && look.fx === 'burst') { burstAt(corner, 9); if (perch && perch.style.display !== 'none') burstAt(perch, 12); }
       try { if (d.ok) qStep('right', 1, d.game); else if (d.game) qStep('seen', 0, d.game); } catch(x){}
       var now = Date.now();
       if (lastAns && now - lastAns < 120000) playMs += now - lastAns;
@@ -1817,18 +1890,18 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   var buyable = function(it){ return !it.free && !it.lock && !it.enc && !!(it.c || it.p); };
   function thumb(it){
     if (it.art) return '<img src="' + ART + it.art + '.png" alt="" loading="lazy">';
-    if (it.id === 'none' || it.slot === 'gear') return '<span class="mav-emo">' + it.ic + '</span>';
+    if (it.id === 'none' || it.slot === 'gear' || it.slot === 'fx' || it.slot === 'glow') return '<span class="mav-emo">' + it.ic + '</span>';
     var L = Object.assign({}, draft, { gear: 'none', pet: 'none', bg: 'none', outfit: 'none' }); L[it.slot] = it.id;
     var mv = /^(happy|dance)$/.test(it.slot);
     return '<span class="av" data-idle="' + (it.slot === 'idle' ? it.id : 'bounce') + '"' + (mv ? ' data-act="' + it.id + '"' : '') + '>' + avatar(clean(L), { crop: it.slot === 'hat' ? 1 : 0, label: it.name }) + '</span>';
   }
   function daySeed(){ var d = new Date(); return d.getFullYear() * 400 + d.getMonth() * 32 + d.getDate(); }
   function todays(skip){   // Today's Shop: the same 6 items for everyone on a given day, new ones at midnight
-    var pool = ITEMS.filter(function(it){ return buyable(it) && key(it) !== skip; }), out = [], sd = daySeed(), n = 0;
+    var pool = ITEMS.filter(function(it){ return buyable(it) && !it.p && key(it) !== skip; }), out = [], sd = daySeed(), n = 0;
     while (out.length < Math.min(6, pool.length) && n++ < 400) { sd = (sd * 9301 + 49297) % 233280; var it = pool[Math.floor(sd / 233280 * pool.length)]; if (out.indexOf(it) < 0) out.push(it); }
     return out;
   }
-  function featured(){ var pool = ITEMS.filter(function(it){ return buyable(it) && /epic|legendary/.test(rarity(it)); }), wk = Math.floor(Date.now() / 6048e5); return pool[wk % pool.length]; }
+  function featured(){ var pool = ITEMS.filter(function(it){ return buyable(it) && !it.p && it.c >= 100; }), wk = Math.floor(Date.now() / 6048e5); return pool[wk % pool.length]; }
   function untilMidnight(){ var n = new Date(), m = new Date(n); m.setHours(24, 0, 0, 0); var x = Math.floor((m - n) / 1000); return Math.floor(x / 3600) + 'h ' + Math.floor(x % 3600 / 60) + 'm ' + (x % 60) + 's'; }
   // Loadouts A/B/C: three saved outfits on this device (guests: only for this visit)
   var LOK = 'mtg_avatar_lo_v1:' + (SID || 'guest'), LO = [null, null, null];
@@ -1879,15 +1952,22 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     var tag = on ? '<span class="mav-ctag eq">EQUIPPED</span>' : have ? (it.free ? '' : '<span class="mav-ctag own">✓ OWNED</span>') : it.enc ? '<span class="mav-ctag lk">🎭 ENCORE ' + it.enc + '</span>' : it.lock ? '<span class="mav-ctag lk">🔒 MASTERY</span>' : '';
     var cost = it.c || it.p || 0, need = P ? cost - (it.c ? W.coins : W.points) : 0;
     var pr = have || it.lock || it.enc ? '' : '<span class="mav-pr ' + (P && need <= 0 ? 'ok' : 'no') + '">' + (it.c ? COIN + ' ' + it.c : '★ ' + it.p.toLocaleString()) + (P && need > 0 ? '<small>need ' + need.toLocaleString() + '</small>' : '') + '</span>';
-    return '<button type="button" class="mav-card r-' + r + (big ? ' big' : '') + (on ? ' on' : '') + (t ? ' try' : '') + '" data-item="' + key(it) + '" title="' + (it.lock && !have ? 'How to get it: ' + it.lock : it.name) + '">'
-      + '<span class="mav-cbg"></span><span class="mav-pic">' + thumb(it) + '</span>' + tag + pr + '<span class="mav-lbl"><b>' + it.name + '</b><small>' + RN[r] + '</small></span></button>';
+    var v = !!it.p, gone = v && hidden(it), wk = v && key(it) === weekItem() && !have;
+    if (v && !have) tag = wk ? '<span class="mav-ctag new">⏳ THIS WEEK</span>' : gone ? '<span class="mav-ctag lk">🔒 COMES BACK</span>' : tag;
+    var sub = v ? (have ? 'Star Vault' : '<span class="mav-vbar"><i style="width:' + Math.min(100, Math.round(100 * (P ? W.points : 0) / it.p)) + '%"></i></span>★ ' + Math.min(P ? W.points : 0, it.p) + ' / ' + it.p) : RN[r];
+    return '<button type="button" class="mav-card r-' + r + (v ? ' vault' + (it.p >= 300 ? ' legend' : '') + (gone ? ' gone' : '') : '') + (big ? ' big' : '') + (on ? ' on' : '') + (t ? ' try' : '') + '" data-item="' + key(it) + '" title="' + (it.lock && !have ? 'How to get it: ' + it.lock : it.d || it.name) + '">'
+      + '<span class="mav-cbg"></span><span class="mav-pic">' + thumb(it) + '</span>' + tag + pr + '<span class="mav-lbl"><b>' + it.name + '</b><small>' + sub + '</small></span></button>';
   }
-  function itemsOf(slot){ var l = ITEMS.filter(function(it){ return it.slot === slot; }), rk = function(it){ return it.id === 'none' || it.free ? 0 : owns(it) ? 1 : 2; };
+  var WEEKLY = ['aura:orbit', 'top:galaxy', 'aura:rain', 'pet:phoenix'];
+  function weekItem(){ return WEEKLY[Math.floor((Date.now() / 864e5 + 3) / 7) % WEEKLY.length]; }   // weeks start on Monday
+  function hidden(it){ var k = key(it); return WEEKLY.indexOf(k) >= 0 && k !== weekItem() && !owns(it); }
+  function sunday(){ var d = new Date(); d.setDate(d.getDate() + (7 - d.getDay()) % 7); return d.toLocaleDateString(undefined, { weekday: 'long' }); }
+  function itemsOf(slot, vault){ var l = ITEMS.filter(function(it){ return it.slot === slot && (vault ? !!it.p : !it.p || owns(it)); }), rk = function(it){ return it.id === 'none' || it.free ? 0 : owns(it) ? 1 : 2; };
     return l.map(function(it, i){ return [rk(it), i, it]; }).sort(function(a, b){ return a[0] - b[0] || a[1] - b[1]; }).map(function(x){ return x[2]; }); }
   // LOCKER DOOR (2026-11-17): the Locker's home screen. Each spot opens a section (data-tab); the door swings open once per visit.
   var LKART = (location.port === '8770' ? '/hub' : '') + '/avatar/locker/', lkDoor = true;
   try { lkDoor = localStorage.getItem('mtg_locker_door_v1') !== today(); } catch(e){}   // once a day (2026-11-18)
-  var SECT = { look: 'Mirror · Look', outfit: 'Costumes', clothes: 'Hooks · Clothes', hat: 'Top shelf · Hats', gear: 'Instrument case · Gear', moves: 'Boombox · Moves', bg: 'Poster · Backdrops', pet: 'Pets', shop: 'Today’s Shop', rank: 'Rank' };
+  var SECT = { vault: '★ THE STAR VAULT', look: 'Mirror · Look', outfit: 'Costumes', clothes: 'Hooks · Clothes', hat: 'Top shelf · Hats', gear: 'Instrument case · Gear', moves: 'Boombox · Moves', bg: 'Poster · Backdrops', pet: 'Pets', shop: 'Today’s Shop', rank: 'Rank' };
   function lkImg(f){ return '<img src="' + LKART + f + '.png" alt="">'; }
   function lockerHtml(){
     var mg = ((lsGet(MASTK) || {}).games) || [], f = featured(), td = todays(f && key(f)).slice(0, 3);
@@ -1906,6 +1986,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       + '<div class="mav-lk-row">' + spot('moves', '', lkImg('radio'), 'Boombox · Moves') + spot('bg', '', lkImg('framed_picture'), 'Poster · Backdrops') + '</div>'
       + '<div class="mav-lk-row" style="grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)">' + spot('gear', 'mav-lk-case', '<img src="' + ART + 'trumpet.png" alt=""><img src="' + ART + 'violin.png" alt="">', 'Instrument case · Gear') + spot('pet', '', lkImg('cat_face'), 'Pets') + '</div>'
       + '</div></div>'
+      + '<button type="button" class="mav-lk-vault" data-tab="vault"><span class="mav-whl"></span><span><b>★ STAR VAULT ★</b><small>Stars only · things that move and glow</small></span><span class="mav-whl"></span></button>'
       + (lkDoor ? '<button type="button" class="mav-lk-door" data-do="door" aria-label="Open your locker"><span class="mav-lk-vents"><i></i><i></i><i></i><i></i><i></i></span><span class="mav-lk-plate">' + plate + '</span><span class="mav-lk-dial"></span><span class="mav-lk-handle"></span><span class="mav-lk-tap">Tap to open</span></button>' : '')
       + '</div>';
   }
@@ -1914,6 +1995,13 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   } catch(e){} }
   function tabHtml(){
     if (tab === 'home') return lockerHtml();
+    if (tab === 'vault') {
+      var wi = ITEMS.filter(function(x){ return key(x) === weekItem(); })[0], VS = [['Effects', ['aura', 'fx', 'glow']], ['Clothes and costumes', ['top', 'outfit', 'hat']], ['Pets', ['pet']], ['Moves', ['idle', 'happy', 'dance']], ['Backdrops and gear', ['bg', 'gear']]];
+      return '<div class="mav-vweek">⏳ <div><b>Star of the Week: ' + (wi ? wi.name : '') + '</b><br>Only in the Vault until ' + sunday() + ' night. Then it hides and something else comes out.</div></div>'
+        + (P ? '' : '<p class="mav-sub">Sign in to earn ★ Stars.</p>')
+        + VS.map(function(g){ var l = []; g[1].forEach(function(sl){ var its = itemsOf(sl, 1); if (its.some(owns) && sl !== 'top' && sl !== 'hat') l = l.concat(ITEMS.filter(function(x){ return x.slot === sl && x.id === 'none'; })); l = l.concat(its); });
+          return l.length ? '<div class="mav-vsec">' + g[0] + '</div><div class="mav-grid">' + l.map(function(x){ return card(x); }).join('') + '</div>' : ''; }).join('');
+    }
     if (tab === 'look') return rowsHtml(LOOKROWS);
     if (tab === 'shop') {
       var f = featured(), brass = ['trumpet', 'trombone', 'horn', 'tuba'], got = brass.filter(function(id){ return W.owned.indexOf('gear:' + id) >= 0; }).length;
@@ -1947,6 +2035,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     var wrap = function(inner){ return '<div class="mav-try r-' + r + '">' + inner + '</div>'; };
     if (it.enc) return wrap(head + 'yours after Encore ' + encMark(it.enc) + ' (reach the top rank and take a bow)</small></span>');
     if (it.lock) return wrap(head + 'earned, not bought: ' + it.lock + '</small></span>');
+    if (it.p && hidden(it)) return wrap('<span><b>' + it.name + '</b><br><small>★ Star Vault · ' + (it.d || '') + '</small></span><span class="mav-need">🔒 Only some weeks. It comes back, so save up!</span>');
+    if (it.p) head = '<span><b>' + it.name + '</b><br><small>★ Star Vault · ' + (it.d ? it.d + ' · ' : '');
     if (!P) return wrap(head + price(it) + '</small></span><span class="mav-need">Sign in to earn coins and Stars</span>');
     var have = it.c ? W.coins : W.points, need = (it.c || it.p) - have;
     return wrap(head + price(it) + '</small></span>'
@@ -1955,6 +2045,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   }
   function render(){
     var tb0 = dlg.querySelector('.mav-tabs'); tb0.className = 'mav-tabs mav-back';
+    dlg.classList.toggle('mav-vaultmode', tab === 'vault');
     tb0.innerHTML = tab === 'home' ? '' : '<button type="button" class="mav-btn ghost" data-tab="home">\u2190 Locker</button><span class="mav-sect">' + (SECT[tab] || '') + '</span>';
     if (0) tb0.innerHTML = TABS.map(function(t){ return '<button type="button" class="mav-tab' + (t[0] === tab ? ' on' : '') + '" data-tab="' + t[0] + '" aria-pressed="' + (t[0] === tab) + '"><i aria-hidden="true">' + t[2] + '</i>' + t[1] + '</button>'; }).join('');
     var lo = dlg.querySelector('.mav-lo'); if (lo) lo.innerHTML = loHtml();
@@ -1973,7 +2064,9 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   }
   function reveal(it){   // the purchase moment: the card flips in, a flash, confetti and a chime
     var rv = dlg.querySelector('.mav-rev');
-    rv.innerHTML = '<div class="mav-flash"></div>' + card(it) + '<h3>UNLOCKED!</h3><button type="button" class="mav-btn" data-do="revok">Awesome!</button>';
+    rv.classList.toggle('vault', !!it.p);
+    rv.innerHTML = '<div class="mav-flash"></div>' + card(it) + '<h3>' + (it.p ? '★ VAULT UNLOCKED ★' : 'UNLOCKED!') + '</h3><button type="button" class="mav-btn" data-do="revok">Awesome!</button>';
+    if (it.p) { [196, 262, 330, 392].forEach(function(f, i){ tone(f, i * .12, 1.2, .06); }); setTimeout(chime, 450); return; }
     var cols = ['#ffb020', '#a45cff', '#3d8bff', '#ff4d6d', '#5cf0a0', '#fff'];
     for (var i = 0; i < 60; i++) { var c = document.createElement('span'); c.className = 'mav-conf'; c.style.left = Math.random() * 100 + '%'; c.style.background = cols[i % 6];
       c.style.animationDuration = (1.4 + Math.random() * 1.6) + 's'; c.style.animationDelay = Math.random() * .4 + 's'; rv.appendChild(c); }
@@ -1996,6 +2089,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
           tick(); if (owns(it)) { draft[it.slot] = it.id; trying = null; commit(); } else trying = it;   // not yours yet: try it on
           render(); drawBig(1);
           if (/^(idle|happy|aww|dance)$/.test(it.slot) && it.slot !== 'idle') play(it.id);
+          if (it.slot === 'fx' && it.id !== 'none') burstAt(dlg.querySelector('.mav-big'), 16);
           return;
         }
         if (b.dataset.do === 'door') { var lk = dlg.querySelector('.mav-lk'); lk.classList.add('spin'); lkDoor = false; try { localStorage.setItem('mtg_locker_door_v1', today()); } catch(e){}
@@ -2080,6 +2174,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       h.style.cssText = 'width:' + size + 'px;height:' + size + 'px;border-color:' + tier(v.rank) + (v.encores ? ';box-shadow:0 0 0 2px ' + encCol(v.encores) : '');
       h.title = RANKS[v.rank][1] + (v.encores ? ' · Encore ' + encMark(v.encores) : '');
       h.innerHTML = avatar(v.look, { crop: 1, label: 'Avatar' }); el.insertBefore(h, el.firstChild);
+      if (v.look.glow === 'gold') el.classList.add('mav-goldname');   // Star Vault Gold Name (2026-11-18)
     });
   }
   window.MTGAvatar = { draw: function(L, o){ return avatar(clean(Object.assign({}, DEF, L)), o || {}); }, peer: peer, badge: badge, off: function(){ return OFF; }, signedIn: function(){ return !!P; }, rank: function(){ return P ? { n: rankNow() + 1, name: RANKS[rankNow()][1], encores: W.encores || 0 } : null; },
