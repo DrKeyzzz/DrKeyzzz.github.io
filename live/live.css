@@ -225,3 +225,14 @@ input[type=range] { width: 100%; accent-color: var(--gold); }
 .leadc .gbtns { display: flex; gap: 10px; flex-wrap: wrap; }
 .leadc .btn.big { font-size: 18px; padding: 13px 18px; border-radius: 14px; flex: 1; justify-content: center; min-width: 120px; }
 .linkbtn { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-decoration: underline; cursor: pointer; }
+/* 2026-11-18: Showdown on a phone fits one screen: answers in a 2 x 2 grid, shorter keys, smaller staff */
+@media (max-width: 600px) {
+  .sd-keys { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sd-key { min-height: 84px; padding: 28px 10px 10px; font-size: 17px; }
+  .sd-key .sd-n { font-size: 18px; }
+  .sd-ring { width: 56px; height: 56px; } .sd-ring b { width: 44px; height: 44px; font-size: 19px; }
+}
+@media (max-width: 600px) and (max-height: 740px) {   /* short phones (iPhone SE): smaller staff and keys */
+  .ksbox { width: min(100%, 230px); align-self: center; }
+  .sd-key { min-height: 70px; padding-top: 24px; }
+}
