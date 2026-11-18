@@ -495,6 +495,14 @@ function answersCard() {
         ${S.confirm === 'del:' + a.sid ? `<button class="btn sm warn" type="button" data-act="del" data-sid="${esc(a.sid)}">Delete?</button>` : `<button class="btn sm" type="button" data-act="confirm" data-v="del:${esc(a.sid)}" aria-label="Delete answer">🗑</button>`}</footer></article>`; }).join('')}</div>` : '<p class="muted empty">No answers yet.</p>'}
   </section>`;
 }
+function rosterHtml() {
+  const cutoff = Date.now() - 5 * 60e3;
+  const students = Array.from(new Map(S.pulses.filter(x => x.at > cutoff).map(x => [x.sid, x])).values())
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return `<div class="row between"><h3>Live now</h3><span class="chip">${students.length} joined</span></div>
+    ${students.length ? `<div class="namechips">${students.map((x, i) => `<span class="chip">${esc(S.curtain ? 'Student ' + (i + 1) : x.name)}</span>`).join('')}</div>` : '<p class="muted small" style="margin:0">No students have joined recently.</p>'}
+    <p class="dim small" style="margin:0">Seen in Live Class in the last 5 minutes.</p>`;
+}
 function pulseCard() {
   const P = recent(), lost = P.filter(x => x.lost), avg = P.length ? P.reduce((t, x) => t + (x.conf || 3), 0) / P.length : 0;
   const got = new Set(S.ans.map(a => a.sid)), un = S.live && S.live.q ? P.filter(x => !got.has(x.sid)) : [];
@@ -585,7 +593,7 @@ function draw() {
   const L = S.live && S.live.q ? S.live : null;
   app.innerHTML = shell(`${headCard()}${leadCard()}<p class="msg" role="alert">${esc(S.err)}</p>
     <div class="cols"><div class="stack">${LC.isLobby(S.live) ? lobbyCard() : !L || S.startOpen ? startCard() : ''}${L ? roundCard() + resultsCard() + answersCard() : ''}</div>
-    <aside class="stack">${composerCard()}${askedCard()}${pulseCard()}${inboxCard()}</aside></div>`);
+    <aside class="stack"><section class="card stack" id="live-roster">${rosterHtml()}</section>${composerCard()}${askedCard()}${pulseCard()}${inboxCard()}</aside></div>`);
   if (keep && $(keep.id)) { const el = $(keep.id); el.focus(); try { if (keep.s != null) el.setSelectionRange(keep.s, keep.e); } catch {} }
   if (EMBED) try { parent.postMessage({ mtgLiveHeight: document.documentElement.scrollHeight }, location.origin); } catch {}
 }
@@ -800,6 +808,8 @@ app.addEventListener('change', e => {
   if (/^c-o\d$/.test(id)) { draw(); return; }   // refresh the correct-answer list
   if (id === 'bank' && v !== '') { const b = BANK[+v]; S.comp = { type: b.type, q: b.q, opts: b.opts ? b.opts.slice() : ['', '', '', ''], correct: b.correct || '', timer: c.timer, skills: (b.skills || []).slice() }; draw(); }
 });
+// Students expire from the roster even if nothing new arrives from Firestore.
+setInterval(() => { const roster = $('live-roster'); if (roster) roster.innerHTML = rosterHtml(); }, 15000);
 // the timer: count down, and lock the answers when it runs out (this page does it, so keep it open during class)
 setInterval(() => {
   if (LC.isLobby(S.live) && Date.now() - (S.whoAt || 0) > 2000) { S.whoAt = Date.now(); const w = whoList(), k = JSON.stringify(w); if (k !== S.whoKey) { S.whoKey = k; upd({ show: { ...S.live.show, who: w } }); } }

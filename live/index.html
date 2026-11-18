@@ -322,7 +322,9 @@ saveMe();
 const S = { live: null, draft: '', draftRound: '', busy: false, err: '', loaded: false };
 const base = () => ({ class_code: code, owner: p.classOwner, sid, name });
 
+let presenceAt = 0;
 function pulse() {
+  presenceAt = Date.now();
   return db.set('bc_pulse/' + ME.key, { ...base(), lost: !!ME.lost, conf: ME.conf | 0 || 3, at: NOW }).catch(e => { S.err = ERR(e); draw(); });
 }
 // I'm lost (2026-11-17, David: "they are going nuts with it"): one tap turns it on; only the teacher can clear it. The student's
@@ -334,6 +336,14 @@ db.watchDoc('bc_pulse/' + ME.key, d => {
   if (d && d.lost === false && ME.lost) { ME.lost = false; saveMe(); draw(); }
   if (!pulsed) { pulsed = true; pulse(); }   // tells the teacher you have joined
 }, () => { if (!pulsed) { pulsed = true; pulse(); } });
+
+// Refresh presence while Live Class is visible. Throttle tab switches to the same cadence.
+function refreshPresence() {
+  if (!pulsed || document.hidden || Date.now() - presenceAt < 120000) return;
+  pulse();
+}
+document.addEventListener('visibilitychange', refreshPresence);
+setInterval(refreshPresence, 30000);
 
 function mineFor(round) { return ME.hist.find(h => h.round === round && h.code === code); }
 
@@ -1154,12 +1164,12 @@ draw();
   const TOPC = ['#4f7cff','#ff6b6b','#3ccf9a','#ffb020','#9b6bff','#22b8cf','#f06595','#2b2f3a','#f1f3f5'];
   const PANTC = ['#2b3550','#1d1f26','#5a6b8c','#6b4f2e','#c2c8d4'];
   const LOOK = {
-    face:[['round','Round'],['oval','Oval'],['soft','Soft square']],
+    face:[['round','Round'],['oval','Oval'],['soft','Soft square'],['heart','Heart'],['angular','Angular']],
     eyes:[['big','Big'],['dot','Dot'],['happy','Happy'],['sleepy','Chill'],['lash','Lashes'],['wink','Wink']],
     brows:[['arch','Arched'],['flat','Straight'],['thick','Thick'],['none','None']],
     nose:[['dot','Dot'],['button','Button'],['none','None']],
     mouth:[['smile','Smile'],['grin','Big grin'],['o','Ooh'],['smirk','Smirk'],['tongue','Silly']],
-    hair:[['short','Short'],['buzz','Buzz'],['curly','Curly'],['afro','Afro'],['long','Long'],['braids','Braids'],['bun','Bun'],['spiky','Spiky'],['swoop','Swoop'],['bald','None']],
+    hair:[['short','Short'],['buzz','Buzz'],['curly','Curly'],['afro','Afro'],['long','Long'],['braids','Braids'],['bun','Bun'],['spiky','Spiky'],['swoop','Swoop'],['part','Side part'],['waves','Waves'],['bob','Bob'],['bald','None']],
     cover:[['none','None'],['hijab','Hijab'],['wrap','Head wrap']],
     glasses:[['none','None'],['round','Round'],['square','Square'],['shades','Aviator shades']],
     beard:[['none','None'],['stubble','Stubble'],['mustache','Mustache'],['goatee','Goatee'],['short','Short beard'],['full','Full beard']],   // David 2026-11-16; same color as the hair
@@ -1270,16 +1280,23 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   else if (L.bg === 'wreath') { defs += `<radialGradient id="${u}w"><stop offset="0" stop-color="#4a3800"/><stop offset="1" stop-color="#140f00"/></radialGradient>`; bg = `<rect ${B} fill="url(#${u}w)"/>` + Array.from({length: 16}, (_, i) => { const side = i < 8 ? 1 : -1, k = i % 8, a = Math.PI / 2 + side * (.45 + k * .33), x = 50 + 40 * Math.cos(a), y = 62 + 44 * Math.sin(a); return `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="5" ry="2.4" fill="#f5c542" transform="rotate(${(a * 180 / Math.PI + 90).toFixed(0)} ${x.toFixed(1)} ${y.toFixed(1)})"/>`; }).join(''); }
     else if (o.crop) bg = `<rect ${B} fill="#26305a"/>`;
     const covered = L.cover !== 'none' && !OUT;
-    // hair behind the head
+    let hairBack = '';
+    // Keep the rear hair and head coverings attached during head animations.
     if (L.cover === 'none' || OUT === 'astronaut' || OUT === 'hero' || OUT === 'rockstar') {
-      if (L.hair === 'afro') back += `<circle cx="50" cy="35" r="27" fill="${hc}"/>`;
-      if (L.hair === 'long') back += `<path d="M28 36 Q28 15 50 15 Q72 15 72 36 L74 70 Q67 75 62 67 L62 42 L38 42 L38 67 Q33 75 26 70Z" fill="${hc}"/>`;
-      if (L.hair === 'braids') back += [29, 71].map(x => [46, 52, 58, 64, 70].map(y => `<circle cx="${x}" cy="${y}" r="3.4" fill="${hc}" stroke="${shade(hc, .7)}" stroke-width=".6"/>`).join('')).join('');
+      if (L.hair === 'afro') hairBack += `<circle cx="50" cy="35" r="27" fill="${hc}"/>`;
+      if (L.hair === 'long') hairBack += `<path d="M28 36 Q28 15 50 15 Q72 15 72 36 L74 70 Q67 75 62 67 L62 42 L38 42 L38 67 Q33 75 26 70Z" fill="${hc}"/>`;
+      if (L.hair === 'waves') hairBack += `<path d="M27 37C25 14 75 14 73 37Q70 48 75 55Q80 64 72 72Q66 72 62 64L38 64Q33 73 26 71Q19 64 25 54Q30 46 27 37Z" fill="${hc}"/>`;
+      if (L.hair === 'bob') hairBack += `<path d="M28 35Q29 15 50 15Q71 15 72 35L74 57Q50 66 26 57Z" fill="${hc}"/>`;
+      if (L.hair === 'braids') hairBack += [29, 71].map(x => [46, 52, 58, 64, 70].map(y => `<circle cx="${x}" cy="${y}" r="3.4" fill="${hc}" stroke="${shade(hc, .7)}" stroke-width=".6"/>`).join('')).join('');
     }
     const hijabC = tc === '#f1f3f5' ? '#c9b6e4' : shade(tc, .75);
-    if (L.cover === 'hijab') back += `<path d="M24 44 Q23 13 50 13 Q77 13 76 44 L80 72 Q50 82 20 72Z" fill="${hijabC}"/>`;
+    if (L.cover === 'hijab') hairBack += `<path d="M24 44 Q23 13 50 13 Q77 13 76 44 L80 72 Q50 82 20 72Z" fill="${hijabC}"/>`;
     // face
-    const face = L.face === 'oval' ? `<ellipse cx="50" cy="40" rx="18" ry="22" fill="${sk}"/>` : L.face === 'soft' ? `<rect x="31" y="20" width="38" height="40" rx="13" fill="${sk}"/>` : `<circle cx="50" cy="40" r="20.5" fill="${sk}"/>`;
+    const faceShape = {
+      heart: 'M29 36C29 13 71 13 71 36Q71 52 53 61Q50 63 47 61Q29 52 29 36Z',
+      angular: 'M32 26Q50 12 68 26L70 39Q69 53 59 60H41Q31 53 30 39Z',
+    }[L.face];
+    const face = faceShape ? `<path d="${faceShape}" fill="${sk}"/>` : L.face === 'oval' ? `<ellipse cx="50" cy="40" rx="18" ry="22" fill="${sk}"/>` : L.face === 'soft' ? `<rect x="31" y="20" width="38" height="40" rx="13" fill="${sk}"/>` : `<circle cx="50" cy="40" r="20.5" fill="${sk}"/>`;
     const ears = L.cover === 'hijab' ? '' : `<circle cx="30.5" cy="42" r="4" fill="${dk}"/><circle cx="69.5" cy="42" r="4" fill="${dk}"/>`;
     const E = {
       big: x => `<circle cx="${x}" cy="41" r="4.2" fill="#fff"/><circle cx="${x + .6}" cy="41.6" r="2.4" fill="${line}"/><circle cx="${x + 1.3}" cy="40.6" r=".8" fill="#fff"/>`,
@@ -1289,7 +1306,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       lash: x => `<circle cx="${x}" cy="41.4" r="2.6" fill="${line}"/><path d="M${x - 3} 38.6 l-1.4 -1.4 M${x} 38.1 v-1.8 M${x + 3} 38.6 l1.4 -1.4" stroke="${line}" stroke-width="1" stroke-linecap="round"/>`,
     };
     const eyes = L.eyes === 'wink' ? E.dot(42) + E.happy(58) : E[L.eyes](42) + E[L.eyes](58);
-    const bc = shade(hc, .9);
+    const bc = L.browC ? HAIRC[L.browC - 1] : shade(hc, .9);
     const BR = { arch: x => `<path d="M${x - 4} 35 Q${x} 31.5 ${x + 4} 35" fill="none" stroke="${bc}" stroke-width="1.6" stroke-linecap="round"/>`, flat: x => `<path d="M${x - 4} 34 H${x + 4}" stroke="${bc}" stroke-width="1.6" stroke-linecap="round"/>`, thick: x => `<path d="M${x - 4.5} 34.6 Q${x} 31.6 ${x + 4.5} 34" fill="none" stroke="${bc}" stroke-width="2.8" stroke-linecap="round"/>`, none: () => '' };
     const brows = `<g class="brows">${BR[L.brows](42)}${BR[L.brows](58)}</g>`;
     const nose = L.nose === 'dot' ? `<circle cx="50" cy="46" r="1.3" fill="${dk}"/>` : L.nose === 'button' ? `<path d="M47.6 46.5 Q50 48.8 52.4 46.5" fill="none" stroke="${dk}" stroke-width="1.4" stroke-linecap="round"/>` : '';
@@ -1326,13 +1343,16 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       const H = {
         short: `<path d="M29.5 38 Q29 17 50 17 Q71 17 70.5 38 Q66 27 55 26.5 Q45 29.5 35 29.5 Q31 32 29.5 38Z"/>`,
         buzz: `<path d="M30.5 36 Q31 19 50 19 Q69 19 69.5 36 Q60 26.5 50 26.5 Q40 26.5 30.5 36Z" opacity=".75"/>`,
-        curly: [[33, 29], [39, 22.5], [46.5, 19.5], [54, 19.5], [61, 22.5], [67, 29]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="7"/>`).join(''),
+        curly: `<path d="M29 39Q24 33 28 28Q27 21 34 20Q35 14 42 15Q48 10 53 14Q60 11 65 17Q73 17 73 24Q78 32 70 39Q67 34 66 29Q61 32 56 26Q51 31 46 26Q42 32 36 30Q33 37 29 39Z"/>`,
         afro: [[32, 28], [38, 21], [46, 17.5], [54, 17.5], [62, 21], [68, 28]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="8"/>`).join(''),
         long: `<path d="M29 40 Q28 16 50 16 Q72 16 71 40 Q65 26 50 27 Q36 27 29 40Z"/>`,
         braids: `<path d="M29.5 37 Q29 17 50 17 Q71 17 70.5 37 Q61 26 50 26 Q39 26 29.5 37Z"/><path d="M50 17 V26" stroke="${shade(hc, .7)}" stroke-width="1"/>`,
         bun: `<circle cx="50" cy="13" r="7.5"/><path d="M30.5 36 Q31 18 50 18 Q69 18 69.5 36 Q60 26 50 26 Q40 26 30.5 36Z"/>`,
         spiky: `<path d="M29.5 37 L31 21 L37.5 25.5 L41 13 L47 22 L52 11 L56 22 L62 14 L63.5 25 L69.5 21 L70.5 37 Q61 27 50 27 Q39 27 29.5 37Z"/>`,
         swoop: `<path d="M29.5 41 Q27 16 52 16.5 Q73 17.5 70.5 36 Q62 24 44 31.5 Q35 35 29.5 41Z"/>`,
+        part: `<path d="M29 39Q28 17 49 16Q73 14 72 39Q66 34 64 25Q52 31 37 27Q33 31 29 39Z"/><path d="M60 18Q55 24 38 24" fill="none" stroke="${shade(hc, .78)}" stroke-width="1.2"/>`,
+        waves: `<path d="M29 40Q24 23 38 17Q51 11 64 17Q77 23 71 41Q65 32 60 25Q49 24 41 30Q34 34 29 40Z"/>`,
+        bob: `<path d="M28 43Q25 21 41 16Q49 13 58 16Q75 21 72 43L68 48Q70 34 60 25Q50 25 37 29Q30 36 32 48Z"/>`,
         bald: '',
       };
       if (L.cover === 'none' || OUT) front += `<g fill="${hc}">${H[L.hair]}</g>`;
@@ -1472,7 +1492,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     if (L.aura === 'orbit') auraF = `<g transform="translate(50 ${o.crop ? 30 : 31})">` + ['♪', '♫', '♩'].map((n, i) => `<g class="mav-orb" style="animation-delay:${-i * 1.2}s"><text x="0" y="3" font-size="9" text-anchor="middle" fill="#fff" stroke="#7c4dff" stroke-width=".6" paint-order="stroke">${n}</text></g>`).join('') + `</g>`;
     return `<svg viewBox="${vb}" role="img" aria-label="${o.label || 'Your avatar'}"><defs>${defs}</defs>${bg}${auraB}${o.crop || o.bare ? '' : platform(rank)}
   <g class="root">${behind}${back}${leg('l')}${leg('r')}<rect x="40" y="86" width="20" height="7" rx="3" fill="${pc}"/><rect x="45.5" y="54" width="9" height="7" fill="${dk}"/><path d="${torsoD}" fill="${topFill}"/>${extra}
-  <g class="head">${ears}${face}${blush}${eyes}${nose}${beard[0]}${M[L.mouth]}${beard[1]}${front}${glasses}${headX}${brows}${hat}</g>
+  <g class="head">${hairBack}${ears}${face}${blush}${eyes}${nose}${beard[0]}${M[L.mouth]}${beard[1]}${brows}${front}${glasses}${headX}${hat}</g>
   ${o.bare ? '' : gSide}${arm('l')}${arm('r')}</g>
   ${o.crop || o.bare ? '' : `<g class="pet">${PT[L.pet] || ''}</g>`}${auraF}</svg>`;
   }
@@ -1493,7 +1513,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   }
 
   // ---------- the look: saved on this device, and online for signed-in students ----------
-  var DEF = { skin: 2, face: 'round', eyes: 'big', brows: 'arch', nose: 'dot', mouth: 'smile', hair: 'curly', hairC: 1, cover: 'none', glasses: 'none', beard: 'none',
+  var DEF = { skin: 2, face: 'round', eyes: 'big', brows: 'arch', browC: 0, nose: 'dot', mouth: 'smile', hair: 'curly', hairC: 1, cover: 'none', glasses: 'none', beard: 'none',
     top: 'hoodie', topC: 0, pantC: 0, hat: 'none', gear: 'none', bg: 'none', pet: 'none', outfit: 'none', idle: 'bounce', happy: 'hop', aww: 'shrug', dance: 'groove', aura: 'none', fx: 'none', glow: 'none' };   // aura / fx / glow: Star Vault (2026-11-18)
   var TOPS = [['hoodie', 'Hoodie'], ['tee', 'Tee'], ['jacket', 'Jacket']];   // the free tops (the Store adds more later)
   var pick = function(a){ return a[Math.floor(Math.random() * a.length)]; };
@@ -1513,6 +1533,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       else if (typeof v === 'string' && /^[a-z0-9]{1,16}$/.test(v)) out[k] = v;
     });
     if (out.skin >= SKIN.length) out.skin = 2; if (out.hairC >= HAIRC.length) out.hairC = 1;
+    if (out.browC > HAIRC.length) out.browC = 0;
     if (out.topC >= TOPC.length) out.topC = 0; if (out.pantC >= PANTC.length) out.pantC = 0;
     ['face', 'eyes', 'brows', 'nose', 'mouth', 'hair', 'cover', 'glasses'].forEach(function(k){ if (!LOOK[k].some(function(o){ return o[0] === out[k]; })) out[k] = DEF[k]; });
     return out;
@@ -1948,7 +1969,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   function chime(){ [523, 659, 784, 1047].forEach(function(f, i){ tone(f, i * .08, .5, .05); }); }
   var MOVE_SLOTS = [['idle', 'Standing still'], ['happy', 'Right answer'], ['dance', 'End of a run']];   // a miss always gets the friendly shrug (David, 2026-11-16: no 'missed' moves for sale)
   var LOOKROWS = [
-    ['Skin', 'skin', 'swatch', SKIN], ['Face', 'face'], ['Eyes', 'eyes'], ['Brows', 'brows'], ['Nose', 'nose'], ['Mouth', 'mouth'],
+    ['Skin', 'skin', 'swatch', SKIN], ['Face', 'face'], ['Eyes', 'eyes'], ['Brows', 'brows'], ['Eyebrow color', 'browC', 'swatch', [null, ...HAIRC], ['Match hair', 'Soft black', 'Dark brown', 'Chestnut', 'Copper', 'Honey', 'Blond', 'Gray', 'Pink', 'Blue', 'Mint']], ['Nose', 'nose'], ['Mouth', 'mouth'],
     ['Hair', 'hair'], ['Hair color', 'hairC', 'swatch', HAIRC], ['Beard', 'beard'], ['Head covering', 'cover'], ['Glasses', 'glasses'],
   ];
   var CLOTHROWS = [['Top color', 'topC', 'swatch', TOPC], ['Pants', 'pantC', 'swatch', PANTC]];
@@ -1966,7 +1987,12 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   function rowsHtml(rows){
     return rows.map(function(r){
       var label = r[0], k = r[1], kind = r[2], list = r[3], opts;
-      if (kind === 'swatch') opts = list.map(function(c, i){ return '<button type="button" class="mav-sw' + (draft[k] === i ? ' on' : '') + '" data-k="' + k + '" data-v="' + i + '" style="background:' + c + '" aria-label="' + label + ' ' + (i + 1) + '" aria-pressed="' + (draft[k] === i) + '"></button>'; }).join('');
+      if (kind === 'swatch') opts = list.map(function(c, i){
+        var selected = draft[k] === i, name = r[4] ? r[4][i] : label + ' ' + (i + 1);
+        var value = ' data-k="' + k + '" data-v="' + i + '" aria-pressed="' + selected + '"';
+        if (!c) return '<button type="button" class="mav-ch' + (selected ? ' on' : '') + '"' + value + '>' + name + '</button>';
+        return '<button type="button" class="mav-sw' + (selected ? ' on' : '') + '"' + value + ' style="background:' + c + '" aria-label="' + name + '" title="' + name + '"></button>';
+      }).join('');
       else opts = (list || LOOK[k]).map(function(o){ return '<button type="button" class="mav-ch' + (draft[k] === o[0] ? ' on' : '') + '" data-k="' + k + '" data-v="' + o[0] + '" aria-pressed="' + (draft[k] === o[0]) + '">' + o[1] + '</button>'; }).join('');
       return '<div class="mav-row"><div class="mav-lab">' + label + '</div><div class="mav-opts">' + opts + '</div></div>';
     }).join('');
@@ -2130,7 +2156,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
           W.encores = Math.min(99, W.encores + 1); W.encXP = xpNow(); lookDirty = true; saveLocal(); clearTimeout(sendT); sendT = setTimeout(sendNow, 3000);
           drawAll(); note = '🎭 Encore ' + encMark(W.encores) + '! The crowd goes wild. Climb again!'; render(); play(look.dance); note = ''; return;
         }
-        if (b.dataset.do === 'random') { var keep = {}; Object.keys(DEF).forEach(function(k){ if (!/^(skin|face|eyes|brows|nose|mouth|hair|hairC|beard|cover|glasses|topC|pantC)$/.test(k)) keep[k] = draft[k]; }); draft = Object.assign(randomLook(), keep); trying = null; commit(); render(); return; }
+        if (b.dataset.do === 'random') { var keep = {}; Object.keys(DEF).forEach(function(k){ if (!/^(skin|face|eyes|brows|browC|nose|mouth|hair|hairC|beard|cover|glasses|topC|pantC)$/.test(k)) keep[k] = draft[k]; }); draft = Object.assign(randomLook(), keep); trying = null; commit(); render(); return; }
         if (b.dataset.do === 'perch') { try { localStorage.setItem(PK, perchWanted() ? '0' : '1'); } catch(e){} b.setAttribute('aria-pressed', perchWanted()); perchPlace(); return; }
         if (b.dataset.do === 'try') { play(pick([draft.happy, draft.aww, draft.dance])); return; }
         if (b.dataset.do === 'save' || b.dataset.do === 'close') { dlg.close(); return; }
