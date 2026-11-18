@@ -534,6 +534,7 @@ async function adminCheck(email) {
   if (lists[0].includes(email)) return true;
   try { const { fs, db } = await (fbAuth)(); if (!(await fs.getDoc(fs.doc(db, 'admins', email))).exists()) return false; } catch { return false; }
   lists.forEach(l => l.includes(email) || l.push(email));
+  if (!PREVIEW) try { localStorage.setItem('mtg_dev_v1', '1'); } catch {}   // this device belongs to the admin: Maestro owns every avatar item here (2026-11-18)
   return true;
 }
 const SDK = 'https://www.gstatic.com/firebasejs/10.12.2/';

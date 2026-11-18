@@ -2086,6 +2086,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   } catch(e){} }
   if (!look) { look = randomLook(); fresh = !!P; }   // guests: a random avatar for this visit, never saved
   function wearOwned(L){   // a paid item that isn't in this student's owned list goes back to the free default
+    if (typeof DEV !== 'undefined' && DEV) return L;
     ITEMS.forEach(function(it){ var k = it.slot + ':' + it.id; if (L[it.slot] === it.id && !it.free && W.owned.indexOf(k) < 0 && !(k === 'gear:baton' && rankNow() >= 8) && !(k === 'bg:wreath' && rankNow() >= 9) && !masteredGear(k) && !(it.enc && (W.encores || 0) >= it.enc) && !(P && typeof earnedIt === 'function' && earnedIt(it))) L[it.slot] = DEF[it.slot]; });
     if (!ITEMS.some(function(it){ return it.slot === 'top' && it.id === L.top; })) L.top = DEF.top;
     return L;
@@ -2460,7 +2461,9 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   function earnedIt(it){ return (it.set && setDone(it.set)) || (it.streak && streakBest() >= it.streak); }
   var key = function(it){ return it.slot + ':' + it.id; };
   var RANK_ITEMS = { 'gear:baton': 8, 'bg:wreath': 9 };   // rank index that unlocks them
-  var owns = function(it){ var k = key(it); return !!it.free || (it.enc && (W.encores || 0) >= it.enc) || W.owned.indexOf(k) >= 0 || (RANK_ITEMS[k] != null && rankNow() >= RANK_ITEMS[k]) || masteredGear(k) || (P && earnedIt(it)); };
+  // The developer (signed in as Maestro, on a device where the admin has opened the teacher dashboard) owns every item (David 2026-11-18)
+  var DEV = !!P && /^\s*maestro\b/i.test(String(P.first || '')) && (function(){ try { return localStorage.getItem('mtg_dev_v1') === '1'; } catch(e){ return false; } })();
+  var owns = function(it){ var k = key(it); return DEV || !!it.free || (it.enc && (W.encores || 0) >= it.enc) || W.owned.indexOf(k) >= 0 || (RANK_ITEMS[k] != null && rankNow() >= RANK_ITEMS[k]) || masteredGear(k) || (P && earnedIt(it)); };
   look = wearOwned(look);   // moved here 2026-11-18: before this, SETS / RANKS / MASTK were not set yet, so earned items came off on every page load (and the Baton crashed it)
   var TABS = [['shop', 'Shop', '🛒'], ['look', 'Look', '🙂'], ['outfit', 'Skins', '🦸'], ['clothes', 'Clothes', '👕'], ['hat', 'Hats', '🎩'], ['gear', 'Gear', '🎺'], ['moves', 'Moves', '🕺'], ['bg', 'Backdrops', '🌌'], ['pet', 'Pets', '🐾'], ['rank', 'Rank', '🏆']];
   // THE LOCKER (2026-11-16). Rarity follows the price (no randomness): Common < 60 coins, Rare 60-149, Epic 150+ coins or any ★ item, Legendary 100+ ★ / earned items.
