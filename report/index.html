@@ -1105,12 +1105,12 @@ boot();
     box.classList.add('av', 'hasav'); box.removeAttribute('aria-hidden'); box.setAttribute('role', 'button'); box.tabIndex = 0;
     box.title = 'Your avatar: tap to change it or open the Store';
     const draw = () => { box.innerHTML = A.svg({ label: 'Your avatar' }); box.dataset.idle = (A.look() || {}).idle || 'bounce'; const w = A.wallet(), k = A.rank();
-      document.getElementById('p-coins').textContent = '🪙 ' + w.coins.toLocaleString(); document.getElementById('p-pts').textContent = '★ ' + w.points.toLocaleString();
+      document.getElementById('p-coins').innerHTML = '<i class="mav-coin" aria-label="coins"></i> ' + w.coins.toLocaleString(); document.getElementById('p-pts').textContent = '★ ' + w.points.toLocaleString();
       if (k && k.encores) { const lv = document.getElementById('p-level'); if (lv && !lv.querySelector('.enc2')) lv.insertAdjacentHTML('beforeend', ' <span class="enc2">' + (k.encores <= 5 ? '★'.repeat(k.encores) : '★' + k.encores) + '</span>'); }
       const ed = document.getElementById('editav'); ed.hidden = false; ed.onclick = () => A.open();
       // Today's quests and the daily streak (play more, 2026-11-16): from the avatar snippet
       if (A.questsHtml) { let qb = document.getElementById('questbox'); if (!qb) { qb = document.createElement('section'); qb.id = 'questbox'; qb.className = 'box'; document.getElementById('next2').insertAdjacentElement('afterend', qb); }
-        qb.innerHTML = '<h2>🎯 Today\u2019s quests</h2><p class="sub">New ones every day at midnight. Each quest pays 10 🪙; finish all 3 for +3 ★. Stars are rare: great runs, streaks, tests, new ranks, mastering a game and Showdowns.</p>' + A.questsHtml(); } };
+        qb.innerHTML = '<h2>🎯 Today\u2019s quests</h2><p class="sub">New ones every day at midnight. Each quest: +10 🪙 · All 3: +3 ★</p>' + A.questsHtml(); } };
     box.dataset.act = ((window.MTGAvatar.look() || {}).dance) || 'groove'; setTimeout(() => { delete box.dataset.act; }, 3000);   // a dance when the page opens
     draw();
     box.onclick = () => A.open();
@@ -1612,6 +1612,33 @@ boot();
 @keyframes mav-p-wl{from{transform:rotate(-16deg)}to{transform:rotate(16deg)}}
 @keyframes mav-p-wa{from{transform:rotate(-14deg)}to{transform:rotate(14deg)}}
 @media (prefers-reduced-motion:reduce){.mav-perch,.mav-perch *{animation:none!important;transition:none!important}}
+
+/* ---- LOCKER CLEAN-UP (2026-11-18, David 'go with your picks'): Buy bar always on screen, afford/owned tags, Done + Undo, chip cards, tidy buttons, phone ---- */
+.mav-tryrow{position:fixed;bottom:max(14px,env(safe-area-inset-bottom))}
+.mav-coin{display:inline-block;width:.95em;height:.95em;border-radius:50%;vertical-align:-.12em;background:radial-gradient(circle at 35% 30%,#fff4b8 0,#ffd23f 32%,#e0a000 70%,#a86b00 100%);box-shadow:inset 0 0 0 .09em #b97800}
+.mav-pr.ok{background:#1f9d5b;color:#fff}.mav-pr.no{background:rgba(20,24,40,.8);color:#c9cfe4}
+.mav-pr.no small{display:block;font-size:9.5px;font-weight:800;color:#ffb020;text-align:right;line-height:1}
+.mav-ctag.own{background:#2fbf71}
+.mav-wallet button{font:inherit;color:inherit;cursor:pointer;background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.15);border-radius:999px;padding:4px 10px;font-size:15px;font-weight:800}
+.mav-wallet button:hover{border-color:#ffc85c}
+.mav-undo{background:rgba(255,255,255,.08)!important;color:#dfe5ff!important}
+.mav-saved{font-size:12px;font-weight:800;color:#5cf0a0;white-space:nowrap}
+.mav-leftbtns{gap:14px}
+.mav-ib{display:flex;flex-direction:column;align-items:center;gap:3px;background:none;border:0;color:#cfd6f2;font:inherit;font-size:11px;font-weight:800;cursor:pointer;padding:0}
+.mav-ib i{font-style:normal;display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.09);border:1.5px solid rgba(255,255,255,.2);font-size:19px}
+.mav-ib:hover i{border-color:#ffc85c}.mav-ib[aria-pressed="false"] i{opacity:.55}
+.mav-lob.add{width:auto;height:auto;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:800;color:#cfd6f2;border-style:dashed}
+.mav-lk-door{transition:transform .32s cubic-bezier(.3,.8,.3,1),opacity .15s .22s}
+@media (max-width:760px){
+  .mav-right h2{display:none}
+  .mav-left{height:30vh}
+  .mav-top{flex-wrap:nowrap}.mav-top .mav-wallet{margin-left:0}
+  .mav-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+  .mav-card{aspect-ratio:4/5}.mav-lbl b{font-size:12px;overflow-wrap:anywhere}.mav-lbl small{font-size:9px}
+  .mav-tabs.mav-back{margin:6px 0 4px}.mav-sect{font-size:16px}
+  .mav-tabs.mav-back .mav-btn{min-height:34px;padding:4px 10px;font-size:13px}
+  .mav-ib i{width:38px;height:38px;font-size:17px}
+}
 </style>
 <script id="mtg-avatar" data-mount=".wrap > .top" data-perch="">
 /* Avatar, build step 1 (added 2026-11-16; spec: Claude outputs/avatar-spec.md). A small cartoon avatar sits right after the
@@ -2357,7 +2384,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   var buyable = function(it){ return !it.free && !it.lock && !it.enc && !!(it.c || it.p); };
   function thumb(it){
     if (it.art) return '<img src="' + ART + it.art + '.png" alt="" loading="lazy">';
-    if (it.id === 'none') return '<span class="mav-emo">' + it.ic + '</span>';
+    if (it.id === 'none' || it.slot === 'gear') return '<span class="mav-emo">' + it.ic + '</span>';
     var L = Object.assign({}, draft, { gear: 'none', pet: 'none', bg: 'none', outfit: 'none' }); L[it.slot] = it.id;
     var mv = /^(happy|dance)$/.test(it.slot);
     return '<span class="av" data-idle="' + (it.slot === 'idle' ? it.id : 'bounce') + '"' + (mv ? ' data-act="' + it.id + '"' : '') + '>' + avatar(clean(L), { crop: it.slot === 'hat' ? 1 : 0, label: it.name }) + '</span>';
@@ -2375,8 +2402,10 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   try { if (P) { var lo0 = JSON.parse(localStorage.getItem(LOK) || 'null'); if (Array.isArray(lo0) && lo0.length === 3) LO = lo0; } } catch(e){}
   function saveLO(){ if (!P) return; try { localStorage.setItem(LOK, JSON.stringify(LO)); } catch(e){} }
   function loHtml(){   // "My outfits": a mini picture of each saved outfit (tap = wear it), an empty slot saves the current look, "Replace" saves over it (David 2026-11-16: the A/B/C + floppy buttons were confusing)
+    var used = LO.filter(Boolean).length, firstEmpty = LO.indexOf(null);
+    if (!used) return '<button type="button" class="mav-lob empty add" data-lo="0" title="Save what you are wearing as an outfit">＋ Save outfit</button>';
     return '<span class="mav-lot">My outfits</span>' + LO.map(function(o, i){
-      if (!o) return '<span class="mav-slot"><button type="button" class="mav-lob empty" data-lo="' + i + '" title="Save what you are wearing as an outfit"><b>+</b>Save this look</button></span>';
+      if (!o) return i === firstEmpty ? '<span class="mav-slot"><button type="button" class="mav-lob empty" data-lo="' + i + '" title="Save what you are wearing as an outfit"><b>+</b>Save</button></span>' : '';
       return '<span class="mav-slot"><button type="button" class="mav-lob" data-lo="' + i + '" title="Wear this outfit">' + avatar(clean(Object.assign({}, o, { bg: 'none', pet: 'none' })), { crop: 0, label: 'Saved outfit ' + (i + 1) }) + '</button><button type="button" class="mav-rep" data-losave="' + i + '" title="Save what you are wearing here instead">Replace</button></span>';
     }).join('');
   }
@@ -2391,7 +2420,12 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     ['Hair', 'hair'], ['Hair color', 'hairC', 'swatch', HAIRC], ['Beard', 'beard'], ['Head covering', 'cover'], ['Glasses', 'glasses'],
   ];
   var CLOTHROWS = [['Top color', 'topC', 'swatch', TOPC], ['Pants', 'pantC', 'swatch', PANTC]];
-  var dlg = null, draft = null, tab = 'shop', trying = null, note = '', clockT = 0;
+  var dlg = null, draft = null, tab = 'shop', trying = null, note = '', clockT = 0, undoLook = null, savedT = 0;
+  function commit(){   // every change saves on its own (2026-11-18): the look, here and online (one write 3 s after the last change)
+    look = wearOwned(clean(Object.assign({}, draft))); saveLocal(); sendOnline(); drawAll();
+    var u = dlg && dlg.querySelector('.mav-undo'); if (u) u.hidden = JSON.stringify(look) === JSON.stringify(undoLook);
+    var sv = dlg && dlg.querySelector('.mav-saved'); if (sv) { sv.hidden = false; clearTimeout(savedT); savedT = setTimeout(function(){ sv.hidden = true; }, 1600); }
+  }
   function drawWallet(){ var c = dlg.querySelector('.mav-c'), p = dlg.querySelector('.mav-p'); if (c) c.textContent = W.coins.toLocaleString(); if (p) p.textContent = W.points.toLocaleString(); }
   function shown(){ var L = Object.assign({}, draft); if (trying) L[trying.slot] = trying.id; return L; }
   function drawBig(pose){ var L = shown(), big = dlg.querySelector('.mav-big'); big.innerHTML = avatar(L, { label: 'Your avatar', rank: rankNow() }); big.dataset.idle = L.idle;
@@ -2405,18 +2439,21 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       return '<div class="mav-row"><div class="mav-lab">' + label + '</div><div class="mav-opts">' + opts + '</div></div>';
     }).join('');
   }
-  function price(it){ return it.c ? it.c + ' 🪙' : it.p ? it.p.toLocaleString() + ' ★' : ''; }
+  var COIN = '<i class="mav-coin" aria-label="coins"></i>';
+  function price(it){ return it.c ? it.c + ' ' + COIN : it.p ? it.p.toLocaleString() + ' ★' : ''; }
   function card(it, big){
     var on = draft[it.slot] === it.id, have = owns(it), t = trying && key(trying) === key(it), r = rarity(it);
-    var tag = on ? '<span class="mav-ctag eq">EQUIPPED</span>' : have ? (it.free ? '' : '<span class="mav-ctag">OWNED</span>') : it.enc ? '<span class="mav-ctag lk">🎭 ENCORE ' + it.enc + '</span>' : it.lock ? '<span class="mav-ctag lk">🔒 MASTERY</span>' : '';
-    var pr = have || it.lock || it.enc ? '' : '<span class="mav-pr">' + (it.c ? '🪙 ' + it.c : '★ ' + it.p.toLocaleString()) + '</span>';
+    var tag = on ? '<span class="mav-ctag eq">EQUIPPED</span>' : have ? (it.free ? '' : '<span class="mav-ctag own">✓ OWNED</span>') : it.enc ? '<span class="mav-ctag lk">🎭 ENCORE ' + it.enc + '</span>' : it.lock ? '<span class="mav-ctag lk">🔒 MASTERY</span>' : '';
+    var cost = it.c || it.p || 0, need = P ? cost - (it.c ? W.coins : W.points) : 0;
+    var pr = have || it.lock || it.enc ? '' : '<span class="mav-pr ' + (P && need <= 0 ? 'ok' : 'no') + '">' + (it.c ? COIN + ' ' + it.c : '★ ' + it.p.toLocaleString()) + (P && need > 0 ? '<small>need ' + need.toLocaleString() + '</small>' : '') + '</span>';
     return '<button type="button" class="mav-card r-' + r + (big ? ' big' : '') + (on ? ' on' : '') + (t ? ' try' : '') + '" data-item="' + key(it) + '" title="' + (it.lock && !have ? 'How to get it: ' + it.lock : it.name) + '">'
       + '<span class="mav-cbg"></span><span class="mav-pic">' + thumb(it) + '</span>' + tag + pr + '<span class="mav-lbl"><b>' + it.name + '</b><small>' + RN[r] + '</small></span></button>';
   }
-  function itemsOf(slot){ return ITEMS.filter(function(it){ return it.slot === slot; }); }
+  function itemsOf(slot){ var l = ITEMS.filter(function(it){ return it.slot === slot; }), rk = function(it){ return it.id === 'none' || it.free ? 0 : owns(it) ? 1 : 2; };
+    return l.map(function(it, i){ return [rk(it), i, it]; }).sort(function(a, b){ return a[0] - b[0] || a[1] - b[1]; }).map(function(x){ return x[2]; }); }
   // LOCKER DOOR (2026-11-17): the Locker's home screen. Each spot opens a section (data-tab); the door swings open once per visit.
   var LKART = (location.port === '8770' ? '/hub' : '') + '/avatar/locker/', lkDoor = true;
-  try { lkDoor = sessionStorage.getItem('mtg_locker_door_v1') !== '1'; } catch(e){}
+  try { lkDoor = localStorage.getItem('mtg_locker_door_v1') !== today(); } catch(e){}   // once a day (2026-11-18)
   var SECT = { look: 'Mirror · Look', outfit: 'Costumes', clothes: 'Hooks · Clothes', hat: 'Top shelf · Hats', gear: 'Instrument case · Gear', moves: 'Boombox · Moves', bg: 'Poster · Backdrops', pet: 'Pets', shop: 'Today’s Shop', rank: 'Rank' };
   function lkImg(f){ return '<img src="' + LKART + f + '.png" alt="">'; }
   function lockerHtml(){
@@ -2465,9 +2502,9 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       return head + '<ol class="mav-ladder">' + RANKS.map(function(k, i){ return '<li class="' + (i === r ? 'on' : i < r ? 'done' : '') + '"><span class="mav-dot" style="background:' + tier(i) + '"></span><b>' + k[1] + '</b><span>' + k[0].toLocaleString() + ' XP' + (GATES[i] ? ' + master ' + (GATES[i] === 7 ? 'every game' : GATES[i] + (GATES[i] === 1 ? ' game' : ' games')) : '') + '</span></li>'; }).join('') + '</ol>';
     }
     var html = '';
-    if (tab === 'clothes') html = '<div class="mav-grid">' + itemsOf('top').map(card).join('') + '</div>' + rowsHtml(CLOTHROWS);
-    else if (tab === 'moves') html = MOVE_SLOTS.map(function(m){ return '<div class="mav-sec">' + m[1] + '</div><div class="mav-grid">' + itemsOf(m[0]).map(card).join('') + '</div>'; }).join('');
-    else html = '<div class="mav-grid">' + itemsOf(tab).map(card).join('') + '</div>';
+    if (tab === 'clothes') html = '<div class="mav-grid">' + itemsOf('top').map(function(x){ return card(x); }).join('') + '</div>' + rowsHtml(CLOTHROWS);
+    else if (tab === 'moves') html = MOVE_SLOTS.map(function(m){ return '<div class="mav-sec">' + m[1] + '</div><div class="mav-grid">' + itemsOf(m[0]).map(function(x){ return card(x); }).join('') + '</div>'; }).join('');
+    else html = '<div class="mav-grid">' + itemsOf(tab).map(function(x){ return card(x); }).join('') + '</div>';
     return html;
   }
   function tryHtml(){
@@ -2513,22 +2550,23 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     if (!dlg) {
       dlg = document.createElement('dialog'); dlg.className = 'mav-dlg'; dlg.setAttribute('aria-label', 'Your avatar and the Store');
       document.body.appendChild(dlg);
+      dlg.addEventListener('close', function(){ trying = null; if (JSON.stringify(look) !== JSON.stringify(undoLook)) act(look.happy); });
       dlg.addEventListener('click', function(e){
         var b = e.target.closest('button'); if (!b) { if (e.target === dlg) dlg.close(); return; }
         if (b.dataset.do === 'revok') { dlg.querySelector('.mav-rev').innerHTML = ''; return; }
         if (b.dataset.tab) { tick(); tab = b.dataset.tab; trying = null; render(); dlg.querySelector('.mav-rows').scrollTop = 0; return; }
-        if (b.dataset.lo) { tick(); var i = +b.dataset.lo; if (LO[i]) { draft = wearOwned(clean(Object.assign({}, LO[i]))); trying = null; drawBig(1); } else { LO[i] = Object.assign({}, draft); saveLO(); } render(); return; }
+        if (b.dataset.lo) { tick(); var i = +b.dataset.lo; if (LO[i]) { draft = wearOwned(clean(Object.assign({}, LO[i]))); trying = null; drawBig(1); commit(); } else { LO[i] = Object.assign({}, draft); saveLO(); } render(); return; }
         if (b.dataset.losave) { tick(); LO[+b.dataset.losave] = Object.assign({}, draft); saveLO(); render(); return; }
-        if (b.dataset.k) { var k = b.dataset.k; draft[k] = typeof DEF[k] === 'number' ? +b.dataset.v : b.dataset.v; render(); return; }
+        if (b.dataset.k) { var k = b.dataset.k; draft[k] = typeof DEF[k] === 'number' ? +b.dataset.v : b.dataset.v; commit(); render(); return; }
         if (b.dataset.item) {
           var it = ITEMS.filter(function(x){ return key(x) === b.dataset.item; })[0]; if (!it) return;
-          tick(); if (owns(it)) { draft[it.slot] = it.id; trying = null; } else trying = it;   // not yours yet: try it on
+          tick(); if (owns(it)) { draft[it.slot] = it.id; trying = null; commit(); } else trying = it;   // not yours yet: try it on
           render(); drawBig(1);
           if (/^(idle|happy|aww|dance)$/.test(it.slot) && it.slot !== 'idle') play(it.id);
           return;
         }
-        if (b.dataset.do === 'door') { var lk = dlg.querySelector('.mav-lk'); lk.classList.add('spin'); lkDoor = false; try { sessionStorage.setItem('mtg_locker_door_v1', '1'); } catch(e){}
-          setTimeout(function(){ clunk(); lk.classList.add('open'); setTimeout(function(){ var d = lk.querySelector('.mav-lk-door'); if (d) d.remove(); }, 700); }, 350); return; }
+        if (b.dataset.do === 'door') { var lk = dlg.querySelector('.mav-lk'); lk.classList.add('spin'); lkDoor = false; try { localStorage.setItem('mtg_locker_door_v1', today()); } catch(e){}
+          setTimeout(function(){ clunk(); lk.classList.add('open'); setTimeout(function(){ var d = lk.querySelector('.mav-lk-door'); if (d) d.remove(); }, 400); }, 160); return; }
         if (b.dataset.do === 'buy') { if (trying) buy(trying); return; }
         if (b.dataset.do === 'encore') {
           if (!P || rankNow() !== 9) return;
@@ -2536,21 +2574,23 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
           W.encores = Math.min(99, W.encores + 1); W.encXP = xpNow(); lookDirty = true; saveLocal(); clearTimeout(sendT); sendT = setTimeout(sendNow, 3000);
           drawAll(); note = '🎭 Encore ' + encMark(W.encores) + '! The crowd goes wild. Climb again!'; render(); play(look.dance); note = ''; return;
         }
-        if (b.dataset.do === 'random') { var keep = {}; Object.keys(DEF).forEach(function(k){ if (!/^(skin|face|eyes|brows|nose|mouth|hair|hairC|beard|cover|glasses|topC|pantC)$/.test(k)) keep[k] = draft[k]; }); draft = Object.assign(randomLook(), keep); trying = null; render(); return; }
-        if (b.dataset.do === 'perch') { try { localStorage.setItem(PK, perchWanted() ? '0' : '1'); } catch(e){} b.textContent = perchLabel(); perchPlace(); return; }
+        if (b.dataset.do === 'random') { var keep = {}; Object.keys(DEF).forEach(function(k){ if (!/^(skin|face|eyes|brows|nose|mouth|hair|hairC|beard|cover|glasses|topC|pantC)$/.test(k)) keep[k] = draft[k]; }); draft = Object.assign(randomLook(), keep); trying = null; commit(); render(); return; }
+        if (b.dataset.do === 'perch') { try { localStorage.setItem(PK, perchWanted() ? '0' : '1'); } catch(e){} b.setAttribute('aria-pressed', perchWanted()); perchPlace(); return; }
         if (b.dataset.do === 'try') { play(pick([draft.happy, draft.aww, draft.dance])); return; }
-        if (b.dataset.do === 'save') { look = wearOwned(clean(draft)); saveLocal(); sendOnline(); drawAll(); dlg.close(); act(look.happy); return; }
-        if (b.dataset.do === 'close') dlg.close();
+        if (b.dataset.do === 'save' || b.dataset.do === 'close') { dlg.close(); return; }
+        if (b.dataset.do === 'undo') { tick(); draft = wearOwned(clean(Object.assign({}, undoLook))); trying = null; commit(); render(); drawBig(1); return; }
+        if (b.dataset.do === 'coinfo') { tick(); note = '<b>' + COIN + ' Coins</b><br><small>Everyday money: 1 for every minute you play (up to 60 a day), +10 for each daily quest.</small>'; render(); note = ''; return; }
+        if (b.dataset.do === 'stinfo') { tick(); note = '<b>★ Stars</b><br><small>Rare! Earn them for a great run (80% or better), all 3 daily quests, streaks, tests, a new rank, mastering a game and Live Class Showdowns.</small>'; render(); note = ''; return; }
       });
     }
-    draft = Object.assign({}, look); trying = null; note = ''; tab = 'home';
+    draft = Object.assign({}, look); undoLook = Object.assign({}, look); trying = null; note = ''; tab = 'home';
     dlg.innerHTML = '<div class="mav-wrap"><div class="mav-left"><div class="mav-stage"><div class="mav-beam"></div><div class="mav-big av"></div></div>'
-      + '<div class="mav-lo" aria-label="Saved outfits"></div><div class="mav-leftbtns"><button type="button" class="mav-btn ghost" data-do="try">▶ Try a move</button><button type="button" class="mav-btn ghost" data-do="random">🎲 Random look</button>'
-      + (PERCH.length ? '<button type="button" class="mav-btn ghost" data-do="perch" title="Show your avatar sitting on the game, or only in the corner">' + perchLabel() + '</button>' : '') + '</div></div>'
+      + '<div class="mav-lo" aria-label="Saved outfits"></div><div class="mav-leftbtns"><button type="button" class="mav-ib" data-do="try"><i>▶</i>Move</button><button type="button" class="mav-ib" data-do="random"><i>🎲</i>Random</button>'
+      + (PERCH.length ? '<button type="button" class="mav-ib" data-do="perch" aria-pressed="' + perchWanted() + '" title="Show your avatar sitting on the game, or only in the corner"><i>🪑</i>On game</button>' : '') + '</div></div>'
       + '<div class="mav-right"><div class="mav-top"><h2>MY LOCKER</h2>'
-      + (P ? '<div class="mav-wallet"><span title="Coins: 1 for every minute you play, up to 60 a day">🪙 <b class="mav-c"></b></span><span title="★ Stars are rare: great runs (80% or better), all 3 daily quests, streaks, tests, new ranks, mastering a game and Live Class Showdowns">★ <b class="mav-p"></b></span></div>'
+      + (P ? '<div class="mav-wallet"><button type="button" data-do="coinfo" title="What are coins?">' + COIN + ' <b class="mav-c"></b></button><button type="button" data-do="stinfo" title="What are Stars?">★ <b class="mav-p"></b></button></div>'
            : '<p class="mav-sub" style="margin:0 0 0 auto">Guest: <b>sign in to keep it</b> and earn coins and Stars.</p>')
-      + '<button type="button" class="mav-btn ghost" data-do="close">Cancel</button><button type="button" class="mav-btn" data-do="save">Save</button></div>'
+      + '<span class="mav-saved" hidden>✓ Saved</span><button type="button" class="mav-btn ghost mav-undo" data-do="undo" hidden title="Go back to how you looked when you opened the Locker">↺ Undo</button><button type="button" class="mav-btn" data-do="close">Done</button></div>'
       + '<div class="mav-tabs" role="toolbar" aria-label="Back to the locker"></div>'
       + '<div class="mav-rows"></div></div></div><div class="mav-tryrow" aria-live="polite"></div><div class="mav-rev"></div>';
     clearInterval(clockT); clockT = setInterval(function(){ var c = dlg.querySelector('.mav-clock'); if (c) c.textContent = 'New items in ' + untilMidnight(); if (!dlg.open) clearInterval(clockT); }, 1000);
