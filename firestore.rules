@@ -1318,7 +1318,7 @@ service cloud.firestore {
             && (!('r' in request.resource.data.gen) || (request.resource.data.gen.r is list && request.resource.data.gen.r.size() <= 16))
             && (!('t' in request.resource.data.gen) || (request.resource.data.gen.t is string && request.resource.data.gen.t.size() <= 5))
             && (!('m' in request.resource.data.gen) || (request.resource.data.gen.m is list && request.resource.data.gen.m.size() <= 4))
-            && (!('p' in request.resource.data.gen) || request.resource.data.gen.p in ['up', 'down', 'together', 'chord'])
+            && (!('p' in request.resource.data.gen) || request.resource.data.gen.p in ['up', 'down', 'together', 'chord', 'uptog', 'downtog'])
             && (!('n' in request.resource.data.gen) || (request.resource.data.gen.n is list && request.resource.data.gen.n.size() <= 2))
             && request.resource.data.gen.g is string && request.resource.data.gen.g.size() <= 20 && request.resource.data.gen.d in ['warmup', 'challenge', 'brutal']))
         // Showdown (game mode, 2026-11-17): game on/off, the right choice shown only after time is up, the final Curtain call, the top-5 board (name, sid, points)
