@@ -212,6 +212,77 @@ window.LC = (() => {
     const ins = shuffle(N.filter(x => x !== base)).slice(0, 3);
     return { ...mcq(`Which note is NOT in ${key}?`, trap, ins.map(x => [x, x + ' is in ' + key + '.'])), why: Object.fromEntries(ins.map(x => [x, x + ' is in ' + key + ': check every note against the key signature.'])) };
   }
+  // ---------- Tidal Tones (2026-11-17, step 4): notes and intervals on the staff ----------
+  // A note = p (letter steps from middle C: C4 = 0, D4 = 1 … B3 = -1) + acc (-1 flat, 0, +1 sharp), kept in bc_live.gen.n as p * 3 + acc + 1.
+  // Drawn with the key signature staff: dp = p + the clef's shift (treble 0, alto 6, bass 12); dp 2..10 = on the staff, ledger lines outside.
+  const CLEF_SHIFT = { treble: 0, alto: 6, bass: 12 };
+  const enc = (p, acc) => p * 3 + acc + 1, dec = c => { const acc = ((c % 3) + 3) % 3 - 1; return { p: (c - acc - 1) / 3, acc }; };
+  const SEMI = [0, 2, 4, 5, 7, 9, 11];
+  const pitch = (p, acc) => 12 * Math.floor(p / 7) + SEMI[((p % 7) + 7) % 7] + acc;
+  const noteName = (p, acc) => LETTERS[((p % 7) + 7) % 7] + (acc > 0 ? '♯' : acc < 0 ? '♭' : '');
+  const NOTE = '<ellipse rx="11.5" ry="8.2" transform="rotate(-20)" fill="none" stroke="#1d2433" stroke-width="4.2"/>';
+  function noteStaff(codes, clef) {
+    const C = clefOk(clef) ? clef : 'treble', sh = CLEF_SHIFT[C], N = (codes || []).map(dec);
+    if (!N.length) return '';
+    const lines = [2, 4, 6, 8, 10].map(p => `<line x1="6" x2="250" y1="${ksY(p)}" y2="${ksY(p)}" stroke="#1d2433" stroke-width="1.6"/>`).join('');
+    const dps = N.map(n => n.p + sh), lo = Math.min(2, ...dps), hi = Math.max(10, ...dps), top = Math.min(30, ksY(hi) - 26), bot = Math.max(202, ksY(lo) + 26);
+    let body = '';
+    N.forEach((n, i) => {
+      const x = N.length === 1 ? 160 : 130 + i * 70, dp = n.p + sh, y = ksY(dp);
+      for (let l = 0; l >= dp; l -= 2) body += `<line x1="${x - 17}" x2="${x + 17}" y1="${ksY(l)}" y2="${ksY(l)}" stroke="#1d2433" stroke-width="1.6"/>`;
+      for (let l = 12; l <= dp; l += 2) body += `<line x1="${x - 17}" x2="${x + 17}" y1="${ksY(l)}" y2="${ksY(l)}" stroke="#1d2433" stroke-width="1.6"/>`;
+      if (n.acc) body += `<g transform="translate(${x - 28} ${y}) scale(.9)" fill="none" stroke="#1d2433">${n.acc > 0 ? SHARP : FLAT}</g>`;
+      body += `<g transform="translate(${x} ${y})">${NOTE}</g>`;
+    });
+    return `<div class="ksbox"><svg viewBox="0 ${top} 256 ${bot - top}" role="img" aria-label="${esc(KS_CLEFS[C].name + ' clef with ' + (N.length === 1 ? 'one note' : 'two notes'))}">${lines}<line x1="6" x2="6" y1="${ksY(10)}" y2="${ksY(2)}" stroke="#1d2433" stroke-width="1.6"/>${CLEF_SVG[C]}${body}</svg></div>`;
+  }
+  // whatever picture a question has: notes (Tidal Tones), else a key signature
+  const staffFor = x => x && x.gen && Array.isArray(x.gen.n) && x.gen.n.length ? noteStaff(x.gen.n, x.clef) : ksStaff(x && x.ks, '', x && x.clef);
+  const tClef = d => OPT.clef !== 'any' ? OPT.clef : d === 'warmup' ? 'treble' : d === 'challenge' ? rnd(['treble', 'bass']) : rnd(['treble', 'bass', 'alto']);
+  // a staff position (dp) range for each difficulty: warm-up on the staff, challenge 1-2 ledger lines, brutal 3+ ledger lines
+  function tPos(d) {
+    if (d === 'warmup') return 2 + Math.floor(Math.random() * 9);
+    if (d === 'challenge') return rnd([-2, -1, 0, 1, 11, 12, 13, 14].concat([2, 3, 4, 5, 6, 7, 8, 9, 10]));
+    return rnd([-6, -5, -4, -3, 15, 16, 17, 18]);
+  }
+  function noteQ(d) {
+    const clef = tClef(d), sh = CLEF_SHIFT[clef], p = tPos(d) - sh, acc = d === 'brutal' && Math.random() < .5 ? rnd([-1, 1]) : 0, right = noteName(p, acc);
+    const other = clef === 'treble' ? 'bass' : 'treble', misread = noteName(p + sh - CLEF_SHIFT[other], acc);
+    return mcq('Which note is this?', right, [[noteName(p + 1, acc), 'One step too high: check line or space.'], [noteName(p - 1, acc), 'One step too low: check line or space.'],
+      [misread, `That is the name in ${other} clef. This is ${KS_CLEFS[clef].name.toLowerCase()} clef.`], [noteName(p + 2, acc), 'Off by a line (or a space): count again from a note you know.'],
+      [acc ? noteName(p, 0) : '', 'Right letter, but look at the ' + (acc > 0 ? 'sharp.' : 'flat.')]], { skills: ['notes'], clef, ks: null, gen_n: [enc(p, acc)] });
+  }
+  const NUMS = ['', 'unison', '2nd', '3rd', '4th', '5th', '6th', '7th', 'octave'];
+  const PERFECT = { 1: 0, 4: 5, 5: 7, 8: 12 }, MAJOR = { 2: 2, 3: 4, 6: 9, 7: 11 };
+  function quality(num, semis) {
+    if (PERFECT[num] != null) { const d = semis - PERFECT[num]; return d === 0 ? 'Perfect' : d === 1 ? 'Augmented' : d === -1 ? 'Diminished' : null; }
+    const d = semis - MAJOR[num]; return d === 0 ? 'Major' : d === -1 ? 'Minor' : d === 1 ? 'Augmented' : d === -2 ? 'Diminished' : null;
+  }
+  const ivName = (q, num) => q + ' ' + NUMS[num];
+  function intervalQ(d) {
+    const clef = tClef(d), sh = CLEF_SHIFT[clef];
+    for (let tries = 0; tries < 200; tries++) {
+      const num = d === 'warmup' ? 2 + Math.floor(Math.random() * 4) : 2 + Math.floor(Math.random() * 7);
+      const lowDp = d === 'warmup' ? 2 + Math.floor(Math.random() * (9 - num)) : d === 'challenge' ? -1 + Math.floor(Math.random() * (14 - num)) : -4 + Math.floor(Math.random() * (20 - num));
+      const p1 = lowDp - sh, p2 = p1 + num - 1;
+      if (d !== 'brutal') {   // number only: no sharps or flats needed
+        const right = NUMS[num];
+        const near = [num + 1, num - 1, num + 2, num - 2, num + 3, num - 3].filter(x => x >= 2 && x <= 8);
+        return mcq('What interval is this? (count the letter names)', NUMS[num], near.map(x => [NUMS[x], Math.abs(x - num) === 1 ? 'Off by one: count both notes, the bottom one is 1.' : 'Count every line AND space, both notes included.']), { skills: ['intervals'], clef, ks: null, gen_n: [enc(p1, 0), enc(p2, 0)] });
+      }
+      const a1 = rnd([-1, 0, 0, 1]), a2 = rnd([-1, 0, 0, 1]), semis = pitch(p2, a2) - pitch(p1, a1), q = quality(num, semis);
+      if (!q || (q !== 'Augmented' && q !== 'Diminished' && Math.random() < .4)) continue;   // brutal leans on augmented and diminished
+      const right = ivName(q, num), others = PERFECT[num] != null ? ['Perfect', 'Augmented', 'Diminished'] : ['Major', 'Minor', 'Augmented', 'Diminished'];
+      const enh = [];   // same sound, different number (an enharmonic spelling)
+      for (const n2 of [num - 1, num + 1]) { if (n2 < 2 || n2 > 8) continue; for (const q2 of ['Perfect', 'Major', 'Minor', 'Augmented', 'Diminished']) { const base = PERFECT[n2] != null ? PERFECT[n2] : MAJOR[n2]; const ok = quality(n2, semis); if (ok === q2) enh.push(ivName(q2, n2)); } }
+      return mcq('What interval is this? (name it fully)', right, [
+        ...shuffle(others.filter(x => x !== q)).map(x => [ivName(x, num), 'Right number, wrong quality: count the half steps (' + semis + ').']),
+        ...enh.map(x => [x, 'It sounds the same, but count the letter names: this is a ' + NUMS[num] + '.'])].sort(() => Math.random() - .5)
+          .concat([num - 1, num + 1].filter(x => x >= 2 && x <= 8).map(x => [ivName(PERFECT[x] != null ? 'Perfect' : 'Major', x), 'Count the letter names again: this is a ' + NUMS[num] + '.'])),
+        { skills: ['intervals'], clef, ks: null, gen_n: [enc(p1, a1), enc(p2, a2)] });
+    }
+    return noteQ(d);
+  }
   const QGAMES = [
     { id: 'scale', name: 'Scale Quest', what: 'Key signatures and scales', url: '/scale-quest/', 
       // the choices Customize offers for this game, first = default
@@ -232,10 +303,14 @@ window.LC = (() => {
       if (d === 'challenge') return r < .45 ? nameQ() : r < .8 ? spellQ() : countQ();
       return r < .25 ? nameQ() : r < .5 ? relative(nOf(2, 7)) : r < .7 ? enharmonic() : r < .85 ? oddQ() : spellQ();
     } },
+    { id: 'tidal', name: 'Tidal Tones', what: 'Notes and intervals on the staff', url: '/tidal-tones/',
+      opts: { type: [['mix', 'Mix'], ['note', 'Name the note'], ['interval', 'Name the interval']], clef: [['any', 'Any'], ['treble', '𝄞 Treble'], ['bass', '𝄢 Bass'], ['alto', '𝄡 Alto']] },
+      make(d) { const t = OPT.type; return t === 'note' ? noteQ(d) : t === 'interval' ? intervalQ(d) : Math.random() < .55 ? noteQ(d) : intervalQ(d); } },
   ];
   const qgame = id => QGAMES.find(g => g.id === id) || null;
   // one question, tagged with where it came from (bc_live.gen = { g, d })
-  function makeQ(g, d, o) { const G = qgame(g) || QGAMES[0], D = DIFFS[d] ? d : 'challenge'; OPT = { ...OPT_DEF, ...(o || {}) }; let q; try { q = G.make(D); } finally { OPT = OPT_DEF; } return { ...q, skills: q.skills || ['keys'], gen: { g: G.id, d: D } }; }
+  function makeQ(g, d, o) { const G = qgame(g) || QGAMES[0], D = DIFFS[d] ? d : 'challenge'; OPT = { ...OPT_DEF, ...(o || {}) }; let q; try { q = G.make(D); } finally { OPT = OPT_DEF; }
+    const { gen_n, ...rest } = q; return { ...rest, skills: q.skills || ['keys'], gen: gen_n ? { g: G.id, d: D, n: gen_n } : { g: G.id, d: D } }; }
 
   // ---------- results (teacher console and projector; counts only, never names) ----------
   // ans = the latest answer from each student: [{ text, sid, ... }]
@@ -275,5 +350,5 @@ window.LC = (() => {
   const clock = s => s == null ? '' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const ERR = e => { const c = String(e && (e.code || e.message) || e); return /permission/i.test(c) ? 'Live Class is not switched on yet (the new database rules are not in place).' : /offline|unavailable|timeout/i.test(c) ? 'No connection. Check the wifi and try again.' : 'Something went wrong: ' + c; };
 
-  return { OPT_DEF, DIFFS, QGAMES, qgame, makeQ, keyNotes, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, BANK, NOW, at, newKey, roundId, flagged, db, fbAuth, results, latest, left, clock, ERR };
+  return { staffFor, noteStaff, OPT_DEF, DIFFS, QGAMES, qgame, makeQ, keyNotes, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, BANK, NOW, at, newKey, roundId, flagged, db, fbAuth, results, latest, left, clock, ERR };
 })();

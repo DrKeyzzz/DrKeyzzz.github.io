@@ -233,7 +233,7 @@ if (SCREEN) {
     app.innerHTML = `<main class="proj">
       <div class="row between"><span class="label" style="font-size:16px">${esc(TYPES[L.type] || '')}</span>${s != null ? '' : L.open ? '<span class="chip ok" style="font-size:18px">Answers open</span>' : '<span class="chip no" style="font-size:18px">Locked</span>'}</div>
       ${s != null ? tbar(L, s, true) : ''}
-      <h1>${esc(L.q)}</h1>${LC.ksStaff(L.ks, '', L.clef)}
+      <h1>${esc(L.q)}</h1>${LC.staffFor(L)}
       ${L.type === 'mc' ? `<div class="row" style="font-size:24px;gap:14px">${(L.opts || []).map((o, i) => `<span class="chip" style="font-size:22px;padding:6px 16px">${'ABCDEF'[i]}. ${esc(o)}</span>`).join('')}</div>` : ''}
       <div class="projmain"><section class="card">${res}</section>${spot ? `<section class="stack">${spot}</section>` : `<section class="card stack" style="justify-content:center;align-items:center;text-align:center"><span class="big" style="font-size:90px">${P.teacher ? A.length : '–'}</span><span class="muted" style="font-size:24px">answers in</span></section>`}</div>
       <footer class="card row between" style="font-size:22px"><span>Join: <b>musictheoryacademy.org/live</b> · class code <b class="joincode mono">${esc(code)}</b></span><span class="muted">Only your teacher sees your answers.</span></footer></main>`;
@@ -256,7 +256,7 @@ if (SCREEN) {
     const top = rev && board.length ? `<section class="card"><h2 style="margin:0 0 8px">Top 5</h2><div class="sd-top">${board.map((b, i) => `<div class="sd-row" style="animation-delay:${.08 * i}s"><b>${i + 1}</b>${b.h ? '' : `<span data-avs="${esc(b.s)}"></span>`}${esc(b.n)}${b.m > 0 ? `<span class="sd-mv up" title="Up ${b.m}">▲${b.m}</span>` : b.m < 0 ? `<span class="sd-mv down" title="Down ${-b.m}">▼${-b.m}</span>` : ''}${b.g ? `<span class="sd-gain" style="animation-delay:${.15 * i}s">+${b.g.toLocaleString()}</span>` : ''}<span class="sd-pp">${b.p.toLocaleString()}</span></div>`).join('')}</div></section>` : '';
     // after the reveal the answers and the Top 5 sit side by side so the whole screen fits without scrolling (David, 2026-11-17)
     return `<main class="proj${top ? ' sd-fit' : ''}"><div class="row between"><span class="label" style="font-size:18px">🏁 Showdown</span><span class="chip" style="font-size:18px">${F.length} answered</span>${rev ? '<span class="chip gold" style="font-size:18px">Time!</span>' : `<span class="sd-ring" style="--p:${p.toFixed(3)}"><b class="mono" id="cd">${s == null ? '' : Math.ceil(s)}</b></span>`}</div>
-      <h1>${esc(L.q)}</h1>${top ? `<div class="sd-split"><div class="stack">${LC.ksStaff(L.ks, '', L.clef)}<div class="sd-keys">${keys}</div></div>${top}</div>` : `${LC.ksStaff(L.ks, '', L.clef)}<div class="sd-keys">${keys}</div>`}</main>`;
+      <h1>${esc(L.q)}</h1>${top ? `<div class="sd-split"><div class="stack">${LC.staffFor(L)}<div class="sd-keys">${keys}</div></div>${top}</div>` : `${LC.staffFor(L)}<div class="sd-keys">${keys}</div>`}</main>`;
   }
   // the Curtain call draws each star's own avatar (one read each, kept 10 minutes)
   const ccDraw = () => app.querySelectorAll('[data-cc]').forEach(el => { if (el.dataset.done || !window.MTGAvatar || !MTGAvatar.peer) return; el.dataset.done = 1;
@@ -371,7 +371,7 @@ function questionCard() {
   const after = GQ && right ? `<p class="${mine && mine.text === right ? 'sent' : 'locked'}" style="margin:0">${mine ? (mine.text === right ? '🎯 Right!' : `You picked ${esc(mine.text)}.`) : '⏰ No answer.'} The answer was <b>${esc(right)}</b>.</p>${starLine(liveStars(L))}
     <a class="btn" href="${GQ.url}" target="_blank" rel="noopener" style="align-self:flex-start">🎮 Practice this in ${esc(GQ.name)}</a>` : '';
   return `<section class="card stack qhead"><div class="row between"><span class="label">${esc(TYPES[L.type] || '')}</span>${tag}</div>${s != null ? tbar(L, s, false) : ''}
-    <h2>${esc(L.q)}</h2>${LC.ksStaff(L.ks, '', L.clef)}${after || input}${mine && !after ? `<p class="sent">✓ Sent: “${esc(mine.text)}”</p>` : ''}
+    <h2>${esc(L.q)}</h2>${LC.staffFor(L)}${after || input}${mine && !after ? `<p class="sent">✓ Sent: “${esc(mine.text)}”</p>` : ''}
     <p class="dim small" style="margin:0">Only your teacher sees your answer.</p></section>`;
 }
 // ---------- Showdown on the phone (2026-11-17): tap one piano key (your first answer counts), then see how you did ----------
@@ -400,7 +400,7 @@ function sdCard(L) {
     return `<section class="card stack">${head}<div class="sd-res ${r.ok ? 'good' : 'bad'}"><span class="sd-big">${r.ok ? '🎯' : r.mine ? '🎵' : '⏰'}</span><h2 style="margin:0">${r.ok ? 'Right on!' : r.mine ? 'Not this time' : 'Out of time'}</h2><span class="sd-pts">+${r.pts}</span>${starLine(liveStars(L))}${r.st > 2 ? `<p style="margin:0">🔥 ${r.st} in a row!</p>` : ''}<p class="muted" style="margin:0">${r.mine && !r.ok && mineFor(L.round) ? `You picked ${esc(mineFor(L.round).text)}. ` : ''}The answer was <b>${esc((L.opts || [])[L.reveal] || '')}</b>. ${my}.</p></div></section>`;
   }
   if (mine || !L.open || s === 0) return `<section class="card stack">${head}<h2>${esc(L.q)}</h2><div class="sd-res good" style="background:rgba(255,255,255,.05);border-color:#ffc85c"><span class="sd-big">🎼</span><h2 style="margin:0">${mine ? 'Locked in!' : 'Time!'}</h2><p class="muted" style="margin:0">${mine ? 'You picked ' + esc(mine.text) + '. ' : ''}Watch the class screen.</p></div></section>`;
-  return `<section class="card stack qhead">${head}<h2>${esc(L.q)}</h2>${LC.ksStaff(L.ks, '', L.clef)}
+  return `<section class="card stack qhead">${head}<h2>${esc(L.q)}</h2>${LC.staffFor(L)}
     <div class="sd-keys">${(L.opts || []).map((o, i) => `<button type="button" class="sd-key" data-pick="${esc(o)}" ${S.busy ? 'disabled' : ''}><span class="sd-l">${'ABCDEF'[i]}</span><span class="sd-n">${NOTES[i]}</span>${esc(o)}</button>`).join('')}</div>
     <p class="dim small" style="margin:0">Your first tap counts. Fast and right scores the most.</p></section>`;
 }
@@ -418,7 +418,7 @@ const saveSH = () => { try { localStorage.setItem(SHK, JSON.stringify(SH.slice(-
 function shSee(L, mine) {
   if (!L || !L.q || !L.round || L.type === 'emoji') return;
   let e = SH.find(x => x.round === L.round);
-  if (!e) { e = { round: L.round, q: L.q, type: L.type, opts: L.type === 'mc' ? L.opts || [] : null, ks: L.ks != null ? L.ks : null, clef: L.clef || null, mine: '', right: '', at: Date.now() }; SH.push(e); }
+  if (!e) { e = { round: L.round, q: L.q, type: L.type, opts: L.type === 'mc' ? L.opts || [] : null, ks: L.ks != null ? L.ks : null, clef: L.clef || null, gen: L.gen || null, mine: '', right: '', at: Date.now() }; SH.push(e); }
   if (mine != null) e.mine = mine;
   if (L.reveal != null && !L.open) e.right = L.type === 'yn' ? ['Yes', 'No'][L.reveal] || '' : (L.opts || [])[L.reveal] || '';
   saveSH();
@@ -428,7 +428,7 @@ function mySheet() {
   const marked = SH.filter(x => x.right), got = marked.filter(x => x.mine === x.right).length;
   const days = []; SH.forEach(x => { const d = new Date(x.at).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' }); if (!days.includes(d)) days.push(d); });
   const qs = SH.map(x => { const ok = x.right && x.mine === x.right, bad = x.right && x.mine !== x.right;
-    return `<li class="${ok ? 'ok' : bad ? 'bad' : ''}"><p class="q">${esc(x.q)}</p>${LC.ksStaff(x.ks, '', x.clef)}${x.opts ? `<ol type="A" class="opts">${x.opts.map(o => `<li class="${o === x.right ? 'r' : ''} ${o === x.mine && o !== x.right ? 'w' : ''}">${esc(o)}</li>`).join('')}</ol>` : ''}
+    return `<li class="${ok ? 'ok' : bad ? 'bad' : ''}"><p class="q">${esc(x.q)}</p>${LC.staffFor(x)}${x.opts ? `<ol type="A" class="opts">${x.opts.map(o => `<li class="${o === x.right ? 'r' : ''} ${o === x.mine && o !== x.right ? 'w' : ''}">${esc(o)}</li>`).join('')}</ol>` : ''}
       <p class="me">Your answer: <b>${x.mine ? esc(x.mine) : '<i>no answer</i>'}</b> ${ok ? '<span class="tag g">✓ Right</span>' : bad ? '<span class="tag r">✗ Not quite</span>' : ''}</p>
       ${bad ? `<p class="me">Right answer: <b>${esc(x.right)}</b></p>` : ''}</li>`; }).join('');
   const w = window.open('', '_blank'); if (!w) { toast('Allow pop-ups for this page, then try again.'); return; }

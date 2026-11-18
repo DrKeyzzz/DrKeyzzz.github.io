@@ -156,6 +156,10 @@
   #rescard .bar { cursor: pointer; border-radius: 10px; } #rescard .bar:hover { background: rgba(255,255,255,.05); }
   .startq h2 { font-size: 24px; }
   .startq select.big { font-size: 18px; padding: 12px; }
+  .gtiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+  .gtile { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 14px; border-radius: 14px; border: 2px solid var(--line2); background: rgba(255,255,255,.04); color: var(--ink); cursor: pointer; text-align: left; font: 800 18px Outfit, system-ui, sans-serif; }
+  .gtile small { font-weight: 500; font-size: 13px; color: var(--muted); }
+  .gtile[aria-pressed="true"] { border-color: var(--sky); background: rgba(108,199,255,.14); }
   .diffs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
   .diff { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 16px 8px; border-radius: 14px; border: 2px solid var(--line2); background: rgba(255,255,255,.04); font: 800 19px Outfit, system-ui, sans-serif; color: var(--ink); cursor: pointer; }
   .diff small { font-weight: 500; font-size: 13px; color: var(--muted); }
@@ -210,7 +214,7 @@ function custDrawer() {
   if (!S.cust.sample) S.cust.sample = makeQ(p.g, p.d, o);
   const q = S.cust.sample;
   return `<div class="cust stack">
-    <div class="sample"><span class="label">Sample · ${esc(DIFFS[p.d])}</span><b>${esc(q.q)}</b>${ksStaff(q.ks, '', q.clef)}<div class="row">${q.opts.map(x => `<span class="chip ${x === q.correct ? 'ok' : ''}">${x === q.correct ? '✓ ' : ''}${esc(x)}</span>`).join('')}</div>
+    <div class="sample"><span class="label">Sample · ${esc(DIFFS[p.d])}</span><b>${esc(q.q)}</b>${LC.staffFor(q)}<div class="row">${q.opts.map(x => `<span class="chip ${x === q.correct ? 'ok' : ''}">${x === q.correct ? '✓ ' : ''}${esc(x)}</span>`).join('')}</div>
       <button class="btn sm" type="button" data-act="csample" style="align-self:flex-start">↻ Another sample</button></div>
     ${Object.entries(G.opts).map(([k, l]) => seg(k, l)).join('')}${seg('timer', [[15, '15 s'], [20, '20 s'], [30, '30 s'], [0, 'Off']])}
     <div class="row"><button class="btn pri" type="button" data-act="cuse">Use these</button><button class="btn" type="button" data-act="creset">Back to normal</button><button class="btn" type="button" data-act="cclose">Cancel</button></div></div>`;
@@ -219,7 +223,7 @@ function startCard() {
   const p = gpick(), G = qgame(p.g);
   return `<section class="card stack startq" aria-label="Start a question">
     <div class="row between"><h2 style="margin:0">${S.live && S.live.q ? 'Change the game' : 'Start a question'}</h2>${S.startOpen ? '<button class="btn sm" type="button" data-act="startClose">Cancel</button>' : ''}</div>
-    <label class="f" for="gq-game">Game<select id="gq-game" class="big">${QGAMES.map(g => `<option value="${g.id}" ${g.id === p.g ? 'selected' : ''}>${esc(g.name)} · ${esc(g.what)}</option>`).join('')}</select></label>
+    <div class="gtiles" role="group" aria-label="Game">${QGAMES.map(g => `<button type="button" class="gtile" data-act="ggame" data-v="${g.id}" aria-pressed="${g.id === p.g}"><b>${esc(g.name)}</b><small>${esc(g.what)}</small></button>`).join('')}</div>
     <div class="diffs" role="group" aria-label="Difficulty">${Object.entries(DIFFS).map(([k, v]) => `<button type="button" class="diff d-${k}" data-act="gdiff" data-v="${k}" aria-pressed="${p.d === k}">${v}<small>${k === 'warmup' ? 'Get everyone in' : k === 'challenge' ? 'Solid practice' : 'Really hard'}</small></button>`).join('')}</div>
     <button class="btn pri go" type="button" data-act="go">Go ▶</button>
     ${S.cust ? custDrawer() : `<div class="row between"><button class="btn sm linkish" type="button" data-act="copen">⚙ Customize</button>${custLabel(G, p.o) ? `<span class="chip">${esc(custLabel(G, p.o))}</span>` : ''}</div>`}
@@ -316,7 +320,7 @@ function roundCard() {
   const L = S.live, A = latest(S.ans), n = recent().length, s = left(L);
   return `<section class="card stack qhead">
     <div class="row between"><span class="label">${esc(TYPES[L.type] || '')}</span><div class="row">${s != null ? `<span class="chip gold">⏱ <span class="mono" id="cd">${clock(s)}</span></span>` : ''}<span class="chip ${L.open ? 'ok' : 'no'}">${L.open ? 'Open' : 'Locked'}</span></div></div>
-    <h2>${esc(L.q)}</h2>${ksStaff(L.ks, '', L.clef)}
+    <h2>${esc(L.q)}</h2>${LC.staffFor(L)}
     ${L.type === 'mc' ? `<div class="row">${(L.opts || []).map((o, i) => `<span class="chip">${'ABCDEF'[i]}. ${esc(o)}</span>`).join('')}</div>` : ''}
     <div class="row"><b class="mono">${A.length}${n ? ' of ' + Math.max(n, A.length) : ''}</b><span class="muted">answered</span><div class="meter" style="flex:1;min-width:120px"><i style="width:${n ? Math.min(100, 100 * A.length / Math.max(n, A.length)) : 0}%"></i></div></div>
     ${L.gen ? gameControls(L) : `<div class="row">
@@ -436,7 +440,7 @@ function askedCard() {
 function studySheet(withKey) {
   const l = asked(); if (!l.length) return;
   const cls = (S.classes.find(c => c.code === S.code) || {}).name || S.code, day = new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
-  const qs = l.map((x, i) => `<li><p class="q">${esc(x.q)}</p>${ksStaff(x.ks, '', x.clef)}${x.type === 'mc' && x.opts ? `<ol type="A" class="opts">${x.opts.map(o => `<li class="${withKey && o === x.correct ? 'r' : ''}">${esc(o)}${withKey && o === x.correct ? ' ✓' : ''}</li>`).join('')}</ol>`
+  const qs = l.map((x, i) => `<li><p class="q">${esc(x.q)}</p>${LC.staffFor(x)}${x.type === 'mc' && x.opts ? `<ol type="A" class="opts">${x.opts.map(o => `<li class="${withKey && o === x.correct ? 'r' : ''}">${esc(o)}${withKey && o === x.correct ? ' ✓' : ''}</li>`).join('')}</ol>`
     : x.type === 'yn' ? '<p class="opts">Yes &nbsp;/&nbsp; No</p>' : '<p class="line"></p>'}${withKey ? `<p class="ans">Answer: ${x.correct ? `<b>${esc(x.correct)}</b>` : '<i>open answer</i>'}</p>` : ''}</li>`).join('');
   const key = l.map((x, i) => { const k = x.type === 'mc' && x.opts ? x.opts.indexOf(x.correct) : -1;
     return `<li>${x.correct ? (k >= 0 ? `<b>${'ABCDEF'[k]}</b> · ` : '') + esc(x.correct) : '<span class="muted">(open answer)</span>'}</li>`; }).join('');
@@ -488,13 +492,13 @@ async function post(o = {}) {
   const d = { round, q, type: c.type, skills: (c.skills || []).slice(0, 20), open: true, ends_at: c.timer ? at(Date.now() + c.timer * 1000) : null, spot: [], updated_at: NOW };
   if (c.type === 'mc') d.opts = opts;
   if (c.type === 'mc' && ksOk(c.ks)) { d.ks = c.ks; if (c.clef === 'bass' || c.clef === 'alto') d.clef = c.clef; }
-  if (c.gen && qgame(c.gen.g)) d.gen = { g: c.gen.g, d: c.gen.d };
+  if (c.gen && qgame(c.gen.g)) { d.gen = { g: c.gen.g, d: c.gen.d }; if (Array.isArray(c.gen.n) && c.gen.n.length) { d.gen.n = c.gen.n.slice(0, 2); if (c.clef === 'bass' || c.clef === 'alto') d.clef = c.clef; } }
   if (G().on) { d.game = true; d.reveal = null; d.final = false; d.board = topBoard(); if (!c.timer) d.ends_at = at(Date.now() + GT * 1000); G().qn++; saveG(); }
   try {
     await db.set(livePath(), d);
     try { localStorage.setItem(TK(), JSON.stringify({ round, correct: c.type === 'mc' && !opts.includes(c.correct) ? '' : String(c.correct || ''), why: c.why || {} })); } catch {}
     const okC = c.type === 'mc' && !opts.includes(c.correct) ? '' : String(c.correct || '').slice(0, 60);
-    saveAsked([...asked(), { round, q, type: c.type, opts: c.type === 'mc' ? opts : null, correct: okC, ks: d.ks != null ? d.ks : null, clef: d.clef || null, at: Date.now() }]);
+    saveAsked([...asked(), { round, q, type: c.type, opts: c.type === 'mc' ? opts : null, correct: okC, ks: d.ks != null ? d.ks : null, clef: d.clef || null, gen: d.gen || null, at: Date.now() }]);
     S.comp = { type: c.type, q: '', opts: c.type === 'mc' ? ['', '', '', ''] : c.opts, correct: '', timer: c.gen ? 0 : c.timer, skills: [], ks: null };
     S.err = ''; S.confirm = ''; S.startOpen = false; S.pick = null; if (!c.gen) toast('Posted.'); draw();
   } catch (e) { S.err = ERR(e); draw(); }
@@ -550,6 +554,7 @@ app.addEventListener('click', async e => {
   if (act !== 'confirm' && act !== 'del' && act !== 'end') S.confirm = '';
   if (act === 'confirm') { S.confirm = S.confirm === t.dataset.v ? '' : t.dataset.v; draw(); return; }
   if (act === 'post') return post();
+  if (act === 'ggame') { const p = gpick(); if (p.g !== t.dataset.v) { p.g = t.dataset.v; p.o = { ...OPT_DEF }; savePick(p); } if (S.cust) S.cust = { o: { ...gpick().o }, sample: null }; draw(); return; }
   if (act === 'gdiff') { const p = gpick(); p.d = t.dataset.v; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
   if (act === 'go') { S.cust = null; return goGame(false); }
   if (act === 'copen') { S.cust = { o: { ...gpick().o }, sample: null }; draw(); return; }
@@ -621,7 +626,7 @@ app.addEventListener('change', e => {
   const id = e.target.id, c = S.comp, v = e.target.value;
   if (id === 'cls') { const u = new URL(location.href); u.searchParams.set('code', v); history.replaceState(null, '', u); openClass(v); return; }
   if (id === 'sort') { S.sort = v; draw(); return; }
-  if (id === 'gq-game') { const p = gpick(); p.g = v; p.o = { ...OPT_DEF }; savePick(p); if (S.cust) S.cust = { o: { ...OPT_DEF }, sample: null }; draw(); return; }
+
   if (id === 'c-type') { c.type = v; c.correct = ''; if (v !== 'mc') c.ks = null; draw(); return; }
   if (id === 'c-timer') { c.timer = Number(v) || 0; return; }
   if (id === 'c-correct') { c.correct = v; return; }
