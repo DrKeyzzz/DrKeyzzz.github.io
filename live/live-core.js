@@ -179,7 +179,7 @@ window.LC = (() => {
   // Customize (2026-11-17, step 3): OPT holds the teacher's choices while a question is made. clef: any | treble | bass | alto;
   // acc: both | sharps | flats; mode: both | major | minor; type: mix | name | spell | count | relative | odd (Scale Quest).
   const OPT_DEF = { clef: 'any', acc: 'both', mode: 'both', type: 'mix', play: 'mix', ivs: [], chords: [], inv: 'root', root: 'any', range: 'mid', timer: 30 };
-  let OPT = OPT_DEF, lastKs = null;
+  let OPT = OPT_DEF;
   const anyClef = def => OPT.clef !== 'any' ? OPT.clef : def || rnd(['treble', 'treble', 'bass', 'alto']);
   const accOk = n => OPT.acc === 'sharps' ? n >= 0 : OPT.acc === 'flats' ? n <= 0 : true;
   const nOf = (lo, hi) => { let l = KS_ORDER.filter(n => Math.abs(n) >= lo && Math.abs(n) <= hi && accOk(n) && (OPT.acc === 'both' || n !== 0 || lo === 0 && hi < 1));
@@ -489,12 +489,28 @@ window.LC = (() => {
   // Question types for the two key tiles (2026-11-18). 'same' only works for keys that have a same-sound partner (5-7 sharps or flats).
   const KQ = [['name', 'Name the key'], ['count', 'How many ♯/♭?'], ['spell', 'Spell a note'], ['odd', 'Odd one out'], ['relative', 'Relative key'], ['same', 'Same-sound key']];
   const ENH_OF = { 5: -7, 6: -6, 7: -5, '-7': 5, '-6': 6, '-5': 7 };
+  const keyCycles = new Map();
   function keyPickQ(def) {
-    const picked = (OPT.keys || []).map(Number).filter(ksOk), list = picked.length ? picked : KS_ORDER;
+    const picked = (OPT.keys || []).map(Number).filter(ksOk);
+    const list = picked.length ? KS_ORDER.filter(n => picked.includes(n)) : KS_ORDER;
     let types = (OPT.qt || []).filter(t => KQ.some(k => k[0] === t)); if (!types.length) types = def;
-    if (!list.some(n => ENH_OF[n] != null) && types.length > 1) types = types.filter(t => t !== 'same');
-    const t = rnd(types), from = t === 'same' ? list.filter(n => ENH_OF[n] != null) : list, pool = from.length ? from : list;
-    let n = rnd(pool); for (let k = 0; k < 6 && pool.length > 1 && n === lastKs; k++) n = rnd(pool); lastKs = n;
+    const canEnharmonic = list.some(n => ENH_OF[n] != null);
+    // Share the rotation between the two key tiles, with separate rotations for previews and each class.
+    const sequence = OPT.keySequence || 'preview';
+    const pool = canEnharmonic && types.every(t => t === 'same') ? list.filter(n => ENH_OF[n] != null) : list;
+    const poolId = pool.join(',');
+    let cycle = keyCycles.get(sequence);
+    if (!cycle || cycle.poolId !== poolId) {
+      cycle = { poolId, left: [], last: null };
+      keyCycles.set(sequence, cycle);
+    }
+    if (!cycle.left.length) cycle.left = shuffle(pool);
+    if (types.length > 1 && !cycle.left.some(n => ENH_OF[n] != null)) types = types.filter(t => t !== 'same');
+    const t = rnd(types);
+    const eligible = t === 'same' && canEnharmonic ? cycle.left.filter(n => ENH_OF[n] != null) : cycle.left;
+    const n = eligible.find(n => n !== cycle.last) ?? eligible[0];
+    cycle.left.splice(cycle.left.indexOf(n), 1);
+    cycle.last = n;
     const minor = OPT.mode === 'minor' ? true : OPT.mode === 'major' ? false : Math.random() < .5;
     const clef = OPT.clef === 'any' ? rnd(['treble', 'bass', 'alto']) : OPT.clef;
     if (t === 'count') return { ...ksQuestion(n, minor, 'count'), why: {} };
