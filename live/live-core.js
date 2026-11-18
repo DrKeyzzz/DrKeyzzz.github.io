@@ -189,8 +189,8 @@ window.LC = (() => {
       [flipAcc(right), right.length > 1 ? 'Right letter, but this key has ' + right + '.' : 'Right letter, but there is no sharp or flat on ' + right + ' in this key.'],
       [N[k - 1], 'One step low: the key note counts as 1st.'], [N[(k + 1) % 7], 'One step high: the key note counts as 1st.'], [ENH[right], 'Sounds the same, but the letter name is wrong in this key.']]);
   }
-  function relative(n) {   // both ways: relative minor of a major key, or relative major of a minor key
-    if (Math.random() < .5) {
+  function relative(n, minor) {   // both ways: relative minor of a major key, or relative major of a minor key (minor given = that way)
+    if (minor === false || minor !== true && Math.random() < .5) {
       const maj = KS_MAJ[n], right = KS_MIN[n] + ' minor', N = keyNotes(n, false);
       return mcq(`What is the relative minor of ${maj} major?`, right, [[maj + ' minor', 'That is the parallel minor (same starting note, different key signature).'],
         [N[2] + ' minor', 'The relative minor starts on the 6th note, not the 3rd.'], [ksOk(n + 1) ? KS_MIN[n + 1] + ' minor' : '', 'Off by one key.'], [ksOk(n - 1) ? KS_MIN[n - 1] + ' minor' : '', 'Off by one key.'], [ksOk(n + 2) ? KS_MIN[n + 2] + ' minor' : KS_MIN[n - 2] + ' minor', 'Off by two keys.']]);
@@ -199,15 +199,15 @@ window.LC = (() => {
     return mcq(`What is the relative major of ${mi} minor?`, right, [[mi + ' major', 'That is the parallel major (same starting note, different key signature).'],
       [N[5] + ' major', 'The relative major starts on the 3rd note of the minor key, not the 6th.'], [ksOk(n + 1) ? KS_MAJ[n + 1] + ' major' : '', 'Off by one key.'], [ksOk(n - 1) ? KS_MAJ[n - 1] + ' major' : '', 'Off by one key.'], [ksOk(n + 2) ? KS_MAJ[n + 2] + ' major' : KS_MAJ[n - 2] + ' major', 'Off by two keys.']]);
   }
-  function enharmonic() {   // B = C♭, F♯ = G♭, C♯ = D♭ (and their relative minors)
-    const pairs = [[5, -7], [6, -6], [7, -5], [-7, 5], [-6, 6], [-5, 7]].filter(([, b]) => accOk(b)), [a, b] = rnd(pairs), minor = isMinor(.4);
+  function enharmonic(fix, fixMinor) {   // B = C♭, F♯ = G♭, C♯ = D♭ (and their relative minors); fix = ask about that key
+    const pairs = [[5, -7], [6, -6], [7, -5], [-7, 5], [-6, 6], [-5, 7]].filter(([a0, b0]) => fix != null ? a0 === fix : accOk(b0)), [a, b] = rnd(pairs), minor = fixMinor != null ? fixMinor : isMinor(.4);
     const from = ksName(a, minor), right = ksName(b, minor), with_ = b < 0 ? 'flats' : 'sharps';
     return mcq(`Which key sounds the same as ${from} but is written with ${with_}?`, right,
       [[ksOk(b + 1) ? ksName(b + 1, minor) : '', 'A different key: one accidental off.'], [ksOk(b - 1) ? ksName(b - 1, minor) : '', 'A different key: one accidental off.'],
        [from[0] + ' ' + (minor ? 'minor' : 'major'), 'Same letter, but the natural key does not sound the same.'], [ksName(-a, minor), 'Same number of accidentals, but that is a different key.']]);
   }
-  function oddOne(n) {   // "Which note is NOT in B major?"
-    const N = keyNotes(n, false), key = ksName(n, false), accd = N.filter(x => x.length > 1), base = rnd(accd.length ? accd : N);
+  function oddOne(n, minor) {   // "Which note is NOT in B major?" (minor: natural minor)
+    const N = keyNotes(n, !!minor), key = ksName(n, !!minor), accd = N.filter(x => x.length > 1), base = rnd(accd.length ? accd : N);
     const trap = Math.random() < .5 && ENH[base] ? ENH[base] : flipAcc(base);
     const ins = shuffle(N.filter(x => x !== base)).slice(0, 3);
     return { ...mcq(`Which note is NOT in ${key}?`, trap, ins.map(x => [x, x + ' is in ' + key + '.'])), why: Object.fromEntries(ins.map(x => [x, x + ' is in ' + key + ': check every note against the key signature.'])) };
@@ -427,35 +427,29 @@ window.LC = (() => {
     }
     return noteQ(d);
   }
+  // Question types for the two key tiles (2026-11-18). 'same' only works for keys that have a same-sound partner (5-7 sharps or flats).
+  const KQ = [['name', 'Name the key'], ['count', 'How many ♯/♭?'], ['spell', 'Spell a note'], ['odd', 'Odd one out'], ['relative', 'Relative key'], ['same', 'Same-sound key']];
+  const ENH_OF = { 5: -7, 6: -6, 7: -5, '-7': 5, '-6': 6, '-5': 7 };
+  function keyPickQ(def) {
+    const picked = (OPT.keys || []).map(Number).filter(ksOk), list = picked.length ? picked : KS_ORDER;
+    let types = (OPT.qt || []).filter(t => KQ.some(k => k[0] === t)); if (!types.length) types = def;
+    if (!list.some(n => ENH_OF[n] != null) && types.length > 1) types = types.filter(t => t !== 'same');
+    const t = rnd(types), from = t === 'same' ? list.filter(n => ENH_OF[n] != null) : list, pool = from.length ? from : list;
+    let n = rnd(pool); for (let k = 0; k < 6 && pool.length > 1 && n === lastKs; k++) n = rnd(pool); lastKs = n;
+    const minor = OPT.mode === 'minor' ? true : OPT.mode === 'major' ? false : Math.random() < .5;
+    const clef = OPT.clef === 'any' ? rnd(['treble', 'bass', 'alto']) : OPT.clef;
+    if (t === 'count') return { ...ksQuestion(n, minor, 'count'), why: {} };
+    if (t === 'spell') return spell(n, minor);
+    if (t === 'odd') return oddOne(n, minor);
+    if (t === 'relative') return relative(n, minor);
+    if (t === 'same' && ENH_OF[n] != null) return enharmonic(n, minor);
+    return ksMC(n, minor, clef);
+  }
   const QGAMES = [
-    { id: 'scale', name: 'Scale Quest', what: 'Key signatures and scales', url: '/scale-quest/', 
-      // the choices Customize offers for this game, first = default
-      opts: { type: [['mix', 'Mix'], ['name', 'Name the key'], ['spell', 'Spell a note'], ['count', 'How many?'], ['relative', 'Relative & same-sound keys'], ['odd', 'Odd one out']],
-        clef: [['any', 'Any'], ['treble', '𝄞 Treble'], ['bass', '𝄢 Bass'], ['alto', '𝄡 Alto']], acc: [['both', 'Both'], ['sharps', '♯ Sharps'], ['flats', '♭ Flats']],
-        mode: [['both', 'Both'], ['major', 'Major'], ['minor', 'Minor']] },
-      make(d) {
-      const [lo, hi] = d === 'warmup' ? [0, 3] : d === 'challenge' ? [0, 7] : [3, 7], t = OPT.type;
-      const nameQ = () => { const m = isMinor(d === 'warmup' ? 0 : d === 'challenge' ? .35 : .7); return ksMC(nOf(m && d === 'brutal' ? 4 : lo, hi), m, anyClef(d === 'warmup' ? 'treble' : null), m && d === 'brutal' ? 'This key signature is for which MINOR key?' : null); };
-      const spellQ = () => spell(nOf(lo, Math.min(hi, d === 'challenge' ? 5 : 7)), isMinor(d === 'brutal' ? .5 : d === 'challenge' ? .2 : 0));
-      const countQ = () => ({ ...ksQuestion(nOf(Math.max(1, lo), hi), isMinor(d === 'warmup' ? 0 : .35), 'count'), why: {} });
-      const relQ = () => Math.random() < .6 || OPT.acc !== 'both' && d !== 'brutal' ? relative(nOf(Math.max(2, lo), hi)) : enharmonic();
-      const oddQ = () => oddOne(nOf(Math.max(2, lo), hi));
-      const by = { name: nameQ, spell: spellQ, count: countQ, relative: relQ, odd: oddQ };
-      if (by[t]) return by[t]();
-      if (d === 'warmup') return nameQ();
-      const r = Math.random();
-      if (d === 'challenge') return r < .45 ? nameQ() : r < .8 ? spellQ() : countQ();
-      return r < .25 ? nameQ() : r < .5 ? relative(nOf(2, 7)) : r < .7 ? enharmonic() : r < .85 ? oddQ() : spellQ();
-    } },
-    // Key signatures (2026-11-18, David: its own option, no levels): the teacher taps the keys to ask (none = all 15), Major / Minor / Both and the clef.
-    // OPT.keys = list of -7..7, OPT.mode, OPT.clef (any = mix of the three). Never the same key twice in a row unless only one is picked.
-    { id: 'keysig', name: 'Key signatures', what: 'You pick the keys and the clef', url: '/scale-quest/', game: 'Scale Quest', pick: true, opts: {},
-      make() {
-        const picked = (OPT.keys || []).map(Number).filter(ksOk), list = picked.length ? picked : KS_ORDER;
-        let n = rnd(list); for (let k = 0; k < 6 && list.length > 1 && n === lastKs; k++) n = rnd(list); lastKs = n;
-        const minor = OPT.mode === 'minor' ? true : OPT.mode === 'major' ? false : Math.random() < .5;
-        return ksMC(n, minor, OPT.clef === 'any' ? rnd(['treble', 'bass', 'alto']) : OPT.clef);
-      } },
+    // Scale Quest and Key signatures (2026-11-18, David: no levels for these two): the teacher taps the keys (none = all 15), Major / Minor / Both,
+    // the clef and the question types (none = the tile's own mix). OPT.keys, OPT.mode, OPT.clef (any = mixed), OPT.qt = list of KQ ids.
+    { id: 'scale', name: 'Scale Quest', what: 'Keys and scales: you pick', url: '/scale-quest/', pick: true, opts: {}, qdef: ['name', 'count', 'spell', 'odd', 'relative', 'same'], make() { return keyPickQ(this.qdef); } },
+    { id: 'keysig', name: 'Key signatures', what: 'You pick the keys and the clef', url: '/scale-quest/', game: 'Scale Quest', pick: true, opts: {}, qdef: ['name', 'count'], make() { return keyPickQ(this.qdef); } },
     { id: 'tidal', name: 'Tidal Tones', what: 'Notes and intervals on the staff', url: '/tidal-tones/',
       opts: { type: [['mix', 'Mix'], ['note', 'Name the note'], ['interval', 'Name the interval']], clef: [['any', 'Any'], ['treble', '𝄞 Treble'], ['bass', '𝄢 Bass'], ['alto', '𝄡 Alto']] },
       make(d) { const t = OPT.type; return t === 'note' ? noteQ(d) : t === 'interval' ? intervalQ(d) : Math.random() < .55 ? noteQ(d) : intervalQ(d); } },
@@ -513,5 +507,5 @@ window.LC = (() => {
   const clock = s => s == null ? '' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const ERR = e => { const c = String(e && (e.code || e.message) || e); return /permission/i.test(c) ? 'Live Class is not switched on yet (the new database rules are not in place).' : /offline|unavailable|timeout/i.test(c) ? 'No connection. Check the wifi and try again.' : 'Something went wrong: ' + c; };
 
-  return { play, audio, unlocked, isSound, staffFor, noteStaff, OPT_DEF, DIFFS, QGAMES, qgame, makeQ, keyNotes, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, BANK, NOW, at, newKey, roundId, flagged, db, fbAuth, results, latest, left, clock, ERR };
+  return { KQ, play, audio, unlocked, isSound, staffFor, noteStaff, OPT_DEF, DIFFS, QGAMES, qgame, makeQ, keyNotes, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, BANK, NOW, at, newKey, roundId, flagged, db, fbAuth, results, latest, left, clock, ERR };
 })();

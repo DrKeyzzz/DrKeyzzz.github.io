@@ -147,7 +147,7 @@
 <meta name="robots" content="noindex">
 <link href="/fonts/fonts.css" rel="stylesheet">
 <!-- fonts.css has Noto Music for the treble clef on key signature questions -->
-<link rel="stylesheet" href="../live.css?v=20261118c">
+<link rel="stylesheet" href="../live.css?v=20261118d">
 <!-- Live Class teacher console (added 2026-11-12). Shown inside the All games dashboard's Live tab (?embed=1&code=XXXX),
      or on its own. ?preview=1 = a pretend class kept in this browser; open ../?preview=1 in another tab to be a student. -->
 <style>
@@ -160,6 +160,8 @@
   .kpanel .kskeys { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 5px; }
   .kpanel .kskeys .btn { padding: 5px 2px; font-size: 13px; flex-direction: row; gap: 4px; }
   @media (max-width: 600px) { .kpanel .kskeys { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+  .kpanel .kqt button { padding: 4px 10px; font-size: 13px; }
+  .gtiles .gtile { padding: 9px 12px; }  /* 2026-11-18: a little shorter so the key panel fits 768 px */
   .kpanel .kskeys .btn[aria-pressed="true"] { border-color: var(--gold); background: rgba(255,200,92,.2); }
   .gtile { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 14px; border-radius: 14px; border: 2px solid var(--line2); background: rgba(255,255,255,.04); color: var(--ink); cursor: pointer; text-align: left; font: 800 18px Outfit, system-ui, sans-serif; }
   .gtile small { font-weight: 500; font-size: 13px; color: var(--muted); }
@@ -196,7 +198,7 @@
 <body>
 <div id="app"></div>
 <p class="toast" id="toast" role="status"></p>
-<script src="../live-core.js?v=20261118c"></script>
+<script src="../live-core.js?v=20261118d"></script>
 <script>
 (() => {
 const { OPT_DEF, DIFFS, QGAMES, qgame, makeQ, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, BANK, NOW, at, db, results, latest, left, clock, ERR } = LC;
@@ -216,15 +218,17 @@ const S = { email: '', classes: [], code: '', live: null, ans: [], pulses: [], p
 const PK = () => 'mtg_live_pick_v1:' + S.code;
 const gpick = () => { let o = null; try { o = JSON.parse(localStorage.getItem(PK()) || 'null'); } catch {} return { g: o && qgame(o.g) ? o.g : QGAMES[0].id, d: o && DIFFS[o.d] ? o.d : 'challenge', o: { ...OPT_DEF, ...(o && o.o || {}) }, k: o && o.k || null }; };
 // Key signatures tile (2026-11-18): its own picks (p.k = { keys, mode, clef }) instead of a difficulty; they only apply to that tile.
-const KDEF = { keys: [], mode: 'major', clef: 'treble' };
+const KDEF = { keys: [], mode: 'major', clef: 'treble', qt: {} };   // qt = question types per tile ({ scale: [...], keysig: [...] }; none = the tile's mix)
 const kpick = p => ({ ...KDEF, ...(p.k || {}) });
-const gopts = (p, o) => p.g === 'keysig' ? { ...(o || p.o), ...kpick(p) } : (o || p.o);
+const gopts = (p, o) => { const G = qgame(p.g); if (!G || !G.pick) return o || p.o; const k = kpick(p); return { ...(o || p.o), keys: k.keys, mode: k.mode, clef: k.clef, qt: (k.qt || {})[p.g] || [] }; };
+const kTypes = p => { const G = qgame(p.g), q = (kpick(p).qt || {})[p.g] || []; return q.length ? q : G.qdef; };
 const kLabel = p => { const k = kpick(p), n = k.keys.length; return (n ? (n <= 3 ? k.keys.map(x => LC.ksName(+x, k.mode === 'minor').replace(/ (major|minor)$/, '')).join(', ') : n + ' keys') : 'All keys') + ' · ' + ({ major: 'Major', minor: 'Minor', both: 'Major + minor' })[k.mode] + ' · ' + ({ treble: 'Treble', bass: 'Bass', alto: 'Alto', any: 'Mixed clefs' })[k.clef]; };
 function kPanel(p) {
   const k = kpick(p), seg = (f, list) => `<span class="seg">${list.map(([v, l]) => `<button type="button" data-act="kset" data-k="${f}" data-v="${v}" aria-pressed="${k[f] === v}">${l}</button>`).join('')}</span>`;
   const nm = n => k.mode === 'minor' ? LC.ksName(n, true).replace(' minor', 'm') : LC.ksName(n, false).replace(' major', '') + (k.mode === 'both' ? ' / ' + LC.ksName(n, true).replace(' minor', 'm') : '');
   return `<div class="stack kpanel" style="gap:8px">
-    <div class="row">${seg('mode', [['major', 'Major'], ['minor', 'Minor'], ['both', 'Both']])}${seg('clef', [['treble', '𝄞 Treble'], ['bass', '𝄢 Bass'], ['alto', '𝄡 Alto'], ['any', 'Mix']])}<span class="grow"></span><span class="dim small">${k.keys.length ? k.keys.length + ' picked' : 'None picked = all 15'}</span>${k.keys.length ? '<button class="btn sm" type="button" data-act="kclear">✕ Clear</button>' : ''}</div>
+    <div class="row">${seg('mode', [['major', 'Major'], ['minor', 'Minor'], ['both', 'Both']])}${seg('clef', [['treble', '𝄞 Treble'], ['bass', '𝄢 Bass'], ['alto', '𝄡 Alto'], ['any', 'Mix']])}<span class="grow"></span><span class="dim small">${k.keys.length ? k.keys.length + ' keys picked' : 'No keys picked = all 15'}</span>${k.keys.length ? '<button class="btn sm" type="button" data-act="kclear">✕ Clear</button>' : ''}</div>
+    <div class="chipset kqt" role="group" aria-label="Question types">${LC.KQ.map(([v, l]) => `<button type="button" data-act="kqt" data-v="${v}" aria-pressed="${kTypes(p).includes(v)}">${l}</button>`).join('')}</div>
     <div class="kskeys">${KS_ORDER.map(n => `<button class="btn" type="button" data-act="kkey" data-v="${n}" aria-pressed="${k.keys.map(Number).includes(n)}" title="${n ? Math.abs(n) + (n > 0 ? ' sharp' : ' flat') + (Math.abs(n) > 1 ? 's' : '') : 'No sharps or flats'}">${esc(nm(n))} <small>${n ? Math.abs(n) + (n > 0 ? '♯' : '♭') : '0'}</small></button>`).join('')}</div></div>`;
 }
 const savePick = p => { try { localStorage.setItem(PK(), JSON.stringify(p)); } catch {} };
@@ -410,7 +414,7 @@ function gameControls(L) {
   const G = qgame(L.gen.g), p = gpick(), cl = custLabel(qgame(p.g) || G, p.o);
   return `<div class="gbtns">${L.open ? `<button class="btn big pri" type="button" data-act="lock">👁 Lock &amp; reveal</button><button class="btn big" type="button" data-act="skip" title="Pull this question: nothing counts">⏭ Skip</button>` : ''}
       <button class="btn big ${L.open ? '' : 'pri'}" type="button" data-act="next">Next ▶</button></div>
-    <div class="qbankrow"><button class="btn qbank" type="button" data-act="change" aria-expanded="${S.startOpen}"><span class="qb-ic">📚</span><span><b>Question bank</b><small>Next: ${esc((qgame(p.g) || G).name)} · ${esc(p.g === 'keysig' ? kLabel(p) : DIFFS[p.d] || '')}${cl ? ' · ' + esc(cl) : ''}</small></span></button>
+    <div class="qbankrow"><button class="btn qbank" type="button" data-act="change" aria-expanded="${S.startOpen}"><span class="qb-ic">📚</span><span><b>Question bank</b><small>Next: ${esc((qgame(p.g) || G).name)} · ${esc((qgame(p.g) || {}).pick ? kLabel(p) : DIFFS[p.d] || '')}${cl ? ' · ' + esc(cl) : ''}</small></span></button>
       <span class="grow"></span>${PREVIEW ? '<button class="btn sm" type="button" data-act="sim">🤖 Pretend students answer</button>' : ''}${S.confirm === 'end' ? '<button class="btn sm warn" type="button" data-act="end">End and clear the screen?</button>' : '<button class="btn sm" type="button" data-act="confirm" data-v="end">End</button>'}</div>`;
 }
 // Click a bar to see who chose that answer (2026-11-17, David: "there are 3 wrong answers and I want to see who they are").
@@ -638,6 +642,7 @@ app.addEventListener('click', async e => {
   if (act === 'ggame') { const p = gpick(); if (p.g !== t.dataset.v) { p.g = t.dataset.v; p.o = { ...OPT_DEF }; savePick(p); } if (S.cust) S.cust = { o: { ...gpick().o }, sample: null }; draw(); return; }
   if (act === 'kset') { const p = gpick(); p.k = { ...kpick(p), [t.dataset.k]: t.dataset.v }; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
   if (act === 'kkey') { const p = gpick(), k = kpick(p), n = Number(t.dataset.v), a = k.keys.map(Number), i = a.indexOf(n); if (i >= 0) a.splice(i, 1); else a.push(n); p.k = { ...k, keys: a }; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
+  if (act === 'kqt') { const p = gpick(), k = kpick(p), own = ((k.qt || {})[p.g] || []).length, a = own ? kTypes(p).slice() : [], i = a.indexOf(t.dataset.v); if (!own) a.push(t.dataset.v); else if (i >= 0) { if (a.length > 1) a.splice(i, 1); } else a.push(t.dataset.v); /* first tap = only that type; then tap to add or remove */ p.k = { ...k, qt: { ...(k.qt || {}), [p.g]: a } }; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
   if (act === 'kclear') { const p = gpick(); p.k = { ...kpick(p), keys: [] }; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
   if (act === 'gdiff') { const p = gpick(); p.d = t.dataset.v; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
   if (act === 'go') { S.cust = null; return goGame(false); }
