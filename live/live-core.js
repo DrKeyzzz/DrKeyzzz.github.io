@@ -300,7 +300,11 @@ window.LC = (() => {
           body += fl(y0 - 10) + (b === 1 ? fl(y0 + 2) : '') + `<line x1="${x + 7}" y1="${y0 - 15}" x2="${x - 1}" y2="${y0 + (b === 1 ? 22 : 14)}" stroke="${K}" stroke-width="2.4"/>`; }
       } else {
         body += `<g transform="translate(${x} ${y0}) rotate(-20)"><ellipse rx="8" ry="5.8" fill="${b >= 8 ? 'none' : K}" stroke="${K}" stroke-width="${b >= 8 ? 2.6 : 1}"/></g>`;
-        if (b < 16) body += `<line x1="${x + 7}" y1="${y0 - 1}" x2="${x + 7}" y2="${y0 - 44}" stroke="${K}" stroke-width="2"/>`;
+        if (b < 16) {
+          // Meet the rim of the hollow half note without entering its opening.
+          const stemX = x + (b === 8 ? 8 : 7), stemBottom = y0 - (b === 8 ? 4 : 1);
+          body += `<line x1="${stemX}" y1="${y0 - 44}" x2="${stemX}" y2="${stemBottom}" stroke="${K}" stroke-width="2"/>`;
+        }
         if (b <= 2) body += `<path d="M${x + 7} ${y0 - 44} c2 10 14 12 9 27" fill="none" stroke="${K}" stroke-width="3"/>`;
         if (b === 1) body += `<path d="M${x + 7} ${y0 - 34} c2 10 14 12 9 27" fill="none" stroke="${K}" stroke-width="3"/>`;
       }
