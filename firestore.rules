@@ -1313,8 +1313,10 @@ service cloud.firestore {
         && (!('ks' in request.resource.data) || (request.resource.data.ks is int && request.resource.data.ks >= -7 && request.resource.data.ks <= 7))
         // clef for that staff (2026-11-17): treble when missing
         && (!('clef' in request.resource.data) || request.resource.data.clef in ['treble', 'bass', 'alto'])
-        // gen = where a game question came from (2026-11-17): { g: game id, d: warmup | challenge | brutal, n: up to 2 notes drawn on the staff (Tidal Tones), m: up to 4 MIDI notes played by the projector, p: how they play }
-        && (!('gen' in request.resource.data) || (request.resource.data.gen is map && request.resource.data.gen.keys().hasOnly(['g', 'd', 'n', 'm', 'p'])
+        // gen = where a game question came from (2026-11-17): { g: game id, d: warmup | challenge | brutal, n: up to 2 notes drawn on the staff (Tidal Tones), m: up to 4 MIDI notes played by the projector, p: how they play, r: a bar of rhythm (up to 16 notes and rests), t: its time signature or '' }
+        && (!('gen' in request.resource.data) || (request.resource.data.gen is map && request.resource.data.gen.keys().hasOnly(['g', 'd', 'n', 'm', 'p', 'r', 't'])
+            && (!('r' in request.resource.data.gen) || (request.resource.data.gen.r is list && request.resource.data.gen.r.size() <= 16))
+            && (!('t' in request.resource.data.gen) || (request.resource.data.gen.t is string && request.resource.data.gen.t.size() <= 5))
             && (!('m' in request.resource.data.gen) || (request.resource.data.gen.m is list && request.resource.data.gen.m.size() <= 4))
             && (!('p' in request.resource.data.gen) || request.resource.data.gen.p in ['up', 'down', 'together', 'chord'])
             && (!('n' in request.resource.data.gen) || (request.resource.data.gen.n is list && request.resource.data.gen.n.size() <= 2))
