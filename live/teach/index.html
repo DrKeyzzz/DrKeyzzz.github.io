@@ -217,7 +217,7 @@ try { S.hideAns = localStorage.getItem('mtg_live_hideans_v1') === '1'; } catch {
 // ---------- Game questions (2026-11-17, David 'go'): game + Warm-up / Challenge / Brutal + Go; then Lock, Skip, Next ----------
 // The last pick is remembered per class on this computer (localStorage mtg_live_pick_v1:<code>).
 const PK = () => 'mtg_live_pick_v1:' + S.code;
-const gpick = () => { let o = null; try { o = JSON.parse(localStorage.getItem(PK()) || 'null'); } catch {} return { g: o && qgame(o.g) ? o.g : QGAMES[0].id, d: o && DIFFS[o.d] ? o.d : 'challenge', o: { ...OPT_DEF, ...(o && o.o || {}) }, k: o && o.k || null, t: o && o.t != null ? o.t : null, sn: o && o.sn || null }; };
+const gpick = () => { let o = null; try { o = JSON.parse(localStorage.getItem(PK()) || 'null'); } catch {} return { g: o && qgame(o.g) ? o.g : QGAMES[0].id, d: o && DIFFS[o.d] ? o.d : 'challenge', o: { ...OPT_DEF, ...(o && o.o || {}) }, k: o && o.k || null, t: o && o.t != null ? o.t : null, sn: o && o.sn != null ? o.sn : null, mixOn: !!(o && o.mixOn), mix: o && Array.isArray(o.mix) ? o.mix.filter(qgame) : [] }; };
 // Key signatures tile (2026-11-18): its own picks (p.k = { keys, mode, clef }) instead of a difficulty; they only apply to that tile.
 const KDEF = { keys: [], mode: 'major', clef: 'treble', qt: {} };   // qt = question types per tile ({ scale: [...], keysig: [...] }; none = the tile's mix)
 const kpick = p => ({ ...KDEF, ...(p.k || {}) });
@@ -255,10 +255,11 @@ function custDrawer() {
 function startCard() {
   const p = gpick(), G = qgame(p.g);
   return `<section class="card stack startq" aria-label="Start a question">
-    <div class="row between"><h2 style="margin:0">📚 Question bank</h2>${S.startOpen ? '<button class="btn sm" type="button" data-act="startClose">Close</button>' : ''}</div>
-    <div class="gtiles" role="group" aria-label="Game">${QGAMES.map(g => `<button type="button" class="gtile" data-act="ggame" data-v="${g.id}" aria-pressed="${g.id === p.g}"><b>${esc(g.name)}</b><small>${esc(g.what)}</small></button>`).join('')}</div>
-    ${G.pick ? kPanel(p) : `<div class="diffs" role="group" aria-label="Difficulty">${Object.entries(DIFFS).map(([k, v]) => `<button type="button" class="diff d-${k}" data-act="gdiff" data-v="${k}" aria-pressed="${p.d === k}">${v}<small>${k === 'warmup' ? 'Get everyone in' : k === 'challenge' ? 'Solid practice' : 'Really hard'}</small></button>`).join('')}</div>`}
-    ${G2().on ? `<button class="btn pri go" type="button" data-act="sdstart">🏁 Start a Showdown · ${snum(p)} questions</button>` : '<button class="btn pri go" type="button" data-act="go">Go ▶</button>'}
+    <div class="row between"><h2 style="margin:0">📚 Question bank</h2><span class="grow"></span><button class="btn sm ${p.mixOn ? 'pri' : ''}" type="button" data-act="mixtog" aria-pressed="${p.mixOn}" title="Ask questions from several games, picked at random">🎲 Mix games${p.mixOn ? ': on' : ''}</button>${S.startOpen ? '<button class="btn sm" type="button" data-act="startClose">Close</button>' : ''}</div>
+    <div class="gtiles" role="group" aria-label="Game">${QGAMES.map(g => `<button type="button" class="gtile" data-act="ggame" data-v="${g.id}" aria-pressed="${p.mixOn ? p.mix.includes(g.id) : g.id === p.g}"><b>${esc(g.name)}</b><small>${esc(g.what)}</small></button>`).join('')}</div>
+    ${p.mixOn ? `<p class="small" style="margin:0"><b>Mix:</b> tap the games to mix (${p.mix.length} picked). Each question comes from one of them at random. The level below is for every game; Scale Quest and Key signatures use your saved keys.</p>` : ''}
+    ${G.pick && !p.mixOn ? kPanel(p) : `<div class="diffs" role="group" aria-label="Difficulty">${Object.entries(DIFFS).map(([k, v]) => `<button type="button" class="diff d-${k}" data-act="gdiff" data-v="${k}" aria-pressed="${p.d === k}">${v}<small>${k === 'warmup' ? 'Get everyone in' : k === 'challenge' ? 'Solid practice' : 'Really hard'}</small></button>`).join('')}</div>`}
+    ${G2().on ? `<button class="btn pri go" type="button" data-act="sdstart">🏁 Start a Showdown · ${snum(p) ? snum(p) + ' questions' : 'no end'}</button>` : '<button class="btn pri go" type="button" data-act="go">Go ▶</button>'}
     ${S.cust ? custDrawer() : `<div class="row between"><button class="btn" type="button" data-act="copen">⚙ Customize</button>${custLabel(G, p.o) ? `<span class="chip">${esc(custLabel(G, p.o))}</span>` : ''}${G2().on ? numSeg(p) : ''}${timerSeg(p)}</div>`}
     ${G.pick || G2().on ? '' : `<p class="dim small" style="margin:0">Go asks one now. Next keeps asking new ${esc(G.name)} questions.</p>`}</section>`;
 }   // the 🎼 Key signature maker (2026-11-17)
@@ -303,11 +304,11 @@ async function gameLock(L) {
 // After question n: the Curtain call. This console must stay open (it runs the game, like auto-lock).
 const G2 = () => G();
 const AUTO = () => { const A = G().auto; return G().on && A && A.on ? A : null; };
-const snum = p => p.sn || 10;
-const numSeg = p => `<span class="row" style="gap:6px"><span class="label">Questions</span><span class="seg">${[5, 10, 15].map(v => `<button type="button" data-act="sdnum" data-v="${v}" aria-pressed="${snum(p) === v}">${v}</button>`).join('')}</span></span>`;
+const snum = p => p.sn != null ? p.sn : 10;   // 0 = no end (until End now)
+const numSeg = p => `<span class="row" style="gap:6px"><span class="label">Questions</span><span class="seg">${[5, 10, 15, 20, 0].map(v => `<button type="button" data-act="sdnum" data-v="${v}" aria-pressed="${snum(p) === v}" title="${v ? v + ' questions, then the Curtain call' : 'Keep going until you press End now'}">${v || '∞'}</button>`).join('')}</span></span>`;
 const whoList = () => [...room()].slice(0, 40).map(s => { const x = S.pulses.find(y => y.sid === s) || S.ans.find(y => y.sid === s) || {}; return { n: S.curtain ? '' : String(x.name || 'Player').slice(0, 24), s }; });
 function autoQueue(round) { const A = AUTO(); if (!A || A.paused) return; clearTimeout(S.autoT); S.autoT = setTimeout(() => autoStep(round), 7000); }
-async function autoStep(round) { const A = AUTO(), L = S.live; if (!A || A.paused || !L || L.round !== round || L.open) return; if (A.i >= A.n) return finishShow(); return goGame(false); }
+async function autoStep(round) { const A = AUTO(), L = S.live; if (!A || A.paused || !L || L.round !== round || L.open) return; if (A.n && A.i >= A.n) return finishShow(); return goGame(false); }
 async function finishShow() {
   const A = G().auto; if (A) { A.on = false; saveG(); } clearTimeout(S.autoT);
   const L = S.live; if (!L || !L.q) return;
@@ -319,7 +320,7 @@ function lobbyCard() {
   return `<section class="card stack"><div class="row between"><h2 style="margin:0">🏁 Waiting room</h2><span class="chip gold">${who.length} in</span></div>
     <p class="muted" style="margin:0">Students open <b>musictheoryacademy.org/live</b>. Names pop in here and on the projector. Press Begin when everyone is in.</p>
     <div class="namechips">${who.length ? who.map(w => `<span class="chip">${esc(w.n || '🎭')}</span>`).join('') : '<span class="muted small">Nobody yet…</span>'}</div>
-    <div class="row"><button class="btn pri go" type="button" data-act="sdbegin" style="flex:1">▶ Begin · ${n} questions</button><button class="btn" type="button" data-act="sdcancel">Cancel</button></div>
+    <div class="row"><button class="btn pri go" type="button" data-act="sdbegin" style="flex:1">▶ Begin · ${n ? n + ' questions' : 'until you press End now'}</button><button class="btn" type="button" data-act="sdcancel">Cancel</button></div>
     <p class="dim small" style="margin:0">It runs by itself: 3-2-1, the question, the answer and the top 5, then the next one. Keep this page open.</p></section>`;
 }
 
@@ -443,8 +444,8 @@ function leadCard() {
 function gameControls(L) {
   const G = qgame(L.gen.g), p = gpick(), cl = custLabel(qgame(p.g) || G, p.o);
   return `<div class="gbtns">${L.open ? `<button class="btn big pri" type="button" data-act="lock">👁 Lock &amp; reveal</button><button class="btn big" type="button" data-act="skip" title="Pull this question: nothing counts">⏭ Skip</button>` : ''}
-      ${AUTO() ? `<button class="btn big ${AUTO().paused ? 'pri' : ''}" type="button" data-act="sdpause">${AUTO().paused ? '▶ Resume' : '⏸ Pause'}</button><button class="btn big" type="button" data-act="podium">⏹ End now</button><span class="chip gold" style="align-self:center">Question ${AUTO().i} of ${AUTO().n}${!L.open && !AUTO().paused ? ' · next one in a few seconds' : ''}</span>` : `<button class="btn big ${L.open ? '' : 'pri'}" type="button" data-act="next">Next ▶</button>`}</div>
-    <div class="qbankrow"><button class="btn qbank" type="button" data-act="change" aria-expanded="${S.startOpen}"><span class="qb-ic">📚</span><span><b>Question bank</b><small>Next: ${esc((qgame(p.g) || G).name)} · ${esc((qgame(p.g) || {}).pick ? kLabel(p) : DIFFS[p.d] || '')}${cl ? ' · ' + esc(cl) : ''}</small></span></button>
+      ${AUTO() ? `<button class="btn big ${AUTO().paused ? 'pri' : ''}" type="button" data-act="sdpause">${AUTO().paused ? '▶ Resume' : '⏸ Pause'}</button><button class="btn big" type="button" data-act="podium">⏹ End now</button><span class="chip gold" style="align-self:center">Question ${AUTO().i}${AUTO().n ? ' of ' + AUTO().n : ''}${!L.open && !AUTO().paused ? ' · next one in a few seconds' : ''}</span>` : `<button class="btn big ${L.open ? '' : 'pri'}" type="button" data-act="next">Next ▶</button>`}</div>
+    <div class="qbankrow"><button class="btn qbank" type="button" data-act="change" aria-expanded="${S.startOpen}"><span class="qb-ic">📚</span><span><b>Question bank</b><small>Next: ${p.mixOn ? '🎲 Mix of ' + p.mix.length + ' games · ' + esc(DIFFS[p.d] || '') : `${esc((qgame(p.g) || G).name)} · ${esc((qgame(p.g) || {}).pick ? kLabel(p) : DIFFS[p.d] || '')}${cl ? ' · ' + esc(cl) : ''}`}</small></span></button>
       <span class="grow"></span>${PREVIEW ? '<button class="btn sm" type="button" data-act="sim">🤖 Pretend students answer</button>' : ''}${S.confirm === 'end' ? '<button class="btn sm warn" type="button" data-act="end">End and clear the screen?</button>' : '<button class="btn sm" type="button" data-act="confirm" data-v="end">End</button>'}</div>`;
 }
 // Click a bar to see who chose that answer (2026-11-17, David: "there are 3 wrong answers and I want to see who they are").
@@ -602,7 +603,7 @@ async function post(o = {}) {
   if (c.gen && qgame(c.gen.g)) { d.gen = { g: c.gen.g, d: c.gen.d }; if (Array.isArray(c.gen.n) && c.gen.n.length) { d.gen.n = c.gen.n.slice(0, 2); if (c.clef === 'bass' || c.clef === 'alto') d.clef = c.clef; }
     if (Array.isArray(c.gen.m) && c.gen.m.length) { d.gen.m = c.gen.m.slice(0, 4); d.gen.p = c.gen.p || 'up'; }
     if (Array.isArray(c.gen.r) && c.gen.r.length) { d.gen.r = c.gen.r.slice(0, 16); d.gen.t = String(c.gen.t || '').slice(0, 5); } }
-  if (G().on) { d.game = true; d.reveal = null; d.final = false; d.board = topBoard(); if (!c.timer) d.ends_at = at(Date.now() + lead + GT * 1000); G().qn++; if (A) { d.show = { st: 'play', n: A.n, i: A.i, at: Date.now() + lead }; G().starts[round] = Date.now() + lead; } saveG(); }
+  if (G().on) { d.game = true; d.reveal = null; d.final = false; d.board = topBoard(); if (!c.timer) d.ends_at = at(Date.now() + lead + GT * 1000); G().qn++; if (A) { d.show = { st: 'play', n: A.n, i: Math.min(A.i, 30), at: Date.now() + lead }; G().starts[round] = Date.now() + lead; } saveG(); }
   try {
     await db.set(livePath(), d);
     try { localStorage.setItem(TK(), JSON.stringify({ round, correct: c.type === 'mc' && !opts.includes(c.correct) ? '' : String(c.correct || ''), why: c.why || {} })); } catch {}
@@ -620,7 +621,9 @@ const projOpen = () => { try { return Date.now() - Number(localStorage.getItem('
 function playLive(x, here) { if (!LC.isSound(x)) return; if (!here && projOpen()) { try { localStorage.setItem('mtg_live_play_v1:' + S.code, String(Date.now())); } catch {} return; } LC.play(x.gen.m, x.gen.p); }
 async function goGame(skip) {
   LC.audio();   // the Go / Next click unlocks sound on this page
-  const p = gpick(), q = makeQ(p.g, p.d, gopts(p)), L = S.live;
+  const p0 = gpick(), mg = p0.mixOn && p0.mix.length ? (() => { const l = p0.mix.length > 1 ? p0.mix.filter(g => g !== S.lastMix) : p0.mix; return l[Math.floor(Math.random() * l.length)]; })() : null;
+  if (mg) S.lastMix = mg;
+  const p = mg ? { ...p0, g: mg, o: mg === p0.g ? p0.o : { ...OPT_DEF } } : p0, q = makeQ(p.g, p.d, gopts(p)), L = S.live;   // 🎲 Mix: a random game each time (2026-11-18)
   if (skip && L && L.round) { const l = asked(); if (l.length && l[l.length - 1].round === L.round) { l.pop(); saveAsked(l); } }
   S.comp = { ...q, timer: gtimer(p) };   // Showdown with the timer Off still gets GT seconds (post)
   await post({ skip: !!skip });
@@ -670,6 +673,8 @@ app.addEventListener('click', async e => {
   if (act !== 'confirm' && act !== 'del' && act !== 'end') S.confirm = '';
   if (act === 'confirm') { S.confirm = S.confirm === t.dataset.v ? '' : t.dataset.v; draw(); return; }
   if (act === 'post') return post();
+  if (act === 'mixtog') { const p = gpick(); p.mixOn = !p.mixOn; if (p.mixOn && !p.mix.length) p.mix = [p.g]; savePick(p); draw(); return; }
+  if (act === 'ggame' && gpick().mixOn) { const p = gpick(), v = t.dataset.v, i = p.mix.indexOf(v); if (i >= 0) { if (p.mix.length > 1) p.mix.splice(i, 1); } else p.mix.push(v); savePick(p); draw(); return; }
   if (act === 'ggame') { const p = gpick(); if (p.g !== t.dataset.v) { p.g = t.dataset.v; p.o = { ...OPT_DEF }; savePick(p); } if (S.cust) S.cust = { o: { ...gpick().o }, sample: null }; draw(); return; }
   if (act === 'kset') { const p = gpick(); p.k = { ...kpick(p), [t.dataset.k]: t.dataset.v }; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
   if (act === 'kkey') { const p = gpick(), k = kpick(p), n = Number(t.dataset.v), a = k.keys.map(Number), i = a.indexOf(n); if (i >= 0) a.splice(i, 1); else a.push(n); p.k = { ...k, keys: a }; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
