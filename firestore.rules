@@ -1300,7 +1300,7 @@ service cloud.firestore {
       allow get: if true;
       allow list: if false;
       allow create, update: if ownsClass(code)
-        && request.resource.data.keys().hasOnly(['round', 'q', 'type', 'opts', 'skills', 'open', 'ends_at', 'spot', 'ks', 'clef', 'game', 'reveal', 'final', 'board', 'updated_at'])
+        && request.resource.data.keys().hasOnly(['round', 'q', 'type', 'opts', 'skills', 'open', 'ends_at', 'spot', 'ks', 'clef', 'game', 'reveal', 'final', 'board', 'gen', 'updated_at'])
         && request.resource.data.round is string && request.resource.data.round.matches('^[A-Za-z0-9-]{1,40}$')
         && request.resource.data.q is string && request.resource.data.q.size() <= 200
         && request.resource.data.type in ['text', 'mc', 'yn', 'num', 'emoji', 'word']
@@ -1313,6 +1313,9 @@ service cloud.firestore {
         && (!('ks' in request.resource.data) || (request.resource.data.ks is int && request.resource.data.ks >= -7 && request.resource.data.ks <= 7))
         // clef for that staff (2026-11-17): treble when missing
         && (!('clef' in request.resource.data) || request.resource.data.clef in ['treble', 'bass', 'alto'])
+        // gen = where a game question came from (2026-11-17): { g: game id, d: warmup | challenge | brutal }
+        && (!('gen' in request.resource.data) || (request.resource.data.gen is map && request.resource.data.gen.keys().hasOnly(['g', 'd'])
+            && request.resource.data.gen.g is string && request.resource.data.gen.g.size() <= 20 && request.resource.data.gen.d in ['warmup', 'challenge', 'brutal']))
         // Showdown (game mode, 2026-11-17): game on/off, the right choice shown only after time is up, the final Curtain call, the top-5 board (name, sid, points)
         && (!('game' in request.resource.data) || request.resource.data.game is bool)
         && (!('final' in request.resource.data) || request.resource.data.final is bool)
