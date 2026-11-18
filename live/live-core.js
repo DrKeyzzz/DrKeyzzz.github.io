@@ -116,7 +116,8 @@ window.LC = (() => {
   const KS_CLEFS = { treble: { sh: 0, name: 'Treble' }, bass: { sh: -2, name: 'Bass' }, alto: { sh: -1, name: 'Alto' } };
   const clefOk = c => c === 'treble' || c === 'bass' || c === 'alto';
   const CLEF_SVG = {
-    treble: `<text x="16" y="${170 - 2 * 10 + 13}" font-size="86" fill="#1d2433" style="font-family:'Noto Music','Apple Symbols','Segoe UI Symbol',serif">𝄞</text>`,
+    // The treble clef curls around the second staff line (G).
+    treble: `<g transform="translate(30 ${ksY(4)})" fill="#1d2433"><path d="M-3 16C-15 13-20 3-17-8C-14-20-3-27 7-37C17-47 20-61 15-68C9-65 6-55 7-44C8-24 12-3 16 16C19 32 24 43 18 51C14 58 4 60-2 55C-9 50-7 41 0 39C8 37 12 47 5 52C10 54 15 50 16 45C17 37 13 27 11 16C7-4 3-25 2-43C1-58 6-73 15-81C22-78 26-65 24-55C22-43 14-33 5-25C-4-16-11-9-12 0C-12 8-8 13-3 16Z"/><path d="M-3 17C-11 12-11 0-4-6C4-13 17-10 22-1C28 10 21 23 8 24C0 25-8 21-12 16C-5 21 3 22 10 19C17 16 19 10 16 4C13-2 6-4 1 0C-4 3-5 12-3 17Z"/></g>`,
     // The bass clef's curl and dots mark the fourth staff line (F).
     bass: `<g transform="translate(18 ${ksY(8)})" fill="#1d2433"><path d="M1 1C-2-9 8-18 20-18C34-18 42-9 42 2C42 20 23 35 0 46L-1 44C18 32 32 15 32 0C32-9 28-15 20-15C11-15 5-8 6 0Z"/><circle cx="9" cy="0" r="8"/><circle cx="49" cy="-10" r="4"/><circle cx="49" cy="10" r="4"/></g>`,
     alto: `<text x="14" y="${170 - 2 * 10 + 1}" font-size="80" fill="#1d2433" style="font-family:'Noto Music','Apple Symbols','Segoe UI Symbol',serif">𝄡</text>` };
@@ -450,10 +451,23 @@ window.LC = (() => {
       const num = d === 'warmup' ? 2 + Math.floor(Math.random() * 4) : 2 + Math.floor(Math.random() * 7);
       const lowDp = d === 'warmup' ? 2 + Math.floor(Math.random() * (9 - num)) : d === 'challenge' ? -1 + Math.floor(Math.random() * (14 - num)) : -4 + Math.floor(Math.random() * (20 - num));
       const p1 = lowDp - sh, p2 = p1 + num - 1;
-      if (d !== 'brutal') {   // number only: no sharps or flats needed
-        const right = NUMS[num];
+      if (d === 'warmup') {   // number only: count letter names
         const near = [num + 1, num - 1, num + 2, num - 2, num + 3, num - 3].filter(x => x >= 2 && x <= 8);
         return mcq('What interval is this? (count the letter names)', NUMS[num], near.map(x => [NUMS[x], Math.abs(x - num) === 1 ? 'Off by one: count both notes, the bottom one is 1.' : 'Count every line AND space, both notes included.']), { skills: ['intervals'], clef, ks: null, gen_n: [enc(p1, 0), enc(p2, 0)] });
+      }
+      if (d === 'challenge') {
+        const accidentals = shuffle([[0, 0], [0, 0], [-1, 0], [1, 0], [0, -1], [0, 1]]);
+        for (const [a1, a2] of accidentals) {
+          const semis = pitch(p2, a2) - pitch(p1, a1), q = quality(num, semis);
+          if (!['Major', 'Minor', 'Perfect'].includes(q)) continue;
+          const sameSize = q === 'Major' ? 'Minor' : q === 'Minor' ? 'Major' : num === 5 ? 'Diminished' : 'Augmented';
+          const near = [num - 1, num + 1, num - 2, num + 2].filter(n => n >= 2 && n <= 8);
+          return mcq('What interval is this? (name it fully)', ivName(q, num), [
+            [ivName(sameSize, num), 'Right number, wrong quality: count the half steps (' + semis + ').'],
+            ...near.map(n => [ivName(PERFECT[n] != null ? 'Perfect' : rnd(['Major', 'Minor']), n), 'Count the letter names again: this is a ' + NUMS[num] + '.']),
+          ], { skills: ['intervals'], clef, ks: null, gen_n: [enc(p1, a1), enc(p2, a2)] });
+        }
+        continue;
       }
       const a1 = rnd([-1, 0, 0, 1]), a2 = rnd([-1, 0, 0, 1]), semis = pitch(p2, a2) - pitch(p1, a1), q = quality(num, semis);
       if (!q || (q !== 'Augmented' && q !== 'Diminished' && Math.random() < .4)) continue;   // brutal leans on augmented and diminished
