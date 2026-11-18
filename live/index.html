@@ -1222,7 +1222,7 @@ window.addEventListener('load', draw, { once: true });
     eyes:[['big','Big'],['dot','Dot'],['happy','Happy'],['sleepy','Chill'],['lash','Lashes'],['wink','Wink']],
     brows:[['arch','Arched'],['flat','Straight'],['thick','Thick'],['none','None']],
     nose:[['dot','Dot'],['button','Button'],['none','None']],
-    mouth:[['smile','Smile'],['grin','Big grin'],['o','Ooh'],['smirk','Smirk'],['tongue','Silly']],
+    mouth:[['smile','Smile'],['grin','Big grin'],['o','Ooh'],['smirk','Smirk'],['tongue','Silly'],['braces','Braces']],   // Braces: David 2026-11-18
     hair:[['short','Short'],['buzz','Buzz'],['curly','Curly'],['afro','Afro'],['long','Long'],['braids','Braids'],['bun','Bun'],['spiky','Spiky'],['swoop','Swoop'],['part','Side part'],['waves','Waves'],['bob','Bob'],['bald','None']],
     cover:[['none','None'],['hijab','Hijab'],['wrap','Head wrap']],
     glasses:[['none','None'],['round','Round'],['square','Square'],['shades','Aviator shades']],
@@ -1369,6 +1369,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       grin: `<path d="M43.5 50 Q50 58.5 56.5 50Z" fill="${line}"/><path d="M45 50.6 H55 V52 Q50 53 45 52Z" fill="#fff"/>`,
       o: `<ellipse cx="50" cy="52" rx="2.6" ry="3.2" fill="${line}"/>`,
       smirk: `<path d="M45 52 Q51 54 56 49.5" fill="none" stroke="${line}" stroke-width="1.8" stroke-linecap="round"/>`,
+      braces: `<path d="M43.5 50 Q50 58.5 56.5 50Z" fill="${line}"/><path d="M44.8 50.5 H55.2 V52.4 Q50 54 44.8 52.4Z" fill="#fff"/><path d="M45.2 51.5 Q50 52.3 54.8 51.5" fill="none" stroke="#9aa6b8" stroke-width=".45"/>` + [[46.2, '#3ccf9a'], [48.1, '#ff6fb5'], [50, '#4f7cff'], [51.9, '#ff6fb5'], [53.8, '#3ccf9a']].map(([x, c]) => `<rect x="${x - .55}" y="${50.95 + (Math.abs(x - 50) < 1 ? .25 : .1)}" width="1.1" height="1.1" rx=".2" fill="#c8d0dc" stroke="${c}" stroke-width=".35"/>`).join(''),   // big smile with braces: silver brackets, colored bands (David 2026-11-18)
       tongue: `<path d="M44 50.5 Q50 55.5 56 50.5" fill="none" stroke="${line}" stroke-width="1.8" stroke-linecap="round"/><path d="M48 52.8 Q50 57.5 52.6 52.6Z" fill="#ff6b8a"/>`,
     };
     // beard (David 2026-11-16): drawn under the mouth; the mustache goes over it. Color = hair color.
@@ -1402,7 +1403,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
         long: `<path d="M29 40 Q28 16 50 16 Q72 16 71 40 Q65 26 50 27 Q36 27 29 40Z"/>`,
         braids: `<path d="M29.5 37 Q29 17 50 17 Q71 17 70.5 37 Q61 26 50 26 Q39 26 29.5 37Z"/><path d="M50 17 V26" stroke="${shade(hc, .7)}" stroke-width="1"/>`,
         bun: `<circle cx="50" cy="13" r="7.5"/><path d="M30.5 36 Q31 18 50 18 Q69 18 69.5 36 Q60 26 50 26 Q40 26 30.5 36Z"/>`,
-        spiky: `<path d="M29.5 37 L31 21 L37.5 25.5 L41 13 L47 22 L52 11 L56 22 L62 14 L63.5 25 L69.5 21 L70.5 37 Q61 27 50 27 Q39 27 29.5 37Z"/>`,
+        spiky: `<path d="M29 38 Q27 30 32 24 Q33 21 37 20 L38 16 Q43 16 46 18 L49 13 Q55 14 58 18 L63 16 Q67 19 68 23 Q74 27 71 38 Q68 34 66 30 Q62 27 57 28 Q49 24 43 28 Q36 27 32 33Z"/>`,
         swoop: `<path d="M29.5 41 Q27 16 52 16.5 Q73 17.5 70.5 36 Q62 24 44 31.5 Q35 35 29.5 41Z"/>`,
         part: `<path d="M29 39Q28 17 49 16Q73 14 72 39Q66 34 64 25Q52 31 37 27Q33 31 29 39Z"/><path d="M60 18Q55 24 38 24" fill="none" stroke="${shade(hc, .78)}" stroke-width="1.2"/>`,
         waves: `<path d="M29 40Q24 23 38 17Q51 11 64 17Q77 23 71 41Q65 32 60 25Q49 24 41 30Q34 34 29 40Z"/>`,
