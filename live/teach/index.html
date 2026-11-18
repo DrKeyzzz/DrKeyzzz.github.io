@@ -147,7 +147,7 @@
 <meta name="robots" content="noindex">
 <link href="/fonts/fonts.css" rel="stylesheet">
 <!-- fonts.css has Noto Music for the treble clef on key signature questions -->
-<link rel="stylesheet" href="../live.css?v=20261117g">
+<link rel="stylesheet" href="../live.css?v=20261117i">
 <!-- Live Class teacher console (added 2026-11-12). Shown inside the All games dashboard's Live tab (?embed=1&code=XXXX),
      or on its own. ?preview=1 = a pretend class kept in this browser; open ../?preview=1 in another tab to be a student. -->
 <style>
@@ -185,7 +185,7 @@
 <body>
 <div id="app"></div>
 <p class="toast" id="toast" role="status"></p>
-<script src="../live-core.js?v=20261117g"></script>
+<script src="../live-core.js?v=20261117i"></script>
 <script>
 (() => {
 const { OPT_DEF, DIFFS, QGAMES, qgame, makeQ, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, BANK, NOW, at, db, results, latest, left, clock, ERR } = LC;
@@ -207,10 +207,12 @@ const gpick = () => { let o = null; try { o = JSON.parse(localStorage.getItem(PK
 const savePick = p => { try { localStorage.setItem(PK(), JSON.stringify(p)); } catch {} };
 const GQ_TIMER = 30;   // seconds for a game question unless Customize changes it (Showdown keeps its own 20 s)
 // Customize (step 3): a drawer under Go. The choices change a draft (S.cust); the sample question redraws on every tap; Use these saves it.
-const custLabel = (G, o) => { const parts = Object.entries(G.opts).filter(([k]) => o[k] && o[k] !== OPT_DEF[k]).map(([k, l]) => (l.find(x => x[0] === o[k]) || [, ''])[1]);
+const custLabel = (G, o) => { const parts = Object.entries(G.opts).filter(([k]) => Array.isArray(o[k]) ? o[k].length : o[k] && o[k] !== OPT_DEF[k])
+    .map(([k, l]) => Array.isArray(o[k]) ? (o[k].length === 1 ? (l.find(x => String(x[0]) === String(o[k][0])) || [, ''])[1] + ' only' : o[k].length + ' ' + (k === 'ivs' ? 'intervals' : 'chords')) : (l.find(x => String(x[0]) === String(o[k])) || [, ''])[1]);
   if (o.timer !== OPT_DEF.timer) parts.push(o.timer ? o.timer + ' s' : 'No timer'); return parts.join(' · '); };
 function custDrawer() {
-  const p = gpick(), G = qgame(p.g), o = S.cust.o, seg = (k, list) => `<div class="crow"><span class="label">${{ type: 'Question type', play: 'Play as', clef: 'Clef', acc: 'Keys', mode: 'Major or minor', chord: 'Chord to play', root: 'Starting note', timer: 'Timer' }[k]}</span><span class="chipset">${list.map(([v, l]) => `<button type="button" data-act="cset" data-k="${k}" data-v="${v}" aria-pressed="${String(o[k]) === String(v)}">${l}</button>`).join('')}</span></div>`;
+  const p = gpick(), G = qgame(p.g), o = S.cust.o, multi = G.multi || [], seg = (k, list) => { const m = multi.includes(k), cur = Array.isArray(o[k]) ? o[k].map(String) : [];
+    return `<div class="crow"><span class="label">${{ type: 'Question type', play: 'Play as', clef: 'Clef', acc: 'Keys', mode: 'Major or minor', ivs: 'Intervals', chords: 'Chords', inv: 'Inversions', root: 'Starting note', range: 'Range', timer: 'Timer' }[k]}${m ? ' <span class="dim" style="text-transform:none;letter-spacing:0;font-weight:500">(tap any number; none = the difficulty decides; one = always that one)</span>' : ''}</span><span class="chipset">${list.map(([v, l]) => `<button type="button" data-act="cset" data-k="${k}" data-v="${v}"${m ? ' data-multi="1"' : ''} aria-pressed="${m ? cur.includes(String(v)) : String(o[k]) === String(v)}">${l}</button>`).join('')}${m && cur.length ? `<button type="button" data-act="cclear" data-k="${k}">✕ Clear</button>` : ''}</span></div>`; };
   if (!S.cust.sample) S.cust.sample = makeQ(p.g, p.d, o);
   const q = S.cust.sample;
   return `<div class="cust stack">
@@ -579,7 +581,10 @@ app.addEventListener('click', async e => {
   if (act === 'go') { S.cust = null; return goGame(false); }
   if (act === 'copen') { S.cust = { o: { ...gpick().o }, sample: null }; draw(); return; }
   if (act === 'cclose') { S.cust = null; draw(); return; }
-  if (act === 'cset') { const k = t.dataset.k; S.cust.o[k] = k === 'timer' ? Number(t.dataset.v) : t.dataset.v; S.cust.sample = null; draw(); return; }
+  if (act === 'cset') { const k = t.dataset.k, v = k === 'timer' || k === 'ivs' ? Number(t.dataset.v) : t.dataset.v;
+    if (t.dataset.multi) { const a = (S.cust.o[k] || []).slice(), i = a.findIndex(x => String(x) === String(v)); if (i >= 0) a.splice(i, 1); else a.push(v); S.cust.o[k] = a; } else S.cust.o[k] = v;
+    S.cust.sample = null; draw(); return; }
+  if (act === 'cclear') { S.cust.o[t.dataset.k] = []; S.cust.sample = null; draw(); return; }
   if (act === 'csample') { S.cust.sample = null; draw(); return; }
   if (act === 'creset') { S.cust.o = { ...OPT_DEF }; S.cust.sample = null; draw(); return; }
   if (act === 'cuse') { const p = gpick(); p.o = { ...S.cust.o }; savePick(p); S.cust = null; toast('Saved for this class.'); draw(); return; }

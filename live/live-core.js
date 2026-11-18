@@ -176,7 +176,7 @@ window.LC = (() => {
   }
   // Customize (2026-11-17, step 3): OPT holds the teacher's choices while a question is made. clef: any | treble | bass | alto;
   // acc: both | sharps | flats; mode: both | major | minor; type: mix | name | spell | count | relative | odd (Scale Quest).
-  const OPT_DEF = { clef: 'any', acc: 'both', mode: 'both', type: 'mix', play: 'mix', chord: 'any', root: 'any', timer: 30 };
+  const OPT_DEF = { clef: 'any', acc: 'both', mode: 'both', type: 'mix', play: 'mix', ivs: [], chords: [], inv: 'root', root: 'any', range: 'mid', timer: 30 };
   let OPT = OPT_DEF;
   const anyClef = def => OPT.clef !== 'any' ? OPT.clef : def || rnd(['treble', 'treble', 'bass', 'alto']);
   const accOk = n => OPT.acc === 'sharps' ? n >= 0 : OPT.acc === 'flats' ? n <= 0 : true;
@@ -339,14 +339,20 @@ window.LC = (() => {
     const total = bar.reduce((a, e) => a + e.u, 0), real = total - T, right = LABEL[real] || 'Complete';
     return mcq(`This bar is in ${ts}. Is it complete?`, right, Object.keys(LABEL).filter(k => +k !== real).sort((a, b) => Math.abs(a - real) - Math.abs(b - real)).map(k => [LABEL[k], 'Count again: a dot adds half, rests count, and a dotted eighth + sixteenth = 1 beat.']), { skills: ['rhythm', 'time'], ks: null, gen_r: bar.map(e => rEnc(e.u, e.rest)), gen_t: ts });
   }
-  const IV = [['Minor 2nd', 1], ['Major 2nd', 2], ['Minor 3rd', 3], ['Major 3rd', 4], ['Perfect 4th', 5], ['Tritone', 6], ['Perfect 5th', 7], ['Minor 6th', 8], ['Major 6th', 9], ['Minor 7th', 10], ['Major 7th', 11], ['Octave', 12]];
+  const IV = [['Unison', 0], ['Minor 2nd', 1], ['Major 2nd', 2], ['Minor 3rd', 3], ['Major 3rd', 4], ['Perfect 4th', 5], ['Tritone', 6], ['Perfect 5th', 7], ['Minor 6th', 8], ['Major 6th', 9], ['Minor 7th', 10], ['Major 7th', 11], ['Octave', 12]];
   const ivBy = s => IV.find(x => x[1] === s)[0];
   const IV_WHY = s => ({ 6: 'The tritone is the tense one, right between a 4th and a 5th.', 7: 'A 5th sounds open and hollow, like a power chord.', 5: 'A 4th is the start of "Here Comes the Bride".', 12: 'An octave sounds like the same note, higher.' })[s] || 'One half step makes the difference: sing it back before you answer.';
+  // range (musictheory.net style): where the notes sit. low C3-C4, mid C3-C5, high C4-C6 (MIDI 48-60, 48-72, 60-84)
+  const RANGES = { low: [48, 60], mid: [48, 72], high: [60, 84] };
+  const RANGE_OPTS = [['mid', 'Middle (C3–C5)'], ['low', 'Low (C3–C4)'], ['high', 'High (C4–C6)']];
+  const rootIn = span => { const [lo, hi] = RANGES[OPT.range] || RANGES.mid; return lo + Math.floor(Math.random() * Math.max(1, hi - lo - span + 1)); };
   function earQ(d) {
     const how = OPT.play && OPT.play !== 'mix' ? OPT.play : d === 'brutal' ? rnd(['down', 'together', 'up']) : 'up';
-    const pool = d === 'warmup' ? [2, 4, 7, 12] : d === 'challenge' ? [1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12] : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-    const s = rnd(pool), root = 52 + Math.floor(Math.random() * 12), right = ivBy(s);
-    const wr = d === 'warmup' ? pool.filter(x => x !== s) : [s - 1, s + 1, s === 6 ? 5 : s === 5 ? 6 : s === 8 ? 9 : s === 9 ? 8 : s + 2, s - 2, s + 3, s - 3].filter(x => x >= 1 && x <= 12);
+    const sel = (OPT.ivs || []).map(Number).filter(x => x >= 0 && x <= 12);   // the teacher's chosen intervals (none = the difficulty's set)
+    const pool = sel.length ? sel : d === 'warmup' ? [2, 4, 7, 12] : d === 'challenge' ? [1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12] : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+    const s = rnd(pool), root = rootIn(s), right = ivBy(s);
+    const near = [s - 1, s + 1, s === 6 ? 5 : s === 5 ? 6 : s === 8 ? 9 : s === 9 ? 8 : s + 2, s - 2, s + 3, s - 3].filter(x => x >= 0 && x <= 12);
+    const wr = sel.length > 1 ? shuffle(sel.filter(x => x !== s)) : d === 'warmup' && !sel.length ? pool.filter(x => x !== s) : near;
     return mcq(`Which interval do you hear? (${HOW[how]})`, right, wr.map(x => [ivBy(x), Math.abs(x - s) === 1 ? 'One half step away: ' + IV_WHY(x) : IV_WHY(x)]),
       { skills: ['intervals', 'ear'], ks: null, gen_m: [root, root + s], gen_p: how });
   }
@@ -356,13 +362,25 @@ window.LC = (() => {
     'Major 7th': 'Major 7th sounds soft and jazzy (the top note is a half step under the octave).', 'Dominant 7th': 'Dominant 7th sounds like it wants to move on (bluesy).', 'Minor 7th': 'Minor 7th sounds mellow and dark.', 'Half-diminished 7th': 'Half-diminished sounds tense but softer than diminished.', 'Diminished 7th': 'Diminished 7th is the spooky one: every note is a minor 3rd apart.', 'Minor-major 7th': 'Minor-major 7th is the spy-movie sound: a minor chord with a major 7th on top.' };
   const ROOTS = [['C', 'C'], ['C#', 'C♯'], ['D', 'D'], ['Eb', 'E♭'], ['E', 'E'], ['F', 'F'], ['F#', 'F♯'], ['G', 'G'], ['Ab', 'A♭'], ['A', 'A'], ['Bb', 'B♭'], ['B', 'B']];
   function chordQ(d) {
-    // Customize (2026-11-17, David: 'I should be able to choose the chord'): chord = the exact chord to play (or any), root = its starting note
-    const pickC = OPT.chord && OPT.chord !== 'any' ? OPT.chord : '', t = OPT.type;
-    const seventh = pickC ? !!SEV[pickC] : t === 'seventh' || (t !== 'triad' && d === 'brutal' && Math.random() < .7);
-    const set = seventh ? SEV : d === 'warmup' && (!pickC || pickC === 'Major' || pickC === 'Minor') ? { Major: TRI.Major, Minor: TRI.Minor } : TRI, names = Object.keys(set), right = pickC || rnd(names);
-    const ri = ROOTS.findIndex(r => r[0] === OPT.root), root = ri >= 0 ? 48 + ri : 48 + Math.floor(Math.random() * 10);
-    return mcq(`What kind of chord do you hear?`, right, shuffle(names.filter(n => n !== right)).map(n => [n, CH_WHY[n]]),
-      { skills: ['chords', 'ear'], ks: null, gen_m: set[right].map(x => root + x), gen_p: OPT.play && OPT.play !== 'mix' ? OPT.play : d === 'warmup' || seventh ? 'chord' : rnd(['chord', 'together']) });
+    // Customize: chords = the teacher's chosen chords (1 = always that one; 2+ = only those, and only those as choices),
+    // root = its starting note, inv = root position or inversions too, range = where it sits (musictheory.net style)
+    const ALL = { ...TRI, ...SEV }, sel = (OPT.chords || []).filter(n => ALL[n]), t = OPT.type, pickC = sel.length === 1 ? sel[0] : '';
+    let names, right, seventh;
+    if (sel.length > 1) { right = rnd(sel); names = sel; seventh = !!SEV[right]; }
+    else {
+      seventh = pickC ? !!SEV[pickC] : t === 'seventh' || (t !== 'triad' && d === 'brutal' && Math.random() < .7);
+      const set = seventh ? SEV : d === 'warmup' && (!pickC || pickC === 'Major' || pickC === 'Minor') ? { Major: TRI.Major, Minor: TRI.Minor } : TRI;
+      names = Object.keys(set); right = pickC || rnd(names);
+    }
+    let notes = ALL[right].slice();
+    const inv = OPT.inv === 'any' ? Math.floor(Math.random() * notes.length) : 0;
+    for (let k = 0; k < inv; k++) notes.push(notes.shift() + 12);   // an inversion: the bottom notes move up an octave
+    const ri = ROOTS.findIndex(r => r[0] === OPT.root), [lo, hi] = RANGES[OPT.range] || RANGES.mid, span = notes[notes.length - 1];
+    let root = rootIn(span);
+    if (ri >= 0) { root = lo + ((ri - lo) % 12 + 12) % 12; if (root + span > hi + 12) root -= 12; }
+    const wrong = sel.length > 1 ? shuffle(sel.filter(n => n !== right)) : shuffle(names.filter(n => n !== right)).concat(shuffle(Object.keys(seventh ? SEV : TRI)).filter(n => n !== right));
+    return mcq(`What kind of chord do you hear?${inv ? ' (it may be inverted)' : ''}`, right, wrong.map(n => [n, CH_WHY[n]]),
+      { skills: ['chords', 'ear'], ks: null, gen_m: notes.map(x => root + x), gen_p: OPT.play && OPT.play !== 'mix' ? OPT.play : d === 'warmup' || seventh ? 'chord' : rnd(['chord', 'together']) });
   }
   const tClef = d => OPT.clef !== 'any' ? OPT.clef : d === 'warmup' ? 'treble' : d === 'challenge' ? rnd(['treble', 'bass']) : rnd(['treble', 'bass', 'alto']);
   // a staff position (dp) range for each difficulty: warm-up on the staff, challenge 1-2 ledger lines, brutal 3+ ledger lines
@@ -435,10 +453,11 @@ window.LC = (() => {
     { id: 'bigscore', name: 'The Big Score', what: 'Time signatures and counting', url: '/rhythm-trainer/', opts: {}, make(d) { return tsQ(d); } },
     { id: 'rooftop', name: 'Rooftop Runner', what: 'Reading rhythms', url: '/rooftop-runner/', opts: {}, make(d) { return valueQ(d); } },
     { id: 'earshot', name: 'Earshot Saloon', what: 'Intervals by ear', url: '/earshot-saloon/', sound: true,
-      opts: { play: PLAY_OPTS },
+      opts: { play: PLAY_OPTS, ivs: IV.map(([n, s]) => [s, n]), range: RANGE_OPTS }, multi: ['ivs'],
       make(d) { return earQ(d); } },
     { id: 'brainwaves', name: 'Brainwaves', what: 'Chords by ear', url: '/brainwaves/', sound: true,
-      opts: { type: [['mix', 'Mix'], ['triad', 'Triads'], ['seventh', '7th chords']], play: PLAY_OPTS, chord: [['any', 'Any']].concat(Object.keys(TRI).concat(Object.keys(SEV)).map(n => [n, n])), root: [['any', 'Any']].concat(ROOTS) },
+      opts: { type: [['mix', 'Mix'], ['triad', 'Triads'], ['seventh', '7th chords']], play: PLAY_OPTS, chords: Object.keys(TRI).concat(Object.keys(SEV)).map(n => [n, n]), inv: [['root', 'Root position'], ['any', 'Inversions too']], root: [['any', 'Any']].concat(ROOTS), range: RANGE_OPTS }, multi: ['chords'],
+
       make(d) { return chordQ(d); } },
   ];
   const qgame = id => QGAMES.find(g => g.id === id) || null;
