@@ -176,7 +176,7 @@ window.LC = (() => {
   }
   // Customize (2026-11-17, step 3): OPT holds the teacher's choices while a question is made. clef: any | treble | bass | alto;
   // acc: both | sharps | flats; mode: both | major | minor; type: mix | name | spell | count | relative | odd (Scale Quest).
-  const OPT_DEF = { clef: 'any', acc: 'both', mode: 'both', type: 'mix', timer: 30 };
+  const OPT_DEF = { clef: 'any', acc: 'both', mode: 'both', type: 'mix', chord: 'any', root: 'any', timer: 30 };
   let OPT = OPT_DEF;
   const anyClef = def => OPT.clef !== 'any' ? OPT.clef : def || rnd(['treble', 'treble', 'bass', 'alto']);
   const accOk = n => OPT.acc === 'sharps' ? n >= 0 : OPT.acc === 'flats' ? n <= 0 : true;
@@ -351,9 +351,13 @@ window.LC = (() => {
   const SEV = { 'Major 7th': [0, 4, 7, 11], 'Dominant 7th': [0, 4, 7, 10], 'Minor 7th': [0, 3, 7, 10], 'Half-diminished 7th': [0, 3, 6, 10] };
   const CH_WHY = { Major: 'Major sounds bright and settled.', Minor: 'Minor sounds darker: its middle note is a half step lower.', Diminished: 'Diminished sounds tense and small: two minor 3rds stacked.', Augmented: 'Augmented sounds stretched and dreamy: two major 3rds stacked.',
     'Major 7th': 'Major 7th sounds soft and jazzy (the top note is a half step under the octave).', 'Dominant 7th': 'Dominant 7th sounds like it wants to move on (bluesy).', 'Minor 7th': 'Minor 7th sounds mellow and dark.', 'Half-diminished 7th': 'Half-diminished sounds tense but softer than diminished.' };
+  const ROOTS = [['C', 'C'], ['C#', 'C♯'], ['D', 'D'], ['Eb', 'E♭'], ['E', 'E'], ['F', 'F'], ['F#', 'F♯'], ['G', 'G'], ['Ab', 'A♭'], ['A', 'A'], ['Bb', 'B♭'], ['B', 'B']];
   function chordQ(d) {
-    const t = OPT.type, seventh = t === 'seventh' || (t !== 'triad' && d === 'brutal' && Math.random() < .7);
-    const set = seventh ? SEV : d === 'warmup' ? { Major: TRI.Major, Minor: TRI.Minor } : TRI, names = Object.keys(set), right = rnd(names), root = 48 + Math.floor(Math.random() * 10);
+    // Customize (2026-11-17, David: 'I should be able to choose the chord'): chord = the exact chord to play (or any), root = its starting note
+    const pickC = OPT.chord && OPT.chord !== 'any' ? OPT.chord : '', t = OPT.type;
+    const seventh = pickC ? !!SEV[pickC] : t === 'seventh' || (t !== 'triad' && d === 'brutal' && Math.random() < .7);
+    const set = seventh ? SEV : d === 'warmup' && (!pickC || pickC === 'Major' || pickC === 'Minor') ? { Major: TRI.Major, Minor: TRI.Minor } : TRI, names = Object.keys(set), right = pickC || rnd(names);
+    const ri = ROOTS.findIndex(r => r[0] === OPT.root), root = ri >= 0 ? 48 + ri : 48 + Math.floor(Math.random() * 10);
     return mcq(`What kind of chord do you hear?`, right, names.filter(n => n !== right).map(n => [n, CH_WHY[n]]),
       { skills: ['chords', 'ear'], ks: null, gen_m: set[right].map(x => root + x), gen_p: d === 'warmup' || seventh ? 'chord' : rnd(['chord', 'together']) });
   }
@@ -431,7 +435,7 @@ window.LC = (() => {
       opts: { type: [['mix', 'Mix'], ['up', 'Going up'], ['down', 'Going down'], ['together', 'Played together']] },
       make(d) { return earQ(d); } },
     { id: 'brainwaves', name: 'Brainwaves', what: 'Chords by ear', url: '/brainwaves/', sound: true,
-      opts: { type: [['mix', 'Mix'], ['triad', 'Triads'], ['seventh', '7th chords']] },
+      opts: { type: [['mix', 'Mix'], ['triad', 'Triads'], ['seventh', '7th chords']], chord: [['any', 'Any']].concat(Object.keys(TRI).concat(Object.keys(SEV)).map(n => [n, n])), root: [['any', 'Any']].concat(ROOTS) },
       make(d) { return chordQ(d); } },
   ];
   const qgame = id => QGAMES.find(g => g.id === id) || null;
