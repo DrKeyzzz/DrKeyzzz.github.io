@@ -236,3 +236,6 @@ input[type=range] { width: 100%; accent-color: var(--gold); }
   .ksbox { width: min(100%, 230px); align-self: center; }
   .sd-key { min-height: 70px; padding-top: 24px; }
 }
+.ksbox.wide { width: min(100%, 420px); }   /* 2026-11-18: a key signature plus two notes */
+.proj .ksbox.wide { width: min(100%, 680px); }
+@media (max-width: 600px) and (max-height: 740px) { .ksbox.wide { width: min(100%, 330px); } }

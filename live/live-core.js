@@ -216,25 +216,37 @@ window.LC = (() => {
   // A note = p (letter steps from middle C: C4 = 0, D4 = 1 … B3 = -1) + acc (-1 flat, 0, +1 sharp), kept in bc_live.gen.n as p * 3 + acc + 1.
   // Drawn with the key signature staff: dp = p + the clef's shift (treble 0, alto 6, bass 12); dp 2..10 = on the staff, ledger lines outside.
   const CLEF_SHIFT = { treble: 0, alto: 6, bass: 12 };
-  const enc = (p, acc) => p * 3 + acc + 1, dec = c => { const acc = ((c % 3) + 3) % 3 - 1; return { p: (c - acc - 1) / 3, acc }; };
+  const enc = (p, acc) => p * 3 + acc + 1, dec = c => { if (c >= 10000) { const v = c - 10000, w = v % 8; return { p: Math.floor(v / 8) - 60, acc: 0, w }; } const acc = ((c % 3) + 3) % 3 - 1; return { p: (c - acc - 1) / 3, acc }; };
+  // 2026-11-18 (David: Tidal Brutal with key signatures, 'accidentals of doom' style): a note can carry a WRITTEN accidental that works
+  // together with the key signature. w: 0 none (the key signature decides), 1 natural, 2 sharp, 3 flat, 4 double sharp, 5 double flat.
+  const encW = (p, w) => 10000 + (p + 60) * 8 + w;
+  const W_ACC = [null, 0, 1, -1, 2, -2];
+  const SHARP_L = [3, 0, 4, 1, 5, 2, 6], FLAT_L = [6, 2, 5, 1, 4, 0, 3];   // F C G D A E B / B E A D G C F as letter indexes (C = 0)
+  const keyAcc = (p, ks) => { const L = ((p % 7) + 7) % 7; return ks > 0 && SHARP_L.slice(0, ks).includes(L) ? 1 : ks < 0 && FLAT_L.slice(0, -ks).includes(L) ? -1 : 0; };
+  const realAcc = (p, w, ks) => w ? W_ACC[w] : keyAcc(p, ks);
+  const NATURAL = '<path d="M-4 -17V8M4 -8V17" stroke-width="2.2"/><path d="M-4 -3 4 -7M-4 8 4 4" stroke-width="4.2"/>';
+  const DSHARP = '<path d="M-6 -6 6 6M-6 6 6 -6" stroke-width="3.2"/><rect x="-8" y="-8" width="4" height="4" fill="#1d2433"/><rect x="4" y="-8" width="4" height="4" fill="#1d2433"/><rect x="-8" y="4" width="4" height="4" fill="#1d2433"/><rect x="4" y="4" width="4" height="4" fill="#1d2433"/>';
+  const accGlyph = w => w === 1 ? NATURAL : w === 2 ? SHARP : w === 3 ? FLAT : w === 4 ? DSHARP : w === 5 ? `<g transform="translate(-10 0)">${FLAT}</g>${FLAT}` : '';
   const SEMI = [0, 2, 4, 5, 7, 9, 11];
   const pitch = (p, acc) => 12 * Math.floor(p / 7) + SEMI[((p % 7) + 7) % 7] + acc;
   const noteName = (p, acc) => LETTERS[((p % 7) + 7) % 7] + (acc > 0 ? '♯' : acc < 0 ? '♭' : '');
   const NOTE = '<ellipse rx="11.5" ry="8.2" transform="rotate(-20)" fill="none" stroke="#1d2433" stroke-width="4.2"/>';
-  function noteStaff(codes, clef) {
-    const C = clefOk(clef) ? clef : 'treble', sh = CLEF_SHIFT[C], N = (codes || []).map(dec);
+  function noteStaff(codes, clef, ks) {
+    const C = clefOk(clef) ? clef : 'treble', sh = CLEF_SHIFT[C], N = (codes || []).map(dec), K = ksOk(ks) ? ks : 0, x0 = K ? 88 + Math.abs(K) * 20 + 50 : 130, WD = Math.max(256, x0 + (N.length - 1) * 70 + 40);
     if (!N.length) return '';
-    const lines = [2, 4, 6, 8, 10].map(p => `<line x1="6" x2="250" y1="${ksY(p)}" y2="${ksY(p)}" stroke="#1d2433" stroke-width="1.6"/>`).join('');
-    const dps = N.map(n => n.p + sh), lo = Math.min(2, ...dps), hi = Math.max(10, ...dps), top = Math.min(30, ksY(hi) - 26), bot = Math.max(202, ksY(lo) + 26);
+    const lines = [2, 4, 6, 8, 10].map(p => `<line x1="6" x2="${WD - 6}" y1="${ksY(p)}" y2="${ksY(p)}" stroke="#1d2433" stroke-width="1.6"/>`).join('');
     let body = '';
+    for (let i = 0; i < Math.abs(K); i++) body += `<g transform="translate(${88 + i * 20} ${ksY((K > 0 ? SHARP_POS : FLAT_POS)[i] + KS_CLEFS[C].sh)}) scale(.9)" fill="none" stroke="#1d2433">${K > 0 ? SHARP : FLAT}</g>`;
+    const dps = N.map(n => n.p + sh), lo = Math.min(2, ...dps), hi = Math.max(10, ...dps), top = Math.min(30, ksY(hi) - 26), bot = Math.max(202, ksY(lo) + 26);
     N.forEach((n, i) => {
-      const x = N.length === 1 ? 160 : 130 + i * 70, dp = n.p + sh, y = ksY(dp);
+      const x = K ? x0 + i * 70 : N.length === 1 ? 160 : 130 + i * 70, dp = n.p + sh, y = ksY(dp);
       for (let l = 0; l >= dp; l -= 2) body += `<line x1="${x - 17}" x2="${x + 17}" y1="${ksY(l)}" y2="${ksY(l)}" stroke="#1d2433" stroke-width="1.6"/>`;
       for (let l = 12; l <= dp; l += 2) body += `<line x1="${x - 17}" x2="${x + 17}" y1="${ksY(l)}" y2="${ksY(l)}" stroke="#1d2433" stroke-width="1.6"/>`;
-      if (n.acc) body += `<g transform="translate(${x - 28} ${y}) scale(.9)" fill="none" stroke="#1d2433">${n.acc > 0 ? SHARP : FLAT}</g>`;
+      if (n.w) body += `<g transform="translate(${x - 28} ${y}) scale(.9)" fill="none" stroke="#1d2433">${accGlyph(n.w)}</g>`;
+      else if (n.acc) body += `<g transform="translate(${x - 28} ${y}) scale(.9)" fill="none" stroke="#1d2433">${n.acc > 0 ? SHARP : FLAT}</g>`;
       body += `<g transform="translate(${x} ${y})">${NOTE}</g>`;
     });
-    return `<div class="ksbox"><svg viewBox="0 ${top} 256 ${bot - top}" role="img" aria-label="${esc(KS_CLEFS[C].name + ' clef with ' + (N.length === 1 ? 'one note' : 'two notes'))}">${lines}<line x1="6" x2="6" y1="${ksY(10)}" y2="${ksY(2)}" stroke="#1d2433" stroke-width="1.6"/>${CLEF_SVG[C]}${body}</svg></div>`;
+    return `<div class="ksbox${WD > 256 ? ' wide' : ''}"><svg viewBox="0 ${top} ${WD} ${bot - top}" role="img" aria-label="${esc(KS_CLEFS[C].name + ' clef' + (K ? ', key signature ' + ksCount(K).toLowerCase() + ',' : '') + ' with ' + (N.length === 1 ? 'one note' : 'two notes'))}">${lines}<line x1="6" x2="6" y1="${ksY(10)}" y2="${ksY(2)}" stroke="#1d2433" stroke-width="1.6"/>${CLEF_SVG[C]}${body}</svg></div>`;
   }
   // ---------- Sound questions (2026-11-17, step 5): Earshot Saloon intervals and Brainwaves chords ----------
   // bc_live.gen.m = up to 4 MIDI notes, gen.p = how they play: up | down | together | chord (together, then one at a time).
@@ -263,7 +275,7 @@ window.LC = (() => {
   // whatever picture a question has: a speaker (sound), notes (Tidal Tones), else a key signature. where = 'proj' | 'teach' | phone
   const staffFor = (x, where) => isSound(x) ? `<div class="listenbox"><span class="lb-ic">🔊</span><div><b>${where === 'proj' || where === 'teach' ? 'Listen' : 'Listen to the class speaker'}</b><small>${esc(HOW[x.gen.p] || '')}</small></div>${where === 'proj' || where === 'teach' ? '<button type="button" class="btn pri" data-play="1">▶ Play' + (where === 'proj' ? ' again' : '') + '</button>' : ''}</div>`
     : x && x.gen && Array.isArray(x.gen.r) && x.gen.r.length ? rhythmStaff(x.gen.r, x.gen.t)
-    : x && x.gen && Array.isArray(x.gen.n) && x.gen.n.length ? noteStaff(x.gen.n, x.clef) : ksStaff(x && x.ks, '', x && x.clef);
+    : x && x.gen && Array.isArray(x.gen.n) && x.gen.n.length ? noteStaff(x.gen.n, x.clef, x.ks) : ksStaff(x && x.ks, '', x && x.clef);
   // ---------- Rhythm questions (2026-11-17, step 6): The Big Score and Rooftop Runner ----------
   // A bar = a list of notes and rests in sixteenths (16 = whole, 12 = dotted half, 8 = half, 6 = dotted quarter, 4 = quarter,
   // 3 = dotted eighth, 2 = eighth, 1 = sixteenth). bc_live.gen.r keeps each as units * 2 + (1 for a rest); gen.t = the time signature shown ('' = none).
@@ -403,8 +415,36 @@ window.LC = (() => {
     const d = semis - MAJOR[num]; return d === 0 ? 'Major' : d === -1 ? 'Minor' : d === 1 ? 'Augmented' : d === -2 ? 'Diminished' : null;
   }
   const ivName = (q, num) => q + ' ' + NUMS[num];
+  // Brutal intervals (2026-11-18): a key signature (2-7 sharps or flats) plus written naturals, sharps, flats, double sharps and double flats.
+  // Every question has at least one note the key signature changes or a natural that cancels it, so reading the key signature matters.
+  // Wrong choices: the answer you get if you forget the key signature, the one if you miss the natural, then other qualities and same-sound names.
+  function doomQ(clef) {
+    const sh = CLEF_SHIFT[clef];
+    for (let tries = 0; tries < 400; tries++) {
+      const ks = rnd([2, 3, 4, 5, 6, 7, -2, -3, -4, -5, -6, -7]), num = 2 + Math.floor(Math.random() * 7);
+      const lowDp = -1 + Math.floor(Math.random() * (14 - num)), p1 = lowDp - sh, p2 = p1 + num - 1;
+      const pickW = p => { const k = keyAcc(p, ks), r = Math.random(); if (r < .45) return 0; const c = [1, 2, 3, 4, 5].filter(w => W_ACC[w] !== k && (w < 4 || r > .8)); return rnd(c); };
+      const w1 = pickW(p1), w2 = pickW(p2);
+      const matters = [[p1, w1], [p2, w2]].some(([p, w]) => (w === 0 && keyAcc(p, ks) !== 0) || (w === 1 && keyAcc(p, ks) !== 0));
+      if (!matters) continue;
+      const a1 = realAcc(p1, w1, ks), a2 = realAcc(p2, w2, ks), semis = pitch(p2, a2) - pitch(p1, a1), q = quality(num, semis);
+      if (!q) continue;
+      const right = ivName(q, num), wrongs = [];
+      const qNoKs = quality(num, pitch(p2, w2 ? W_ACC[w2] : 0) - pitch(p1, w1 ? W_ACC[w1] : 0));   // read without the key signature
+      if (qNoKs && qNoKs !== q) wrongs.push([ivName(qNoKs, num), 'That is what you get without the key signature (' + ksCount(ks).toLowerCase() + '). It changes every note it names.']);
+      const qNoNat = quality(num, pitch(p2, w2 === 1 ? keyAcc(p2, ks) : a2) - pitch(p1, w1 === 1 ? keyAcc(p1, ks) : a1));   // missed a natural
+      if ((w1 === 1 || w2 === 1) && qNoNat && qNoNat !== q) wrongs.push([ivName(qNoNat, num), 'The natural sign cancels the key signature for that note.']);
+      const others = PERFECT[num] != null ? ['Perfect', 'Augmented', 'Diminished'] : ['Major', 'Minor', 'Augmented', 'Diminished'];
+      shuffle(others.filter(x => x !== q)).forEach(x => wrongs.push([ivName(x, num), 'Right number, wrong quality: apply the key signature, then count the half steps (' + semis + ').']));
+      for (const n2 of [num - 1, num + 1]) { if (n2 < 2 || n2 > 8) continue; const q2 = quality(n2, semis); if (q2) wrongs.push([ivName(q2, n2), 'It sounds the same, but count the letter names: this is a ' + NUMS[num] + '.']); }
+      [num - 1, num + 1].filter(x => x >= 2 && x <= 8).forEach(x => wrongs.push([ivName(PERFECT[x] != null ? 'Perfect' : 'Major', x), 'Count the letter names again: this is a ' + NUMS[num] + '.']));
+      return mcq('What interval is this? (mind the key signature)', right, wrongs, { skills: ['intervals'], clef, ks, gen_n: [encW(p1, w1), encW(p2, w2)] });
+    }
+    return null;
+  }
   function intervalQ(d) {
     const clef = tClef(d), sh = CLEF_SHIFT[clef];
+    if (d === 'brutal') { const q = doomQ(clef); if (q) return q; }
     for (let tries = 0; tries < 200; tries++) {
       const num = d === 'warmup' ? 2 + Math.floor(Math.random() * 4) : 2 + Math.floor(Math.random() * 7);
       const lowDp = d === 'warmup' ? 2 + Math.floor(Math.random() * (9 - num)) : d === 'challenge' ? -1 + Math.floor(Math.random() * (14 - num)) : -4 + Math.floor(Math.random() * (20 - num));
