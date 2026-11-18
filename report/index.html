@@ -1998,7 +1998,9 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       bass: { hand: '', side: pic('string_bass', 102, 84, 64) },   // David's ChatGPT picture (2026-11-16)
       tuba: { hand: '', side: pic('tuba', 58, 83, 86) },   // David's ChatGPT picture (2026-11-16)
       snare: { hand: `<path d="M67 86 L60 101 M72 86 L77 101" stroke="#d9a54b" stroke-width="2" stroke-linecap="round"/>`, side: pic('snare_drum', 36, 85, 104) },   // David's ChatGPT picture (2026-11-16)
-      goldmic: `<rect x="68" y="86" width="3.2" height="10" rx="1.4" fill="#b8860b"/><circle cx="69.5" cy="85" r="4.2" fill="#f5c542" stroke="#fff3b0" stroke-width=".8"/>`,
+      goldmic: `<defs><filter id="${u}gm" color-interpolation-filters="sRGB"><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncR type="table" tableValues=".36 .7 .93 1 1"/><feFuncG type="table" tableValues=".2 .44 .7 .86 .98"/><feFuncB type="table" tableValues="0 .03 .1 .32 .88"/></feComponentTransfer></filter><radialGradient id="${u}gmg"><stop offset="0" stop-color="#ffe38a" stop-opacity=".75"/><stop offset="1" stop-color="#ffb020" stop-opacity="0"/></radialGradient></defs>`
+        + `<circle class="mav-rain" cx="74" cy="80" r="11" fill="url(#${u}gmg)"/>` + pic('microphone', 28, 72, 84).replace('/>', ` filter="url(#${u}gm)"/>`)
+        + `<path class="mav-tw" d="M81 74 l.9 2.2 2.2 .9 -2.2 .9 -.9 2.2 -.9 -2.2 -2.2 -.9 2.2 -.9Z" fill="#fff"/><path class="mav-tw mav-tw2" d="M66 77 l.7 1.6 1.6 .7 -1.6 .7 -.7 1.6 -.7 -1.6 -1.6 -.7 1.6 -.7Z" fill="#fff6c8"/>`,   // Golden Mic redrawn 2026-11-18 (David: it looked terrible): the real mic picture turned gold, a glow and twinkles
     baton: `<path d="M70 88 L84 72" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><circle cx="70" cy="88" r="1.8" fill="#5a3a1e"/>`,
     };
     const PT = {
