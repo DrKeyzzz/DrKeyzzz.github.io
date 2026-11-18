@@ -364,7 +364,9 @@ function watchAnswers() {
 // ---------- Everyone's in (2026-11-17, David: 'when the last kid answers it should know and stop'): a choice question locks and
 // reveals by itself once every student in the room has answered. The room = students whose Live Class page opened in the last
 // 50 minutes (one class period) plus anyone who answered this question. A 1.2 s pause lets a last-second change land.
-const room = () => { const s = new Set(S.pulses.filter(x => Date.now() - (x.at || 0) < 50 * 60e3).map(x => x.sid)); S.ans.forEach(a => s.add(a.sid)); return s; };
+// In a running Showdown the room is the players who were in the waiting room at Begin (+ anyone who answers), so a student who left
+// before the game never holds up the auto-lock (David 2026-11-18). Otherwise: everyone seen in the last 50 minutes.
+const room = () => { const A = AUTO(), s = new Set(A && Array.isArray(A.players) ? A.players : S.pulses.filter(x => Date.now() - (x.at || 0) < 50 * 60e3).map(x => x.sid)); S.ans.forEach(a => s.add(a.sid)); return s; };
 function autoLock() {
   const L = S.live; if (!L || !L.open || !(L.type === 'mc' || L.type === 'yn') || start.autoL === L.round) return;
   const R = room(), got = new Set(S.ans.map(a => a.sid)); if (R.size < 1 || [...R].some(s => !got.has(s))) return;
@@ -706,7 +708,7 @@ app.addEventListener('click', async e => {
   if (act === 'sdnum') { const p = gpick(); p.sn = Number(t.dataset.v); savePick(p); draw(); return; }
   if (act === 'sdstart') { const p = gpick(), g = G(); g.scores = {}; g.qn = 0; g.done = {}; g.prev = {}; g.auto = { on: true, n: snum(p), i: 0, paused: false }; saveG(); S.startOpen = false; S.cust = null;
     S.whoKey = ''; return db.set(livePath(), { round: LC.roundId(), q: '', type: 'mc', open: false, game: true, final: false, reveal: null, board: [], show: { st: 'lobby', n: snum(p), i: 0, who: whoList() }, updated_at: NOW }).catch(er => { S.err = ERR(er); draw(); }); }
-  if (act === 'sdbegin') return goGame(false);
+  if (act === 'sdbegin') { const A = AUTO(); if (A) { A.players = ((S.live && S.live.show && S.live.show.who) || []).map(w => w.s); saveG(); } return goGame(false); }
   if (act === 'sdcancel') { const g = G(); if (g.auto) g.auto.on = false; saveG(); return db.del(livePath()).catch(er => { S.err = ERR(er); draw(); }); }
   if (act === 'sdpause') { const A = AUTO(); if (!A) return; A.paused = !A.paused; saveG(); clearTimeout(S.autoT); if (!A.paused && L && !L.open) return autoStep(L.round); draw(); return; }
   if (act === 'sheet') { studySheet(!!t.dataset.v); return; }
