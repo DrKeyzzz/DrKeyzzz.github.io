@@ -284,7 +284,7 @@ function scoreRound(L) {
   Object.values(first).forEach(a => {
     const x = g.scores[a.sid] || (g.scores[a.sid] = { n: a.name, p: 0, st: 0 }); x.n = a.name;
     const ok = c && a.text === c, secs = start ? Math.max(0, ((a.at || start) - start) / 1000) : dur / 2000;
-    if (ok) { x.st++; x.g = 500 + Math.round(500 * Math.max(0, 1 - secs / (dur / 1000))) + (x.st > 2 ? 100 : 0); x.p += x.g; } else x.st = 0;
+    x.a = (x.a || 0) + 1; if (ok) { x.r = (x.r || 0) + 1; x.st++; x.g = 500 + Math.round(500 * Math.max(0, 1 - secs / (dur / 1000))) + (x.st > 2 ? 100 : 0); x.p += x.g; } else x.st = 0;
   });
   Object.entries(g.scores).forEach(([sid, x]) => { if (!seen.has(sid)) x.st = 0; });
   g.done[L.round] = 1; saveG();
@@ -398,7 +398,7 @@ function roundCard() {
       <button class="btn" type="button" data-act="csv">Download CSV</button>
       ${S.confirm === 'end' ? '<button class="btn warn" type="button" data-act="end">End and clear the screen?</button>' : '<button class="btn warn" type="button" data-act="confirm" data-v="end">End question</button>'}
       ${PREVIEW ? '<button class="btn" type="button" data-act="sim">🤖 Pretend students answer</button>' : ''}
-    </div>`}${L.game ? `<div class="row"><span class="chip gold">🏁 Showdown · question ${G().qn}</span>${(L.board || []).slice(0, 3).map((b, i) => `<span class="chip">${i + 1}. ${esc(S.curtain ? "Player " + (i + 1) : b.n)} · ${b.p}</span>`).join('')}<span class="grow"></span><button class="btn pri" type="button" data-act="podium">🎭 Curtain call</button>${S.confirm === 'gnew' ? '<button class="btn warn" type="button" data-act="gnew">Start a new Showdown (scores to 0)?</button>' : '<button class="btn" type="button" data-act="confirm" data-v="gnew">↺ New Showdown</button>'}</div>` : ''}</section>`;
+    </div>`}${L.game ? `<div class="row"><span class="chip gold">🏁 Showdown · question ${G().qn}</span>${(L.board || []).slice(0, 3).map((b, i) => `<span class="chip">${i + 1}. ${esc(S.curtain ? "Player " + (i + 1) : b.n)} · ${b.p}</span>`).join('')}<span class="grow"></span>${L.final ? '<button class="btn pri" type="button" data-act="sdcsv" title="Every player: place, points, right answers">📄 Results (CSV)</button><button class="btn" type="button" data-act="sdstart">↺ Play again</button>' : '<button class="btn pri" type="button" data-act="podium">🎭 Curtain call</button>'}${S.confirm === 'gnew' ? '<button class="btn warn" type="button" data-act="gnew">Start a new Showdown (scores to 0)?</button>' : '<button class="btn" type="button" data-act="confirm" data-v="gnew">↺ New Showdown</button>'}</div>` : ''}</section>`;
 }
 // Screen 2 / Screen 3 for a game question: three big buttons (Lock, Skip, Next), then small Change and End
 // ---------- A student leads (2026-11-17, step 7): the teacher shows a 4-digit code; a student types it on their /live/ page and gets
@@ -698,6 +698,11 @@ app.addEventListener('click', async e => {
   if (act === 'game') { G().on = !G().on; saveG(); if (G().on) { S.comp.type = 'mc'; toast('Showdown on: pick the correct answer on every question.'); } draw(); return; }
   if (act === 'gnew') { S.confirm = ''; const g = G(); g.scores = {}; g.qn = 0; g.done = {}; g.prev = {}; saveG(); if (L && L.game) upd({ board: [], final: false }); toast('New Showdown: scores reset.'); draw(); return; }
   if (act === 'podium') { if (!L) return; return finishShow(); }
+  if (act === 'sdcsv') {   // Showdown results for the grade book (2026-11-18): place, name, points, right, answered
+    const rows = Object.values(G().scores).sort((a, b) => b.p - a.p).map((x, i) => [i + 1, x.n, x.p, x.r || 0, x.a || 0]);
+    const t = [['Place', 'Student', 'Points', 'Right', 'Answered']].concat(rows).map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const u = URL.createObjectURL(new Blob([t], { type: 'text/csv' })), x = document.createElement('a');
+    x.href = u; x.download = `showdown-${S.code}-${new Date().toISOString().slice(0, 10)}.csv`; x.click(); setTimeout(() => URL.revokeObjectURL(u), 1000); return; }
   if (act === 'sdnum') { const p = gpick(); p.sn = Number(t.dataset.v); savePick(p); draw(); return; }
   if (act === 'sdstart') { const p = gpick(), g = G(); g.scores = {}; g.qn = 0; g.done = {}; g.prev = {}; g.auto = { on: true, n: snum(p), i: 0, paused: false }; saveG(); S.startOpen = false; S.cust = null;
     S.whoKey = ''; return db.set(livePath(), { round: LC.roundId(), q: '', type: 'mc', open: false, game: true, final: false, reveal: null, board: [], show: { st: 'lobby', n: snum(p), i: 0, who: whoList() }, updated_at: NOW }).catch(er => { S.err = ERR(er); draw(); }); }
