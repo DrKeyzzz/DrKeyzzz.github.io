@@ -174,8 +174,15 @@ window.LC = (() => {
     return mcq(q || `This is the key signature for which ${minor ? 'minor' : 'major'} key?`, ksName(n, minor),
       ksNear(n, minor).map(k => [ksName(k.n, k.minor), n === 0 && k.n !== 0 ? 'C has no sharps or flats.' : ksWhy(n, minor, k)]), { ks: n, clef });
   }
-  const anyClef = () => rnd(['treble', 'treble', 'bass', 'alto']);
-  const nOf = (lo, hi) => { const l = KS_ORDER.filter(n => Math.abs(n) >= lo && Math.abs(n) <= hi); return rnd(l); };
+  // Customize (2026-11-17, step 3): OPT holds the teacher's choices while a question is made. clef: any | treble | bass | alto;
+  // acc: both | sharps | flats; mode: both | major | minor; type: mix | name | spell | count | relative | odd (Scale Quest).
+  const OPT_DEF = { clef: 'any', acc: 'both', mode: 'both', type: 'mix', timer: 30 };
+  let OPT = OPT_DEF;
+  const anyClef = def => OPT.clef !== 'any' ? OPT.clef : def || rnd(['treble', 'treble', 'bass', 'alto']);
+  const accOk = n => OPT.acc === 'sharps' ? n >= 0 : OPT.acc === 'flats' ? n <= 0 : true;
+  const nOf = (lo, hi) => { let l = KS_ORDER.filter(n => Math.abs(n) >= lo && Math.abs(n) <= hi && accOk(n) && (OPT.acc === 'both' || n !== 0 || lo === 0 && hi < 1));
+    if (!l.length) l = KS_ORDER.filter(n => Math.abs(n) >= lo && Math.abs(n) <= hi); return rnd(l); };
+  const isMinor = p => OPT.mode === 'major' ? false : OPT.mode === 'minor' ? true : Math.random() < p;
   function spell(n, minor) {   // "What is the 6th note of E♭ major?"
     const N = keyNotes(n, minor), k = 1 + Math.floor(Math.random() * 6), right = N[k], key = ksName(n, minor);
     return mcq(`What is the ${ORD[k]} note of ${key}?`, right, [
@@ -193,7 +200,7 @@ window.LC = (() => {
       [N[5] + ' major', 'The relative major starts on the 3rd note of the minor key, not the 6th.'], [ksOk(n + 1) ? KS_MAJ[n + 1] + ' major' : '', 'Off by one key.'], [ksOk(n - 1) ? KS_MAJ[n - 1] + ' major' : '', 'Off by one key.'], [ksOk(n + 2) ? KS_MAJ[n + 2] + ' major' : KS_MAJ[n - 2] + ' major', 'Off by two keys.']]);
   }
   function enharmonic() {   // B = C♭, F♯ = G♭, C♯ = D♭ (and their relative minors)
-    const [a, b] = rnd([[5, -7], [6, -6], [7, -5], [-7, 5], [-6, 6], [-5, 7]]), minor = Math.random() < .4;
+    const pairs = [[5, -7], [6, -6], [7, -5], [-7, 5], [-6, 6], [-5, 7]].filter(([, b]) => accOk(b)), [a, b] = rnd(pairs), minor = isMinor(.4);
     const from = ksName(a, minor), right = ksName(b, minor), with_ = b < 0 ? 'flats' : 'sharps';
     return mcq(`Which key sounds the same as ${from} but is written with ${with_}?`, right,
       [[ksOk(b + 1) ? ksName(b + 1, minor) : '', 'A different key: one accidental off.'], [ksOk(b - 1) ? ksName(b - 1, minor) : '', 'A different key: one accidental off.'],
@@ -206,23 +213,29 @@ window.LC = (() => {
     return { ...mcq(`Which note is NOT in ${key}?`, trap, ins.map(x => [x, x + ' is in ' + key + '.'])), why: Object.fromEntries(ins.map(x => [x, x + ' is in ' + key + ': check every note against the key signature.'])) };
   }
   const QGAMES = [
-    { id: 'scale', name: 'Scale Quest', what: 'Key signatures and scales', url: '/scale-quest/', make(d) {
-      if (d === 'warmup') return ksMC(nOf(0, 3), false, 'treble');
-      if (d === 'challenge') { const r = Math.random();
-        if (r < .45) return ksMC(nOf(0, 7), Math.random() < .35, anyClef());
-        if (r < .8) return spell(nOf(0, 5), false);
-        const q = ksQuestion(nOf(1, 7), Math.random() < .35, 'count'); return { ...q, why: {} }; }
+    { id: 'scale', name: 'Scale Quest', what: 'Key signatures and scales', url: '/scale-quest/', 
+      // the choices Customize offers for this game, first = default
+      opts: { type: [['mix', 'Mix'], ['name', 'Name the key'], ['spell', 'Spell a note'], ['count', 'How many?'], ['relative', 'Relative & same-sound keys'], ['odd', 'Odd one out']],
+        clef: [['any', 'Any'], ['treble', '𝄞 Treble'], ['bass', '𝄢 Bass'], ['alto', '𝄡 Alto']], acc: [['both', 'Both'], ['sharps', '♯ Sharps'], ['flats', '♭ Flats']],
+        mode: [['both', 'Both'], ['major', 'Major'], ['minor', 'Minor']] },
+      make(d) {
+      const [lo, hi] = d === 'warmup' ? [0, 3] : d === 'challenge' ? [0, 7] : [3, 7], t = OPT.type;
+      const nameQ = () => { const m = isMinor(d === 'warmup' ? 0 : d === 'challenge' ? .35 : .7); return ksMC(nOf(m && d === 'brutal' ? 4 : lo, hi), m, anyClef(d === 'warmup' ? 'treble' : null), m && d === 'brutal' ? 'This key signature is for which MINOR key?' : null); };
+      const spellQ = () => spell(nOf(lo, Math.min(hi, d === 'challenge' ? 5 : 7)), isMinor(d === 'brutal' ? .5 : d === 'challenge' ? .2 : 0));
+      const countQ = () => ({ ...ksQuestion(nOf(Math.max(1, lo), hi), isMinor(d === 'warmup' ? 0 : .35), 'count'), why: {} });
+      const relQ = () => Math.random() < .6 || OPT.acc !== 'both' && d !== 'brutal' ? relative(nOf(Math.max(2, lo), hi)) : enharmonic();
+      const oddQ = () => oddOne(nOf(Math.max(2, lo), hi));
+      const by = { name: nameQ, spell: spellQ, count: countQ, relative: relQ, odd: oddQ };
+      if (by[t]) return by[t]();
+      if (d === 'warmup') return nameQ();
       const r = Math.random();
-      if (r < .25) return ksMC(nOf(4, 7), true, anyClef(), 'This key signature is for which MINOR key?');
-      if (r < .5) return relative(nOf(2, 7));
-      if (r < .7) return enharmonic();
-      if (r < .85) return oddOne(nOf(3, 7));
-      return spell(nOf(3, 7), Math.random() < .5);
+      if (d === 'challenge') return r < .45 ? nameQ() : r < .8 ? spellQ() : countQ();
+      return r < .25 ? nameQ() : r < .5 ? relative(nOf(2, 7)) : r < .7 ? enharmonic() : r < .85 ? oddQ() : spellQ();
     } },
   ];
   const qgame = id => QGAMES.find(g => g.id === id) || null;
   // one question, tagged with where it came from (bc_live.gen = { g, d })
-  function makeQ(g, d) { const G = qgame(g) || QGAMES[0], D = DIFFS[d] ? d : 'challenge'; const q = G.make(D); return { ...q, skills: q.skills || ['keys'], gen: { g: G.id, d: D } }; }
+  function makeQ(g, d, o) { const G = qgame(g) || QGAMES[0], D = DIFFS[d] ? d : 'challenge'; OPT = { ...OPT_DEF, ...(o || {}) }; let q; try { q = G.make(D); } finally { OPT = OPT_DEF; } return { ...q, skills: q.skills || ['keys'], gen: { g: G.id, d: D } }; }
 
   // ---------- results (teacher console and projector; counts only, never names) ----------
   // ans = the latest answer from each student: [{ text, sid, ... }]
@@ -262,5 +275,5 @@ window.LC = (() => {
   const clock = s => s == null ? '' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const ERR = e => { const c = String(e && (e.code || e.message) || e); return /permission/i.test(c) ? 'Live Class is not switched on yet (the new database rules are not in place).' : /offline|unavailable|timeout/i.test(c) ? 'No connection. Check the wifi and try again.' : 'Something went wrong: ' + c; };
 
-  return { DIFFS, QGAMES, qgame, makeQ, keyNotes, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, BANK, NOW, at, newKey, roundId, flagged, db, fbAuth, results, latest, left, clock, ERR };
+  return { OPT_DEF, DIFFS, QGAMES, qgame, makeQ, keyNotes, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, BANK, NOW, at, newKey, roundId, flagged, db, fbAuth, results, latest, left, clock, ERR };
 })();

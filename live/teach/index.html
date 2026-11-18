@@ -165,6 +165,14 @@
   .btn.go { font-size: 22px; padding: 16px; justify-content: center; border-radius: 14px; }
   .gbtns { display: flex; gap: 10px; flex-wrap: wrap; }
   .btn.big { font-size: 19px; padding: 14px 22px; border-radius: 14px; flex: 1; justify-content: center; min-width: 140px; }
+  .cust { border: 1px solid var(--line2); border-radius: 14px; padding: 12px; gap: 10px; }
+  .crow { display: flex; flex-direction: column; gap: 4px; }
+  .chipset { display: flex; flex-wrap: wrap; gap: 6px; border: 0; overflow: visible; border-radius: 0; }
+  .chipset button { border: 1px solid var(--line2); background: rgba(255,255,255,.04); color: var(--ink); border-radius: 999px; padding: 6px 12px; font: 600 14px Outfit, system-ui, sans-serif; cursor: pointer; }
+  .chipset button[aria-pressed="true"] { background: rgba(255,200,92,.18); border-color: var(--gold); }
+  .sample { display: flex; flex-direction: column; gap: 6px; padding: 10px; border-radius: 12px; background: rgba(0,0,0,.2); }
+  .sample .ksbox { max-width: 220px; }
+  .linkish { background: transparent; border-color: transparent; color: var(--muted); }
   .why { margin: 0; padding: 10px 12px; border-radius: 12px; background: rgba(255,200,92,.1); border: 1px solid rgba(255,200,92,.35); }
   @media (max-width: 480px) { .diff { font-size: 16px; padding: 12px 4px; } .diff small { display: none; } }
   .whopick { border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 10px 12px; }
@@ -176,7 +184,7 @@
 <script src="../live-core.js"></script>
 <script>
 (() => {
-const { DIFFS, QGAMES, qgame, makeQ, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, BANK, NOW, at, db, results, latest, left, clock, ERR } = LC;
+const { OPT_DEF, DIFFS, QGAMES, qgame, makeQ, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, BANK, NOW, at, db, results, latest, left, clock, ERR } = LC;
 const $ = id => document.getElementById(id);
 const app = $('app');
 const EMBED = Q.get('embed') === '1';
@@ -191,9 +199,22 @@ const S = { email: '', classes: [], code: '', live: null, ans: [], pulses: [], p
 // ---------- Game questions (2026-11-17, David 'go'): game + Warm-up / Challenge / Brutal + Go; then Lock, Skip, Next ----------
 // The last pick is remembered per class on this computer (localStorage mtg_live_pick_v1:<code>).
 const PK = () => 'mtg_live_pick_v1:' + S.code;
-const gpick = () => { let o = null; try { o = JSON.parse(localStorage.getItem(PK()) || 'null'); } catch {} return { g: o && qgame(o.g) ? o.g : QGAMES[0].id, d: o && DIFFS[o.d] ? o.d : 'challenge' }; };
+const gpick = () => { let o = null; try { o = JSON.parse(localStorage.getItem(PK()) || 'null'); } catch {} return { g: o && qgame(o.g) ? o.g : QGAMES[0].id, d: o && DIFFS[o.d] ? o.d : 'challenge', o: { ...OPT_DEF, ...(o && o.o || {}) } }; };
 const savePick = p => { try { localStorage.setItem(PK(), JSON.stringify(p)); } catch {} };
-const GQ_TIMER = 30;   // seconds for a game question (Showdown keeps its own 20 s)
+const GQ_TIMER = 30;   // seconds for a game question unless Customize changes it (Showdown keeps its own 20 s)
+// Customize (step 3): a drawer under Go. The choices change a draft (S.cust); the sample question redraws on every tap; Use these saves it.
+const custLabel = (G, o) => { const parts = Object.entries(G.opts).filter(([k]) => o[k] && o[k] !== OPT_DEF[k]).map(([k, l]) => (l.find(x => x[0] === o[k]) || [, ''])[1]);
+  if (o.timer !== OPT_DEF.timer) parts.push(o.timer ? o.timer + ' s' : 'No timer'); return parts.join(' · '); };
+function custDrawer() {
+  const p = gpick(), G = qgame(p.g), o = S.cust.o, seg = (k, list) => `<div class="crow"><span class="label">${{ type: 'Question type', clef: 'Clef', acc: 'Keys', mode: 'Major or minor', timer: 'Timer' }[k]}</span><span class="chipset">${list.map(([v, l]) => `<button type="button" data-act="cset" data-k="${k}" data-v="${v}" aria-pressed="${String(o[k]) === String(v)}">${l}</button>`).join('')}</span></div>`;
+  if (!S.cust.sample) S.cust.sample = makeQ(p.g, p.d, o);
+  const q = S.cust.sample;
+  return `<div class="cust stack">
+    <div class="sample"><span class="label">Sample · ${esc(DIFFS[p.d])}</span><b>${esc(q.q)}</b>${ksStaff(q.ks, '', q.clef)}<div class="row">${q.opts.map(x => `<span class="chip ${x === q.correct ? 'ok' : ''}">${x === q.correct ? '✓ ' : ''}${esc(x)}</span>`).join('')}</div>
+      <button class="btn sm" type="button" data-act="csample" style="align-self:flex-start">↻ Another sample</button></div>
+    ${Object.entries(G.opts).map(([k, l]) => seg(k, l)).join('')}${seg('timer', [[15, '15 s'], [20, '20 s'], [30, '30 s'], [0, 'Off']])}
+    <div class="row"><button class="btn pri" type="button" data-act="cuse">Use these</button><button class="btn" type="button" data-act="creset">Back to normal</button><button class="btn" type="button" data-act="cclose">Cancel</button></div></div>`;
+}
 function startCard() {
   const p = gpick(), G = qgame(p.g);
   return `<section class="card stack startq" aria-label="Start a question">
@@ -201,7 +222,8 @@ function startCard() {
     <label class="f" for="gq-game">Game<select id="gq-game" class="big">${QGAMES.map(g => `<option value="${g.id}" ${g.id === p.g ? 'selected' : ''}>${esc(g.name)} · ${esc(g.what)}</option>`).join('')}</select></label>
     <div class="diffs" role="group" aria-label="Difficulty">${Object.entries(DIFFS).map(([k, v]) => `<button type="button" class="diff d-${k}" data-act="gdiff" data-v="${k}" aria-pressed="${p.d === k}">${v}<small>${k === 'warmup' ? 'Get everyone in' : k === 'challenge' ? 'Solid practice' : 'Really hard'}</small></button>`).join('')}</div>
     <button class="btn pri go" type="button" data-act="go">Go ▶</button>
-    <p class="dim small" style="margin:0">${esc(G.name)} questions, ${esc(DIFFS[p.d])}. A new question every time you press Next.${G.id === 'scale' ? '' : ''} More games are on the way.</p></section>`;
+    ${S.cust ? custDrawer() : `<div class="row between"><button class="btn sm linkish" type="button" data-act="copen">⚙ Customize</button>${custLabel(G, p.o) ? `<span class="chip">${esc(custLabel(G, p.o))}</span>` : ''}</div>`}
+    <p class="dim small" style="margin:0">A new ${esc(G.name)} question every time you press Next. More games are on the way.</p></section>`;
 }   // the 🎼 Key signature maker (2026-11-17)
 const TK = () => 'mtg_live_teach_v1:' + S.code;    // the correct answer stays on this computer (the projector reads it)
 const correct = () => { try { const t = JSON.parse(localStorage.getItem(TK()) || 'null'); return t && S.live && t.round === S.live.round ? t.correct || '' : ''; } catch { return ''; } };
@@ -480,9 +502,9 @@ async function post(o = {}) {
 // Go / Next: a new question from the picked game and difficulty, posted at once. Skip: the same, but the current question
 // is pulled without revealing it, so nothing counts (no results, no Stars), and it leaves the Questions asked list.
 async function goGame(skip) {
-  const p = gpick(), q = makeQ(p.g, p.d), L = S.live;
+  const p = gpick(), q = makeQ(p.g, p.d, p.o), L = S.live;
   if (skip && L && L.round) { const l = asked(); if (l.length && l[l.length - 1].round === L.round) { l.pop(); saveAsked(l); } }
-  S.comp = { ...q, timer: G().on ? 0 : GQ_TIMER };
+  S.comp = { ...q, timer: G().on ? 0 : (p.o.timer != null ? +p.o.timer : GQ_TIMER) };
   await post({ skip: !!skip });
 }
 async function delAnswers(sid) {
@@ -528,8 +550,14 @@ app.addEventListener('click', async e => {
   if (act !== 'confirm' && act !== 'del' && act !== 'end') S.confirm = '';
   if (act === 'confirm') { S.confirm = S.confirm === t.dataset.v ? '' : t.dataset.v; draw(); return; }
   if (act === 'post') return post();
-  if (act === 'gdiff') { const p = gpick(); p.d = t.dataset.v; savePick(p); draw(); return; }
-  if (act === 'go') return goGame(false);
+  if (act === 'gdiff') { const p = gpick(); p.d = t.dataset.v; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
+  if (act === 'go') { S.cust = null; return goGame(false); }
+  if (act === 'copen') { S.cust = { o: { ...gpick().o }, sample: null }; draw(); return; }
+  if (act === 'cclose') { S.cust = null; draw(); return; }
+  if (act === 'cset') { const k = t.dataset.k; S.cust.o[k] = k === 'timer' ? Number(t.dataset.v) : t.dataset.v; S.cust.sample = null; draw(); return; }
+  if (act === 'csample') { S.cust.sample = null; draw(); return; }
+  if (act === 'creset') { S.cust.o = { ...OPT_DEF }; S.cust.sample = null; draw(); return; }
+  if (act === 'cuse') { const p = gpick(); p.o = { ...S.cust.o }; savePick(p); S.cust = null; toast('Saved for this class.'); draw(); return; }
   if (act === 'own') { S.own = !S.own; draw(); return; }
   if (act === 'startClose') { S.startOpen = false; draw(); return; }
   if (act === 'change') { S.startOpen = true; draw(); return; }
@@ -593,7 +621,7 @@ app.addEventListener('change', e => {
   const id = e.target.id, c = S.comp, v = e.target.value;
   if (id === 'cls') { const u = new URL(location.href); u.searchParams.set('code', v); history.replaceState(null, '', u); openClass(v); return; }
   if (id === 'sort') { S.sort = v; draw(); return; }
-  if (id === 'gq-game') { const p = gpick(); p.g = v; savePick(p); draw(); return; }
+  if (id === 'gq-game') { const p = gpick(); p.g = v; p.o = { ...OPT_DEF }; savePick(p); if (S.cust) S.cust = { o: { ...OPT_DEF }, sample: null }; draw(); return; }
   if (id === 'c-type') { c.type = v; c.correct = ''; if (v !== 'mc') c.ks = null; draw(); return; }
   if (id === 'c-timer') { c.timer = Number(v) || 0; return; }
   if (id === 'c-correct') { c.correct = v; return; }
