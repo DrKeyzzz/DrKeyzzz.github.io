@@ -1357,6 +1357,24 @@ service cloud.firestore {
         && request.resource.data.mark in [0, 0.5, 1];
       allow delete: if bcMine(resource);
     }
+    // bc_lead/<class code>_<4-digit pin> (2026-11-17): a student leads the class. The teacher's console creates it (the pin is shown
+    // on the teacher's screen); a student who knows the pin may only change cmd (what to do next) and by (their name). Only the
+    // teacher's console posts questions to bc_live, so a student can never post anything themselves.
+    match /bc_lead/{id} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if id.matches('^[A-Z0-9]{4,7}_[0-9]{4}$') && ownsClass(id.split('_')[0])
+        && request.resource.data.keys().hasOnly(['class_code', 'owner', 'on', 'by', 'cmd', 'updated_at'])
+        && request.resource.data.class_code == id.split('_')[0] && request.resource.data.owner == request.auth.token.email;
+      allow update: if ownsClass(resource.data.class_code)
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cmd', 'by'])
+          && request.resource.data.by is string && request.resource.data.by.size() <= 24
+          && request.resource.data.cmd is map && request.resource.data.cmd.keys().hasOnly(['a', 'g', 'd', 't'])
+          && request.resource.data.cmd.a in ['hello', 'go', 'next', 'skip', 'lock']
+          && request.resource.data.cmd.g is string && request.resource.data.cmd.g.size() <= 20
+          && request.resource.data.cmd.d in ['warmup', 'challenge', 'brutal'] && request.resource.data.cmd.t is number);
+      allow delete: if isAdmin() || ownsClass(resource.data.class_code);
+    }
     match /bc_pulse/{key} {
       // I'm lost (2026-11-17): the student's device reads its own doc by its secret key (to see when the teacher cleared it);
       // a student can turn lost on but only the class's teacher (or the admin) can turn it off.
