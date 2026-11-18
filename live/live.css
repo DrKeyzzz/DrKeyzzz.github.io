@@ -273,3 +273,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); }
 .sd-mrow .pp { font-family: ui-monospace, monospace; }
 .sd-mrow.me { outline: 2px solid #ffc85c; background: rgba(255,200,92,.16); }
 @media (max-width: 600px) { .sd-res .sd-big { font-size: 34px; } .sd-res { padding: 14px 12px; } }
+@media (max-width: 600px) and (max-height: 740px) {   /* short phones: Top 5 + my place still fit (2026-11-18) */
+  .sd-mini { gap: 3px; } .sd-mrow { padding: 3px 10px; font-size: 14px; }
+  .sd-res { gap: 2px; padding: 10px 12px; } .sd-res .sd-big { font-size: 26px; } .sd-res .sd-pts { font-size: 26px; }
+}

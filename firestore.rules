@@ -1300,7 +1300,7 @@ service cloud.firestore {
       allow get: if true;
       allow list: if false;
       allow create, update: if ownsClass(code)
-        && request.resource.data.keys().hasOnly(['round', 'q', 'type', 'opts', 'skills', 'open', 'ends_at', 'spot', 'ks', 'clef', 'game', 'reveal', 'final', 'board', 'gen', 'show', 'updated_at'])
+        && request.resource.data.keys().hasOnly(['round', 'q', 'type', 'opts', 'skills', 'open', 'ends_at', 'spot', 'ks', 'clef', 'game', 'reveal', 'final', 'board', 'gen', 'show', 'places', 'updated_at'])
         && request.resource.data.round is string && request.resource.data.round.matches('^[A-Za-z0-9-]{1,40}$')
         && request.resource.data.q is string && request.resource.data.q.size() <= 200
         && request.resource.data.type in ['text', 'mc', 'yn', 'num', 'emoji', 'word']
@@ -1326,6 +1326,8 @@ service cloud.firestore {
         && (!('final' in request.resource.data) || request.resource.data.final is bool)
         && (!('reveal' in request.resource.data) || request.resource.data.reveal == null || (request.resource.data.reveal is int && request.resource.data.reveal >= 0 && request.resource.data.reveal <= 5))
         && (!('board' in request.resource.data) || (request.resource.data.board is list && request.resource.data.board.size() <= 5))
+        // places = every player's Showdown place for their own screen (2026-11-18): { <short hash of sid>: place }, up to 80
+        && (!('places' in request.resource.data) || (request.resource.data.places is map && request.resource.data.places.size() <= 80))
         // show = Showdown game-show mode (2026-11-18): { st: lobby | play | done, n: questions in the game, i: this one, at: when answers open (ms), who: the waiting room (up to 40 { n, s }) }
         && (!('show' in request.resource.data) || (request.resource.data.show is map && request.resource.data.show.keys().hasOnly(['st', 'n', 'i', 'at', 'who'])
             && request.resource.data.show.st in ['lobby', 'play', 'done']
