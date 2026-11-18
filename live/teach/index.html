@@ -355,7 +355,7 @@ function headCard() {
   return `<section class="card row between">
     <div class="row">${S.classes.length > 1 ? `<label class="f" for="cls" style="flex-direction:row;align-items:center;gap:8px">Class <select id="cls" style="width:auto">${S.classes.map(c => `<option value="${esc(c.code)}" ${c.code === S.code ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>` : `<b>${esc((S.classes[0] || {}).name || S.code)}</b>`}
       <span class="muted small">Students open <b>musictheoryacademy.org/live</b> signed in with code <b class="mono">${esc(S.code)}</b> · ${recent().length} joined</span></div>
-    <div class="row"><button class="btn ${G().on ? 'pri' : ''}" type="button" data-act="game" aria-pressed="${G().on}" title="Showdown: right and fast answers score points; the top 5 show on the projector">🏁 Showdown: ${G().on ? 'On' : 'Off'}</button><button class="btn ${S.lead ? 'pri' : ''}" type="button" data-act="lead">🎓 ${S.lead ? 'Student leading' : 'Let a student lead'}</button><a class="btn" href="${scr}" target="_blank" rel="noopener">📽 Open projector</a>${S.confirm === 'fresh' ? '<button class="btn warn" type="button" data-act="fresh" title="Clears the screen, Questions asked, Showdown scores, I\'m lost and private questions">Yes, clear all</button><button class="btn" type="button" data-act="confirm" data-v="fresh">Cancel</button>' : '<button class="btn" type="button" data-act="confirm" data-v="fresh" title="Clear everything for a new class: screen, Questions asked, Showdown scores, I\'m lost, private questions">🧹 Clear all</button>'}${PREVIEW ? `<a class="btn" href="../?preview=1" target="_blank" rel="noopener">👀 Student view</a>` : ''}</div></section>`;
+    <div class="row"><button class="btn ${G().on ? 'pri' : ''}" type="button" data-act="game" aria-pressed="${G().on}" title="Showdown: right and fast answers score points; the top 5 show on the projector">🏁 Showdown: ${G().on ? 'On' : 'Off'}</button><button class="btn ${S.lead ? 'pri' : ''}" type="button" data-act="lead">🎓 ${S.lead ? 'Student leading' : 'Let a student lead'}</button><a class="btn" href="${scr}" target="_blank" rel="noopener">📽 Open projector</a>${S.confirm === 'fresh' ? '<button class="btn warn" type="button" data-act="fresh" title="Clears the screen, Showdown scores, I\'m lost and private questions (Questions asked stays)">Yes, clear all</button><button class="btn" type="button" data-act="confirm" data-v="fresh">Cancel</button>' : '<button class="btn" type="button" data-act="confirm" data-v="fresh" title="Clear for a new class: screen, Showdown scores, I\'m lost, private questions. Questions asked stays.">🧹 Clear all</button>'}${PREVIEW ? `<a class="btn" href="../?preview=1" target="_blank" rel="noopener">👀 Student view</a>` : ''}</div></section>`;
 }
 function roundCard() {
   const L = S.live, A = latest(S.ans), n = recent().length, s = left(L);
@@ -501,11 +501,11 @@ function composerCard() {
 }
 // The Key signature maker: pick major or minor and a style, tap a key, and the question and its four choices fill in
 // (one accidental more or less, the same number of the other accidental, the relative major on minor keys). Edit anything before posting.
-// ---------- Questions asked: a list kept on this computer per class (localStorage mtg_live_asked_v1:<code>, newest last, up to 100),
+// ---------- Questions asked: a list kept on this computer per class (localStorage mtg_live_asked_v1:<code>, newest last, up to 300),
 // and a study sheet (questions, then an answer key) that opens ready to Save as PDF for Google Classroom (David, 2026-11-17)
 const AK = () => 'mtg_live_asked_v1:' + S.code;
 const asked = () => { try { return JSON.parse(localStorage.getItem(AK()) || '[]'); } catch { return []; } };
-const saveAsked = l => { try { localStorage.setItem(AK(), JSON.stringify(l.slice(-100))); } catch {} };
+const saveAsked = l => { try { localStorage.setItem(AK(), JSON.stringify(l.slice(-300))); } catch {} };
 function askedCard() {
   const l = asked();
   return `<section class="card stack"><div class="row between"><h2 style="margin:0">📝 Questions asked <span class="chip">${l.length}</span></h2>
@@ -672,8 +672,8 @@ app.addEventListener('click', async e => {
   if (act === 'sheet') { studySheet(!!t.dataset.v); return; }
   if (act === 'fresh') {   // 2026-11-18: one button to clear everything for a new class period
     S.confirm = ''; S.startOpen = false;
-    saveAsked([]);
-    const g = G(); g.scores = {}; g.qn = 0; g.done = {}; g.prev = {}; saveG();
+    const g = G();   // Questions asked is kept (David 2026-11-18: a review can span many games); it has its own Clear
+    g.scores = {}; g.qn = 0; g.done = {}; g.prev = {}; saveG();
     if (S.lead) await stopLead();
     const lost = recent().filter(x => x.lost), errs = [];
     await Promise.all(lost.map(x => db.set('bc_pulse/' + x.id, { class_code: x.class_code, owner: x.owner, sid: x.sid, name: x.name, lost: false, conf: x.conf || 3, at: NOW }).then(() => { x.lost = false; }).catch(e => errs.push(e))));
