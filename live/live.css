@@ -212,3 +212,7 @@ input[type=range] { width: 100%; accent-color: var(--gold); }
 .listenbox small { color: var(--muted); }
 .listenbox .btn { margin-left: auto; }
 .proj .listenbox { font-size: 26px; padding: 22px 26px; } .proj .listenbox b { font-size: 32px; } .proj .listenbox .lb-ic { font-size: 56px; }
+/* rhythm bars (2026-11-17): wider than a key signature, so the notes stay big */
+.ksbox.rbox { width: min(100%, 560px); }
+.proj .ksbox.rbox { width: min(100%, 900px); }
+.sd-split .ksbox.rbox { width: min(100%, 560px); }

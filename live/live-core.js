@@ -259,7 +259,83 @@ window.LC = (() => {
   const HOW = { up: 'going up', down: 'going down', together: 'played together', chord: 'played together, then one note at a time' };
   // whatever picture a question has: a speaker (sound), notes (Tidal Tones), else a key signature. where = 'proj' | 'teach' | phone
   const staffFor = (x, where) => isSound(x) ? `<div class="listenbox"><span class="lb-ic">🔊</span><div><b>${where === 'proj' || where === 'teach' ? 'Listen' : 'Listen to the class speaker'}</b><small>${esc(HOW[x.gen.p] || '')}</small></div>${where === 'proj' || where === 'teach' ? '<button type="button" class="btn pri" data-play="1">▶ Play' + (where === 'proj' ? ' again' : '') + '</button>' : ''}</div>`
+    : x && x.gen && Array.isArray(x.gen.r) && x.gen.r.length ? rhythmStaff(x.gen.r, x.gen.t)
     : x && x.gen && Array.isArray(x.gen.n) && x.gen.n.length ? noteStaff(x.gen.n, x.clef) : ksStaff(x && x.ks, '', x && x.clef);
+  // ---------- Rhythm questions (2026-11-17, step 6): The Big Score and Rooftop Runner ----------
+  // A bar = a list of notes and rests in sixteenths (16 = whole, 12 = dotted half, 8 = half, 6 = dotted quarter, 4 = quarter,
+  // 3 = dotted eighth, 2 = eighth, 1 = sixteenth). bc_live.gen.r keeps each as units * 2 + (1 for a rest); gen.t = the time signature shown ('' = none).
+  const MF = "font-family:'Noto Music','Apple Symbols','Segoe UI Symbol',serif";
+  const NGLYPH = { 16: '\u{1D15D}', 8: '\u{1D15E}', 4: '\u{1D15F}', 2: '\u{1D160}', 1: '\u{1D161}' }, RGLYPH = { 16: '\u{1D13B}', 8: '\u{1D13C}', 4: '\u{1D13D}', 2: '\u{1D13E}', 1: '\u{1D13F}' };
+  const baseOf = u => NGLYPH[u] ? [u, false] : [u * 2 / 3, true];   // 6 = dotted quarter -> [4, dot]
+  function rhythmStaff(codes, ts) {
+    const E = (codes || []).map(c => ({ u: c >> 1, rest: !!(c & 1) })); if (!E.length) return '';
+    const lines = [2, 4, 6, 8, 10].map(p => `<line x1="6" x2="W" y1="${ksY(p)}" y2="${ksY(p)}" stroke="#1d2433" stroke-width="1.6"/>`).join('');
+    let x = ts ? 70 : 30, body = '';
+    if (ts) { const [a, b] = ts.split('/'); body += `<text x="22" y="${ksY(8) + 11}" font-size="38" font-weight="800" fill="#1d2433" style="font-family:Georgia,serif">${esc(a)}</text><text x="22" y="${ksY(4) + 11}" font-size="38" font-weight="800" fill="#1d2433" style="font-family:Georgia,serif">${esc(b)}</text>`; }
+    const y0 = ksY(6), K = '#1d2433';   // notes sit on the middle line, stems up; drawn with paths so every computer shows the same thing
+    E.forEach(e => {
+      const [b, dot] = baseOf(e.u);
+      if (e.rest) {
+        if (b === 16) body += `<rect x="${x - 9}" y="${ksY(8)}" width="18" height="8" fill="${K}"/>`;
+        else if (b === 8) body += `<rect x="${x - 9}" y="${y0 - 8}" width="18" height="8" fill="${K}"/>`;
+        else if (b === 4) body += `<path d="M${x - 4} ${y0 - 24} l9 11 l-8 8 l9 11 c-8 -4 -12 2 -5 10" fill="none" stroke="${K}" stroke-width="3.4" stroke-linejoin="round" stroke-linecap="round"/>`;
+        else { const fl = (yy) => `<circle cx="${x - 4}" cy="${yy}" r="3.6" fill="${K}"/><path d="M${x - 4} ${yy + 1} q7 2 11 -5" fill="none" stroke="${K}" stroke-width="2.4"/>`;
+          body += fl(y0 - 10) + (b === 1 ? fl(y0 + 2) : '') + `<line x1="${x + 7}" y1="${y0 - 15}" x2="${x - 1}" y2="${y0 + (b === 1 ? 22 : 14)}" stroke="${K}" stroke-width="2.4"/>`; }
+      } else {
+        body += `<g transform="translate(${x} ${y0}) rotate(-20)"><ellipse rx="8" ry="5.8" fill="${b >= 8 ? 'none' : K}" stroke="${K}" stroke-width="${b >= 8 ? 2.6 : 1}"/></g>`;
+        if (b < 16) body += `<line x1="${x + 7}" y1="${y0 - 1}" x2="${x + 7}" y2="${y0 - 44}" stroke="${K}" stroke-width="2"/>`;
+        if (b <= 2) body += `<path d="M${x + 7} ${y0 - 44} c2 10 14 12 9 27" fill="none" stroke="${K}" stroke-width="3"/>`;
+        if (b === 1) body += `<path d="M${x + 7} ${y0 - 34} c2 10 14 12 9 27" fill="none" stroke="${K}" stroke-width="3"/>`;
+      }
+      if (dot) body += `<circle cx="${x + (e.rest ? 14 : 17)}" cy="${ksY(7)}" r="3.4" fill="${K}"/>`;
+      x += 28 + Math.min(44, e.u * 4) + (dot ? 8 : 0);
+    });
+    const W = x + 14;
+    return `<div class="ksbox rbox"><svg viewBox="0 30 ${W + 6} 172" role="img" aria-label="A bar of rhythm">${lines.replace(/x2="W"/g, `x2="${W}"`)}<line x1="6" x2="6" y1="${ksY(10)}" y2="${ksY(2)}" stroke="#1d2433" stroke-width="1.6"/><line x1="${W}" x2="${W}" y1="${ksY(10)}" y2="${ksY(2)}" stroke="#1d2433" stroke-width="2.4"/>${body}</svg></div>`;
+  }
+  const rEnc = (u, rest) => u * 2 + (rest ? 1 : 0);
+  // beat-sized pieces in sixteenths; a bar is filled beat by beat so it always reads cleanly
+  const CHUNKS = { warmup: [[4], [4], [8]], challenge: [[4], [2, 2], [8], [6, 2], [12], [4]], brutal: [[4], [2, 2], [1, 1, 2], [3, 1], [2, 1, 1], [1, 1, 1, 1], [6, 2], [8], [2, 4, 2]] };
+  function fillBar(units, d, rests) {
+    const out = []; let left = units, guard = 0;
+    while (left > 0 && guard++ < 50) {
+      const ok = CHUNKS[d].filter(c => c.reduce((a, b) => a + b, 0) <= left && (left % 4 === 0 || c.reduce((a, b) => a + b, 0) <= left));
+      let c = rnd(ok.length ? ok : [[left >= 4 ? 4 : left >= 2 ? 2 : 1]]); if (c.reduce((a, b) => a + b, 0) > left) c = [left >= 4 ? 4 : left >= 2 ? 2 : 1];
+      c.forEach(u => out.push({ u, rest: rests && (u === 4 || u === 2) && Math.random() < .18 })); left -= c.reduce((a, b) => a + b, 0);
+    }
+    return out;
+  }
+  const TS_UNITS = { '2/4': 8, '3/4': 12, '4/4': 16, '5/4': 20, '3/8': 6, '6/8': 12, '9/8': 18, '12/8': 24, '5/8': 10, '7/8': 14 };
+  const beatsTxt = u => { const b = u / 4; return (b === .25 ? '¼' : b === .5 ? '½' : b === .75 ? '¾' : b === 1.5 ? '1½' : String(b)) + (b > 1 ? ' beats' : ' beat'); };
+  function tsQ(d) {   // The Big Score: which time signature fits this bar?
+    const pool = d === 'warmup' ? ['2/4', '3/4', '4/4'] : d === 'challenge' ? ['2/4', '3/4', '4/4', '6/8'] : ['3/4', '4/4', '5/4', '6/8', '9/8', '7/8', '5/8'];
+    const right = rnd(pool), T = TS_UNITS[right]; let bar = fillBar(T, d, d !== 'warmup');
+    for (let k = 0; k < 30 && bar.length > 12; k++) bar = fillBar(T, d, d !== 'warmup');   // keep the bar readable (12 notes at most)
+    if (bar.length > 12) bar = fillBar(T, 'challenge', true);
+    const noDot = bar.reduce((a, e) => a + baseOf(e.u)[0], 0), noRest = bar.reduce((a, e) => a + (e.rest ? 0 : e.u), 0);
+    const all = Object.keys(TS_UNITS).filter(t => TS_UNITS[t] !== T);
+    const why = t => TS_UNITS[t] === noDot && noDot !== T ? 'That total leaves out the dots: a dot adds half the note.' : TS_UNITS[t] === noRest && noRest !== T ? 'That total skips the rests: rests count too.' : 'Add up every note and rest: this bar has ' + beatsTxt(T).replace('beats', 'quarter-note beats') + '.';
+    const near = all.sort((a, b) => Math.abs(TS_UNITS[a] - T) - Math.abs(TS_UNITS[b] - T)).filter((t, i, l) => l.findIndex(x => TS_UNITS[x] === TS_UNITS[t]) === i);
+    const pick = [...all.filter(t => TS_UNITS[t] === noDot || TS_UNITS[t] === noRest), ...near].filter((t, i, l) => l.indexOf(t) === i && (d === 'brutal' || pool.includes(t) || ['2/4', '3/4', '4/4', '5/4'].includes(t)));
+    return mcq('Which time signature fits this bar?', right, pick.map(t => [t, why(t)]), { skills: ['time', 'rhythm'], ks: null, gen_r: bar.map(e => rEnc(e.u, e.rest)), gen_t: '' });
+  }
+  const NAMES = { 16: 'Whole', 12: 'Dotted half', 8: 'Half', 6: 'Dotted quarter', 4: 'Quarter', 3: 'Dotted eighth', 2: 'Eighth', 1: 'Sixteenth' };
+  function valueQ(d) {   // Rooftop Runner: name it (warm-up), how many beats (challenge), is the bar complete (brutal)
+    if (d === 'warmup') {
+      const rest = Math.random() < .3, u = rnd(rest ? [16, 8, 4, 2] : [16, 8, 4, 2]), kind = rest ? ' rest' : ' note', right = NAMES[u] + kind;
+      const WHY = { 16: rest ? 'A whole rest hangs DOWN from a line.' : 'A whole note is hollow with no stem.', 8: rest ? 'A half rest sits UP on a line.' : 'A half note is hollow WITH a stem.', 4: rest ? 'A quarter rest is the zigzag.' : 'A quarter note is filled in with a stem.', 2: rest ? 'An eighth rest has one little flag.' : 'An eighth note has one flag.' };
+      return mcq(`What is this ${rest ? 'rest' : 'note'} called?`, right, [16, 8, 4, 2].filter(x => x !== u).map(x => [NAMES[x] + kind, WHY[x]]), { skills: ['rhythm'], ks: null, gen_r: [rEnc(u, rest)], gen_t: '' });
+    }
+    if (d === 'challenge') {
+      const u = rnd([16, 12, 8, 6, 4, 3, 2]), rest = !NGLYPH[u] ? false : Math.random() < .25, right = beatsTxt(u), [b, dot] = baseOf(u);
+      const w = [[beatsTxt(b), dot ? 'That leaves out the dot: a dot adds half the note.' : ''], [beatsTxt(u * 2), 'Twice too long: count the note value again.'], [beatsTxt(u / 2), 'Half too short: count the note value again.'], [beatsTxt(u + (u >= 4 ? 4 : 2)), 'Too long: count it again.'], [beatsTxt(Math.max(1, u - 2)), 'Too short: count it again.'], ...[16, 12, 8, 6, 4, 2].filter(x => x !== u).map(x => [beatsTxt(x), 'Count the note value again: a dot adds half.'])];
+      return mcq(`In 4/4, how many beats does this ${rest ? 'rest' : 'note'} get?`, right, w.filter(x => x[1]), { skills: ['rhythm'], ks: null, gen_r: [rEnc(u, rest)], gen_t: '4/4' });
+    }
+    const ts = rnd(['3/4', '4/4', '2/4']), T = TS_UNITS[ts], off = rnd([0, 0, -1, -2, -4, 2, 1]), bar = fillBar(T + off, 'brutal', true);
+    const LABEL = { 0: 'Complete', '-1': 'A sixteenth short', '-2': 'Half a beat short', '-4': 'One beat short', 2: 'Half a beat too many', 1: 'A sixteenth too many', 4: 'One beat too many' };
+    const total = bar.reduce((a, e) => a + e.u, 0), real = total - T, right = LABEL[real] || 'Complete';
+    return mcq(`This bar is in ${ts}. Is it complete?`, right, Object.keys(LABEL).filter(k => +k !== real).sort((a, b) => Math.abs(a - real) - Math.abs(b - real)).map(k => [LABEL[k], 'Count again: a dot adds half, rests count, and a dotted eighth + sixteenth = 1 beat.']), { skills: ['rhythm', 'time'], ks: null, gen_r: bar.map(e => rEnc(e.u, e.rest)), gen_t: ts });
+  }
   const IV = [['Minor 2nd', 1], ['Major 2nd', 2], ['Minor 3rd', 3], ['Major 3rd', 4], ['Perfect 4th', 5], ['Tritone', 6], ['Perfect 5th', 7], ['Minor 6th', 8], ['Major 6th', 9], ['Minor 7th', 10], ['Major 7th', 11], ['Octave', 12]];
   const ivBy = s => IV.find(x => x[1] === s)[0];
   const IV_WHY = s => ({ 6: 'The tritone is the tense one, right between a 4th and a 5th.', 7: 'A 5th sounds open and hollow, like a power chord.', 5: 'A 4th is the start of "Here Comes the Bride".', 12: 'An octave sounds like the same note, higher.' })[s] || 'One half step makes the difference: sing it back before you answer.';
@@ -349,6 +425,8 @@ window.LC = (() => {
     { id: 'tidal', name: 'Tidal Tones', what: 'Notes and intervals on the staff', url: '/tidal-tones/',
       opts: { type: [['mix', 'Mix'], ['note', 'Name the note'], ['interval', 'Name the interval']], clef: [['any', 'Any'], ['treble', '𝄞 Treble'], ['bass', '𝄢 Bass'], ['alto', '𝄡 Alto']] },
       make(d) { const t = OPT.type; return t === 'note' ? noteQ(d) : t === 'interval' ? intervalQ(d) : Math.random() < .55 ? noteQ(d) : intervalQ(d); } },
+    { id: 'bigscore', name: 'The Big Score', what: 'Time signatures and counting', url: '/rhythm-trainer/', opts: {}, make(d) { return tsQ(d); } },
+    { id: 'rooftop', name: 'Rooftop Runner', what: 'Reading rhythms', url: '/rooftop-runner/', opts: {}, make(d) { return valueQ(d); } },
     { id: 'earshot', name: 'Earshot Saloon', what: 'Intervals by ear', url: '/earshot-saloon/', sound: true,
       opts: { type: [['mix', 'Mix'], ['up', 'Going up'], ['down', 'Going down'], ['together', 'Played together']] },
       make(d) { return earQ(d); } },
@@ -359,7 +437,7 @@ window.LC = (() => {
   const qgame = id => QGAMES.find(g => g.id === id) || null;
   // one question, tagged with where it came from (bc_live.gen = { g, d })
   function makeQ(g, d, o) { const G = qgame(g) || QGAMES[0], D = DIFFS[d] ? d : 'challenge'; OPT = { ...OPT_DEF, ...(o || {}) }; let q; try { q = G.make(D); } finally { OPT = OPT_DEF; }
-    const { gen_n, gen_m, gen_p, ...rest } = q, gen = { g: G.id, d: D }; if (gen_n) gen.n = gen_n; if (gen_m) { gen.m = gen_m; gen.p = gen_p; }
+    const { gen_n, gen_m, gen_p, gen_r, gen_t, ...rest } = q, gen = { g: G.id, d: D }; if (gen_n) gen.n = gen_n; if (gen_m) { gen.m = gen_m; gen.p = gen_p; } if (gen_r) { gen.r = gen_r; gen.t = gen_t || ''; }
     return { ...rest, skills: q.skills || ['keys'], gen }; }
 
   // ---------- results (teacher console and projector; counts only, never names) ----------
