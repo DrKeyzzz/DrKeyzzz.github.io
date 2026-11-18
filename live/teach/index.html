@@ -147,7 +147,7 @@
 <meta name="robots" content="noindex">
 <link href="/fonts/fonts.css" rel="stylesheet">
 <!-- fonts.css has Noto Music for the treble clef on key signature questions -->
-<link rel="stylesheet" href="../live.css?v=20261117k">
+<link rel="stylesheet" href="../live.css?v=20261118a">
 <!-- Live Class teacher console (added 2026-11-12). Shown inside the All games dashboard's Live tab (?embed=1&code=XXXX),
      or on its own. ?preview=1 = a pretend class kept in this browser; open ../?preview=1 in another tab to be a student. -->
 <style>
@@ -156,7 +156,11 @@
   #rescard .bar { cursor: pointer; border-radius: 10px; } #rescard .bar:hover { background: rgba(255,255,255,.05); }
   .startq h2 { font-size: 24px; }
   .startq select.big { font-size: 18px; padding: 12px; }
-  .gtiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; }
+  .gtiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+  .kpanel .kskeys { grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 5px; }
+  .kpanel .kskeys .btn { padding: 5px 2px; font-size: 13px; flex-direction: row; gap: 4px; }
+  @media (max-width: 600px) { .kpanel .kskeys { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
+  .kpanel .kskeys .btn[aria-pressed="true"] { border-color: var(--gold); background: rgba(255,200,92,.2); }
   .gtile { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 14px; border-radius: 14px; border: 2px solid var(--line2); background: rgba(255,255,255,.04); color: var(--ink); cursor: pointer; text-align: left; font: 800 18px Outfit, system-ui, sans-serif; }
   .gtile small { font-weight: 500; font-size: 13px; color: var(--muted); }
   .gtile[aria-pressed="true"] { border-color: var(--sky); background: rgba(108,199,255,.14); }
@@ -192,7 +196,7 @@
 <body>
 <div id="app"></div>
 <p class="toast" id="toast" role="status"></p>
-<script src="../live-core.js?v=20261117k"></script>
+<script src="../live-core.js?v=20261118a"></script>
 <script>
 (() => {
 const { OPT_DEF, DIFFS, QGAMES, qgame, makeQ, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, BANK, NOW, at, db, results, latest, left, clock, ERR } = LC;
@@ -210,7 +214,19 @@ const S = { email: '', classes: [], code: '', live: null, ans: [], pulses: [], p
 // ---------- Game questions (2026-11-17, David 'go'): game + Warm-up / Challenge / Brutal + Go; then Lock, Skip, Next ----------
 // The last pick is remembered per class on this computer (localStorage mtg_live_pick_v1:<code>).
 const PK = () => 'mtg_live_pick_v1:' + S.code;
-const gpick = () => { let o = null; try { o = JSON.parse(localStorage.getItem(PK()) || 'null'); } catch {} return { g: o && qgame(o.g) ? o.g : QGAMES[0].id, d: o && DIFFS[o.d] ? o.d : 'challenge', o: { ...OPT_DEF, ...(o && o.o || {}) } }; };
+const gpick = () => { let o = null; try { o = JSON.parse(localStorage.getItem(PK()) || 'null'); } catch {} return { g: o && qgame(o.g) ? o.g : QGAMES[0].id, d: o && DIFFS[o.d] ? o.d : 'challenge', o: { ...OPT_DEF, ...(o && o.o || {}) }, k: o && o.k || null }; };
+// Key signatures tile (2026-11-18): its own picks (p.k = { keys, mode, clef }) instead of a difficulty; they only apply to that tile.
+const KDEF = { keys: [], mode: 'major', clef: 'treble' };
+const kpick = p => ({ ...KDEF, ...(p.k || {}) });
+const gopts = (p, o) => p.g === 'keysig' ? { ...(o || p.o), ...kpick(p) } : (o || p.o);
+const kLabel = p => { const k = kpick(p), n = k.keys.length; return (n ? (n <= 3 ? k.keys.map(x => LC.ksName(+x, k.mode === 'minor').replace(/ (major|minor)$/, '')).join(', ') : n + ' keys') : 'All keys') + ' · ' + ({ major: 'Major', minor: 'Minor', both: 'Major + minor' })[k.mode] + ' · ' + ({ treble: 'Treble', bass: 'Bass', alto: 'Alto', any: 'Mixed clefs' })[k.clef]; };
+function kPanel(p) {
+  const k = kpick(p), seg = (f, list) => `<span class="seg">${list.map(([v, l]) => `<button type="button" data-act="kset" data-k="${f}" data-v="${v}" aria-pressed="${k[f] === v}">${l}</button>`).join('')}</span>`;
+  const nm = n => k.mode === 'minor' ? LC.ksName(n, true).replace(' minor', 'm') : LC.ksName(n, false).replace(' major', '') + (k.mode === 'both' ? ' / ' + LC.ksName(n, true).replace(' minor', 'm') : '');
+  return `<div class="stack kpanel" style="gap:8px">
+    <div class="row">${seg('mode', [['major', 'Major'], ['minor', 'Minor'], ['both', 'Both']])}${seg('clef', [['treble', '𝄞 Treble'], ['bass', '𝄢 Bass'], ['alto', '𝄡 Alto'], ['any', 'Mix']])}<span class="grow"></span><span class="dim small">${k.keys.length ? k.keys.length + ' picked' : 'None picked = all 15'}</span>${k.keys.length ? '<button class="btn sm" type="button" data-act="kclear">✕ Clear</button>' : ''}</div>
+    <div class="kskeys">${KS_ORDER.map(n => `<button class="btn" type="button" data-act="kkey" data-v="${n}" aria-pressed="${k.keys.map(Number).includes(n)}" title="${n ? Math.abs(n) + (n > 0 ? ' sharp' : ' flat') + (Math.abs(n) > 1 ? 's' : '') : 'No sharps or flats'}">${esc(nm(n))} <small>${n ? Math.abs(n) + (n > 0 ? '♯' : '♭') : '0'}</small></button>`).join('')}</div></div>`;
+}
 const savePick = p => { try { localStorage.setItem(PK(), JSON.stringify(p)); } catch {} };
 const GQ_TIMER = 30;   // seconds for a game question unless Customize changes it (Showdown keeps its own 20 s)
 // Customize (step 3): a drawer under Go. The choices change a draft (S.cust); the sample question redraws on every tap; Use these saves it.
@@ -220,10 +236,10 @@ const custLabel = (G, o) => { const parts = Object.entries(G.opts).filter(([k]) 
 function custDrawer() {
   const p = gpick(), G = qgame(p.g), o = S.cust.o, multi = G.multi || [], seg = (k, list) => { const m = multi.includes(k), cur = Array.isArray(o[k]) ? o[k].map(String) : [];
     return `<div class="crow"><span class="label">${{ type: 'Question type', play: 'Play as', clef: 'Clef', acc: 'Keys', mode: 'Major or minor', ivs: 'Intervals', chords: 'Chords', inv: 'Inversions', root: 'Starting note', range: 'Range', timer: 'Timer' }[k]}${m ? ' <span class="dim" style="text-transform:none;letter-spacing:0;font-weight:500">(tap any number; none = the difficulty decides; one = always that one)</span>' : ''}</span><span class="chipset">${list.map(([v, l]) => `<button type="button" data-act="cset" data-k="${k}" data-v="${v}"${m ? ' data-multi="1"' : ''} aria-pressed="${m ? cur.includes(String(v)) : String(o[k]) === String(v)}">${l}</button>`).join('')}${m && cur.length ? `<button type="button" data-act="cclear" data-k="${k}">✕ Clear</button>` : ''}</span></div>`; };
-  if (!S.cust.sample) S.cust.sample = makeQ(p.g, p.d, o);
+  if (!S.cust.sample) S.cust.sample = makeQ(p.g, p.d, gopts(p, o));
   const q = S.cust.sample;
   return `<div class="cust stack">
-    <div class="sample"><span class="label">Sample · ${esc(DIFFS[p.d])}</span><b>${esc(q.q)}</b>${LC.staffFor(q, 'teach')}<div class="row">${q.opts.map(x => `<span class="chip ${x === q.correct ? 'ok' : ''}">${x === q.correct ? '✓ ' : ''}${esc(x)}</span>`).join('')}</div>
+    <div class="sample"><span class="label">Sample${G.pick ? '' : ' · ' + esc(DIFFS[p.d])}</span><b>${esc(q.q)}</b>${LC.staffFor(q, 'teach')}<div class="row">${q.opts.map(x => `<span class="chip ${x === q.correct ? 'ok' : ''}">${x === q.correct ? '✓ ' : ''}${esc(x)}</span>`).join('')}</div>
       <button class="btn sm" type="button" data-act="csample" style="align-self:flex-start">↻ Another sample</button></div>
     ${Object.entries(G.opts).map(([k, l]) => seg(k, l)).join('')}${seg('timer', [[15, '15 s'], [20, '20 s'], [30, '30 s'], [0, 'Off']])}
     <div class="row"><button class="btn pri" type="button" data-act="cuse">Use these</button><button class="btn" type="button" data-act="creset">Back to normal</button><button class="btn" type="button" data-act="cclose">Cancel</button></div></div>`;
@@ -233,10 +249,10 @@ function startCard() {
   return `<section class="card stack startq" aria-label="Start a question">
     <div class="row between"><h2 style="margin:0">📚 Question bank</h2>${S.startOpen ? '<button class="btn sm" type="button" data-act="startClose">Close</button>' : ''}</div>
     <div class="gtiles" role="group" aria-label="Game">${QGAMES.map(g => `<button type="button" class="gtile" data-act="ggame" data-v="${g.id}" aria-pressed="${g.id === p.g}"><b>${esc(g.name)}</b><small>${esc(g.what)}</small></button>`).join('')}</div>
-    <div class="diffs" role="group" aria-label="Difficulty">${Object.entries(DIFFS).map(([k, v]) => `<button type="button" class="diff d-${k}" data-act="gdiff" data-v="${k}" aria-pressed="${p.d === k}">${v}<small>${k === 'warmup' ? 'Get everyone in' : k === 'challenge' ? 'Solid practice' : 'Really hard'}</small></button>`).join('')}</div>
+    ${G.pick ? kPanel(p) : `<div class="diffs" role="group" aria-label="Difficulty">${Object.entries(DIFFS).map(([k, v]) => `<button type="button" class="diff d-${k}" data-act="gdiff" data-v="${k}" aria-pressed="${p.d === k}">${v}<small>${k === 'warmup' ? 'Get everyone in' : k === 'challenge' ? 'Solid practice' : 'Really hard'}</small></button>`).join('')}</div>`}
     <button class="btn pri go" type="button" data-act="go">Go ▶</button>
-    ${S.cust ? custDrawer() : `<div class="row between"><button class="btn" type="button" data-act="copen">⚙ Customize</button>${custLabel(G, p.o) ? `<span class="chip">${esc(custLabel(G, p.o))}</span>` : ''}</div>`}
-    <p class="dim small" style="margin:0">Go asks one now. Next keeps asking new ${esc(G.name)} questions.</p></section>`;
+    ${S.cust ? custDrawer() : `<div class="row between"><button class="btn" type="button" data-act="copen">⚙ Customize</button>${custLabel(G, p.o) ? `<span class="chip">${esc(custLabel(G, p.o))}</span>` : ''}${G.pick ? '<span class="dim small" style="margin-left:auto">Go asks one now. Next keeps asking your keys.</span>' : ''}</div>`}
+    ${G.pick ? '' : `<p class="dim small" style="margin:0">Go asks one now. Next keeps asking new ${esc(G.name)} questions.</p>`}</section>`;
 }   // the 🎼 Key signature maker (2026-11-17)
 const TK = () => 'mtg_live_teach_v1:' + S.code;    // the correct answer stays on this computer (the projector reads it)
 const correct = () => { try { const t = JSON.parse(localStorage.getItem(TK()) || 'null'); return t && S.live && t.round === S.live.round ? t.correct || '' : ''; } catch { return ''; } };
@@ -394,7 +410,7 @@ function gameControls(L) {
   const G = qgame(L.gen.g), p = gpick(), cl = custLabel(qgame(p.g) || G, p.o);
   return `<div class="gbtns">${L.open ? `<button class="btn big pri" type="button" data-act="lock">👁 Lock &amp; reveal</button><button class="btn big" type="button" data-act="skip" title="Pull this question: nothing counts">⏭ Skip</button>` : ''}
       <button class="btn big ${L.open ? '' : 'pri'}" type="button" data-act="next">Next ▶</button></div>
-    <div class="qbankrow"><button class="btn qbank" type="button" data-act="change" aria-expanded="${S.startOpen}"><span class="qb-ic">📚</span><span><b>Question bank</b><small>Next: ${esc((qgame(p.g) || G).name)} · ${esc(DIFFS[p.d] || '')}${cl ? ' · ' + esc(cl) : ''}</small></span></button>
+    <div class="qbankrow"><button class="btn qbank" type="button" data-act="change" aria-expanded="${S.startOpen}"><span class="qb-ic">📚</span><span><b>Question bank</b><small>Next: ${esc((qgame(p.g) || G).name)} · ${esc(p.g === 'keysig' ? kLabel(p) : DIFFS[p.d] || '')}${cl ? ' · ' + esc(cl) : ''}</small></span></button>
       <span class="grow"></span>${PREVIEW ? '<button class="btn sm" type="button" data-act="sim">🤖 Pretend students answer</button>' : ''}${S.confirm === 'end' ? '<button class="btn sm warn" type="button" data-act="end">End and clear the screen?</button>' : '<button class="btn sm" type="button" data-act="confirm" data-v="end">End</button>'}</div>`;
 }
 // Click a bar to see who chose that answer (2026-11-17, David: "there are 3 wrong answers and I want to see who they are").
@@ -569,7 +585,7 @@ const projOpen = () => { try { return Date.now() - Number(localStorage.getItem('
 function playLive(x, here) { if (!LC.isSound(x)) return; if (!here && projOpen()) { try { localStorage.setItem('mtg_live_play_v1:' + S.code, String(Date.now())); } catch {} return; } LC.play(x.gen.m, x.gen.p); }
 async function goGame(skip) {
   LC.audio();   // the Go / Next click unlocks sound on this page
-  const p = gpick(), q = makeQ(p.g, p.d, p.o), L = S.live;
+  const p = gpick(), q = makeQ(p.g, p.d, gopts(p)), L = S.live;
   if (skip && L && L.round) { const l = asked(); if (l.length && l[l.length - 1].round === L.round) { l.pop(); saveAsked(l); } }
   S.comp = { ...q, timer: G().on ? 0 : (p.o.timer != null ? +p.o.timer : GQ_TIMER) };
   await post({ skip: !!skip });
@@ -620,6 +636,9 @@ app.addEventListener('click', async e => {
   if (act === 'confirm') { S.confirm = S.confirm === t.dataset.v ? '' : t.dataset.v; draw(); return; }
   if (act === 'post') return post();
   if (act === 'ggame') { const p = gpick(); if (p.g !== t.dataset.v) { p.g = t.dataset.v; p.o = { ...OPT_DEF }; savePick(p); } if (S.cust) S.cust = { o: { ...gpick().o }, sample: null }; draw(); return; }
+  if (act === 'kset') { const p = gpick(); p.k = { ...kpick(p), [t.dataset.k]: t.dataset.v }; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
+  if (act === 'kkey') { const p = gpick(), k = kpick(p), n = Number(t.dataset.v), a = k.keys.map(Number), i = a.indexOf(n); if (i >= 0) a.splice(i, 1); else a.push(n); p.k = { ...k, keys: a }; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
+  if (act === 'kclear') { const p = gpick(); p.k = { ...kpick(p), keys: [] }; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
   if (act === 'gdiff') { const p = gpick(); p.d = t.dataset.v; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
   if (act === 'go') { S.cust = null; return goGame(false); }
   if (act === 'lead') { if (S.lead) return stopLead(); return startLead(); }

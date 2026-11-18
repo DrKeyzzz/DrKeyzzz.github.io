@@ -147,13 +147,13 @@
 <meta name="description" content="Answer your teacher's questions live in class. Only your teacher sees your answers.">
 <link href="/fonts/fonts.css" rel="stylesheet">
 <!-- fonts.css has Noto Music for the treble clef on key signature questions -->
-<link rel="stylesheet" href="live.css?v=20261117k">
+<link rel="stylesheet" href="live.css?v=20261118a">
 <!-- Live Class, student page and ?screen=1 projector (added 2026-11-12). Shared code: live-core.js; teacher console: teach/. -->
 </head>
 <body>
 <div id="app"></div>
 <p class="toast" id="toast" role="status"></p>
-<script src="live-core.js?v=20261117k"></script>
+<script src="live-core.js?v=20261118a"></script>
 <script>
 (() => {
 const { PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, NOW, db, results, latest, left, clock, ERR } = LC;
@@ -374,9 +374,9 @@ function questionCard() {
   }
   // game questions (2026-11-17): where it's from, and after the reveal the right answer and a link to practice it in that game
   const GQ = L.gen && LC.qgame(L.gen.g), right = !L.open && L.reveal != null ? (L.opts || [])[L.reveal] : '';
-  const tag = GQ ? `<span class="chip gold">From ${esc(GQ.name)} · ${esc(LC.DIFFS[L.gen.d] || '')}</span>` : '';
+  const tag = GQ ? `<span class="chip gold">From ${esc(GQ.name)}${GQ.pick ? '' : ' · ' + esc(LC.DIFFS[L.gen.d] || '')}</span>` : '';
   const after = GQ && right ? `<p class="${mine && mine.text === right ? 'sent' : 'locked'}" style="margin:0">${mine ? (mine.text === right ? '🎯 Right!' : `You picked ${esc(mine.text)}.`) : '⏰ No answer.'} The answer was <b>${esc(right)}</b>.</p>${starLine(liveStars(L))}
-    <a class="btn" href="${GQ.url}" target="_blank" rel="noopener" style="align-self:flex-start">🎮 Practice this in ${esc(GQ.name)}</a>` : '';
+    <a class="btn" href="${GQ.url}" target="_blank" rel="noopener" style="align-self:flex-start">🎮 Practice this in ${esc(GQ.game || GQ.name)}</a>` : '';
   return `<section class="card stack qhead"><div class="row between"><span class="label">${esc(TYPES[L.type] || '')}</span>${tag}</div>${s != null ? tbar(L, s, false) : ''}
     <h2>${esc(L.q)}</h2>${LC.staffFor(L)}${after || input}${mine && !after ? `<p class="sent">✓ Sent: “${esc(mine.text)}”</p>` : ''}
     <p class="dim small" style="margin:0">Only your teacher sees your answer.</p></section>`;

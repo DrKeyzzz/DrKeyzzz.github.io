@@ -177,7 +177,7 @@ window.LC = (() => {
   // Customize (2026-11-17, step 3): OPT holds the teacher's choices while a question is made. clef: any | treble | bass | alto;
   // acc: both | sharps | flats; mode: both | major | minor; type: mix | name | spell | count | relative | odd (Scale Quest).
   const OPT_DEF = { clef: 'any', acc: 'both', mode: 'both', type: 'mix', play: 'mix', ivs: [], chords: [], inv: 'root', root: 'any', range: 'mid', timer: 30 };
-  let OPT = OPT_DEF;
+  let OPT = OPT_DEF, lastKs = null;
   const anyClef = def => OPT.clef !== 'any' ? OPT.clef : def || rnd(['treble', 'treble', 'bass', 'alto']);
   const accOk = n => OPT.acc === 'sharps' ? n >= 0 : OPT.acc === 'flats' ? n <= 0 : true;
   const nOf = (lo, hi) => { let l = KS_ORDER.filter(n => Math.abs(n) >= lo && Math.abs(n) <= hi && accOk(n) && (OPT.acc === 'both' || n !== 0 || lo === 0 && hi < 1));
@@ -447,6 +447,15 @@ window.LC = (() => {
       if (d === 'challenge') return r < .45 ? nameQ() : r < .8 ? spellQ() : countQ();
       return r < .25 ? nameQ() : r < .5 ? relative(nOf(2, 7)) : r < .7 ? enharmonic() : r < .85 ? oddQ() : spellQ();
     } },
+    // Key signatures (2026-11-18, David: its own option, no levels): the teacher taps the keys to ask (none = all 15), Major / Minor / Both and the clef.
+    // OPT.keys = list of -7..7, OPT.mode, OPT.clef (any = mix of the three). Never the same key twice in a row unless only one is picked.
+    { id: 'keysig', name: 'Key signatures', what: 'You pick the keys and the clef', url: '/scale-quest/', game: 'Scale Quest', pick: true, opts: {},
+      make() {
+        const picked = (OPT.keys || []).map(Number).filter(ksOk), list = picked.length ? picked : KS_ORDER;
+        let n = rnd(list); for (let k = 0; k < 6 && list.length > 1 && n === lastKs; k++) n = rnd(list); lastKs = n;
+        const minor = OPT.mode === 'minor' ? true : OPT.mode === 'major' ? false : Math.random() < .5;
+        return ksMC(n, minor, OPT.clef === 'any' ? rnd(['treble', 'bass', 'alto']) : OPT.clef);
+      } },
     { id: 'tidal', name: 'Tidal Tones', what: 'Notes and intervals on the staff', url: '/tidal-tones/',
       opts: { type: [['mix', 'Mix'], ['note', 'Name the note'], ['interval', 'Name the interval']], clef: [['any', 'Any'], ['treble', '𝄞 Treble'], ['bass', '𝄢 Bass'], ['alto', '𝄡 Alto']] },
       make(d) { const t = OPT.type; return t === 'note' ? noteQ(d) : t === 'interval' ? intervalQ(d) : Math.random() < .55 ? noteQ(d) : intervalQ(d); } },
