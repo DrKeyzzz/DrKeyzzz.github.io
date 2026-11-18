@@ -409,7 +409,7 @@ function sdCard(L) {
   if (mine || !L.open || s === 0) return `<section class="card stack">${head}<h2>${esc(L.q)}</h2><div class="sd-res good" style="background:rgba(255,255,255,.05);border-color:#ffc85c"><span class="sd-big">🎼</span><h2 style="margin:0">${mine ? 'Locked in!' : 'Time!'}</h2><p class="muted" style="margin:0">${mine ? 'You picked ' + esc(mine.text) + '. ' : ''}Watch the class screen.</p></div></section>`;
   return `<section class="card stack qhead">${head}<h2>${esc(L.q)}</h2>${LC.staffFor(L)}
     <div class="sd-keys">${(L.opts || []).map((o, i) => `<button type="button" class="sd-key" data-pick="${esc(o)}" ${S.busy ? 'disabled' : ''}><span class="sd-l">${'ABCDEF'[i]}</span><span class="sd-n">${NOTES[i]}</span>${esc(o)}</button>`).join('')}</div>
-    <p class="dim small" style="margin:0">Your first tap counts. Fast and right scores the most.</p></section>`;
+    <p class="dim small" style="margin:0">Your first answer counts. Fast and right scores the most. On a computer, press 1-4 or A-D.</p></section>`;
 }
 function spotCard() {
   const L = S.live; if (!L || !L.spot || !L.spot.length) return '';
@@ -574,6 +574,16 @@ app.addEventListener('input', e => {
   if (e.target.id === 'conf') { ME.conf = Number(e.target.value) || 3; saveMe(); $('confv').textContent = ME.conf + ' / 5'; clearTimeout(confT); confT = setTimeout(pulse, 900); }
 });
 app.addEventListener('change', e => { if (e.target.id === 'cls') switchClass(e.target.value); });
+// 2026-11-18 (computers in class, no phones): answer with the keyboard, 1-6 or A-F picks that choice (Y / N on yes-no questions)
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+  const tg = e.target, typing = tg && (tg.tagName === 'INPUT' || tg.tagName === 'TEXTAREA' || tg.tagName === 'SELECT' || tg.isContentEditable); if (typing) return;
+  const btns = [...document.querySelectorAll('.sd-keys [data-pick], .opts [data-pick]')].filter(b => !b.disabled); if (!btns.length) return;
+  const k = e.key.toLowerCase(); let i = '123456'.indexOf(k); if (i < 0) i = 'abcdef'.indexOf(k);
+  if (k === 'y' || k === 'n') { const m = btns.findIndex(b => b.dataset.pick.toLowerCase().startsWith(k === 'y' ? 'yes' : 'no')); if (m >= 0) i = m; }
+  if (i < 0 || i >= btns.length || k.length !== 1) return;
+  e.preventDefault(); btns[i].focus(); btns[i].click();
+});
 app.addEventListener('keydown', e => { if (e.target.id === 'ans' && e.key === 'Enter' && (e.target.tagName === 'INPUT' || e.metaKey || e.ctrlKey)) { e.preventDefault(); send(e.target.value); } });
 
 let wasOpen = null;
