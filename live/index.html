@@ -324,6 +324,30 @@ db.watchDoc('bc_pulse/' + ME.key, d => {
 
 function mineFor(round) { return ME.hist.find(h => h.round === round && h.code === code); }
 
+// ---------- Stars in Live Class (2026-11-17, David 'go'): ONE rule ----------
+// A right answer on Brutal earns 1 ★, and a right answer on Challenge or Brutal in the first third of the timer earns 1 ★ more,
+// up to 10 ★ a day from Live Class (MTGAvatar.award caps it). Only game questions (bc_live.gen) count; the FIRST answer counts;
+// a skipped question is never revealed, so it never counts. Saved per round in ME.stars so a reload can't pay twice.
+const seenAt = {};   // when this phone first saw each round
+function liveStars(L) {
+  if (!L || !L.gen || L.open || L.reveal == null) return null;
+  ME.stars = ME.stars || {};
+  if (ME.stars[L.round]) return ME.stars[L.round];
+  const h = mineFor(L.round), f = h && (h.first || { text: h.text, at: h.at }), right = (L.opts || [])[L.reveal];
+  const ok = !!f && f.text === right, d = L.gen.d, seen = seenAt[L.round] || (f && f.at) || Date.now();
+  const window_ = L.ends_at ? Math.max(3000, (L.ends_at - seen) / 3) : 10000, fast = ok && f.at - seen <= window_;
+  let n = 0; const why = [];
+  if (ok && d === 'brutal') { n++; why.push('Brutal'); }
+  if (fast && (d === 'brutal' || d === 'challenge')) { n++; why.push('Fast'); }
+  const r = { ok, n, why: why.join(' · '), slow: ok && !fast && d === 'challenge', paid: 0 };
+  const day = new Date().toDateString(); if (!ME.starDay || ME.starDay.day !== day) ME.starDay = { day, n: 0 };
+  const can = Math.min(n, 10 - ME.starDay.n);   // 10 a day from Live Class (counted on this device)
+  r.capped = n > 0 && can <= 0;
+  if (can > 0 && window.MTGAvatar && MTGAvatar.award && MTGAvatar.award(can, r.why)) { r.paid = can; ME.starDay.n += can; }
+  ME.stars[L.round] = r; const ks = Object.keys(ME.stars); if (ks.length > 80) delete ME.stars[ks[0]]; saveMe();
+  return r;
+}
+const starLine = r => !r ? '' : r.paid ? `<p style="margin:0;color:#ffd166;font-weight:800">+${r.paid} ★ ${esc(r.why)}</p>` : r.n ? `<p class="muted small" style="margin:0">★ ${esc(r.why)} ${r.capped ? "(today's 10 ★ from Live Class are used up)" : '(Stars are saved when your avatar is on)'}</p>` : r.slow ? '<p class="muted small" style="margin:0">Right! Answer faster for a ★</p>' : '';
 function questionCard() {
   const L = S.live;
   if (!S.loaded) return '<section class="card"><p class="muted empty">Connecting…</p></section>';
@@ -344,7 +368,7 @@ function questionCard() {
   // game questions (2026-11-17): where it's from, and after the reveal the right answer and a link to practice it in that game
   const GQ = L.gen && LC.qgame(L.gen.g), right = !L.open && L.reveal != null ? (L.opts || [])[L.reveal] : '';
   const tag = GQ ? `<span class="chip gold">From ${esc(GQ.name)} · ${esc(LC.DIFFS[L.gen.d] || '')}</span>` : '';
-  const after = GQ && right ? `<p class="${mine && mine.text === right ? 'sent' : 'locked'}" style="margin:0">${mine ? (mine.text === right ? '🎯 Right!' : `You picked ${esc(mine.text)}.`) : '⏰ No answer.'} The answer was <b>${esc(right)}</b>.</p>
+  const after = GQ && right ? `<p class="${mine && mine.text === right ? 'sent' : 'locked'}" style="margin:0">${mine ? (mine.text === right ? '🎯 Right!' : `You picked ${esc(mine.text)}.`) : '⏰ No answer.'} The answer was <b>${esc(right)}</b>.</p>${starLine(liveStars(L))}
     <a class="btn" href="${GQ.url}" target="_blank" rel="noopener" style="align-self:flex-start">🎮 Practice this in ${esc(GQ.name)}</a>` : '';
   return `<section class="card stack qhead"><div class="row between"><span class="label">${esc(TYPES[L.type] || '')}</span>${tag}</div>${s != null ? tbar(L, s, false) : ''}
     <h2>${esc(L.q)}</h2>${LC.ksStaff(L.ks, '', L.clef)}${after || input}${mine && !after ? `<p class="sent">✓ Sent: “${esc(mine.text)}”</p>` : ''}
@@ -361,21 +385,19 @@ function sdScore(L) {   // my own points for this round (the class board uses th
   const seen = SD.seen[L.round] || 0, dur = L.ends_at && seen ? Math.max(5000, L.ends_at - seen) : 20000, secs = mine && seen ? Math.max(0, (mine.at - seen) / 1000) : dur / 2000;
   let pts = 0; if (ok) { SD.st++; pts = 500 + Math.round(500 * Math.max(0, 1 - secs / (dur / 1000))) + (SD.st > 2 ? 100 : 0); } else SD.st = 0;
   SD.pts += pts; SD.done[L.round] = { ok: !!ok, pts, mine: !!mine, st: SD.st, star: 0 };
-  if (ok && window.MTGAvatar && MTGAvatar.award && MTGAvatar.award(1, 'Right on!')) SD.done[L.round].star = 1;   // rare Stars (2026-11-17): +1 ★ for each right Showdown answer (25 a day at most)
+  // Stars (2026-11-17, second pass): only the one Live Class rule (liveStars), on game questions; no Star per right answer any more
   saveSD(); return SD.done[L.round];
 }
 function sdCard(L) {
   const mine = mineFor(L.round), s = left(L), board = L.board || [], place = board.findIndex(b => b.s === sid);
   const head = `<div class="row between"><span class="label">🏁 Showdown</span><span class="chip gold">${SD.pts.toLocaleString()} points</span></div>`;
   if (L.final) {
-    if (!SD.awarded[L.round]) { const bonus = place === 0 ? 10 : place === 1 ? 6 : place === 2 ? 3 : 0, stars = (SD.pts > 0 || Object.keys(SD.done).length ? 1 : 0) + bonus;   // +1 ★ for playing, top 3 +10/+6/+3
-      SD.awarded[L.round] = stars; saveSD(); if (stars && window.MTGAvatar && MTGAvatar.award) MTGAvatar.award(stars, 'Showdown'); }
-    const st = SD.awarded[L.round];
-    return `<section class="card stack">${head}<div class="sd-res good"><span class="sd-big">🎭</span><h2 style="margin:0">${place >= 0 && place < 3 ? 'You made the Curtain call!' : 'Showdown over!'}</h2><span class="sd-pts">+${st} ★</span><p class="muted" style="margin:0">1 ★ for playing${place >= 0 && place < 3 ? ' + ' + [10, 6, 3][place] + ' ★ for the top 3' : ''}, plus 1 ★ for each right answer. Spend them in your Locker.</p></div></section>`;
+
+    return `<section class="card stack">${head}<div class="sd-res good"><span class="sd-big">🎭</span><h2 style="margin:0">${place >= 0 && place < 3 ? 'You made the Curtain call!' : 'Showdown over!'}</h2><span class="sd-pts">${SD.pts.toLocaleString()} points</span><p class="muted" style="margin:0">Stars come from Brutal questions and fast answers on Challenge or Brutal. Spend them in your Locker.</p></div></section>`;
   }
   if (!L.open && L.reveal != null) {
     const r = sdScore(L), my = place >= 0 ? `You're #${place + 1} on the board` : 'Keep going to reach the top 5';
-    return `<section class="card stack">${head}<div class="sd-res ${r.ok ? 'good' : 'bad'}"><span class="sd-big">${r.ok ? '🎯' : r.mine ? '🎵' : '⏰'}</span><h2 style="margin:0">${r.ok ? 'Right on!' : r.mine ? 'Not this time' : 'Out of time'}</h2><span class="sd-pts">+${r.pts}</span>${r.star ? '<p style="margin:0;color:#ffd166;font-weight:800">+1 ★ Star</p>' : ''}${r.st > 2 ? `<p style="margin:0">🔥 ${r.st} in a row!</p>` : ''}<p class="muted" style="margin:0">${r.mine && !r.ok && mineFor(L.round) ? `You picked ${esc(mineFor(L.round).text)}. ` : ''}The answer was <b>${esc((L.opts || [])[L.reveal] || '')}</b>. ${my}.</p></div></section>`;
+    return `<section class="card stack">${head}<div class="sd-res ${r.ok ? 'good' : 'bad'}"><span class="sd-big">${r.ok ? '🎯' : r.mine ? '🎵' : '⏰'}</span><h2 style="margin:0">${r.ok ? 'Right on!' : r.mine ? 'Not this time' : 'Out of time'}</h2><span class="sd-pts">+${r.pts}</span>${starLine(liveStars(L))}${r.st > 2 ? `<p style="margin:0">🔥 ${r.st} in a row!</p>` : ''}<p class="muted" style="margin:0">${r.mine && !r.ok && mineFor(L.round) ? `You picked ${esc(mineFor(L.round).text)}. ` : ''}The answer was <b>${esc((L.opts || [])[L.reveal] || '')}</b>. ${my}.</p></div></section>`;
   }
   if (mine || !L.open || s === 0) return `<section class="card stack">${head}<h2>${esc(L.q)}</h2><div class="sd-res good" style="background:rgba(255,255,255,.05);border-color:#ffc85c"><span class="sd-big">🎼</span><h2 style="margin:0">${mine ? 'Locked in!' : 'Time!'}</h2><p class="muted" style="margin:0">${mine ? 'You picked ' + esc(mine.text) + '. ' : ''}Watch the class screen.</p></div></section>`;
   return `<section class="card stack qhead">${head}<h2>${esc(L.q)}</h2>${LC.ksStaff(L.ks, '', L.clef)}
@@ -461,7 +483,8 @@ async function send(text) {
   if (typeof p.icon === 'string' && p.icon) d.avatar = p.icon.slice(0, 20);
   try {
     await db.add('bc_answers', d);
-    ME.hist = ME.hist.filter(h => !(h.round === L.round && h.code === code)).concat({ round: L.round, code, q: L.q, text, at: Date.now() }).slice(-60);
+    const prev = ME.hist.find(h => h.round === L.round && h.code === code);
+    ME.hist = ME.hist.filter(h => !(h.round === L.round && h.code === code)).concat({ round: L.round, code, q: L.q, text, at: Date.now(), first: prev ? prev.first || { text: prev.text, at: prev.at } : { text, at: Date.now() } }).slice(-60);
     saveMe(); shSee(L, text); toast(mine ? 'Answer updated.' : 'Sent!');
   } catch (e) { S.err = ERR(e); }
   S.busy = false; draw();
@@ -507,6 +530,7 @@ db.watchDoc('bc_live/' + code, d => {
   const before = S.live; S.live = d; S.loaded = true;
   if (d && d.q) { const m = mineFor(d.round); shSee(d, m ? m.text : null); }
   if (d && d.q && S.seen && (!before || before.round !== d.round)) { try { navigator.vibrate && navigator.vibrate(60); } catch {} }
+  if (d && d.round && !seenAt[d.round]) seenAt[d.round] = Date.now();
   if (d && d.game && d.round && !SD.seen[d.round]) { SD.seen[d.round] = Date.now(); saveSD(); }
   if (d && d.game && d.board && !d.board.length && !d.final && Object.keys(SD.done).length && !(before && before.board && !before.board.length)) { SD.pts = 0; SD.st = 0; SD.done = {}; saveSD(); }   // the teacher started a new Showdown
   wasOpen = d && d.open; S.seen = true; draw();   // buzz the phone only for a NEW question, not on page load
