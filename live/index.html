@@ -341,8 +341,13 @@ function questionCard() {
   } else {
     input = `<div class="row" style="flex-wrap:nowrap"><input id="ans" type="${L.type === 'num' ? 'number' : 'text'}" ${L.type === 'num' ? 'inputmode="decimal" step="any"' : 'maxlength="24" autocapitalize="off"'} value="${esc(S.draft)}" placeholder="${L.type === 'num' ? 'Type a number' : 'One word'}"><button type="button" class="btn pri" data-send ${S.busy ? 'disabled' : ''}>${mine ? 'Update' : 'Send'}</button></div>`;
   }
-  return `<section class="card stack qhead"><div class="row between"><span class="label">${esc(TYPES[L.type] || '')}</span></div>${s != null ? tbar(L, s, false) : ''}
-    <h2>${esc(L.q)}</h2>${LC.ksStaff(L.ks, '', L.clef)}${input}${mine ? `<p class="sent">✓ Sent: “${esc(mine.text)}”</p>` : ''}
+  // game questions (2026-11-17): where it's from, and after the reveal the right answer and a link to practice it in that game
+  const GQ = L.gen && LC.qgame(L.gen.g), right = !L.open && L.reveal != null ? (L.opts || [])[L.reveal] : '';
+  const tag = GQ ? `<span class="chip gold">From ${esc(GQ.name)} · ${esc(LC.DIFFS[L.gen.d] || '')}</span>` : '';
+  const after = GQ && right ? `<p class="${mine && mine.text === right ? 'sent' : 'locked'}" style="margin:0">${mine ? (mine.text === right ? '🎯 Right!' : `You picked ${esc(mine.text)}.`) : '⏰ No answer.'} The answer was <b>${esc(right)}</b>.</p>
+    <a class="btn" href="${GQ.url}" target="_blank" rel="noopener" style="align-self:flex-start">🎮 Practice this in ${esc(GQ.name)}</a>` : '';
+  return `<section class="card stack qhead"><div class="row between"><span class="label">${esc(TYPES[L.type] || '')}</span>${tag}</div>${s != null ? tbar(L, s, false) : ''}
+    <h2>${esc(L.q)}</h2>${LC.ksStaff(L.ks, '', L.clef)}${after || input}${mine && !after ? `<p class="sent">✓ Sent: “${esc(mine.text)}”</p>` : ''}
     <p class="dim small" style="margin:0">Only your teacher sees your answer.</p></section>`;
 }
 // ---------- Showdown on the phone (2026-11-17): tap one piano key (your first answer counts), then see how you did ----------

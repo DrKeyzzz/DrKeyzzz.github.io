@@ -154,6 +154,19 @@
   body.embed { background: transparent; }
   body.embed .wrap { padding: 0 0 30px; max-width: none; }
   #rescard .bar { cursor: pointer; border-radius: 10px; } #rescard .bar:hover { background: rgba(255,255,255,.05); }
+  .startq h2 { font-size: 24px; }
+  .startq select.big { font-size: 18px; padding: 12px; }
+  .diffs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .diff { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 16px 8px; border-radius: 14px; border: 2px solid var(--line2); background: rgba(255,255,255,.04); font: 800 19px Outfit, system-ui, sans-serif; color: var(--ink); cursor: pointer; }
+  .diff small { font-weight: 500; font-size: 13px; color: var(--muted); }
+  .diff[aria-pressed="true"].d-warmup { border-color: var(--mint); background: rgba(123,224,195,.14); }
+  .diff[aria-pressed="true"].d-challenge { border-color: var(--gold); background: rgba(255,200,92,.14); }
+  .diff[aria-pressed="true"].d-brutal { border-color: var(--rose); background: rgba(255,138,154,.16); }
+  .btn.go { font-size: 22px; padding: 16px; justify-content: center; border-radius: 14px; }
+  .gbtns { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn.big { font-size: 19px; padding: 14px 22px; border-radius: 14px; flex: 1; justify-content: center; min-width: 140px; }
+  .why { margin: 0; padding: 10px 12px; border-radius: 12px; background: rgba(255,200,92,.1); border: 1px solid rgba(255,200,92,.35); }
+  @media (max-width: 480px) { .diff { font-size: 16px; padding: 12px 4px; } .diff small { display: none; } }
   .whopick { border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 10px 12px; }
 </style>
 </head>
@@ -163,7 +176,7 @@
 <script src="../live-core.js"></script>
 <script>
 (() => {
-const { KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, BANK, NOW, at, db, results, latest, left, clock, ERR } = LC;
+const { DIFFS, QGAMES, qgame, makeQ, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, BANK, NOW, at, db, results, latest, left, clock, ERR } = LC;
 const $ = id => document.getElementById(id);
 const app = $('app');
 const EMBED = Q.get('embed') === '1';
@@ -174,7 +187,22 @@ const ago = ms => { const s = Math.round((Date.now() - (ms || Date.now())) / 100
 
 const S = { email: '', classes: [], code: '', live: null, ans: [], pulses: [], priv: [], err: '', confirm: '', sort: 'first', curtain: (() => { try { return localStorage.getItem('mtg_live_curtain_v1') === '1'; } catch (e) { return false; } })(), offs: [], offA: null, round: '',
   comp: { type: 'mc', q: '', opts: ['', '', '', ''], correct: '', timer: 0, skills: [], ks: null }, g: null,
-  ksm: { open: false, minor: false, style: 'name', clef: 'treble' } };   // the 🎼 Key signature maker (2026-11-17)
+  ksm: { open: false, minor: false, style: 'name', clef: 'treble' }, own: false, startOpen: false };
+// ---------- Game questions (2026-11-17, David 'go'): game + Warm-up / Challenge / Brutal + Go; then Lock, Skip, Next ----------
+// The last pick is remembered per class on this computer (localStorage mtg_live_pick_v1:<code>).
+const PK = () => 'mtg_live_pick_v1:' + S.code;
+const gpick = () => { let o = null; try { o = JSON.parse(localStorage.getItem(PK()) || 'null'); } catch {} return { g: o && qgame(o.g) ? o.g : QGAMES[0].id, d: o && DIFFS[o.d] ? o.d : 'challenge' }; };
+const savePick = p => { try { localStorage.setItem(PK(), JSON.stringify(p)); } catch {} };
+const GQ_TIMER = 30;   // seconds for a game question (Showdown keeps its own 20 s)
+function startCard() {
+  const p = gpick(), G = qgame(p.g);
+  return `<section class="card stack startq" aria-label="Start a question">
+    <div class="row between"><h2 style="margin:0">${S.live && S.live.q ? 'Change the game' : 'Start a question'}</h2>${S.startOpen ? '<button class="btn sm" type="button" data-act="startClose">Cancel</button>' : ''}</div>
+    <label class="f" for="gq-game">Game<select id="gq-game" class="big">${QGAMES.map(g => `<option value="${g.id}" ${g.id === p.g ? 'selected' : ''}>${esc(g.name)} · ${esc(g.what)}</option>`).join('')}</select></label>
+    <div class="diffs" role="group" aria-label="Difficulty">${Object.entries(DIFFS).map(([k, v]) => `<button type="button" class="diff d-${k}" data-act="gdiff" data-v="${k}" aria-pressed="${p.d === k}">${v}<small>${k === 'warmup' ? 'Get everyone in' : k === 'challenge' ? 'Solid practice' : 'Really hard'}</small></button>`).join('')}</div>
+    <button class="btn pri go" type="button" data-act="go">Go ▶</button>
+    <p class="dim small" style="margin:0">${esc(G.name)} questions, ${esc(DIFFS[p.d])}. A new question every time you press Next.${G.id === 'scale' ? '' : ''} More games are on the way.</p></section>`;
+}   // the 🎼 Key signature maker (2026-11-17)
 const TK = () => 'mtg_live_teach_v1:' + S.code;    // the correct answer stays on this computer (the projector reads it)
 const correct = () => { try { const t = JSON.parse(localStorage.getItem(TK()) || 'null'); return t && S.live && t.round === S.live.round ? t.correct || '' : ''; } catch { return ''; } };
 const livePath = () => 'bc_live/' + S.code;
@@ -269,14 +297,23 @@ function roundCard() {
     <h2>${esc(L.q)}</h2>${ksStaff(L.ks, '', L.clef)}
     ${L.type === 'mc' ? `<div class="row">${(L.opts || []).map((o, i) => `<span class="chip">${'ABCDEF'[i]}. ${esc(o)}</span>`).join('')}</div>` : ''}
     <div class="row"><b class="mono">${A.length}${n ? ' of ' + Math.max(n, A.length) : ''}</b><span class="muted">answered</span><div class="meter" style="flex:1;min-width:120px"><i style="width:${n ? Math.min(100, 100 * A.length / Math.max(n, A.length)) : 0}%"></i></div></div>
-    <div class="row">
+    ${L.gen ? gameControls(L) : `<div class="row">
       <button class="btn ${L.open ? 'pri' : ''}" type="button" data-act="lock" title="${L.open ? 'Stop answers and show the results and the correct answer on the class screen' : 'Let students answer again'}">${L.open ? '👁 Lock &amp; reveal' : '🔓 Unlock answers'}</button>
       <button class="btn" type="button" data-act="timer" data-v="15">⏱ 15s</button><button class="btn" type="button" data-act="timer" data-v="30">30s</button><button class="btn" type="button" data-act="timer" data-v="60">1 min</button><button class="btn" type="button" data-act="timer" data-v="120">2 min</button>
       ${(L.spot || []).length ? '<button class="btn" type="button" data-act="spotClear">Clear spotlight</button>' : ''}
       <button class="btn" type="button" data-act="csv">Download CSV</button>
       ${S.confirm === 'end' ? '<button class="btn warn" type="button" data-act="end">End and clear the screen?</button>' : '<button class="btn warn" type="button" data-act="confirm" data-v="end">End question</button>'}
       ${PREVIEW ? '<button class="btn" type="button" data-act="sim">🤖 Pretend students answer</button>' : ''}
-    </div>${L.game ? `<div class="row"><span class="chip gold">🏁 Showdown · question ${G().qn}</span>${(L.board || []).slice(0, 3).map((b, i) => `<span class="chip">${i + 1}. ${esc(S.curtain ? "Player " + (i + 1) : b.n)} · ${b.p}</span>`).join('')}<span class="grow"></span><button class="btn pri" type="button" data-act="podium">🎭 Curtain call</button>${S.confirm === 'gnew' ? '<button class="btn warn" type="button" data-act="gnew">Start a new Showdown (scores to 0)?</button>' : '<button class="btn" type="button" data-act="confirm" data-v="gnew">↺ New Showdown</button>'}</div>` : ''}</section>`;
+    </div>`}${L.game ? `<div class="row"><span class="chip gold">🏁 Showdown · question ${G().qn}</span>${(L.board || []).slice(0, 3).map((b, i) => `<span class="chip">${i + 1}. ${esc(S.curtain ? "Player " + (i + 1) : b.n)} · ${b.p}</span>`).join('')}<span class="grow"></span><button class="btn pri" type="button" data-act="podium">🎭 Curtain call</button>${S.confirm === 'gnew' ? '<button class="btn warn" type="button" data-act="gnew">Start a new Showdown (scores to 0)?</button>' : '<button class="btn" type="button" data-act="confirm" data-v="gnew">↺ New Showdown</button>'}</div>` : ''}</section>`;
+}
+// Screen 2 / Screen 3 for a game question: three big buttons (Lock, Skip, Next), then small Change and End
+function gameControls(L) {
+  const G = qgame(L.gen.g);
+  return `<div class="row"><span class="chip gold">${esc(G ? G.name : '')} · ${esc(DIFFS[L.gen.d] || '')}</span></div>
+    <div class="gbtns">${L.open ? `<button class="btn big pri" type="button" data-act="lock">👁 Lock &amp; reveal</button><button class="btn big" type="button" data-act="skip" title="Pull this question: nothing counts">⏭ Skip</button>` : ''}
+      <button class="btn big ${L.open ? '' : 'pri'}" type="button" data-act="next">Next ▶</button></div>
+    <div class="row"><button class="btn sm" type="button" data-act="change">Change game or difficulty</button>${S.confirm === 'end' ? '<button class="btn sm warn" type="button" data-act="end">End and clear the screen?</button>' : '<button class="btn sm" type="button" data-act="confirm" data-v="end">End</button>'}
+      ${PREVIEW ? '<button class="btn sm" type="button" data-act="sim">🤖 Pretend students answer</button>' : ''}</div>`;
 }
 // Click a bar to see who chose that answer (2026-11-17, David: "there are 3 wrong answers and I want to see who they are").
 function resultsCard() {
@@ -286,7 +323,13 @@ function resultsCard() {
   const list = !pick ? '' : `<div class="whopick"><div class="row between"><b>${esc(pick)}${c && pick !== c ? ' <span class="chip no">wrong</span>' : c && pick === c ? ' <span class="chip ok">right</span>' : ''}</b><button type="button" class="btn sm" data-act="pickClose">Close</button></div>
       ${S.curtain ? '<p class="muted small" style="margin:6px 0 0">Names are hidden (🎭). Lift the curtain to see who chose this.</p>'
         : `<div class="namechips" style="margin-top:6px">${who.length ? who.map(a => `<span class="chip ${c && pick !== c ? 'no' : ''}">${esc(a.name)}</span>`).join('') : '<span class="muted small">Nobody chose this.</span>'}</div>`}</div>`;
-  return `<section class="card stack" id="rescard"><div class="row between"><h3>Live results</h3>${c ? `<span class="muted small">Correct answer: <b>${esc(c)}</b> (shown on the projector once you lock)</span>` : ''}</div>${results(S.live, A, { correct: c, hint: true })}
+  // "Why it's tempting" (2026-11-17): after the lock, the most picked wrong answer and the mistake behind it (teacher only)
+  let whyLine = '';
+  if (L && !L.open) { try { const t = JSON.parse(localStorage.getItem(TK()) || 'null'); const W = t && t.round === L.round ? t.why || {} : {};
+    const cnt = {}; A.forEach(a => { if (a.text !== c && W[a.text]) cnt[a.text] = (cnt[a.text] || 0) + 1; });
+    const top = Object.entries(cnt).sort((x, y) => y[1] - x[1])[0];
+    if (top) whyLine = `<p class="why">💡 <b>${esc(top[0])}</b> (${top[1]} picked it): ${esc(W[top[0]])}</p>`; } catch {} }
+  return `<section class="card stack" id="rescard"><div class="row between"><h3>Live results</h3>${c ? `<span class="muted small">Correct answer: <b>${esc(c)}</b> (shown on the projector once you lock)</span>` : ''}</div>${results(S.live, A, { correct: c, hint: true })}${whyLine}
     ${choice ? (list || '<p class="muted small" style="margin:0">Click an answer to see who chose it.</p>') : ''}</section>`;
 }
 // Curtain (2026-11-17, David): hides every student name on this screen (safe to project), and Spotlight / Compare go up with no
@@ -336,11 +379,12 @@ function inboxCard() {
 }
 function composerCard() {
   const c = S.comp;
+  if (!S.own) return `<section class="card"><button class="btn" type="button" data-act="own" style="width:100%;justify-content:center">✏️ Write your own question</button></section>`;
   const corr = c.type === 'mc' ? `<label class="f" for="c-correct">Correct answer (optional)<select id="c-correct"><option value="">None</option>${c.opts.filter(Boolean).map(o => `<option ${c.correct === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></label>`
     : c.type === 'yn' ? `<label class="f" for="c-correct">Correct answer (optional)<select id="c-correct"><option value="">None</option><option ${c.correct === 'Yes' ? 'selected' : ''}>Yes</option><option ${c.correct === 'No' ? 'selected' : ''}>No</option></select></label>`
     : c.type === 'num' ? `<label class="f" for="c-correct">Correct answer (optional)<input type="number" step="any" id="c-correct" value="${esc(c.correct)}"></label>` : '';
   return `<section class="card stack">
-    <div class="row between"><h3>${S.live && S.live.q ? 'Next question' : 'Ask a question'}</h3><button class="btn sm" type="button" data-act="ksopen" aria-expanded="${S.ksm.open}">🎼 Key signature</button></div>
+    <div class="row between"><h3>Write your own</h3><div class="row"><button class="btn sm" type="button" data-act="ksopen" aria-expanded="${S.ksm.open}">🎼 Key signature</button><button class="btn sm" type="button" data-act="own" aria-label="Close">✕</button></div></div>
     ${S.ksm.open ? ksMaker() : ''}
     <label class="f" for="c-type">Type<select id="c-type">${Object.entries(TYPES).map(([k, v]) => `<option value="${k}" ${c.type === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
     <label class="f" for="c-q">Question<textarea id="c-q" maxlength="200" placeholder="Ask your class something…">${esc(c.q)}</textarea></label>
@@ -402,7 +446,7 @@ function draw() {
   const a = document.activeElement, keep = a && a.id ? { id: a.id, s: a.selectionStart, e: a.selectionEnd } : null;
   const L = S.live && S.live.q ? S.live : null;
   app.innerHTML = shell(`${headCard()}<p class="msg" role="alert">${esc(S.err)}</p>
-    <div class="cols"><div class="stack">${L ? roundCard() + resultsCard() + answersCard() : '<section class="card"><p class="muted empty">No question on the screen. Ask one on the right.</p></section>'}</div>
+    <div class="cols"><div class="stack">${!L || S.startOpen ? startCard() : ''}${L ? roundCard() + resultsCard() + answersCard() : ''}</div>
     <aside class="stack">${composerCard()}${askedCard()}${pulseCard()}${inboxCard()}</aside></div>`);
   if (keep && $(keep.id)) { const el = $(keep.id); el.focus(); try { if (keep.s != null) el.setSelectionRange(keep.s, keep.e); } catch {} }
   if (EMBED) try { parent.postMessage({ mtgLiveHeight: document.documentElement.scrollHeight }, location.origin); } catch {}
@@ -410,27 +454,36 @@ function draw() {
 
 // ---------- actions ----------
 const upd = d => db.update(livePath(), { ...d, updated_at: NOW }).catch(e => { S.err = ERR(e); draw(); });
-async function post() {
+async function post(o = {}) {
   const c = S.comp, q = c.q.trim().slice(0, 200);
   if (!q) { toast('Type a question first.'); $('c-q') && $('c-q').focus(); return; }
   const opts = c.opts.map(o => o.trim().slice(0, 60)).filter(Boolean);
   if (c.type === 'mc' && opts.length < 2) { toast('Add at least two options.'); return; }
   if (G().on && (c.type !== 'mc' || !opts.includes(c.correct))) { toast('Showdown needs a multiple-choice question with its correct answer picked.'); return; }
   const old = S.live;
-  if (old && old.q && !old.game && old.reveal == null && revealIdx(old) != null) { try { await upd({ open: false, reveal: revealIdx(old) }); await new Promise(r => setTimeout(r, 1200)); } catch {} }
+  if (!o.skip && old && old.q && !old.game && old.reveal == null && revealIdx(old) != null) { try { await upd({ open: false, reveal: revealIdx(old) }); await new Promise(r => setTimeout(r, 1200)); } catch {} }
   const round = LC.roundId();
   const d = { round, q, type: c.type, skills: (c.skills || []).slice(0, 20), open: true, ends_at: c.timer ? at(Date.now() + c.timer * 1000) : null, spot: [], updated_at: NOW };
   if (c.type === 'mc') d.opts = opts;
   if (c.type === 'mc' && ksOk(c.ks)) { d.ks = c.ks; if (c.clef === 'bass' || c.clef === 'alto') d.clef = c.clef; }
+  if (c.gen && qgame(c.gen.g)) d.gen = { g: c.gen.g, d: c.gen.d };
   if (G().on) { d.game = true; d.reveal = null; d.final = false; d.board = topBoard(); if (!c.timer) d.ends_at = at(Date.now() + GT * 1000); G().qn++; saveG(); }
   try {
     await db.set(livePath(), d);
-    try { localStorage.setItem(TK(), JSON.stringify({ round, correct: c.type === 'mc' && !opts.includes(c.correct) ? '' : String(c.correct || '') })); } catch {}
+    try { localStorage.setItem(TK(), JSON.stringify({ round, correct: c.type === 'mc' && !opts.includes(c.correct) ? '' : String(c.correct || ''), why: c.why || {} })); } catch {}
     const okC = c.type === 'mc' && !opts.includes(c.correct) ? '' : String(c.correct || '').slice(0, 60);
-    saveAsked([...asked(), { q, type: c.type, opts: c.type === 'mc' ? opts : null, correct: okC, ks: d.ks != null ? d.ks : null, clef: d.clef || null, at: Date.now() }]);
-    S.comp = { type: c.type, q: '', opts: c.type === 'mc' ? ['', '', '', ''] : c.opts, correct: '', timer: c.timer, skills: [], ks: null };
-    S.err = ''; S.confirm = ''; toast('Posted.'); draw();
+    saveAsked([...asked(), { round, q, type: c.type, opts: c.type === 'mc' ? opts : null, correct: okC, ks: d.ks != null ? d.ks : null, clef: d.clef || null, at: Date.now() }]);
+    S.comp = { type: c.type, q: '', opts: c.type === 'mc' ? ['', '', '', ''] : c.opts, correct: '', timer: c.gen ? 0 : c.timer, skills: [], ks: null };
+    S.err = ''; S.confirm = ''; S.startOpen = false; S.pick = null; if (!c.gen) toast('Posted.'); draw();
   } catch (e) { S.err = ERR(e); draw(); }
+}
+// Go / Next: a new question from the picked game and difficulty, posted at once. Skip: the same, but the current question
+// is pulled without revealing it, so nothing counts (no results, no Stars), and it leaves the Questions asked list.
+async function goGame(skip) {
+  const p = gpick(), q = makeQ(p.g, p.d), L = S.live;
+  if (skip && L && L.round) { const l = asked(); if (l.length && l[l.length - 1].round === L.round) { l.pop(); saveAsked(l); } }
+  S.comp = { ...q, timer: G().on ? 0 : GQ_TIMER };
+  await post({ skip: !!skip });
 }
 async function delAnswers(sid) {
   const ids = S.ans.filter(a => a.sid === sid).map(a => a.id);
@@ -475,6 +528,11 @@ app.addEventListener('click', async e => {
   if (act !== 'confirm' && act !== 'del' && act !== 'end') S.confirm = '';
   if (act === 'confirm') { S.confirm = S.confirm === t.dataset.v ? '' : t.dataset.v; draw(); return; }
   if (act === 'post') return post();
+  if (act === 'gdiff') { const p = gpick(); p.d = t.dataset.v; savePick(p); draw(); return; }
+  if (act === 'go') return goGame(false);
+  if (act === 'own') { S.own = !S.own; draw(); return; }
+  if (act === 'startClose') { S.startOpen = false; draw(); return; }
+  if (act === 'change') { S.startOpen = true; draw(); return; }
   if (act === 'unlost') {   // 2026-11-17: only the teacher clears "I'm lost"
     const ids = t.dataset.id === '*' ? recent().filter(x => x.lost).map(x => x.id) : [t.dataset.id];
     for (const id of ids) { const x = S.pulses.find(y => y.id === id); if (!x) continue;
@@ -496,6 +554,8 @@ app.addEventListener('click', async e => {
   if (act === 'kspick') { const q = ksQuestion(Number(t.dataset.v), S.ksm.minor, S.ksm.style, S.ksm.clef); S.comp = { ...q, timer: S.comp.timer }; toast('Question filled in. Check it, then Post.'); draw(); return; }
   if (act === 'ksclear') { S.comp.ks = null; draw(); return; }
   if (!L) return;
+  if (act === 'skip') return goGame(true);
+  if (act === 'next') return goGame(false);
   if (act === 'lock') { if (L.game && L.open) return gameLock(L); return upd(L.open ? { open: false, ends_at: null, reveal: revealIdx(L) } : { open: true, ends_at: null, reveal: null }); }
   if (act === 'timer') return upd({ open: true, ends_at: at(Date.now() + Number(t.dataset.v) * 1000) });
   if (act === 'spotClear') return upd({ spot: [] });
@@ -533,6 +593,7 @@ app.addEventListener('change', e => {
   const id = e.target.id, c = S.comp, v = e.target.value;
   if (id === 'cls') { const u = new URL(location.href); u.searchParams.set('code', v); history.replaceState(null, '', u); openClass(v); return; }
   if (id === 'sort') { S.sort = v; draw(); return; }
+  if (id === 'gq-game') { const p = gpick(); p.g = v; savePick(p); draw(); return; }
   if (id === 'c-type') { c.type = v; c.correct = ''; if (v !== 'mc') c.ks = null; draw(); return; }
   if (id === 'c-timer') { c.timer = Number(v) || 0; return; }
   if (id === 'c-correct') { c.correct = v; return; }

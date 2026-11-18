@@ -147,6 +147,83 @@ window.LC = (() => {
     return { type: 'mc', q: `This is the key signature for which ${kind} key?`, opts: shuffle([right, ...wrong]), correct: right, skills: ['keys'], ks: n, clef: clefOk(clef) ? clef : 'treble' };
   }
 
+  // ---------- Game questions (2026-11-17, David 'go'): pick a game, then Warm-up / Challenge / Brutal, press Go ----------
+  // Spec: the Claude Doc "Live Class: game question sets and Stars". Each maker returns a ready multiple-choice question with its
+  // correct answer and, for every wrong choice, why it is tempting (shown to the teacher after the lock). Wrong choices are real mistakes.
+  const DIFFS = { warmup: 'Warm-up', challenge: 'Challenge', brutal: 'Brutal' };
+  const rnd = a => a[Math.floor(Math.random() * a.length)];
+  const ORD = ['1st', '2nd', '3rd', '4th', '5th', '6th', '7th'];
+  const LETTERS = 'CDEFGAB';
+  // the 7 notes of a key: letter names from the tonic, with the key signature's sharps or flats
+  function keyNotes(n, minor) {
+    const tonic = (minor ? KS_MIN : KS_MAJ)[n], i = LETTERS.indexOf(tonic[0]), acc = {};
+    (n > 0 ? 'FCGDAEB' : 'BEADGCF').slice(0, Math.abs(n)).split('').forEach(c => { acc[c] = n > 0 ? '♯' : '♭'; });
+    return [0, 1, 2, 3, 4, 5, 6].map(k => { const c = LETTERS[(i + k) % 7]; return c + (acc[c] || ''); });
+  }
+  const flipAcc = t => t.length === 1 ? t + (Math.random() < .5 ? '♯' : '♭') : t[0];   // D♯ -> D, D -> D♯ or D♭
+  const ENH = { 'C♯': 'D♭', 'D♯': 'E♭', 'F♯': 'G♭', 'G♯': 'A♭', 'A♯': 'B♭', 'D♭': 'C♯', 'E♭': 'D♯', 'G♭': 'F♯', 'A♭': 'G♯', 'B♭': 'A♯', 'E♯': 'F', 'B♯': 'C', 'C♭': 'B', 'F♭': 'E' };
+  // right + up to 3 wrong [text, why] pairs (duplicates and the right answer itself are skipped) -> a question
+  function mcq(q, right, wrongs, extra) {
+    const why = {}, opts = [right];
+    for (const [t, w] of wrongs) { if (opts.length === 4) break; if (!t || opts.includes(t)) continue; opts.push(t); why[t] = w; }
+    return { type: 'mc', q, opts: shuffle(opts), correct: right, why, skills: ['keys'], ks: null, clef: 'treble', ...(extra || {}) };
+  }
+  const ksWhy = (n, minor, k) => k.minor !== minor ? 'That is the relative ' + (k.minor ? 'minor' : 'major') + ': it shares this key signature.'
+    : k.n === -n ? 'Same number of accidentals, but ' + (n > 0 ? 'flats instead of sharps.' : 'sharps instead of flats.') : 'Off by one: count the ' + (n > 0 ? 'sharps' : 'flats') + ' again.';
+  function ksMC(n, minor, clef, q) {
+    return mcq(q || `This is the key signature for which ${minor ? 'minor' : 'major'} key?`, ksName(n, minor),
+      ksNear(n, minor).map(k => [ksName(k.n, k.minor), n === 0 && k.n !== 0 ? 'C has no sharps or flats.' : ksWhy(n, minor, k)]), { ks: n, clef });
+  }
+  const anyClef = () => rnd(['treble', 'treble', 'bass', 'alto']);
+  const nOf = (lo, hi) => { const l = KS_ORDER.filter(n => Math.abs(n) >= lo && Math.abs(n) <= hi); return rnd(l); };
+  function spell(n, minor) {   // "What is the 6th note of E♭ major?"
+    const N = keyNotes(n, minor), k = 1 + Math.floor(Math.random() * 6), right = N[k], key = ksName(n, minor);
+    return mcq(`What is the ${ORD[k]} note of ${key}?`, right, [
+      [flipAcc(right), right.length > 1 ? 'Right letter, but this key has ' + right + '.' : 'Right letter, but there is no sharp or flat on ' + right + ' in this key.'],
+      [N[k - 1], 'One step low: the key note counts as 1st.'], [N[(k + 1) % 7], 'One step high: the key note counts as 1st.'], [ENH[right], 'Sounds the same, but the letter name is wrong in this key.']]);
+  }
+  function relative(n) {   // both ways: relative minor of a major key, or relative major of a minor key
+    if (Math.random() < .5) {
+      const maj = KS_MAJ[n], right = KS_MIN[n] + ' minor', N = keyNotes(n, false);
+      return mcq(`What is the relative minor of ${maj} major?`, right, [[maj + ' minor', 'That is the parallel minor (same starting note, different key signature).'],
+        [N[2] + ' minor', 'The relative minor starts on the 6th note, not the 3rd.'], [ksOk(n + 1) ? KS_MIN[n + 1] + ' minor' : '', 'Off by one key.'], [ksOk(n - 1) ? KS_MIN[n - 1] + ' minor' : '', 'Off by one key.'], [ksOk(n + 2) ? KS_MIN[n + 2] + ' minor' : KS_MIN[n - 2] + ' minor', 'Off by two keys.']]);
+    }
+    const mi = KS_MIN[n], right = KS_MAJ[n] + ' major', N = keyNotes(n, true);
+    return mcq(`What is the relative major of ${mi} minor?`, right, [[mi + ' major', 'That is the parallel major (same starting note, different key signature).'],
+      [N[5] + ' major', 'The relative major starts on the 3rd note of the minor key, not the 6th.'], [ksOk(n + 1) ? KS_MAJ[n + 1] + ' major' : '', 'Off by one key.'], [ksOk(n - 1) ? KS_MAJ[n - 1] + ' major' : '', 'Off by one key.'], [ksOk(n + 2) ? KS_MAJ[n + 2] + ' major' : KS_MAJ[n - 2] + ' major', 'Off by two keys.']]);
+  }
+  function enharmonic() {   // B = C♭, F♯ = G♭, C♯ = D♭ (and their relative minors)
+    const [a, b] = rnd([[5, -7], [6, -6], [7, -5], [-7, 5], [-6, 6], [-5, 7]]), minor = Math.random() < .4;
+    const from = ksName(a, minor), right = ksName(b, minor), with_ = b < 0 ? 'flats' : 'sharps';
+    return mcq(`Which key sounds the same as ${from} but is written with ${with_}?`, right,
+      [[ksOk(b + 1) ? ksName(b + 1, minor) : '', 'A different key: one accidental off.'], [ksOk(b - 1) ? ksName(b - 1, minor) : '', 'A different key: one accidental off.'],
+       [from[0] + ' ' + (minor ? 'minor' : 'major'), 'Same letter, but the natural key does not sound the same.'], [ksName(-a, minor), 'Same number of accidentals, but that is a different key.']]);
+  }
+  function oddOne(n) {   // "Which note is NOT in B major?"
+    const N = keyNotes(n, false), key = ksName(n, false), accd = N.filter(x => x.length > 1), base = rnd(accd.length ? accd : N);
+    const trap = Math.random() < .5 && ENH[base] ? ENH[base] : flipAcc(base);
+    const ins = shuffle(N.filter(x => x !== base)).slice(0, 3);
+    return { ...mcq(`Which note is NOT in ${key}?`, trap, ins.map(x => [x, x + ' is in ' + key + '.'])), why: Object.fromEntries(ins.map(x => [x, x + ' is in ' + key + ': check every note against the key signature.'])) };
+  }
+  const QGAMES = [
+    { id: 'scale', name: 'Scale Quest', what: 'Key signatures and scales', url: '/scale-quest/', make(d) {
+      if (d === 'warmup') return ksMC(nOf(0, 3), false, 'treble');
+      if (d === 'challenge') { const r = Math.random();
+        if (r < .45) return ksMC(nOf(0, 7), Math.random() < .35, anyClef());
+        if (r < .8) return spell(nOf(0, 5), false);
+        const q = ksQuestion(nOf(1, 7), Math.random() < .35, 'count'); return { ...q, why: {} }; }
+      const r = Math.random();
+      if (r < .25) return ksMC(nOf(4, 7), true, anyClef(), 'This key signature is for which MINOR key?');
+      if (r < .5) return relative(nOf(2, 7));
+      if (r < .7) return enharmonic();
+      if (r < .85) return oddOne(nOf(3, 7));
+      return spell(nOf(3, 7), Math.random() < .5);
+    } },
+  ];
+  const qgame = id => QGAMES.find(g => g.id === id) || null;
+  // one question, tagged with where it came from (bc_live.gen = { g, d })
+  function makeQ(g, d) { const G = qgame(g) || QGAMES[0], D = DIFFS[d] ? d : 'challenge'; const q = G.make(D); return { ...q, skills: q.skills || ['keys'], gen: { g: G.id, d: D } }; }
+
   // ---------- results (teacher console and projector; counts only, never names) ----------
   // ans = the latest answer from each student: [{ text, sid, ... }]
   function results(live, ans, opt = {}) {
@@ -185,5 +262,5 @@ window.LC = (() => {
   const clock = s => s == null ? '' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const ERR = e => { const c = String(e && (e.code || e.message) || e); return /permission/i.test(c) ? 'Live Class is not switched on yet (the new database rules are not in place).' : /offline|unavailable|timeout/i.test(c) ? 'No connection. Check the wifi and try again.' : 'Something went wrong: ' + c; };
 
-  return { KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, BANK, NOW, at, newKey, roundId, flagged, db, fbAuth, results, latest, left, clock, ERR };
+  return { DIFFS, QGAMES, qgame, makeQ, keyNotes, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, BANK, NOW, at, newKey, roundId, flagged, db, fbAuth, results, latest, left, clock, ERR };
 })();
