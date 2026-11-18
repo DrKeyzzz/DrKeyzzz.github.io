@@ -147,7 +147,7 @@
 <meta name="robots" content="noindex">
 <link href="/fonts/fonts.css" rel="stylesheet">
 <!-- fonts.css has Noto Music for the treble clef on key signature questions -->
-<link rel="stylesheet" href="../live.css">
+<link rel="stylesheet" href="../live.css?v=20261117b">
 <!-- Live Class teacher console (added 2026-11-12). Shown inside the All games dashboard's Live tab (?embed=1&code=XXXX),
      or on its own. ?preview=1 = a pretend class kept in this browser; open ../?preview=1 in another tab to be a student. -->
 <style>
@@ -185,7 +185,7 @@
 <body>
 <div id="app"></div>
 <p class="toast" id="toast" role="status"></p>
-<script src="../live-core.js"></script>
+<script src="../live-core.js?v=20261117b"></script>
 <script>
 (() => {
 const { OPT_DEF, DIFFS, QGAMES, qgame, makeQ, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, BANK, NOW, at, db, results, latest, left, clock, ERR } = LC;
@@ -214,7 +214,7 @@ function custDrawer() {
   if (!S.cust.sample) S.cust.sample = makeQ(p.g, p.d, o);
   const q = S.cust.sample;
   return `<div class="cust stack">
-    <div class="sample"><span class="label">Sample · ${esc(DIFFS[p.d])}</span><b>${esc(q.q)}</b>${LC.staffFor(q)}<div class="row">${q.opts.map(x => `<span class="chip ${x === q.correct ? 'ok' : ''}">${x === q.correct ? '✓ ' : ''}${esc(x)}</span>`).join('')}</div>
+    <div class="sample"><span class="label">Sample · ${esc(DIFFS[p.d])}</span><b>${esc(q.q)}</b>${LC.staffFor(q, 'teach')}<div class="row">${q.opts.map(x => `<span class="chip ${x === q.correct ? 'ok' : ''}">${x === q.correct ? '✓ ' : ''}${esc(x)}</span>`).join('')}</div>
       <button class="btn sm" type="button" data-act="csample" style="align-self:flex-start">↻ Another sample</button></div>
     ${Object.entries(G.opts).map(([k, l]) => seg(k, l)).join('')}${seg('timer', [[15, '15 s'], [20, '20 s'], [30, '30 s'], [0, 'Off']])}
     <div class="row"><button class="btn pri" type="button" data-act="cuse">Use these</button><button class="btn" type="button" data-act="creset">Back to normal</button><button class="btn" type="button" data-act="cclose">Cancel</button></div></div>`;
@@ -320,7 +320,7 @@ function roundCard() {
   const L = S.live, A = latest(S.ans), n = recent().length, s = left(L);
   return `<section class="card stack qhead">
     <div class="row between"><span class="label">${esc(TYPES[L.type] || '')}</span><div class="row">${s != null ? `<span class="chip gold">⏱ <span class="mono" id="cd">${clock(s)}</span></span>` : ''}<span class="chip ${L.open ? 'ok' : 'no'}">${L.open ? 'Open' : 'Locked'}</span></div></div>
-    <h2>${esc(L.q)}</h2>${LC.staffFor(L)}
+    <h2>${esc(L.q)}</h2>${LC.staffFor(L, 'teach')}
     ${L.type === 'mc' ? `<div class="row">${(L.opts || []).map((o, i) => `<span class="chip">${'ABCDEF'[i]}. ${esc(o)}</span>`).join('')}</div>` : ''}
     <div class="row"><b class="mono">${A.length}${n ? ' of ' + Math.max(n, A.length) : ''}</b><span class="muted">answered</span><div class="meter" style="flex:1;min-width:120px"><i style="width:${n ? Math.min(100, 100 * A.length / Math.max(n, A.length)) : 0}%"></i></div></div>
     ${L.gen ? gameControls(L) : `<div class="row">
@@ -492,7 +492,8 @@ async function post(o = {}) {
   const d = { round, q, type: c.type, skills: (c.skills || []).slice(0, 20), open: true, ends_at: c.timer ? at(Date.now() + c.timer * 1000) : null, spot: [], updated_at: NOW };
   if (c.type === 'mc') d.opts = opts;
   if (c.type === 'mc' && ksOk(c.ks)) { d.ks = c.ks; if (c.clef === 'bass' || c.clef === 'alto') d.clef = c.clef; }
-  if (c.gen && qgame(c.gen.g)) { d.gen = { g: c.gen.g, d: c.gen.d }; if (Array.isArray(c.gen.n) && c.gen.n.length) { d.gen.n = c.gen.n.slice(0, 2); if (c.clef === 'bass' || c.clef === 'alto') d.clef = c.clef; } }
+  if (c.gen && qgame(c.gen.g)) { d.gen = { g: c.gen.g, d: c.gen.d }; if (Array.isArray(c.gen.n) && c.gen.n.length) { d.gen.n = c.gen.n.slice(0, 2); if (c.clef === 'bass' || c.clef === 'alto') d.clef = c.clef; }
+    if (Array.isArray(c.gen.m) && c.gen.m.length) { d.gen.m = c.gen.m.slice(0, 4); d.gen.p = c.gen.p || 'up'; } }
   if (G().on) { d.game = true; d.reveal = null; d.final = false; d.board = topBoard(); if (!c.timer) d.ends_at = at(Date.now() + GT * 1000); G().qn++; saveG(); }
   try {
     await db.set(livePath(), d);
@@ -505,11 +506,17 @@ async function post(o = {}) {
 }
 // Go / Next: a new question from the picked game and difficulty, posted at once. Skip: the same, but the current question
 // is pulled without revealing it, so nothing counts (no results, no Stars), and it leaves the Questions asked list.
+// Sound questions (step 5): the projector plays them. The projector page writes a heartbeat (localStorage mtg_live_proj_v1:<code>)
+// every 2 s; when it is open on this computer, Play asks it to play (mtg_live_play_v1:<code>), otherwise this page plays.
+const projOpen = () => { try { return Date.now() - Number(localStorage.getItem('mtg_live_proj_v1:' + S.code) || 0) < 5000; } catch { return false; } };
+function playLive(x, here) { if (!LC.isSound(x)) return; if (!here && projOpen()) { try { localStorage.setItem('mtg_live_play_v1:' + S.code, String(Date.now())); } catch {} return; } LC.play(x.gen.m, x.gen.p); }
 async function goGame(skip) {
+  LC.audio();   // the Go / Next click unlocks sound on this page
   const p = gpick(), q = makeQ(p.g, p.d, p.o), L = S.live;
   if (skip && L && L.round) { const l = asked(); if (l.length && l[l.length - 1].round === L.round) { l.pop(); saveAsked(l); } }
   S.comp = { ...q, timer: G().on ? 0 : (p.o.timer != null ? +p.o.timer : GQ_TIMER) };
   await post({ skip: !!skip });
+  if (LC.isSound(S.live) && !projOpen()) setTimeout(() => playLive(S.live, true), 600);
 }
 async function delAnswers(sid) {
   const ids = S.ans.filter(a => a.sid === sid).map(a => a.id);
@@ -549,6 +556,7 @@ app.addEventListener('click', async e => {
   const bar = e.target.closest('#rescard .bar');   // a result bar: list who chose it
   if (bar) { const o = (bar.querySelector('.lab') || bar).textContent.replace(/^✓\s*/, '').trim(); S.pick = S.pick && S.pick.o === o ? null : { o, round: S.round }; draw(); return; }
   const t = e.target.closest('button'); if (!t) return;
+  if (t.dataset.play) { LC.audio(); if (t.closest('.sample') && S.cust && S.cust.sample) LC.play(S.cust.sample.gen.m, S.cust.sample.gen.p); else playLive(S.live, false); return; }
   if (t.id === 'signin') { try { const { am, auth } = await LC.fbAuth(); await am.signInWithPopup(auth, new am.GoogleAuthProvider()); } catch (er) { toast(ERR(er)); } return; }
   const act = t.dataset.act, L = S.live; if (!act) return;
   if (act !== 'confirm' && act !== 'del' && act !== 'end') S.confirm = '';

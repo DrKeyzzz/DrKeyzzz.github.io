@@ -205,3 +205,10 @@ input[type=range] { width: 100%; accent-color: var(--gold); }
 .sd-gain + .sd-pp { margin-left: 14px; }
 @keyframes sd-in { from { opacity: 0; transform: translateX(-24px); } }
 @keyframes sd-pop { from { opacity: 0; transform: scale(.4) translateY(8px); } }
+/* sound questions (2026-11-17): a speaker box instead of a staff */
+.listenbox { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 14px; background: rgba(108,199,255,.1); border: 1px solid rgba(108,199,255,.35); flex-wrap: wrap; }
+.listenbox .lb-ic { font-size: 34px; line-height: 1; }
+.listenbox b { display: block; font-size: 18px; }
+.listenbox small { color: var(--muted); }
+.listenbox .btn { margin-left: auto; }
+.proj .listenbox { font-size: 26px; padding: 22px 26px; } .proj .listenbox b { font-size: 32px; } .proj .listenbox .lb-ic { font-size: 56px; }

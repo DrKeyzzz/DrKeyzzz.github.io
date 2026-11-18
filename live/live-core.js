@@ -236,8 +236,51 @@ window.LC = (() => {
     });
     return `<div class="ksbox"><svg viewBox="0 ${top} 256 ${bot - top}" role="img" aria-label="${esc(KS_CLEFS[C].name + ' clef with ' + (N.length === 1 ? 'one note' : 'two notes'))}">${lines}<line x1="6" x2="6" y1="${ksY(10)}" y2="${ksY(2)}" stroke="#1d2433" stroke-width="1.6"/>${CLEF_SVG[C]}${body}</svg></div>`;
   }
-  // whatever picture a question has: notes (Tidal Tones), else a key signature
-  const staffFor = x => x && x.gen && Array.isArray(x.gen.n) && x.gen.n.length ? noteStaff(x.gen.n, x.clef) : ksStaff(x && x.ks, '', x && x.clef);
+  // ---------- Sound questions (2026-11-17, step 5): Earshot Saloon intervals and Brainwaves chords ----------
+  // bc_live.gen.m = up to 4 MIDI notes, gen.p = how they play: up | down | together | chord (together, then one at a time).
+  // The class hears them from the projector (or the teacher's computer when no projector is open); phones stay silent.
+  let AC = null;
+  const audio = () => { try { AC = AC || new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); } catch (e) {} return AC; };
+  const unlocked = () => !!AC && AC.state === 'running';
+  function tone(ctx, midi, t, dur) {   // a soft piano-like note: two sines and a triangle with a quick attack and a long fade
+    const f = 440 * Math.pow(2, (midi - 69) / 12), g = ctx.createGain(), out = ctx.createGain();
+    out.gain.value = .22; g.connect(out); out.connect(ctx.destination);
+    g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(1, t + .012); g.gain.exponentialRampToValueAtTime(.35, t + .35); g.gain.exponentialRampToValueAtTime(.001, t + dur);
+    [[f, 'triangle', .6], [f * 2, 'sine', .25], [f * 3, 'sine', .08]].forEach(([fr, ty, v]) => { const o = ctx.createOscillator(), og = ctx.createGain(); o.type = ty; o.frequency.value = fr; og.gain.value = v; o.connect(og); og.connect(g); o.start(t); o.stop(t + dur + .05); });
+  }
+  function play(m, how) {
+    const ctx = audio(); if (!ctx || !Array.isArray(m) || !m.length) return 0;
+    const t0 = ctx.currentTime + .08, L = m.slice().sort((a, b) => a - b);
+    if (how === 'together') { L.forEach(n => tone(ctx, n, t0, 2.2)); return 2300; }
+    if (how === 'chord') { L.forEach(n => tone(ctx, n, t0, 1.6)); L.forEach((n, i) => tone(ctx, n, t0 + 1.8 + i * .55, 1.1)); return 1900 + L.length * 550 + 900; }
+    const seq = how === 'down' ? L.slice().reverse() : L; seq.forEach((n, i) => tone(ctx, n, t0 + i * .8, 1.3)); return seq.length * 800 + 900;
+  }
+  const isSound = x => !!(x && x.gen && Array.isArray(x.gen.m) && x.gen.m.length);
+  const HOW = { up: 'going up', down: 'going down', together: 'played together', chord: 'played together, then one note at a time' };
+  // whatever picture a question has: a speaker (sound), notes (Tidal Tones), else a key signature. where = 'proj' | 'teach' | phone
+  const staffFor = (x, where) => isSound(x) ? `<div class="listenbox"><span class="lb-ic">🔊</span><div><b>${where === 'proj' || where === 'teach' ? 'Listen' : 'Listen to the class speaker'}</b><small>${esc(HOW[x.gen.p] || '')}</small></div>${where === 'proj' || where === 'teach' ? '<button type="button" class="btn pri" data-play="1">▶ Play' + (where === 'proj' ? ' again' : '') + '</button>' : ''}</div>`
+    : x && x.gen && Array.isArray(x.gen.n) && x.gen.n.length ? noteStaff(x.gen.n, x.clef) : ksStaff(x && x.ks, '', x && x.clef);
+  const IV = [['Minor 2nd', 1], ['Major 2nd', 2], ['Minor 3rd', 3], ['Major 3rd', 4], ['Perfect 4th', 5], ['Tritone', 6], ['Perfect 5th', 7], ['Minor 6th', 8], ['Major 6th', 9], ['Minor 7th', 10], ['Major 7th', 11], ['Octave', 12]];
+  const ivBy = s => IV.find(x => x[1] === s)[0];
+  const IV_WHY = s => ({ 6: 'The tritone is the tense one, right between a 4th and a 5th.', 7: 'A 5th sounds open and hollow, like a power chord.', 5: 'A 4th is the start of "Here Comes the Bride".', 12: 'An octave sounds like the same note, higher.' })[s] || 'One half step makes the difference: sing it back before you answer.';
+  function earQ(d) {
+    const t = OPT.type, how = t !== 'mix' ? t : d === 'brutal' ? rnd(['down', 'together', 'up']) : 'up';
+    const pool = d === 'warmup' ? [2, 4, 7, 12] : d === 'challenge' ? [1, 2, 3, 4, 5, 7, 8, 9, 10, 11, 12] : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+    const s = rnd(pool), root = 52 + Math.floor(Math.random() * 12), right = ivBy(s);
+    const wr = d === 'warmup' ? pool.filter(x => x !== s) : [s - 1, s + 1, s === 6 ? 5 : s === 5 ? 6 : s === 8 ? 9 : s === 9 ? 8 : s + 2, s - 2, s + 3, s - 3].filter(x => x >= 1 && x <= 12);
+    return mcq(`Which interval do you hear? (${HOW[how]})`, right, wr.map(x => [ivBy(x), Math.abs(x - s) === 1 ? 'One half step away: ' + IV_WHY(x) : IV_WHY(x)]),
+      { skills: ['intervals', 'ear'], ks: null, gen_m: [root, root + s], gen_p: how });
+  }
+  const TRI = { Major: [0, 4, 7], Minor: [0, 3, 7], Diminished: [0, 3, 6], Augmented: [0, 4, 8] };
+  const SEV = { 'Major 7th': [0, 4, 7, 11], 'Dominant 7th': [0, 4, 7, 10], 'Minor 7th': [0, 3, 7, 10], 'Half-diminished 7th': [0, 3, 6, 10] };
+  const CH_WHY = { Major: 'Major sounds bright and settled.', Minor: 'Minor sounds darker: its middle note is a half step lower.', Diminished: 'Diminished sounds tense and small: two minor 3rds stacked.', Augmented: 'Augmented sounds stretched and dreamy: two major 3rds stacked.',
+    'Major 7th': 'Major 7th sounds soft and jazzy (the top note is a half step under the octave).', 'Dominant 7th': 'Dominant 7th sounds like it wants to move on (bluesy).', 'Minor 7th': 'Minor 7th sounds mellow and dark.', 'Half-diminished 7th': 'Half-diminished sounds tense but softer than diminished.' };
+  function chordQ(d) {
+    const t = OPT.type, seventh = t === 'seventh' || (t !== 'triad' && d === 'brutal' && Math.random() < .7);
+    const set = seventh ? SEV : d === 'warmup' ? { Major: TRI.Major, Minor: TRI.Minor } : TRI, names = Object.keys(set), right = rnd(names), root = 48 + Math.floor(Math.random() * 10);
+    return mcq(`What kind of chord do you hear?`, right, names.filter(n => n !== right).map(n => [n, CH_WHY[n]]),
+      { skills: ['chords', 'ear'], ks: null, gen_m: set[right].map(x => root + x), gen_p: d === 'warmup' || seventh ? 'chord' : rnd(['chord', 'together']) });
+  }
   const tClef = d => OPT.clef !== 'any' ? OPT.clef : d === 'warmup' ? 'treble' : d === 'challenge' ? rnd(['treble', 'bass']) : rnd(['treble', 'bass', 'alto']);
   // a staff position (dp) range for each difficulty: warm-up on the staff, challenge 1-2 ledger lines, brutal 3+ ledger lines
   function tPos(d) {
@@ -306,11 +349,18 @@ window.LC = (() => {
     { id: 'tidal', name: 'Tidal Tones', what: 'Notes and intervals on the staff', url: '/tidal-tones/',
       opts: { type: [['mix', 'Mix'], ['note', 'Name the note'], ['interval', 'Name the interval']], clef: [['any', 'Any'], ['treble', '𝄞 Treble'], ['bass', '𝄢 Bass'], ['alto', '𝄡 Alto']] },
       make(d) { const t = OPT.type; return t === 'note' ? noteQ(d) : t === 'interval' ? intervalQ(d) : Math.random() < .55 ? noteQ(d) : intervalQ(d); } },
+    { id: 'earshot', name: 'Earshot Saloon', what: 'Intervals by ear', url: '/earshot-saloon/', sound: true,
+      opts: { type: [['mix', 'Mix'], ['up', 'Going up'], ['down', 'Going down'], ['together', 'Played together']] },
+      make(d) { return earQ(d); } },
+    { id: 'brainwaves', name: 'Brainwaves', what: 'Chords by ear', url: '/brainwaves/', sound: true,
+      opts: { type: [['mix', 'Mix'], ['triad', 'Triads'], ['seventh', '7th chords']] },
+      make(d) { return chordQ(d); } },
   ];
   const qgame = id => QGAMES.find(g => g.id === id) || null;
   // one question, tagged with where it came from (bc_live.gen = { g, d })
   function makeQ(g, d, o) { const G = qgame(g) || QGAMES[0], D = DIFFS[d] ? d : 'challenge'; OPT = { ...OPT_DEF, ...(o || {}) }; let q; try { q = G.make(D); } finally { OPT = OPT_DEF; }
-    const { gen_n, ...rest } = q; return { ...rest, skills: q.skills || ['keys'], gen: gen_n ? { g: G.id, d: D, n: gen_n } : { g: G.id, d: D } }; }
+    const { gen_n, gen_m, gen_p, ...rest } = q, gen = { g: G.id, d: D }; if (gen_n) gen.n = gen_n; if (gen_m) { gen.m = gen_m; gen.p = gen_p; }
+    return { ...rest, skills: q.skills || ['keys'], gen }; }
 
   // ---------- results (teacher console and projector; counts only, never names) ----------
   // ans = the latest answer from each student: [{ text, sid, ... }]
@@ -350,5 +400,5 @@ window.LC = (() => {
   const clock = s => s == null ? '' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const ERR = e => { const c = String(e && (e.code || e.message) || e); return /permission/i.test(c) ? 'Live Class is not switched on yet (the new database rules are not in place).' : /offline|unavailable|timeout/i.test(c) ? 'No connection. Check the wifi and try again.' : 'Something went wrong: ' + c; };
 
-  return { staffFor, noteStaff, OPT_DEF, DIFFS, QGAMES, qgame, makeQ, keyNotes, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, BANK, NOW, at, newKey, roundId, flagged, db, fbAuth, results, latest, left, clock, ERR };
+  return { play, audio, unlocked, isSound, staffFor, noteStaff, OPT_DEF, DIFFS, QGAMES, qgame, makeQ, keyNotes, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, BANK, NOW, at, newKey, roundId, flagged, db, fbAuth, results, latest, left, clock, ERR };
 })();
