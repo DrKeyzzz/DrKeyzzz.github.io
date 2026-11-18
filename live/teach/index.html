@@ -301,7 +301,18 @@ function watchAnswers() {
   const r = S.live && S.live.round || '';
   if (r === S.round) return;
   S.round = r; if (S.offA) S.offA(); S.offA = null; S.ans = [];
-  if (r) db.watchCol('bc_answers', { class_code: S.code, owner: S.email, round: r }, l => { S.ans = l; draw(); }, e => { S.err = ERR(e); draw(); }).then(f => { S.offA = f; });
+  if (r) db.watchCol('bc_answers', { class_code: S.code, owner: S.email, round: r }, l => { S.ans = l; draw(); autoLock(); }, e => { S.err = ERR(e); draw(); }).then(f => { S.offA = f; });
+}
+
+// ---------- Everyone's in (2026-11-17, David: 'when the last kid answers it should know and stop'): a choice question locks and
+// reveals by itself once every student in the room has answered. The room = students whose Live Class page opened in the last
+// 50 minutes (one class period) plus anyone who answered this question. A 1.2 s pause lets a last-second change land.
+const room = () => { const s = new Set(S.pulses.filter(x => Date.now() - (x.at || 0) < 50 * 60e3).map(x => x.sid)); S.ans.forEach(a => s.add(a.sid)); return s; };
+function autoLock() {
+  const L = S.live; if (!L || !L.open || !(L.type === 'mc' || L.type === 'yn') || start.autoL === L.round) return;
+  const R = room(), got = new Set(S.ans.map(a => a.sid)); if (R.size < 1 || [...R].some(s => !got.has(s))) return;
+  start.autoL = L.round;
+  setTimeout(() => { const M = S.live; if (!M || M.round !== L.round || !M.open) return; toast('Everyone answered: locked and revealed.'); if (M.game) gameLock(M); else upd({ open: false, ends_at: null, reveal: revealIdx(M) }); }, 1200);
 }
 
 // ---------- drawing ----------
@@ -322,7 +333,7 @@ function roundCard() {
     <div class="row between"><span class="label">${esc(TYPES[L.type] || '')}</span><div class="row">${s != null ? `<span class="chip gold">⏱ <span class="mono" id="cd">${clock(s)}</span></span>` : ''}<span class="chip ${L.open ? 'ok' : 'no'}">${L.open ? 'Open' : 'Locked'}</span></div></div>
     <h2>${esc(L.q)}</h2>${LC.staffFor(L, 'teach')}
     ${L.type === 'mc' ? `<div class="row">${(L.opts || []).map((o, i) => `<span class="chip">${'ABCDEF'[i]}. ${esc(o)}</span>`).join('')}</div>` : ''}
-    <div class="row"><b class="mono">${A.length}${n ? ' of ' + Math.max(n, A.length) : ''}</b><span class="muted">answered</span><div class="meter" style="flex:1;min-width:120px"><i style="width:${n ? Math.min(100, 100 * A.length / Math.max(n, A.length)) : 0}%"></i></div></div>
+    <div class="row"><b class="mono">${A.length} of ${room().size || '–'}</b><span class="muted">answered${L.open && (L.type === 'mc' || L.type === 'yn') ? ' · locks by itself when everyone is in' : ''}</span><div class="meter" style="flex:1;min-width:120px"><i style="width:${room().size ? Math.min(100, 100 * A.length / room().size) : 0}%"></i></div></div>
     ${L.gen ? gameControls(L) : `<div class="row">
       <button class="btn ${L.open ? 'pri' : ''}" type="button" data-act="lock" title="${L.open ? 'Stop answers and show the results and the correct answer on the class screen' : 'Let students answer again'}">${L.open ? '👁 Lock &amp; reveal' : '🔓 Unlock answers'}</button>
       <button class="btn" type="button" data-act="timer" data-v="15">⏱ 15s</button><button class="btn" type="button" data-act="timer" data-v="30">30s</button><button class="btn" type="button" data-act="timer" data-v="60">1 min</button><button class="btn" type="button" data-act="timer" data-v="120">2 min</button>
