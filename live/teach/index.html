@@ -412,7 +412,7 @@ function roundCard() {
   return `<section class="card stack qhead">
     <div class="row between"><span class="label">${esc(TYPES[L.type] || '')}</span><div class="row">${s != null ? `<span class="chip gold">⏱ <span class="mono" id="cd">${clock(s)}</span></span>` : ''}<span class="chip ${L.open ? 'ok' : 'no'}">${L.open ? 'Open' : 'Locked'}</span></div></div>
     <h2>${esc(L.q)}</h2>${LC.staffFor(L, 'teach')}
-    ${L.type === 'mc' ? `<div class="row">${(L.opts || []).map((o, i) => { const ok = !S.hideAns && o === correct(); return `<span class="chip ${ok ? 'ok' : ''}"${ok ? ' title="The right answer (only on your screen)"' : ''}>${ok ? '✓ ' : ''}${'ABCDEF'[i]}. ${esc(o)}</span>`; }).join('')}${correct() ? `<button class="btn sm" type="button" data-act="hideans" title="${S.hideAns ? 'Mark the right answer' : 'Hide the answer (if your screen is on the projector)'}">${S.hideAns ? '👁 Show answer' : '🙈 Hide'}</button>` : ''}</div>` : ''}
+    ${L.type === 'mc' ? `<div class="row">${(L.opts || []).map((o, i) => { const ok = !S.hideAns && o === correct(); return `<span class="chip ${ok ? 'ok' : ''}"${ok ? ' title="The right answer (only on your screen)"' : ''}>${ok ? '✓ ' : ''}${i + 1}. ${esc(o)}</span>`; }).join('')}${correct() ? `<button class="btn sm" type="button" data-act="hideans" title="${S.hideAns ? 'Mark the right answer' : 'Hide the answer (if your screen is on the projector)'}">${S.hideAns ? '👁 Show answer' : '🙈 Hide'}</button>` : ''}</div>` : ''}
     <div class="row"><b class="mono">${A.length} of ${room().size || '–'}</b><span class="muted">answered${L.open && (L.type === 'mc' || L.type === 'yn') ? ' · locks by itself when everyone is in' : ''}</span><div class="meter" style="flex:1;min-width:120px"><i style="width:${room().size ? Math.min(100, 100 * A.length / room().size) : 0}%"></i></div></div>
     ${L.gen ? gameControls(L) : `<div class="row">
       <button class="btn ${L.open ? 'pri' : ''}" type="button" data-act="lock" title="${L.open ? 'Stop answers and show the results and the correct answer on the class screen' : 'Let students answer again'}">${L.open ? '👁 Lock &amp; reveal' : '🔓 Unlock answers'}</button>
@@ -547,7 +547,7 @@ function composerCard() {
     <label class="f" for="c-type">Type<select id="c-type">${Object.entries(TYPES).map(([k, v]) => `<option value="${k}" ${c.type === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
     <label class="f" for="c-q">Question<textarea id="c-q" maxlength="200" placeholder="Ask your class something…">${esc(c.q)}</textarea></label>
     ${c.type === 'mc' && ksOk(c.ks) ? `<div class="row" style="align-items:flex-end">${ksStaff(c.ks, '', c.clef)}<button class="btn sm" type="button" data-act="ksclear">✕ Remove staff</button></div>` : ''}
-    ${c.type === 'mc' ? `<div class="optgrid">${c.opts.map((o, i) => `<input type="text" id="c-o${i}" data-i="${i}" maxlength="60" value="${esc(o)}" placeholder="Option ${'ABCDEF'[i]}" aria-label="Option ${'ABCDEF'[i]}">`).join('')}</div>${c.opts.length < 6 ? '<button class="btn sm" type="button" data-act="addopt" style="align-self:flex-start">+ Option</button>' : ''}` : ''}
+    ${c.type === 'mc' ? `<div class="optgrid">${c.opts.map((o, i) => `<input type="text" id="c-o${i}" data-i="${i}" maxlength="60" value="${esc(o)}" placeholder="Option ${i + 1}" aria-label="Option ${i + 1}">`).join('')}</div>${c.opts.length < 6 ? '<button class="btn sm" type="button" data-act="addopt" style="align-self:flex-start">+ Option</button>' : ''}` : ''}
     ${c.type === 'emoji' ? `<p class="muted small" style="margin:0">Students pick ${EMOJIS.join(' ')}</p>` : ''}
     ${corr}
     <label class="f" for="c-timer">Timer<select id="c-timer"><option value="0">No timer</option>${[15, 30, 60, 120, 300].map(t => `<option value="${t}" ${+c.timer === t ? 'selected' : ''}>${t < 60 ? t + ' seconds' : t / 60 + ' minute' + (t > 60 ? 's' : '')}</option>`).join('')}</select></label>
@@ -572,10 +572,10 @@ function askedCard() {
 function studySheet(withKey) {
   const l = asked(); if (!l.length) return;
   const cls = (S.classes.find(c => c.code === S.code) || {}).name || S.code, day = new Date().toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
-  const qs = l.map((x, i) => `<li><p class="q">${esc(x.q)}</p>${LC.staffFor(x)}${x.type === 'mc' && x.opts ? `<ol type="A" class="opts">${x.opts.map(o => `<li class="${withKey && o === x.correct ? 'r' : ''}">${esc(o)}${withKey && o === x.correct ? ' ✓' : ''}</li>`).join('')}</ol>`
+  const qs = l.map((x, i) => `<li><p class="q">${esc(x.q)}</p>${LC.staffFor(x)}${x.type === 'mc' && x.opts ? `<ol class="opts">${x.opts.map(o => `<li class="${withKey && o === x.correct ? 'r' : ''}">${esc(o)}${withKey && o === x.correct ? ' ✓' : ''}</li>`).join('')}</ol>`
     : x.type === 'yn' ? '<p class="opts">Yes &nbsp;/&nbsp; No</p>' : '<p class="line"></p>'}${withKey ? `<p class="ans">Answer: ${x.correct ? `<b>${esc(x.correct)}</b>` : '<i>open answer</i>'}</p>` : ''}</li>`).join('');
   const key = l.map((x, i) => { const k = x.type === 'mc' && x.opts ? x.opts.indexOf(x.correct) : -1;
-    return `<li>${x.correct ? (k >= 0 ? `<b>${'ABCDEF'[k]}</b> · ` : '') + esc(x.correct) : '<span class="muted">(open answer)</span>'}</li>`; }).join('');
+    return `<li>${x.correct ? (k >= 0 ? `<b>${k + 1}</b> · ` : '') + esc(x.correct) : '<span class="muted">(open answer)</span>'}</li>`; }).join('');
   const w = window.open('', '_blank'); if (!w) { toast('Allow pop-ups for this page, then try again.'); return; }
   w.document.write(`<!doctype html><html lang="en"><head><meta charset="utf-8"><link href="${location.origin}/fonts/fonts.css" rel="stylesheet"><title>Study sheet · ${esc(cls)} · ${esc(day)}</title><style>
     body{font:16px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;color:#141d2c;background:#fff;max-width:760px;margin:24px auto;padding:0 20px}
