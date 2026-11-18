@@ -354,9 +354,16 @@ db.watchDoc('bc_pulse/' + ME.key, d => {
 }, () => { if (!pulsed) { pulsed = true; pulse(); } });
 
 // Refresh presence while Live Class is visible. Throttle tab switches to the same cadence.
+let lobbyCheckIn = '';
 function refreshPresence() {
-  if (!pulsed || document.hidden || Date.now() - presenceAt < 120000) return;
-  pulse();
+  if (!pulsed || document.hidden) return;
+  const lobby = LC.isLobby(S.live) ? S.live.round : '';
+  if (lobby && lobby !== lobbyCheckIn) {
+    lobbyCheckIn = lobby;
+    pulse();
+  } else if (Date.now() - presenceAt >= 120000) {
+    pulse();
+  }
 }
 document.addEventListener('visibilitychange', refreshPresence);
 setInterval(refreshPresence, 30000);
@@ -625,6 +632,7 @@ let wasOpen = null;
 leadWatch();
 db.watchDoc('bc_live/' + code, d => {
   const before = S.live; S.live = d; S.loaded = true;
+  refreshPresence();
   if (d && d.q) { const m = mineFor(d.round); shSee(d, m ? m.text : null); }
   if (d && d.q && S.seen && (!before || before.round !== d.round)) { try { navigator.vibrate && navigator.vibrate(60); } catch {} }
   if (d && d.round && !seenAt[d.round]) seenAt[d.round] = Date.now();

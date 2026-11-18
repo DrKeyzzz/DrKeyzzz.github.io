@@ -311,7 +311,18 @@ const paceSeg = p => `<div class="row" style="gap:6px"><span class="label">Pace<
   <button type="button" data-act="sdpace" data-v="manual" aria-pressed="${p.pace === 'manual'}">👆 I press Next</button>
 </span></div>`;
 const numSeg = p => `<span class="row" style="gap:6px"><span class="label">Questions</span><span class="seg">${[5, 10, 15, 20, 0].map(v => `<button type="button" data-act="sdnum" data-v="${v}" aria-pressed="${snum(p) === v}" title="${v ? v + ' questions, then the Curtain call' : 'Keep going until you press End now'}">${v || '∞'}</button>`).join('')}</span></span>`;
-const whoList = () => [...room()].slice(0, 40).map(s => { const x = S.pulses.find(y => y.sid === s) || S.ans.find(y => y.sid === s) || {}; return { n: S.curtain ? '' : String(x.name || 'Player').slice(0, 24), s }; });
+function activeStudents(since = 0) {
+  const cutoff = Math.max(Date.now() - 5 * 60e3, since);
+  const latestByStudent = new Map();
+  for (const student of S.pulses) {
+    if (student.at >= cutoff && student.at > (latestByStudent.get(student.sid)?.at || 0)) {
+      latestByStudent.set(student.sid, student);
+    }
+  }
+  return [...latestByStudent.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+const lobbyStudents = L => activeStudents(L.show.at);
+const whoList = students => students.slice(0, 40).map(({ name, sid }) => ({ n: S.curtain ? '' : name.slice(0, 24), s: sid }));
 function autoQueue(round) { const A = AUTO(); if (!A || A.manual || A.paused) return; clearTimeout(S.autoT); S.autoT = setTimeout(() => autoStep(round), 7000); }
 async function autoStep(round) { const A = AUTO(), L = S.live; if (!A || A.manual || A.paused || !L || L.round !== round || L.open) return; if (A.n && A.i >= A.n) return finishShow(); return goGame(false); }
 async function finishShow() {
@@ -320,11 +331,14 @@ async function finishShow() {
   if (L.open && L.game) await gameLock(L);
   return upd({ open: false, final: true, board: topBoard(), show: { st: 'done', n: A ? A.n : 0, i: A ? Math.min(A.i, 30) : 0 } });
 }
+const lobbyNames = who => who.length
+  ? who.map((student, i) => `<span class="chip">${esc(S.curtain ? 'Student ' + (i + 1) : student.name)}</span>`).join('')
+  : '<span class="muted small">Waiting for students to join…</span>';
 function lobbyCard() {
-  const who = S.live.show.who || [], n = S.live.show.n ?? 10, manual = AUTO()?.manual;
-  return `<section class="card stack"><div class="row between"><h2 style="margin:0">🏁 Waiting room</h2><span class="chip gold">${who.length} in</span></div>
-    <p class="muted" style="margin:0">Students open <b>musictheoryacademy.org/live</b>. Names pop in here and on the projector. Press Begin when everyone is in.</p>
-    <div class="namechips">${who.length ? who.map(w => `<span class="chip">${esc(w.n || '🎭')}</span>`).join('') : '<span class="muted small">Nobody yet…</span>'}</div>
+  const who = lobbyStudents(S.live), n = S.live.show.n ?? 10, manual = AUTO()?.manual;
+  return `<section class="card stack"><div class="row between"><h2 style="margin:0">🏁 Showdown waiting room</h2><span class="chip gold" id="showdown-count">${who.length} joined</span></div>
+    <p class="muted" style="margin:0">Students open <b>musictheoryacademy.org/live</b>. Check who has joined this game, then press Begin.</p>
+    <div class="namechips" id="showdown-roster">${lobbyNames(who)}</div>
     <div class="row"><button class="btn pri go" type="button" data-act="sdbegin" style="flex:1">▶ Begin · ${manual ? 'I press Next' : n ? n + ' questions' : 'until you press End now'}</button><button class="btn" type="button" data-act="sdcancel">Cancel</button></div>
     <p class="dim small" style="margin:0">${manual ? 'After each answer and the top 5, press Next question or Curtain call.' : 'It runs by itself: 3-2-1, the question, the answer and the top 5, then the next one.'} Keep this page open.</p></section>`;
 }
@@ -496,9 +510,7 @@ function answersCard() {
   </section>`;
 }
 function rosterHtml() {
-  const cutoff = Date.now() - 5 * 60e3;
-  const students = Array.from(new Map(S.pulses.filter(x => x.at > cutoff).map(x => [x.sid, x])).values())
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const students = activeStudents();
   return `<div class="row between"><h3>Live now</h3><span class="chip">${students.length} joined</span></div>
     ${students.length ? `<div class="namechips">${students.map((x, i) => `<span class="chip">${esc(S.curtain ? 'Student ' + (i + 1) : x.name)}</span>`).join('')}</div>` : '<p class="muted small" style="margin:0">No students have joined recently.</p>'}
     <p class="dim small" style="margin:0">Seen in Live Class in the last 5 minutes.</p>`;
@@ -593,7 +605,7 @@ function draw() {
   const L = S.live && S.live.q ? S.live : null;
   app.innerHTML = shell(`${headCard()}${leadCard()}<p class="msg" role="alert">${esc(S.err)}</p>
     <div class="cols"><div class="stack">${LC.isLobby(S.live) ? lobbyCard() : !L || S.startOpen ? startCard() : ''}${L ? roundCard() + resultsCard() + answersCard() : ''}</div>
-    <aside class="stack"><section class="card stack" id="live-roster">${rosterHtml()}</section>${composerCard()}${askedCard()}${pulseCard()}${inboxCard()}</aside></div>`);
+    <aside class="stack">${LC.isLobby(S.live) ? '' : `<section class="card stack" id="live-roster">${rosterHtml()}</section>`}${composerCard()}${askedCard()}${pulseCard()}${inboxCard()}</aside></div>`);
   if (keep && $(keep.id)) { const el = $(keep.id); el.focus(); try { if (keep.s != null) el.setSelectionRange(keep.s, keep.e); } catch {} }
   if (EMBED) try { parent.postMessage({ mtgLiveHeight: document.documentElement.scrollHeight }, location.origin); } catch {}
 }
@@ -735,8 +747,8 @@ app.addEventListener('click', async e => {
   }
   if (act === 'sdnum') { const p = gpick(); p.sn = Number(t.dataset.v); savePick(p); draw(); return; }
   if (act === 'sdstart') { const p = gpick(), g = G(); g.scores = {}; g.qn = 0; g.done = {}; g.prev = {}; g.auto = { on: true, n: p.pace === 'manual' ? 0 : snum(p), i: 0, paused: false, manual: p.pace === 'manual' }; saveG(); S.startOpen = false; S.cust = null;
-    S.whoKey = ''; return db.set(livePath(), { round: LC.roundId(), q: '', type: 'mc', open: false, game: true, final: false, reveal: null, board: [], show: { st: 'lobby', n: g.auto.n, i: 0, who: whoList() }, updated_at: NOW }).catch(er => { S.err = ERR(er); draw(); }); }
-  if (act === 'sdbegin') { const A = AUTO(); if (A) { A.players = ((S.live && S.live.show && S.live.show.who) || []).map(w => w.s); saveG(); } return goGame(false); }
+    S.whoKey = '[]'; return db.set(livePath(), { round: LC.roundId(), q: '', type: 'mc', open: false, game: true, final: false, reveal: null, board: [], show: { st: 'lobby', n: g.auto.n, i: 0, at: Date.now(), who: [] }, updated_at: NOW }).catch(er => { S.err = ERR(er); draw(); }); }
+  if (act === 'sdbegin') { const A = AUTO(); if (A && LC.isLobby(L)) { A.players = lobbyStudents(L).map(w => w.sid); saveG(); } return goGame(false); }
   if (act === 'sdcancel') { const g = G(); if (g.auto) g.auto.on = false; saveG(); return db.del(livePath()).catch(er => { S.err = ERR(er); draw(); }); }
   if (act === 'sdpause') { const A = AUTO(); if (!A) return; A.paused = !A.paused; saveG(); clearTimeout(S.autoT); if (!A.paused && L && !L.open) return autoStep(L.round); draw(); return; }
   if (act === 'sheet') { studySheet(!!t.dataset.v); return; }
@@ -812,7 +824,14 @@ app.addEventListener('change', e => {
 setInterval(() => { const roster = $('live-roster'); if (roster) roster.innerHTML = rosterHtml(); }, 15000);
 // the timer: count down, and lock the answers when it runs out (this page does it, so keep it open during class)
 setInterval(() => {
-  if (LC.isLobby(S.live) && Date.now() - (S.whoAt || 0) > 2000) { S.whoAt = Date.now(); const w = whoList(), k = JSON.stringify(w); if (k !== S.whoKey) { S.whoKey = k; upd({ show: { ...S.live.show, who: w } }); } }
+  if (LC.isLobby(S.live) && Date.now() - (S.whoAt || 0) > 2000) {
+    S.whoAt = Date.now();
+    const who = lobbyStudents(S.live), count = $('showdown-count'), roster = $('showdown-roster');
+    if (count) count.textContent = who.length + ' joined';
+    if (roster) roster.innerHTML = lobbyNames(who);
+    const w = whoList(who), key = JSON.stringify(w);
+    if (key !== S.whoKey) { S.whoKey = key; upd({ show: { ...S.live.show, who: w } }); }
+  }
   const L = S.live; if (!L || !L.q || !L.ends_at) return;
   const s = left(L), el = $('cd'); if (el) el.textContent = clock(s);
   if (s === 0 && L.open && start.locking !== L.round) { start.locking = L.round; if (L.game) gameLock(L); else upd({ open: false, reveal: revealIdx(L) }); }
