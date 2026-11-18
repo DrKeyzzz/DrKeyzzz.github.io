@@ -167,6 +167,11 @@
   .diff[aria-pressed="true"].d-challenge { border-color: var(--gold); background: rgba(255,200,92,.14); }
   .diff[aria-pressed="true"].d-brutal { border-color: var(--rose); background: rgba(255,138,154,.16); }
   .btn.go { font-size: 22px; padding: 16px; justify-content: center; border-radius: 14px; }
+  .qbankrow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .btn.qbank { padding: 10px 16px; border-radius: 14px; gap: 10px; border-width: 2px; border-color: var(--sky); background: rgba(108,199,255,.1); text-align: left; white-space: normal; }
+  .btn.qbank .qb-ic { font-size: 24px; }
+  .btn.qbank b { display: block; font-size: 17px; }
+  .btn.qbank small { display: block; color: var(--muted); font-weight: 500; font-size: 13px; }
   .gbtns { display: flex; gap: 10px; flex-wrap: wrap; }
   .btn.big { font-size: 19px; padding: 14px 22px; border-radius: 14px; flex: 1; justify-content: center; min-width: 140px; }
   .cust { border: 1px solid var(--line2); border-radius: 14px; padding: 12px; gap: 10px; }
@@ -224,12 +229,12 @@ function custDrawer() {
 function startCard() {
   const p = gpick(), G = qgame(p.g);
   return `<section class="card stack startq" aria-label="Start a question">
-    <div class="row between"><h2 style="margin:0">${S.live && S.live.q ? 'Change the game' : 'Start a question'}</h2>${S.startOpen ? '<button class="btn sm" type="button" data-act="startClose">Cancel</button>' : ''}</div>
+    <div class="row between"><h2 style="margin:0">📚 Question bank</h2>${S.startOpen ? '<button class="btn sm" type="button" data-act="startClose">Close</button>' : ''}</div>
     <div class="gtiles" role="group" aria-label="Game">${QGAMES.map(g => `<button type="button" class="gtile" data-act="ggame" data-v="${g.id}" aria-pressed="${g.id === p.g}"><b>${esc(g.name)}</b><small>${esc(g.what)}</small></button>`).join('')}</div>
     <div class="diffs" role="group" aria-label="Difficulty">${Object.entries(DIFFS).map(([k, v]) => `<button type="button" class="diff d-${k}" data-act="gdiff" data-v="${k}" aria-pressed="${p.d === k}">${v}<small>${k === 'warmup' ? 'Get everyone in' : k === 'challenge' ? 'Solid practice' : 'Really hard'}</small></button>`).join('')}</div>
     <button class="btn pri go" type="button" data-act="go">Go ▶</button>
-    ${S.cust ? custDrawer() : `<div class="row between"><button class="btn sm linkish" type="button" data-act="copen">⚙ Customize</button>${custLabel(G, p.o) ? `<span class="chip">${esc(custLabel(G, p.o))}</span>` : ''}</div>`}
-    <p class="dim small" style="margin:0">A new ${esc(G.name)} question every time you press Next. More games are on the way.</p></section>`;
+    ${S.cust ? custDrawer() : `<div class="row between"><button class="btn" type="button" data-act="copen">⚙ Customize</button>${custLabel(G, p.o) ? `<span class="chip">${esc(custLabel(G, p.o))}</span>` : ''}</div>`}
+    <p class="dim small" style="margin:0">Go asks one now. Next keeps asking new ${esc(G.name)} questions.</p></section>`;
 }   // the 🎼 Key signature maker (2026-11-17)
 const TK = () => 'mtg_live_teach_v1:' + S.code;    // the correct answer stays on this computer (the projector reads it)
 const correct = () => { try { const t = JSON.parse(localStorage.getItem(TK()) || 'null'); return t && S.live && t.round === S.live.round ? t.correct || '' : ''; } catch { return ''; } };
@@ -347,12 +352,11 @@ function roundCard() {
 }
 // Screen 2 / Screen 3 for a game question: three big buttons (Lock, Skip, Next), then small Change and End
 function gameControls(L) {
-  const G = qgame(L.gen.g);
-  return `<div class="row"><span class="chip gold">${esc(G ? G.name : '')} · ${esc(DIFFS[L.gen.d] || '')}</span></div>
-    <div class="gbtns">${L.open ? `<button class="btn big pri" type="button" data-act="lock">👁 Lock &amp; reveal</button><button class="btn big" type="button" data-act="skip" title="Pull this question: nothing counts">⏭ Skip</button>` : ''}
+  const G = qgame(L.gen.g), p = gpick(), cl = custLabel(qgame(p.g) || G, p.o);
+  return `<div class="gbtns">${L.open ? `<button class="btn big pri" type="button" data-act="lock">👁 Lock &amp; reveal</button><button class="btn big" type="button" data-act="skip" title="Pull this question: nothing counts">⏭ Skip</button>` : ''}
       <button class="btn big ${L.open ? '' : 'pri'}" type="button" data-act="next">Next ▶</button></div>
-    <div class="row"><button class="btn sm" type="button" data-act="change">Change game or difficulty</button>${S.confirm === 'end' ? '<button class="btn sm warn" type="button" data-act="end">End and clear the screen?</button>' : '<button class="btn sm" type="button" data-act="confirm" data-v="end">End</button>'}
-      ${PREVIEW ? '<button class="btn sm" type="button" data-act="sim">🤖 Pretend students answer</button>' : ''}</div>`;
+    <div class="qbankrow"><button class="btn qbank" type="button" data-act="change" aria-expanded="${S.startOpen}"><span class="qb-ic">📚</span><span><b>Question bank</b><small>Next: ${esc((qgame(p.g) || G).name)} · ${esc(DIFFS[p.d] || '')}${cl ? ' · ' + esc(cl) : ''}</small></span></button>
+      <span class="grow"></span>${PREVIEW ? '<button class="btn sm" type="button" data-act="sim">🤖 Pretend students answer</button>' : ''}${S.confirm === 'end' ? '<button class="btn sm warn" type="button" data-act="end">End and clear the screen?</button>' : '<button class="btn sm" type="button" data-act="confirm" data-v="end">End</button>'}</div>`;
 }
 // Click a bar to see who chose that answer (2026-11-17, David: "there are 3 wrong answers and I want to see who they are").
 function resultsCard() {
@@ -590,7 +594,7 @@ app.addEventListener('click', async e => {
   if (act === 'cuse') { const p = gpick(); p.o = { ...S.cust.o }; savePick(p); S.cust = null; toast('Saved for this class.'); draw(); return; }
   if (act === 'own') { S.own = !S.own; draw(); return; }
   if (act === 'startClose') { S.startOpen = false; draw(); return; }
-  if (act === 'change') { S.startOpen = true; draw(); return; }
+  if (act === 'change') { S.startOpen = !S.startOpen; draw(); if (S.startOpen) setTimeout(() => { const s = document.querySelector('.startq'); if (s) s.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 30); return; }
   if (act === 'unlost') {   // 2026-11-17: only the teacher clears "I'm lost"
     const ids = t.dataset.id === '*' ? recent().filter(x => x.lost).map(x => x.id) : [t.dataset.id];
     for (const id of ids) { const x = S.pulses.find(y => y.id === id); if (!x) continue;
