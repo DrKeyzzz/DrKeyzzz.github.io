@@ -213,6 +213,7 @@ const ago = ms => { const s = Math.round((Date.now() - (ms || Date.now())) / 100
 const S = { email: '', classes: [], code: '', live: null, ans: [], pulses: [], priv: [], err: '', confirm: '', sort: 'first', curtain: (() => { try { return localStorage.getItem('mtg_live_curtain_v1') === '1'; } catch (e) { return false; } })(), offs: [], offA: null, round: '',
   comp: { type: 'mc', q: '', opts: ['', '', '', ''], correct: '', timer: 0, skills: [], ks: null }, g: null,
   ksm: { open: false, minor: false, style: 'name', clef: 'treble' }, own: false, startOpen: false };
+try { S.hideAns = localStorage.getItem('mtg_live_hideans_v1') === '1'; } catch {}   // 2026-11-18: the right answer is marked on the teacher's card unless hidden
 // ---------- Game questions (2026-11-17, David 'go'): game + Warm-up / Challenge / Brutal + Go; then Lock, Skip, Next ----------
 // The last pick is remembered per class on this computer (localStorage mtg_live_pick_v1:<code>).
 const PK = () => 'mtg_live_pick_v1:' + S.code;
@@ -391,7 +392,7 @@ function roundCard() {
   return `<section class="card stack qhead">
     <div class="row between"><span class="label">${esc(TYPES[L.type] || '')}</span><div class="row">${s != null ? `<span class="chip gold">⏱ <span class="mono" id="cd">${clock(s)}</span></span>` : ''}<span class="chip ${L.open ? 'ok' : 'no'}">${L.open ? 'Open' : 'Locked'}</span></div></div>
     <h2>${esc(L.q)}</h2>${LC.staffFor(L, 'teach')}
-    ${L.type === 'mc' ? `<div class="row">${(L.opts || []).map((o, i) => `<span class="chip">${'ABCDEF'[i]}. ${esc(o)}</span>`).join('')}</div>` : ''}
+    ${L.type === 'mc' ? `<div class="row">${(L.opts || []).map((o, i) => { const ok = !S.hideAns && o === correct(); return `<span class="chip ${ok ? 'ok' : ''}"${ok ? ' title="The right answer (only on your screen)"' : ''}>${ok ? '✓ ' : ''}${'ABCDEF'[i]}. ${esc(o)}</span>`; }).join('')}${correct() ? `<button class="btn sm" type="button" data-act="hideans" title="${S.hideAns ? 'Mark the right answer' : 'Hide the answer (if your screen is on the projector)'}">${S.hideAns ? '👁 Show answer' : '🙈 Hide'}</button>` : ''}</div>` : ''}
     <div class="row"><b class="mono">${A.length} of ${room().size || '–'}</b><span class="muted">answered${L.open && (L.type === 'mc' || L.type === 'yn') ? ' · locks by itself when everyone is in' : ''}</span><div class="meter" style="flex:1;min-width:120px"><i style="width:${room().size ? Math.min(100, 100 * A.length / room().size) : 0}%"></i></div></div>
     ${L.gen ? gameControls(L) : `<div class="row">
       <button class="btn ${L.open ? 'pri' : ''}" type="button" data-act="lock" title="${L.open ? 'Stop answers and show the results and the correct answer on the class screen' : 'Let students answer again'}">${L.open ? '👁 Lock &amp; reveal' : '🔓 Unlock answers'}</button>
@@ -705,6 +706,7 @@ app.addEventListener('click', async e => {
     const t = [['Place', 'Student', 'Points', 'Right', 'Answered']].concat(rows).map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const u = URL.createObjectURL(new Blob([t], { type: 'text/csv' })), x = document.createElement('a');
     x.href = u; x.download = `showdown-${S.code}-${new Date().toISOString().slice(0, 10)}.csv`; x.click(); setTimeout(() => URL.revokeObjectURL(u), 1000); return; }
+  if (act === 'hideans') { S.hideAns = !S.hideAns; try { localStorage.setItem('mtg_live_hideans_v1', S.hideAns ? '1' : ''); } catch {} draw(); return; }
   if (act === 'sdnum') { const p = gpick(); p.sn = Number(t.dataset.v); savePick(p); draw(); return; }
   if (act === 'sdstart') { const p = gpick(), g = G(); g.scores = {}; g.qn = 0; g.done = {}; g.prev = {}; g.auto = { on: true, n: snum(p), i: 0, paused: false }; saveG(); S.startOpen = false; S.cust = null;
     S.whoKey = ''; return db.set(livePath(), { round: LC.roundId(), q: '', type: 'mc', open: false, game: true, final: false, reveal: null, board: [], show: { st: 'lobby', n: snum(p), i: 0, who: whoList() }, updated_at: NOW }).catch(er => { S.err = ERR(er); draw(); }); }
