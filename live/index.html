@@ -147,7 +147,7 @@
 <meta name="description" content="Answer your teacher's questions live in class. Only your teacher sees your answers.">
 <link href="/fonts/fonts.css" rel="stylesheet">
 <!-- fonts.css has Noto Music for the treble clef on key signature questions -->
-<link rel="stylesheet" href="live.css?v=20261118g">
+<link rel="stylesheet" href="live.css?v=20261118h">
 <!-- Live Class, student page and ?screen=1 projector (added 2026-11-12). Shared code: live-core.js; teacher console: teach/. -->
 </head>
 <body>
@@ -452,6 +452,11 @@ function sdReward(L, score) {
   }
   return reward;
 }
+// The Top 5 on the student's own screen (2026-11-18, David: no projector needed): rank, name, points, +this round, places moved; my row in gold
+function sdMini(board) {
+  if (!board || !board.length) return '';
+  return `<div class="sd-mini" aria-label="Top 5">${board.slice(0, 5).map((b, i) => `<div class="sd-mrow ${b.s === sid ? 'me' : ''}"><b>${i + 1}</b><span class="nm">${esc(b.s === sid ? 'You' : b.n)}</span>${b.g ? `<span class="up">+${b.g}</span>` : ''}${b.m > 0 ? `<span class="mv">▲${b.m}</span>` : b.m < 0 ? `<span class="mv dn">▼${-b.m}</span>` : ''}<span class="pp">${Number(b.p || 0).toLocaleString()}</span></div>`).join('')}</div>`;
+}
 function sdCard(L) {
   // A teacher can end while answers are open, so the first reveal may arrive with the final screen.
   if (L.final && !L.open && L.reveal != null) {
@@ -462,13 +467,13 @@ function sdCard(L) {
   const cd = LC.cdNum(L); if (cd > 0) return `<section class="card stack">${head}<div class="sd-res good" style="background:rgba(255,255,255,.05);border-color:#ffc85c"><span class="label">Get ready</span><span class="sd-cd">${cd}</span></div></section>`;
   if (L.final) {
     const stars = Object.entries(SD.done).reduce((total, [round, score]) => total + (score.star || ME.stars?.[round]?.paid || 0), 0);
-    return `<section class="card stack">${head}<div class="sd-res good"><span class="sd-big">🎭</span><h2 style="margin:0">${place >= 0 && place < 3 ? 'You made the Curtain call!' : 'Showdown over!'}</h2><span class="sd-pts">${SD.pts.toLocaleString()} points</span><div class="row" style="justify-content:center"><span class="chip gold">★ ${stars} ${stars === 1 ? 'Star' : 'Stars'} earned</span><span class="chip">0 Coins earned</span></div></div></section>`;
+    return `<section class="card stack">${head}<div class="sd-res good"><span class="sd-big">🎭</span><h2 style="margin:0">${place >= 0 && place < 3 ? 'You made the Curtain call!' : 'Showdown over!'}</h2><span class="sd-pts">${SD.pts.toLocaleString()} points</span><div class="row" style="justify-content:center"><span class="chip gold">★ ${stars} ${stars === 1 ? 'Star' : 'Stars'} earned</span><span class="chip">0 Coins earned</span></div></div>${sdMini(board)}</section>`;
   }
   if (!L.open && L.reveal != null) {
     const r = sdScore(L), my = place >= 0 ? `You're #${place + 1} on the board` : 'Keep going to reach the top 5';
-    return `<section class="card stack">${head}<div class="sd-res ${r.ok ? 'good' : 'bad'}"><span class="sd-big">${r.ok ? '🎯' : r.mine ? '🎵' : '⏰'}</span><h2 style="margin:0">${r.ok ? 'Right on!' : r.mine ? 'Not this time' : 'Out of time'}</h2><span class="sd-pts">+${r.pts}</span>${starLine(sdReward(L, r))}${r.st > 2 ? `<p style="margin:0">🔥 ${r.st} in a row!</p>` : ''}<p class="muted" style="margin:0">${r.mine && !r.ok && mineFor(L.round) ? `You picked ${esc(mineFor(L.round).text)}. ` : ''}The answer was <b>${esc((L.opts || [])[L.reveal] || '')}</b>. ${my}.</p></div></section>`;
+    return `<section class="card stack">${head}<div class="sd-res ${r.ok ? 'good' : 'bad'}"><span class="sd-big">${r.ok ? '🎯' : r.mine ? '🎵' : '⏰'}</span><h2 style="margin:0">${r.ok ? 'Right on!' : r.mine ? 'Not this time' : 'Out of time'}</h2><span class="sd-pts">+${r.pts}</span>${starLine(sdReward(L, r))}${r.st > 2 ? `<p style="margin:0">🔥 ${r.st} in a row!</p>` : ''}<p class="muted" style="margin:0">${r.mine && !r.ok && mineFor(L.round) ? `You picked ${esc(mineFor(L.round).text)}. ` : ''}The answer was <b>${esc((L.opts || [])[L.reveal] || '')}</b>. ${my}.</p></div>${sdMini(board)}</section>`;
   }
-  if (mine || !L.open || s === 0) return `<section class="card stack">${head}<h2>${esc(L.q)}</h2><div class="sd-res good" style="background:rgba(255,255,255,.05);border-color:#ffc85c"><span class="sd-big">🎼</span><h2 style="margin:0">${mine ? 'Locked in!' : 'Time!'}</h2><p class="muted" style="margin:0">${mine ? 'You picked ' + esc(mine.text) + '. ' : ''}Watch the class screen.</p></div></section>`;
+  if (mine || !L.open || s === 0) return `<section class="card stack">${head}<h2>${esc(L.q)}</h2><div class="sd-res good" style="background:rgba(255,255,255,.05);border-color:#ffc85c"><span class="sd-big">🎼</span><h2 style="margin:0">${mine ? 'Locked in!' : 'Time!'}</h2><p class="muted" style="margin:0">${mine ? 'You picked ' + esc(mine.text) + '. ' : ''}The answer and the Top 5 show here in a moment.</p></div></section>`;
   return `<section class="card stack qhead">${head}<h2>${esc(L.q)}</h2>${LC.staffFor(L)}
     <div class="sd-keys">${(L.opts || []).map((o, i) => `<button type="button" class="sd-key" data-pick="${esc(o)}" ${S.busy ? 'disabled' : ''}><span class="sd-l">${i + 1}</span><span class="sd-n">${NOTES[i]}</span>${esc(o)}</button>`).join('')}</div>
     <p class="dim small" style="margin:0">Your first answer counts. Fast and right scores the most. On a computer, press the number next to your answer.</p></section>`;

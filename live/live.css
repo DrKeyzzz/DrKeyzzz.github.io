@@ -263,3 +263,13 @@ input[type=range] { width: 100%; accent-color: var(--gold); }
 .sd-lobby { display: flex; flex-wrap: wrap; gap: 10px; align-content: flex-start; overflow: hidden; }
 .sd-who { display: inline-flex; align-items: center; gap: 8px; background: rgba(255,255,255,.08); border-radius: 999px; padding: 6px 14px 6px 6px; font-size: 22px; font-weight: 800; animation: sd-in .45s ease-out both; }
 .sd-who .av { width: 34px; height: 34px; display: inline-block; }
+/* Showdown Top 5 on the student's own screen (2026-11-18) */
+.sd-mini { display: flex; flex-direction: column; gap: 4px; }
+.sd-mrow { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,.06); border-radius: 10px; padding: 5px 12px; font-weight: 700; font-size: 15px; }
+.sd-mrow b { width: 18px; color: #ffc85c; }
+.sd-mrow .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sd-mrow .up { color: #5cf0a0; font-size: 13px; }
+.sd-mrow .mv { color: #5cf0a0; font-size: 12px; } .sd-mrow .mv.dn { color: #ff8a9a; }
+.sd-mrow .pp { font-family: ui-monospace, monospace; }
+.sd-mrow.me { outline: 2px solid #ffc85c; background: rgba(255,200,92,.16); }
+@media (max-width: 600px) { .sd-res .sd-big { font-size: 34px; } .sd-res { padding: 14px 12px; } }
