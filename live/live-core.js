@@ -117,7 +117,8 @@ window.LC = (() => {
   const clefOk = c => c === 'treble' || c === 'bass' || c === 'alto';
   const CLEF_SVG = {
     treble: `<text x="16" y="${170 - 2 * 10 + 13}" font-size="86" fill="#1d2433" style="font-family:'Noto Music','Apple Symbols','Segoe UI Symbol',serif">𝄞</text>`,
-    bass: `<text x="14" y="${170 - 2 * 10 - 3}" font-size="76" fill="#1d2433" style="font-family:'Noto Music','Apple Symbols','Segoe UI Symbol',serif">𝄢</text>`,
+    // The bass clef's curl and dots mark the fourth staff line (F).
+    bass: `<g transform="translate(18 ${ksY(8)})" fill="#1d2433"><path d="M1 1C-2-9 8-18 20-18C34-18 42-9 42 2C42 20 23 35 0 46L-1 44C18 32 32 15 32 0C32-9 28-15 20-15C11-15 5-8 6 0Z"/><circle cx="9" cy="0" r="8"/><circle cx="49" cy="-10" r="4"/><circle cx="49" cy="10" r="4"/></g>`,
     alto: `<text x="14" y="${170 - 2 * 10 + 1}" font-size="80" fill="#1d2433" style="font-family:'Noto Music','Apple Symbols','Segoe UI Symbol',serif">𝄡</text>` };
   function ksStaff(n, label, clef) {
     if (!ksOk(n)) return '';
