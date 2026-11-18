@@ -216,3 +216,12 @@ input[type=range] { width: 100%; accent-color: var(--gold); }
 .ksbox.rbox { width: min(100%, 560px); }
 .proj .ksbox.rbox { width: min(100%, 900px); }
 .sd-split .ksbox.rbox { width: min(100%, 560px); }
+/* a student leading the class (2026-11-17) */
+.leadc { border: 2px solid var(--violet); background: rgba(169,147,255,.08); }
+.ltiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.ltiles.diffs3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ltiles button { border: 2px solid var(--line2); background: rgba(255,255,255,.04); color: var(--ink); border-radius: 12px; padding: 10px 8px; font: 700 15px Outfit, system-ui, sans-serif; cursor: pointer; }
+.ltiles button[aria-pressed="true"] { border-color: var(--gold); background: rgba(255,200,92,.16); }
+.leadc .gbtns { display: flex; gap: 10px; flex-wrap: wrap; }
+.leadc .btn.big { font-size: 18px; padding: 13px 18px; border-radius: 14px; flex: 1; justify-content: center; min-width: 120px; }
+.linkbtn { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-decoration: underline; cursor: pointer; }

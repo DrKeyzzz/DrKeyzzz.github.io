@@ -147,13 +147,13 @@
 <meta name="description" content="Answer your teacher's questions live in class. Only your teacher sees your answers.">
 <link href="/fonts/fonts.css" rel="stylesheet">
 <!-- fonts.css has Noto Music for the treble clef on key signature questions -->
-<link rel="stylesheet" href="live.css?v=20261117i">
+<link rel="stylesheet" href="live.css?v=20261117k">
 <!-- Live Class, student page and ?screen=1 projector (added 2026-11-12). Shared code: live-core.js; teacher console: teach/. -->
 </head>
 <body>
 <div id="app"></div>
 <p class="toast" id="toast" role="status"></p>
-<script src="live-core.js?v=20261117i"></script>
+<script src="live-core.js?v=20261117k"></script>
 <script>
 (() => {
 const { PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, NOW, db, results, latest, left, clock, ERR } = LC;
@@ -295,7 +295,7 @@ if (SCREEN) {
 // =====================================================================================
 const p = getProfile();
 const shell = inner => `<div class="wrap"><nav class="top"><a class="pill" href="${HOME}">← Music Theory Academy</a><a class="pill" href="${HOME}report/">My Report</a><span class="grow"></span>${PREVIEW ? '<span class="chip gold">Preview: pretend class, saved only in this browser</span>' : ''}</nav>${inner}
-  <p class="dim small" style="margin:0">Live Class · <a href="/privacy/" style="color:inherit">Privacy</a> · <a href="teach/" style="color:inherit">Teachers: run Live Class</a></p></div>`;
+  <p class="dim small" style="margin:0">Live Class · <a href="/privacy/" style="color:inherit">Privacy</a> · <a href="teach/" style="color:inherit">Teachers: run Live Class</a>${typeof leadLink === 'function' ? leadLink() : ''}</p></div>`;
 if (!p) { app.innerHTML = shell(`<section class="card stack"><h1>Live Class</h1><p>Sign in on the home page first, with your class code. Then come back here.</p><p><a class="btn pri" href="${HOME}">Go to the home page</a></p><p class="muted small" style="margin:0">Are you the teacher? <a href="teach/">Run Live Class here</a>.</p></section>`); return; }
 if (!p.classCode || !p.classOwner) { app.innerHTML = shell(`<section class="card stack"><h1>Live Class</h1><p>Live Class needs your class code. On the home page, open your name and add your teacher's class code.</p><p><a class="btn pri" href="${HOME}">Go to the home page</a></p></section>`); return; }
 
@@ -467,11 +467,45 @@ function helpCard() {
     <p class="dim small" style="margin:0">Only your teacher sees these.</p></section>
   <section class="card stack"><h3>Ask your teacher privately</h3>${pqList()}<textarea id="pq" maxlength="280" rows="3" placeholder="Nobody else will see this."></textarea><button type="button" class="btn" id="sendpq">Send privately</button></section>`;
 }
+// ---------- Leading the class (2026-11-17, step 7): with the teacher's 4-digit code a student gets the Question bank controls.
+// Taps are written to bc_lead/<class>_<pin> as { cmd: { a, g, d, t }, by }; the teacher's console turns them into questions.
+const LEADK = 'mtg_live_lead_v1:' + code;
+const LD = { pin: (() => { try { return sessionStorage.getItem(LEADK) || ''; } catch { return ''; } })(), ask: false, g: 'scale', d: 'challenge', off: null, ok: false, err: '' };
+function leadLink() { return LD.pin ? '' : ' · <button type="button" class="linkbtn" data-lead="ask">🎓 Lead the class</button>'; }
+function leadWatch() {
+  if (LD.off) { LD.off(); LD.off = null; }
+  if (!LD.pin) return;
+  const pin = LD.pin;
+  db.watchDoc('bc_lead/' + code + '_' + pin, d => { if (pin !== LD.pin) return; if (!d) { if (LD.off) { LD.off(); LD.off = null; } if (LD.ok) toast('Your teacher took the controls back.'); LD.pin = ''; LD.ok = false; try { sessionStorage.removeItem(LEADK); } catch {} } else LD.ok = true; draw(); })
+    .then(f => { LD.off = f; });
+}
+async function leadJoin(pin) {
+  pin = String(pin || '').replace(/\D/g, '').slice(0, 4); if (pin.length !== 4) { LD.err = 'Type the 4 numbers your teacher shows.'; draw(); return; }
+  try { const d = await db.getDoc('bc_lead/' + code + '_' + pin); if (!d) { LD.err = 'That code is not right. Check the teacher\'s screen.'; draw(); return; } }
+  catch (e) { LD.err = ERR(e); draw(); return; }
+  LD.pin = pin; LD.ask = false; LD.err = ''; if (S.live && S.live.gen && LC.qgame(S.live.gen.g)) { LD.g = S.live.gen.g; LD.d = S.live.gen.d; } try { sessionStorage.setItem(LEADK, pin); } catch {}
+  leadWatch(); await leadSend('hello'); draw();
+}
+function leadSend(a) {
+  return db.update('bc_lead/' + code + '_' + LD.pin, { cmd: { a, g: LD.g, d: LD.d, t: Date.now() }, by: name }).catch(e => { S.err = ERR(e); draw(); });
+}
+function leadCard() {
+  if (LD.ask && !LD.pin) return `<section class="card stack leadc"><h3>🎓 Lead the class</h3><p class="muted small" style="margin:0">Type the 4-digit code on your teacher's screen.</p>
+    <div class="row" style="flex-wrap:nowrap"><input id="leadpin" type="text" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="0000" style="font-size:26px;letter-spacing:.3em;max-width:160px"><button class="btn pri" type="button" data-lead="join">Start</button><button class="btn" type="button" data-lead="cancel">Cancel</button></div>
+    ${LD.err ? `<p class="msg" style="margin:0">${esc(LD.err)}</p>` : ''}</section>`;
+  if (!LD.pin || !LD.ok) return '';
+  const L = S.live, open = L && L.q && L.open, isGame = L && L.gen;
+  return `<section class="card stack leadc"><div class="row between"><h3 style="margin:0">🎓 You're leading</h3><button class="btn sm" type="button" data-lead="quit">Stop leading</button></div>
+    <div class="ltiles">${LC.QGAMES.map(g => `<button type="button" data-lead="g" data-v="${g.id}" aria-pressed="${LD.g === g.id}">${esc(g.name)}</button>`).join('')}</div>
+    <div class="ltiles diffs3">${Object.entries(LC.DIFFS).map(([k, v]) => `<button type="button" data-lead="d" data-v="${k}" aria-pressed="${LD.d === k}">${v}</button>`).join('')}</div>
+    <div class="gbtns">${open ? `<button class="btn big pri" type="button" data-lead="lock">👁 Lock &amp; reveal</button>${isGame ? '<button class="btn big" type="button" data-lead="skip">⏭ Skip</button>' : ''}` : ''}<button class="btn big ${open ? '' : 'pri'}" type="button" data-lead="next">${L && L.q ? 'Next ▶' : 'Go ▶'}</button></div>
+    <p class="dim small" style="margin:0">Your teacher's computer posts each question, so it may take a second.</p></section>`;
+}
 function draw() {
   const a = document.activeElement, keep = a && a.id ? { id: a.id, s: a.selectionStart, e: a.selectionEnd } : null;
   const pq = $('pq') ? $('pq').value : '';
   app.innerHTML = shell(`<h1 style="font-size:clamp(26px,5vw,36px)">Live Class</h1><p class="msg" role="alert">${esc(S.err)}</p>
-    <div class="cols"><div class="stack">${questionCard()}${spotCard()}${histCard()}</div><aside class="stack">${helpCard()}</aside></div>`);
+    <div class="cols"><div class="stack">${leadCard()}${questionCard()}${spotCard()}${histCard()}</div><aside class="stack">${helpCard()}</aside></div>`);
   if ($('pq')) $('pq').value = pq;
   if (keep && $(keep.id)) { const el = $(keep.id); el.focus(); try { if (keep.s != null) el.setSelectionRange(keep.s, keep.e); } catch {} }
 }
@@ -498,6 +532,16 @@ async function send(text) {
 }
 
 app.addEventListener('click', async e => {
+  const lb = e.target.closest('[data-lead]');
+  if (lb) { const a = lb.dataset.lead;
+    if (a === 'ask') { LD.ask = true; LD.err = ''; draw(); setTimeout(() => { const i = $('leadpin'); if (i) { i.focus(); i.scrollIntoView({ block: 'center' }); } }, 30); return; }
+    if (a === 'cancel') { LD.ask = false; draw(); return; }
+    if (a === 'join') return leadJoin(($('leadpin') || {}).value);
+    if (a === 'quit') { LD.pin = ''; LD.ok = false; try { sessionStorage.removeItem(LEADK); } catch {} if (LD.off) { LD.off(); LD.off = null; } draw(); return; }
+    if (a === 'g') { LD.g = lb.dataset.v; draw(); return; }
+    if (a === 'd') { LD.d = lb.dataset.v; draw(); return; }
+    if (a === 'next' || a === 'lock' || a === 'skip') { lb.disabled = true; await leadSend(a === 'next' && !(S.live && S.live.q) ? 'go' : a); setTimeout(draw, 600); return; }
+    return; }
   const t = e.target.closest('button'); if (!t) return;
   if (t.dataset.act === 'mysheet') { mySheet(); return; }
   if (t.dataset.act === 'shclear') { S.shClear = true; draw(); return; }
@@ -533,6 +577,7 @@ app.addEventListener('change', e => { if (e.target.id === 'cls') switchClass(e.t
 app.addEventListener('keydown', e => { if (e.target.id === 'ans' && e.key === 'Enter' && (e.target.tagName === 'INPUT' || e.metaKey || e.ctrlKey)) { e.preventDefault(); send(e.target.value); } });
 
 let wasOpen = null;
+leadWatch();
 db.watchDoc('bc_live/' + code, d => {
   const before = S.live; S.live = d; S.loaded = true;
   if (d && d.q) { const m = mineFor(d.round); shSee(d, m ? m.text : null); }

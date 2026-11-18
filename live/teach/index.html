@@ -147,7 +147,7 @@
 <meta name="robots" content="noindex">
 <link href="/fonts/fonts.css" rel="stylesheet">
 <!-- fonts.css has Noto Music for the treble clef on key signature questions -->
-<link rel="stylesheet" href="../live.css?v=20261117i">
+<link rel="stylesheet" href="../live.css?v=20261117k">
 <!-- Live Class teacher console (added 2026-11-12). Shown inside the All games dashboard's Live tab (?embed=1&code=XXXX),
      or on its own. ?preview=1 = a pretend class kept in this browser; open ../?preview=1 in another tab to be a student. -->
 <style>
@@ -172,6 +172,8 @@
   .btn.qbank .qb-ic { font-size: 24px; }
   .btn.qbank b { display: block; font-size: 17px; }
   .btn.qbank small { display: block; color: var(--muted); font-weight: 500; font-size: 13px; }
+  .leadcard { display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap; border: 2px solid var(--violet); background: rgba(169,147,255,.1); }
+  .leadpin { font: 800 44px ui-monospace, Menlo, monospace; letter-spacing: .25em; color: var(--ink); margin: 2px 0 4px; }
   .gbtns { display: flex; gap: 10px; flex-wrap: wrap; }
   .btn.big { font-size: 19px; padding: 14px 22px; border-radius: 14px; flex: 1; justify-content: center; min-width: 140px; }
   .cust { border: 1px solid var(--line2); border-radius: 14px; padding: 12px; gap: 10px; }
@@ -190,7 +192,7 @@
 <body>
 <div id="app"></div>
 <p class="toast" id="toast" role="status"></p>
-<script src="../live-core.js?v=20261117i"></script>
+<script src="../live-core.js?v=20261117k"></script>
 <script>
 (() => {
 const { OPT_DEF, DIFFS, QGAMES, qgame, makeQ, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, BANK, NOW, at, db, results, latest, left, clock, ERR } = LC;
@@ -302,6 +304,7 @@ function openClass(code) {
   db.watchDoc(livePath(), d => { S.live = d; if (d && d.game && d.round && d.updated_at && !G().starts[d.round]) { G().starts[d.round] = d.updated_at; saveG(); } watchAnswers(); draw(); }, fail).then(f => S.offs.push(f));
   db.watchCol('bc_pulse', { class_code: code, owner: S.email }, l => { S.pulses = l; draw(); }, fail).then(f => S.offs.push(f));
   db.watchCol('bc_private', { class_code: code, owner: S.email }, l => { S.priv = l; draw(); }, fail).then(f => S.offs.push(f));
+  let pin = null; try { pin = localStorage.getItem(LK()); } catch {} watchLead(pin);
   draw();
 }
 function watchAnswers() {
@@ -332,7 +335,7 @@ function headCard() {
   return `<section class="card row between">
     <div class="row">${S.classes.length > 1 ? `<label class="f" for="cls" style="flex-direction:row;align-items:center;gap:8px">Class <select id="cls" style="width:auto">${S.classes.map(c => `<option value="${esc(c.code)}" ${c.code === S.code ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>` : `<b>${esc((S.classes[0] || {}).name || S.code)}</b>`}
       <span class="muted small">Students open <b>musictheoryacademy.org/live</b> signed in with code <b class="mono">${esc(S.code)}</b> · ${recent().length} joined</span></div>
-    <div class="row"><button class="btn ${G().on ? 'pri' : ''}" type="button" data-act="game" aria-pressed="${G().on}" title="Showdown: right and fast answers score points; the top 5 show on the projector">🏁 Showdown: ${G().on ? 'On' : 'Off'}</button><a class="btn" href="${scr}" target="_blank" rel="noopener">📽 Open projector</a>${PREVIEW ? `<a class="btn" href="../?preview=1" target="_blank" rel="noopener">👀 Student view</a>` : ''}</div></section>`;
+    <div class="row"><button class="btn ${G().on ? 'pri' : ''}" type="button" data-act="game" aria-pressed="${G().on}" title="Showdown: right and fast answers score points; the top 5 show on the projector">🏁 Showdown: ${G().on ? 'On' : 'Off'}</button><button class="btn ${S.lead ? 'pri' : ''}" type="button" data-act="lead">🎓 ${S.lead ? 'Student leading' : 'Let a student lead'}</button><a class="btn" href="${scr}" target="_blank" rel="noopener">📽 Open projector</a>${PREVIEW ? `<a class="btn" href="../?preview=1" target="_blank" rel="noopener">👀 Student view</a>` : ''}</div></section>`;
 }
 function roundCard() {
   const L = S.live, A = latest(S.ans), n = recent().length, s = left(L);
@@ -351,6 +354,42 @@ function roundCard() {
     </div>`}${L.game ? `<div class="row"><span class="chip gold">🏁 Showdown · question ${G().qn}</span>${(L.board || []).slice(0, 3).map((b, i) => `<span class="chip">${i + 1}. ${esc(S.curtain ? "Player " + (i + 1) : b.n)} · ${b.p}</span>`).join('')}<span class="grow"></span><button class="btn pri" type="button" data-act="podium">🎭 Curtain call</button>${S.confirm === 'gnew' ? '<button class="btn warn" type="button" data-act="gnew">Start a new Showdown (scores to 0)?</button>' : '<button class="btn" type="button" data-act="confirm" data-v="gnew">↺ New Showdown</button>'}</div>` : ''}</section>`;
 }
 // Screen 2 / Screen 3 for a game question: three big buttons (Lock, Skip, Next), then small Change and End
+// ---------- A student leads (2026-11-17, step 7): the teacher shows a 4-digit code; a student types it on their /live/ page and gets
+// game tiles, Warm-up / Challenge / Brutal and Go / Lock / Skip / Next. Their taps go to bc_lead/<class code>_<pin> (cmd = { a, g, d, t });
+// only THIS console posts questions (students can't write bc_live), so it must stay open. Take back deletes the record.
+const LK = () => 'mtg_live_lead_v1:' + S.code;
+let leadOff = null;
+function watchLead(pin) {
+  if (leadOff) { leadOff(); leadOff = null; }
+  if (!pin) { S.lead = null; return; }
+  let first = true;
+  db.watchDoc('bc_lead/' + S.code + '_' + pin, d => {
+    if (!d) { S.lead = null; try { localStorage.removeItem(LK()); } catch {} draw(); return; }
+    const c = d.cmd, t = c && +c.t || 0;
+    if (first) { S.leadT = t; first = false; }   // never replay an old tap
+    S.lead = { pin, by: d.by || '' };
+    if (c && t > (S.leadT || 0)) { S.leadT = t; leadDo(c); }
+    draw();
+  }, e => { S.err = ERR(e); draw(); }).then(f => { leadOff = f; });
+}
+async function startLead() {
+  const pin = String(1000 + Math.floor(Math.random() * 9000));
+  try { await db.set('bc_lead/' + S.code + '_' + pin, { class_code: S.code, owner: S.email, on: true, by: '', updated_at: NOW }); try { localStorage.setItem(LK(), pin); } catch {} watchLead(pin); }
+  catch (e) { S.err = ERR(e); draw(); }
+}
+async function stopLead() { const p = S.lead && S.lead.pin; if (!p) return; try { await db.del('bc_lead/' + S.code + '_' + p); } catch {} try { localStorage.removeItem(LK()); } catch {} watchLead(null); toast('You have the controls back.'); draw(); }
+function leadDo(c) {
+  const L = S.live;
+  if ((c.a === 'go' || c.a === 'next') && qgame(c.g) && DIFFS[c.d]) { const p = gpick(); if (p.g !== c.g) { p.g = c.g; p.o = { ...OPT_DEF }; } p.d = c.d; savePick(p); return goGame(false); }
+  if (c.a === 'skip' && L && L.gen) return goGame(true);
+  if (c.a === 'lock' && L && L.open) { if (L.game) return gameLock(L); return upd({ open: false, ends_at: null, reveal: revealIdx(L) }); }
+}
+function leadCard() {
+  if (!S.lead) return '';
+  return `<section class="card leadcard"><div><span class="label">🎓 A student is leading</span><div class="leadpin">${esc(S.lead.pin)}</div>
+    <p class="muted small" style="margin:0">${S.lead.by ? `<b>${esc(S.lead.by)}</b> has the controls.` : 'The student opens musictheoryacademy.org/live, taps <b>🎓 Lead the class</b> and types this code.'} Keep this page open: it posts their questions.</p></div>
+    <button class="btn" type="button" data-act="leadStop">Take back</button></section>`;
+}
 function gameControls(L) {
   const G = qgame(L.gen.g), p = gpick(), cl = custLabel(qgame(p.g) || G, p.o);
   return `<div class="gbtns">${L.open ? `<button class="btn big pri" type="button" data-act="lock">👁 Lock &amp; reveal</button><button class="btn big" type="button" data-act="skip" title="Pull this question: nothing counts">⏭ Skip</button>` : ''}
@@ -488,7 +527,7 @@ function draw() {
   if (!S.code) return;
   const a = document.activeElement, keep = a && a.id ? { id: a.id, s: a.selectionStart, e: a.selectionEnd } : null;
   const L = S.live && S.live.q ? S.live : null;
-  app.innerHTML = shell(`${headCard()}<p class="msg" role="alert">${esc(S.err)}</p>
+  app.innerHTML = shell(`${headCard()}${leadCard()}<p class="msg" role="alert">${esc(S.err)}</p>
     <div class="cols"><div class="stack">${!L || S.startOpen ? startCard() : ''}${L ? roundCard() + resultsCard() + answersCard() : ''}</div>
     <aside class="stack">${composerCard()}${askedCard()}${pulseCard()}${inboxCard()}</aside></div>`);
   if (keep && $(keep.id)) { const el = $(keep.id); el.focus(); try { if (keep.s != null) el.setSelectionRange(keep.s, keep.e); } catch {} }
@@ -583,6 +622,8 @@ app.addEventListener('click', async e => {
   if (act === 'ggame') { const p = gpick(); if (p.g !== t.dataset.v) { p.g = t.dataset.v; p.o = { ...OPT_DEF }; savePick(p); } if (S.cust) S.cust = { o: { ...gpick().o }, sample: null }; draw(); return; }
   if (act === 'gdiff') { const p = gpick(); p.d = t.dataset.v; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
   if (act === 'go') { S.cust = null; return goGame(false); }
+  if (act === 'lead') { if (S.lead) return stopLead(); return startLead(); }
+  if (act === 'leadStop') return stopLead();
   if (act === 'copen') { S.cust = { o: { ...gpick().o }, sample: null }; draw(); return; }
   if (act === 'cclose') { S.cust = null; draw(); return; }
   if (act === 'cset') { const k = t.dataset.k, v = k === 'timer' || k === 'ivs' ? Number(t.dataset.v) : t.dataset.v;
