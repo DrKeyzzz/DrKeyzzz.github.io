@@ -5,7 +5,7 @@
 * { box-sizing: border-box; }
 html, body { margin: 0; }
 body { min-height: 100vh; background: radial-gradient(1200px 700px at 50% -10%, var(--bg-glow), var(--bg) 70%) fixed, var(--bg);
-  color: var(--ink); font: 16px/1.5 Outfit, system-ui, sans-serif; }
+  color: var(--ink); font: 16px/1.5 Outfit, 'Noto Music', system-ui, sans-serif; }   /* Noto Music draws 𝄪 and 𝄫 in answer choices */
 button, input, select, textarea { font: inherit; color: inherit; }
 a { color: var(--gold); }
 :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }

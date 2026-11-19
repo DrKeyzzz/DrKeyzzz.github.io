@@ -178,7 +178,7 @@ window.LC = (() => {
   }
   // Customize (2026-11-17, step 3): OPT holds the teacher's choices while a question is made. clef: any | treble | bass | alto;
   // acc: both | sharps | flats; mode: both | major | minor; type: mix | name | spell | count | relative | odd (Scale Quest).
-  const OPT_DEF = { clef: 'any', acc: 'both', mode: 'both', type: 'mix', play: 'mix', ivs: [], chords: [], inv: 'root', root: 'any', range: 'mid', timer: 30 };
+  const OPT_DEF = { nl: 'any', na: 'any', where: 'any', clef: 'any', acc: 'both', mode: 'both', type: 'mix', play: 'mix', ivs: [], chords: [], inv: 'root', root: 'any', range: 'mid', timer: 30 };
   let OPT = OPT_DEF;
   const anyClef = def => OPT.clef !== 'any' ? OPT.clef : def || rnd(['treble', 'treble', 'bass', 'alto']);
   const accOk = n => OPT.acc === 'sharps' ? n >= 0 : OPT.acc === 'flats' ? n <= 0 : true;
@@ -231,7 +231,7 @@ window.LC = (() => {
   const accGlyph = w => w === 1 ? NATURAL : w === 2 ? SHARP : w === 3 ? FLAT : w === 4 ? DSHARP : w === 5 ? `<g transform="translate(-10 0)">${FLAT}</g>${FLAT}` : '';
   const SEMI = [0, 2, 4, 5, 7, 9, 11];
   const pitch = (p, acc) => 12 * Math.floor(p / 7) + SEMI[((p % 7) + 7) % 7] + acc;
-  const noteName = (p, acc) => LETTERS[((p % 7) + 7) % 7] + (acc > 0 ? '♯' : acc < 0 ? '♭' : '');
+  const noteName = (p, acc) => LETTERS[((p % 7) + 7) % 7] + (acc >= 2 ? '𝄪' : acc <= -2 ? '𝄫' : acc > 0 ? '♯' : acc < 0 ? '♭' : '');
   const NOTE = '<ellipse rx="11.5" ry="8.2" transform="rotate(-20)" fill="none" stroke="#1d2433" stroke-width="4.2"/>';
   function noteStaff(codes, clef, ks) {
     const C = clefOk(clef) ? clef : 'treble', sh = CLEF_SHIFT[C], N = (codes || []).map(dec), K = ksOk(ks) ? ks : 0, x0 = K ? 88 + Math.abs(K) * 20 + 50 : 130, WD = Math.max(256, x0 + (N.length - 1) * 70 + 40);
@@ -407,7 +407,28 @@ window.LC = (() => {
     if (d === 'challenge') return rnd([-2, -1, 0, 1, 11, 12, 13, 14].concat([2, 3, 4, 5, 6, 7, 8, 9, 10]));
     return rnd([-6, -5, -4, -3, 15, 16, 17, 18]);
   }
+  // The teacher picks the note (2026-11-19, David): OPT.nl = letter 0-6 (C-B), OPT.na = accidental -2..2 (𝄫 ♭ ♮ ♯ 𝄪), OPT.where = staff | below | above.
+  // Wrong choices stay close: same letter with the next accidental, one line/space up and down, the same sound with another letter, the other clef's name.
+  const pickedNote = () => OPT.nl !== 'any' || OPT.na !== 'any' || OPT.where !== 'any';
+  function pickNoteQ(d) {
+    const clef = OPT.clef !== 'any' ? OPT.clef : 'treble', sh = CLEF_SHIFT[clef];
+    const acc = OPT.na !== 'any' ? Number(OPT.na) : rnd([0, 0, 1, -1, 2, -2]);
+    const span = { staff: [2, 10], below: [-5, 1], above: [11, 17] }[OPT.where] || [-3, 15];
+    const dps = []; for (let dp = span[0]; dp <= span[1]; dp++) if (OPT.nl === 'any' || ((dp - sh) % 7 + 7) % 7 === Number(OPT.nl)) dps.push(dp);
+    const p = rnd(dps.length ? dps : [6]) - sh, right = noteName(p, acc);
+    const toward = acc > 0 ? acc - 1 : acc < 0 ? acc + 1 : rnd([1, -1]);   // the same letter, one accidental closer to natural (a natural gets a sharp or flat)
+    const enhP = p + (acc > 0 ? 1 : -1), enhA = pitch(p, acc) - pitch(enhP, 0);   // the same sound spelled with the next letter
+    const other = clef === 'treble' ? 'bass' : 'treble', misread = noteName(p + sh - CLEF_SHIFT[other], acc);
+    const AW = a => a >= 2 ? 'double sharp' : a <= -2 ? 'double flat' : a > 0 ? 'sharp' : a < 0 ? 'flat' : 'natural';
+    const wrong = [[noteName(p, toward), `Right letter, but look again: it has a ${AW(acc)}${acc ? '' : ' (no sharp or flat)'}.`],
+      [noteName(p + 1, acc), 'One step too high: check line or space.'], [noteName(p - 1, acc), 'One step too low: check line or space.'],
+      [acc && Math.abs(enhA) <= 2 ? noteName(enhP, enhA) : '', 'Same sound, but the letter name is wrong: read the note head first.'],
+      [misread, `That is the name in ${other} clef. This is ${KS_CLEFS[clef].name.toLowerCase()} clef.`], [noteName(p + 2, acc), 'Off by a line (or a space).']];
+    const w = { 1: 2, '-1': 3, 2: 4, '-2': 5 }[acc] || 0;
+    return mcq('Which note is this?', right, d === 'warmup' ? [wrong[1], wrong[2], wrong[0], wrong[3]] : Math.abs(acc) === 2 ? [wrong[0], wrong[3], wrong[1], wrong[2], wrong[4]] : wrong, { skills: ['notes'], clef, ks: null, gen_n: [w ? encW(p, w) : enc(p, 0)] });
+  }
   function noteQ(d) {
+    if (pickedNote()) return pickNoteQ(d);
     const clef = tClef(d), sh = CLEF_SHIFT[clef], p = tPos(d) - sh, acc = d === 'brutal' && Math.random() < .5 ? rnd([-1, 1]) : 0, right = noteName(p, acc);
     const other = clef === 'treble' ? 'bass' : 'treble', misread = noteName(p + sh - CLEF_SHIFT[other], acc);
     return mcq('Which note is this?', right, [[noteName(p + 1, acc), 'One step too high: check line or space.'], [noteName(p - 1, acc), 'One step too low: check line or space.'],
@@ -526,8 +547,11 @@ window.LC = (() => {
     { id: 'scale', name: 'Scale Quest', what: 'Keys and scales: you pick', url: '/scale-quest/', pick: true, opts: {}, qdef: ['name', 'count', 'spell', 'odd', 'relative', 'same'], make() { return keyPickQ(this.qdef); } },
     { id: 'keysig', name: 'Key signatures', what: 'You pick the keys and the clef', url: '/scale-quest/', game: 'Scale Quest', pick: true, opts: {}, qdef: ['name', 'count'], make() { return keyPickQ(this.qdef); } },
     { id: 'tidal', name: 'Tidal Tones', what: 'Notes and intervals on the staff', url: '/tidal-tones/',
-      opts: { type: [['mix', 'Mix'], ['note', 'Name the note'], ['interval', 'Name the interval']], clef: [['any', 'Any'], ['treble', '𝄞 Treble'], ['bass', '𝄢 Bass'], ['alto', '𝄡 Alto']] },
-      make(d) { const t = OPT.type; return t === 'note' ? noteQ(d) : t === 'interval' ? intervalQ(d) : Math.random() < .55 ? noteQ(d) : intervalQ(d); } },
+      opts: { type: [['mix', 'Mix'], ['note', 'Name the note'], ['interval', 'Name the interval']], clef: [['any', 'Any'], ['treble', '𝄞 Treble'], ['bass', '𝄢 Bass'], ['alto', '𝄡 Alto']],
+        nl: [['any', 'Any']].concat(['C', 'D', 'E', 'F', 'G', 'A', 'B'].map((l, i) => [String(i), l])),
+        na: [['any', 'Any'], ['0', '♮ Natural'], ['1', '♯ Sharp'], ['-1', '♭ Flat'], ['2', '𝄪 Double sharp'], ['-2', '𝄫 Double flat']],
+        where: [['any', 'Any'], ['staff', 'On the staff'], ['below', 'Ledger lines below'], ['above', 'Ledger lines above']] },
+      make(d) { const t = OPT.type; return pickedNote() || t === 'note' ? noteQ(d) : t === 'interval' ? intervalQ(d) : Math.random() < .55 ? noteQ(d) : intervalQ(d); } },
     { id: 'bigscore', name: 'The Big Score', what: 'Time signatures and counting', url: '/rhythm-trainer/', opts: {}, make(d) { return tsQ(d); } },
     { id: 'rooftop', name: 'Rooftop Runner', what: 'Reading rhythms', url: '/rooftop-runner/', opts: {}, make(d) { return valueQ(d); } },
     { id: 'earshot', name: 'Earshot Saloon', what: 'Intervals by ear', url: '/earshot-saloon/', sound: true,
