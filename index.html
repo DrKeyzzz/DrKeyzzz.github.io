@@ -502,7 +502,7 @@
 </style>
 </head>
 <body>
-  <nav class="topbar" aria-label="Site"><a class="iconbtn live" href="live/" data-tip="Live Class: when your teacher asks the class a question, answer it here from your own device. Only your teacher sees your answers. Teachers: open it to run Live Class."><span aria-hidden="true">●</span>Live<span class="tfull"> Class</span></a><a class="iconbtn" href="teacher/all/"><span class="tfull">Teacher Dashboard</span><span class="tshort">Teachers</span></a></nav>
+  <nav class="topbar" aria-label="Site"><a class="iconbtn live" href="live/" data-tip="Live Class: when your teacher asks the class a question, answer it here from your own device. Only your teacher sees your answers. Teachers: open it to run Live Class."><span aria-hidden="true">●</span>Live<span class="tfull"> Class</span></a><a class="iconbtn" href="report/#class" data-tip="See everyone in your class: their avatars and who practiced the most this week."><span aria-hidden="true">👥</span><span class="tfull"> My Class</span></a><a class="iconbtn" href="teacher/all/"><span class="tfull">Teacher Dashboard</span><span class="tshort">Teachers</span></a></nav>
   <header>
     <h1>Music Theory Academy</h1>
     <div class="staff" aria-hidden="true"></div>
@@ -1698,7 +1698,9 @@ render(); refreshClass(); tipIds();
   // ---------- start ----------
   window.MTGTime = {
     stats: stats, sync: sync, render: render, open: openBoard, close: closeBoard, renderBoard: renderBoard, tierOf: tierOf, TIERS: TIERS, fmt: fmt,
-    allTimeMin: function(){ var s = stats(); return s ? s.all : 0; }
+    allTimeMin: function(){ var s = stats(); return s ? s.all : 0; },
+    // My Class stage (avatar snippet, 2026-11-19): the class's time rows { id: '<code>_<sid>', name, total, week, week_min }, plus this week's key
+    classRows: function(){ var s = stats(); if (!s || !s.cls) return Promise.resolve(null); return loadRows('class', s).then(function(rows){ return { rows: rows, week: weekKey(new Date()), me: s.id }; }); }
   };
   function start(){
     render();
