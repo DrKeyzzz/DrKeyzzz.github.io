@@ -1260,7 +1260,7 @@ render(); refreshClass(); tipIds();
   var SDK = 'https://www.gstatic.com/firebasejs/10.12.2/', COL = 'practice_time', HOME = 'https://drkeyzzz.github.io/';
   var MIN = 60000, MAX_SEND = 30, GAP = 60000, LOCK_MS = 45000, DOC_TTL = 300000, BOARD_TTL = 60000, BACKOFF = 600000;
   // Practice Hero tiers in minutes (My Report's badge uses the first five; Legend shows here only)
-  var TIERS = [[60, 'Bronze', '🥉'], [300, 'Silver', '🥈'], [600, 'Gold', '🥇'], [1500, 'Platinum', '💠'], [3000, 'Diamond', '💎'], [6000, 'Legend', '🏆']];
+  var TIERS = [[60, 'Bronze', '🥉', 'Bronze Ring + 10 ★'], [300, 'Silver', '🥈', 'Silver Sparkles + 25 ★'], [600, 'Gold', '🥇', 'Golden Notes + 50 ★'], [1500, 'Platinum', '💠', 'Platinum Cape + 100 ★'], [3000, 'Diamond', '💎', 'Diamond Crown + 150 ★'], [6000, 'Legend', '🏆', 'Legend Wings + 250 ★']];   // rewards: avatar snippet (2026-11-18)
   var TAB_ID = Math.random().toString(36).slice(2);
 
   var css = document.createElement('style');
@@ -1388,7 +1388,7 @@ render(); refreshClass(); tipIds();
   function tierOf(min){
     var k = 0; while (k < TIERS.length && min >= TIERS[k][0]) k++;
     var from = k ? TIERS[k - 1][0] : 0, next = TIERS[k] || null;
-    return { k: k, name: k ? TIERS[k - 1][1] : '', ic: k ? TIERS[k - 1][2] : '', next: next ? next[1] : '', nextIc: next ? next[2] : '',
+    return { k: k, name: k ? TIERS[k - 1][1] : '', ic: k ? TIERS[k - 1][2] : '', next: next ? next[1] : '', nextIc: next ? next[2] : '', reward: next ? next[3] : '',
       left: next ? next[0] - min : 0, pct: next ? Math.max(0, Math.min(100, Math.round(100 * (min - from) / (next[0] - from)))) : 100 };
   }
   function fmt(min){ min = Math.max(0, Math.round(min)); if (min < 60) return min + ' min'; var h = Math.floor(min / 60), m = min % 60; return h + ' h' + (m ? ' ' + m + ' min' : ''); }
@@ -1575,7 +1575,7 @@ render(); refreshClass(); tipIds();
   function showTip(b){
     if (!tip) { tip = document.createElement('div'); tip.className = 'mtgtm-tip ' + theme; tip.setAttribute('aria-hidden', 'true'); tip.hidden = true; document.body.appendChild(tip); }
     var s = stats();
-    tip.innerHTML = s ? 'Your practice time in all the games · open the leaderboard' + (s.tier.next ? '<small>' + esc(fmt(s.tier.left)) + ' to ' + (s.tier.nextIc + ' ' + esc(s.tier.next)) + '</small>' : '<small>🏆 Legend: the top tier!</small>')
+    tip.innerHTML = s ? 'Your practice time in all the games · open the leaderboard' + (s.tier.next ? '<small>' + esc(fmt(s.tier.left)) + ' to ' + (s.tier.nextIc + ' ' + esc(s.tier.next)) + ': ' + esc(s.tier.reward) + '</small>' : '<small>🏆 Legend: the top tier!</small>')
       : 'Sign in on the home page to track your practice time';
     tip.hidden = false;
     var r = b.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
@@ -1662,7 +1662,7 @@ render(); refreshClass(); tipIds();
     var t = s.tier;
     el.innerHTML = 'Today <b>' + fmt(s.today) + '</b> · All time <b>' + fmt(s.all) + '</b>' + (t.name ? ' · ' + t.ic + ' <b>' + t.name + '</b>' : '') +
       '<div class="mtgtm-mebar" aria-hidden="true"><i style="width:' + t.pct + '%"></i></div>' +
-      (t.next ? esc(fmt(t.left)) + ' to ' + t.nextIc + ' ' + t.next : '🏆 Legend: the top tier!') + ' <span style="opacity:.75">(Bronze 1 h · Silver 5 h · Gold 10 h · Platinum 25 h · Diamond 50 h · Legend 100 h)</span>';
+      (t.next ? esc(fmt(t.left)) + ' to ' + t.nextIc + ' ' + t.next + ': <b>' + esc(t.reward) + '</b>' : '🏆 Legend: the top tier!') + ' <span style="opacity:.75">(Bronze 1 h · Silver 5 h · Gold 10 h · Platinum 25 h · Diamond 50 h · Legend 100 h)</span>';
   }
   function openBoard(from){
     hideTip(); pickTheme();

@@ -1685,6 +1685,20 @@ boot();
 .mav-pin{font:inherit;font-size:16px;font-weight:800;padding:7px 10px;border-radius:10px;border:2px solid #ffc85c;background:#0f1430;color:#fff;width:9.5em;max-width:46vw}
 
 .av .mav-swim{transform-box:fill-box;transform-origin:center;animation:mav-swim 2.6s ease-in-out infinite}@keyframes mav-swim{0%,100%{transform:translateX(0)}50%{transform:translateX(-3px)}}
+
+/* ---- PRACTICE HERO rewards (2026-11-18) ---- */
+.av .mav-rise{animation:mav-rise 3.2s ease-out infinite;opacity:0}@keyframes mav-rise{0%{transform:translateY(8px);opacity:0}20%{opacity:1}100%{transform:translateY(-34px);opacity:0}}
+.av .mav-cape{transform-box:fill-box;transform-origin:50% 0;animation:mav-cape 2.4s ease-in-out infinite alternate}@keyframes mav-cape{from{transform:skewX(-3deg)}to{transform:skewX(4deg) scaleY(1.02)}}
+.av .mav-wl{transform-box:fill-box;transform-origin:100% 70%;animation:mav-wl .9s ease-in-out infinite alternate}@keyframes mav-wl{from{transform:rotate(6deg)}to{transform:rotate(-12deg)}}
+.mav-legend{margin-left:4px;font-size:.9em}
+.mav-hero-ov{position:fixed;inset:0;z-index:2147483200;display:grid;place-items:center;padding:16px;background:radial-gradient(circle at 50% 40%,rgba(255,215,90,.22),rgba(6,8,22,.92) 65%);overflow:hidden;font:15px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;color:#fff}
+.mav-hero-card{position:relative;z-index:2;width:min(420px,92vw);text-align:center;background:linear-gradient(160deg,#2a2150,#14102a);border:2px solid #ffc85c;border-radius:22px;padding:22px 20px 18px;box-shadow:0 0 40px rgba(255,200,61,.45);animation:mav-flip .8s cubic-bezier(.3,1.3,.5,1)}
+.mav-hero-medal{font-size:64px;line-height:1;display:inline-block;animation:mav-medal 1.2s cubic-bezier(.3,1.4,.5,1)}@keyframes mav-medal{0%{transform:scale(.2) rotateY(540deg)}100%{transform:none}}
+.mav-hero-card h3{margin:8px 0 2px;font-size:26px;font-weight:900;color:#ffd23f}.mav-hero-card p{margin:4px 0;color:#d9d3f0}
+.mav-hero-av{width:150px;height:180px;margin:6px auto 0}.mav-hero-av svg{width:100%;height:100%}
+.mav-hero-got{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:8px 0 14px}.mav-hero-got span{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:5px 12px;font-weight:800}
+.mav-hero-btns{display:flex;justify-content:center;gap:10px}.mav-hero-btns button{font:inherit;font-weight:900;border:0;border-radius:999px;padding:10px 18px;cursor:pointer}
+.mav-hero-btns .go{background:linear-gradient(#ffe08a,#ffb820);color:#2a1a00}.mav-hero-btns .ok{background:rgba(255,255,255,.12);color:#fff}
 </style>
 <script id="mtg-avatar" data-mount=".wrap > .top" data-perch="">
 /* Avatar, build step 1 (added 2026-11-16; spec: Claude outputs/avatar-spec.md). A small cartoon avatar sits right after the
@@ -1770,6 +1784,11 @@ boot();
     {id:'sunset',slot:'bg',name:'Sunset',ic:'🌅',c:90},{id:'galaxy',slot:'bg',name:'Galaxy Backdrop',ic:'🌌',p:90},{id:'wreath',slot:'bg',name:'Golden Wreath',ic:'🏅',lock:'Reach rank 10: Superior Music Theory Master'},
     // pets
     // THE STAR VAULT (2026-11-18, David 'go with your picks'): everything with a ★ price lives in the Vault; these move, glow and show off
+    // PRACTICE HERO items (2026-11-18, David 'go with your picks'): earned only by practice time (tier = Practice Hero tier 1-6), never bought
+    {id:'none',slot:'hero',name:'No hero effect',ic:'🚫',free:1},{id:'ring',slot:'hero',name:'Bronze Ring',ic:'🥉',tier:1,lock:'Practice 1 hour (Bronze Practice Hero)'},
+    {id:'sparkle',slot:'hero',name:'Silver Sparkles',ic:'🥈',tier:2,lock:'Practice 5 hours (Silver Practice Hero)'},{id:'gnotes',slot:'hero',name:'Golden Notes',ic:'🥇',tier:3,lock:'Practice 10 hours (Gold Practice Hero)'},
+    {id:'cape',slot:'hero',name:'Platinum Cape',ic:'💠',tier:4,lock:'Practice 25 hours (Platinum Practice Hero)'},{id:'dcrown',slot:'hat',name:'Diamond Crown',ic:'💎',tier:5,lock:'Practice 50 hours (Diamond Practice Hero)'},
+    {id:'wings',slot:'hero',name:'Legend Wings',ic:'🏆',tier:6,lock:'Practice 100 hours (Legend Practice Hero)'},
     {id:'none',slot:'aura',name:'No aura',ic:'🚫',free:1},{id:'none',slot:'fx',name:'No burst',ic:'🚫',free:1},{id:'none',slot:'glow',name:'Plain name',ic:'🚫',free:1},
     {id:'fall',slot:'aura',name:'Starfall',ic:'✨',p:40,d:'Little gold stars drift down around you'},{id:'orbit',slot:'aura',name:'Note Orbit',ic:'🎵',p:60,d:'Music notes circle your head'},
     {id:'burst',slot:'fx',name:'Star Burst',ic:'💥',p:60,d:'Gold stars pop out on every right answer, in every game'},{id:'gold',slot:'glow',name:'Gold Name',ic:'🏅',p:80,d:'Your name glows gold with a ★ on class boards'},
@@ -1942,6 +1961,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       cap: `<path d="M29.5 31 Q30.5 13 50 13 Q69.5 13 70.5 31Z" fill="#4f7cff"/><path d="M50 27.5 L82 29.5 Q83 34 67 34 L50 32Z" fill="#2f55d4"/><circle cx="50" cy="13.5" r="1.6" fill="#2f55d4"/>`,
       phones: `<path d="M27 42 Q27 13 50 13 Q73 13 73 42" fill="none" stroke="#222" stroke-width="3.2"/><rect x="23" y="36" width="8" height="14" rx="3.5" fill="#ff4d6d"/><rect x="69" y="36" width="8" height="14" rx="3.5" fill="#ff4d6d"/>`,
       tophat: `<rect x="35" y="-2" width="30" height="24" rx="2" fill="#151520"/><rect x="35" y="16" width="30" height="4" fill="#9b6bff"/><ellipse cx="50" cy="22.5" rx="23" ry="4" fill="#151520"/>`,
+      dcrown: `<path d="M31 22 L31 6 L40 14 L50 1 L60 14 L69 6 L69 22Z" fill="#cdf3ff" stroke="#5cc4e8" stroke-width="1"/><path d="M31 18 H69" stroke="#8fdcf5" stroke-width="1.2"/><path d="M50 9 L53 13 L50 17 L47 13Z" fill="#fff" stroke="#7ad4f0" stroke-width=".6"/><circle cx="39.5" cy="17" r="1.6" fill="#e8fbff"/><circle cx="60.5" cy="17" r="1.6" fill="#e8fbff"/><path class="mav-tw" d="M58 5 l.7 1.7 1.7 .7 -1.7 .7 -.7 1.7 -.7 -1.7 -1.7 -.7 1.7 -.7Z" fill="#fff"/><path class="mav-tw mav-tw2" d="M36 9 l.6 1.4 1.4 .6 -1.4 .6 -.6 1.4 -.6 -1.4 -1.4 -.6 1.4 -.6Z" fill="#fff"/>`,   // Diamond Crown (Practice Hero, 2026-11-18)
       crown: `<path d="M32 22 L32 8 L40 15 L50 4 L60 15 L68 8 L68 22Z" fill="#f5c542" stroke="#b8860b" stroke-width="1"/><circle cx="50" cy="15" r="2.4" fill="#ff4d6d"/><circle cx="40" cy="18" r="1.6" fill="#3ccf9a"/><circle cx="60" cy="18" r="1.6" fill="#4f7cff"/>`,
       beret: `<path d="M27 30 Q30 15 52 15 Q73 16 72 28 Q60 33 27 30Z" fill="#1d1d24"/><circle cx="57" cy="14.5" r="1.8" fill="#1d1d24"/><path d="M30 28 Q50 31 70 27" fill="none" stroke="#33333e" stroke-width="1"/>`,
       shako: `<rect x="33" y="2" width="34" height="27" rx="3" fill="#1d2a52"/><rect x="33" y="22" width="34" height="5" fill="#f5c542"/><path d="M31 29 Q50 34 69 29 L69 31 Q50 37 31 31Z" fill="#111"/><circle cx="50" cy="13" r="4" fill="#f5c542"/><path d="M50 3 Q46.5 -1 50 -5 Q53.5 -1 50 3" fill="#fff"/><path d="M50 3 Q48.6 0 50 -3" stroke="#ff4d6d" stroke-width="1.4" fill="none"/>`,
@@ -2064,14 +2084,23 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       return `<g class="leg-${s}"><path d="M${hx} 90 L${kx} 99" stroke="${pc}" stroke-width="8.5" stroke-linecap="round"/><g class="shin-${s}"><path d="M${kx} 99 L${kx} 105" stroke="${pc}" stroke-width="7.8" stroke-linecap="round"/><ellipse cx="${fx}" cy="108" rx="6" ry="3.3" fill="${shoe}"/><path d="M${fx - 5.5} 109 H${fx + 5.5}" stroke="${stripe}" stroke-width="1.1"/></g></g>`; };
     const vb = o.crop ? '18 4 64 64' : '0 0 100 120';
     // Star Vault auras (2026-11-18): Rainbow glows behind, Starfall and Note Orbit play in front
-    let auraB = '', auraF = '';
+    let auraB = '', auraF = '', heroB = '', heroP = '';
+    // Practice Hero effects (2026-11-18)
+    if (L.hero === 'ring' && !o.crop && !o.bare) heroP = `<ellipse class="mav-rain" cx="50" cy="112" rx="36" ry="7.5" fill="none" stroke="#e09a55" stroke-width="2.6" opacity=".9"/><ellipse class="mav-rain" cx="50" cy="112" rx="42" ry="9" fill="none" stroke="#f5c08a" stroke-width="1" opacity=".5" style="animation-delay:-1.8s"/>`;
+    if (L.hero === 'sparkle') auraF += [[20, 38, 0], [80, 30, -.6], [14, 72, -1.1], [86, 68, -.3], [26, 98, -1.4], [76, 94, -.9], [50, 10, -.5]].map(([x, y, dl]) => `<path class="mav-tw" style="animation-delay:${dl}s" d="M${x} ${y - 3} L${x + .8} ${y - .8} L${x + 3} ${y} L${x + .8} ${y + .8} L${x} ${y + 3} L${x - .8} ${y + .8} L${x - 3} ${y} L${x - .8} ${y - .8}Z" fill="#eef3fb"/>`).join('');
+    if (L.hero === 'gnotes') auraF += [[22, 70, 0, '♪'], [78, 64, -.8, '♫'], [30, 52, -1.6, '♩'], [70, 84, -2.3, '♪']].map(([x, y, dl, n]) => `<g class="mav-rise" style="animation-delay:${dl}s"><text x="${x}" y="${y}" font-size="9" text-anchor="middle" fill="#ffd23f" stroke="#a06c00" stroke-width=".5" paint-order="stroke">${n}</text></g>`).join('');
+    if (L.hero === 'cape') { defs += `<linearGradient id="${u}cp" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f4f7fc"/><stop offset=".5" stop-color="#b8c2d6"/><stop offset="1" stop-color="#e8eef8"/></linearGradient>`;
+      heroB = `<path class="mav-cape" d="M36 59 Q50 55 64 59 Q74 80 80 106 Q50 113 20 106 Q26 80 36 59Z" fill="url(#${u}cp)" stroke="#8e9ab4" stroke-width=".9"/><path d="M36 60 Q50 64 64 60" fill="none" stroke="#c9b6ff" stroke-width="2"/>`; }
+    if (L.hero === 'wings') { defs += `<linearGradient id="${u}wg" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff8dc"/><stop offset=".6" stop-color="#ffd96b"/><stop offset="1" stop-color="#ffb020"/></linearGradient>`;
+      const wing = `<path class="mav-wl" d="M44 68 Q30 44 8 50 Q16 56 12 62 Q22 62 16 70 Q28 70 22 78 Q34 78 44 74Z" fill="url(#${u}wg)" stroke="#fff3c4" stroke-width=".8"/>`;
+      heroB = `<g opacity=".95">${wing}<g transform="matrix(-1 0 0 1 100 0)">${wing}</g></g>`; }
     if (L.aura === 'rain' && !o.bare) { defs += `<radialGradient id="${u}rb"><stop offset=".38" stop-color="#ff5f6d" stop-opacity="0"/><stop offset=".5" stop-color="#ff5f6d" stop-opacity=".55"/><stop offset=".6" stop-color="#ffc371" stop-opacity=".55"/><stop offset=".7" stop-color="#fff36b" stop-opacity=".5"/><stop offset=".8" stop-color="#5cf0a0" stop-opacity=".5"/><stop offset=".9" stop-color="#47c2ff" stop-opacity=".45"/><stop offset="1" stop-color="#a45cff" stop-opacity="0"/></radialGradient>`;
       auraB = `<ellipse class="mav-rain" cx="50" cy="62" rx="44" ry="54" fill="url(#${u}rb)"/>`; }
     if (L.aura === 'fall') auraF = `<g class="mav-fall">` + [[12, 0, 2.4, 3.4], [27, -1.6, 1.6, 4.2], [41, -2.8, 2, 3.8], [58, -.9, 1.5, 4.6], [73, -2.2, 2.3, 3.6], [88, -3.1, 1.7, 4], [64, -3.6, 1.3, 5], [20, -2.5, 1.3, 4.8]]
       .map(([x, dl, r, du]) => `<g class="mav-sf" style="animation-delay:${dl}s;animation-duration:${du}s">${star(x, 0, r, '#ffd23f')}</g>`).join('') + `</g>`;
     if (L.aura === 'orbit') auraF = `<g transform="translate(50 ${o.crop ? 30 : 31})">` + ['♪', '♫', '♩'].map((n, i) => `<g class="mav-orb" style="animation-delay:${-i * 1.2}s"><text x="0" y="3" font-size="9" text-anchor="middle" fill="#fff" stroke="#7c4dff" stroke-width=".6" paint-order="stroke">${n}</text></g>`).join('') + `</g>`;
-    return `<svg viewBox="${vb}" role="img" aria-label="${o.label || 'Your avatar'}"><defs>${defs}</defs>${bg}${auraB}${o.crop || o.bare ? '' : platform(rank)}
-  <g class="root">${behind}${back}${leg('l')}${leg('r')}<rect x="40" y="86" width="20" height="7" rx="3" fill="${pc}"/><rect x="45.5" y="54" width="9" height="7" fill="${dk}"/><path d="${torsoD}" fill="${topFill}"/>${extra}
+    return `<svg viewBox="${vb}" role="img" aria-label="${o.label || 'Your avatar'}"><defs>${defs}</defs>${bg}${auraB}${o.crop || o.bare ? '' : platform(rank)}${heroP}
+  <g class="root">${heroB}${behind}${back}${leg('l')}${leg('r')}<rect x="40" y="86" width="20" height="7" rx="3" fill="${pc}"/><rect x="45.5" y="54" width="9" height="7" fill="${dk}"/><path d="${torsoD}" fill="${topFill}"/>${extra}
   <g class="head">${hairBack}${ears}${face}${blush}${eyes}${nose}${beard[0]}${M[L.mouth]}${beard[1]}${brows}${front}${glasses}${headX}${hat}</g>
   ${o.bare ? '' : gSide}${arm('l')}${arm('r')}</g>
   ${o.crop || o.bare ? '' : `<g class="pet">${PT[L.pet] || ''}</g>`}${auraF}</svg>`;
@@ -2094,7 +2123,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
 
   // ---------- the look: saved on this device, and online for signed-in students ----------
   var DEF = { skin: 2, face: 'round', eyes: 'big', brows: 'arch', browC: 0, nose: 'dot', mouth: 'smile', hair: 'curly', hairC: 1, cover: 'none', glasses: 'none', beard: 'none',
-    top: 'hoodie', topC: 0, pantC: 0, hat: 'none', gear: 'none', bg: 'none', pet: 'none', outfit: 'none', idle: 'bounce', happy: 'hop', aww: 'shrug', dance: 'groove', aura: 'none', fx: 'none', glow: 'none', dogC: 0, petC: 0 };   // aura / fx / glow: Star Vault (2026-11-18)
+    top: 'hoodie', topC: 0, pantC: 0, hat: 'none', gear: 'none', bg: 'none', pet: 'none', outfit: 'none', idle: 'bounce', happy: 'hop', aww: 'shrug', dance: 'groove', aura: 'none', fx: 'none', glow: 'none', dogC: 0, petC: 0, hero: 'none' };   // aura / fx / glow: Star Vault (2026-11-18)
   var TOPS = [['hoodie', 'Hoodie'], ['tee', 'Tee'], ['jacket', 'Jacket']];   // the free tops (the Store adds more later)
   var pick = function(a){ return a[Math.floor(Math.random() * a.length)]; };
   function randomLook(){
@@ -2503,7 +2532,38 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   var SETS = { brass: ['trumpet', 'trombone', 'horn', 'tuba'], strings: ['violin', 'viola', 'cello', 'bass'], winds: ['flute', 'clarinet', 'sax'], perc: ['snare', 'mdrum', 'handdrum'] };
   function setDone(set){ return !!(SETS && SETS[set]) && SETS[set].every(function(id){ return W.owned.indexOf('gear:' + id) >= 0; }); }
   function streakBest(){ var x = lsGet('mtg_streak_v1:' + (SID || 'guest')) || {}; return Math.max(+x.best || 0, +x.days || 0); }
-  function earnedIt(it){ return (it.set && setDone(it.set)) || (it.streak && streakBest() >= it.streak); }
+  function earnedIt(it){ return (it.set && setDone(it.set)) || (it.streak && streakBest() >= it.streak) || (it.tier && heroBest() >= it.tier); }
+  // ---------- PRACTICE HERO rewards (2026-11-18, David 'go with your picks') ----------
+  // The Practice Time total (window.MTGTime, the ⏱ box; answer gaps under 2 minutes) decides the tier. Each tier reached once pays Stars and
+  // unlocks its item (added to the owned list, so another device knows it is paid); a celebration card shows it. Best tier kept in mtg_hero_v1:<sid>.
+  var HERO_STARS = [0, 10, 25, 50, 100, 150, 250], HERO_NAMES = ['', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Legend'], HERO_IC = ['', '🥉', '🥈', '🥇', '💠', '💎', '🏆'], HERO_H = [0, 1, 5, 10, 25, 50, 100];
+  var HK = 'mtg_hero_v1:' + SID;
+  function heroMin(){ try { return window.MTGTime && MTGTime.allTimeMin ? MTGTime.allTimeMin() || 0 : 0; } catch(e){ return 0; } }
+  function heroNow(){ var m = heroMin(), k = 0; while (k < 6 && m >= HERO_H[k + 1] * 60) k++; return k; }
+  function heroBest(){ if (!P) return 0; var b = +(lsGet(HK) || {}).best || 0, k = heroNow(); if (k > b) lsSet(HK, { best: k }); return Math.max(b, k); }
+  function heroItem(t){ return ITEMS.filter(function(x){ return x.tier === t; })[0]; }
+  function heroCheck(){
+    if (!P || OFF) return; var k = heroBest(), got = [];
+    for (var t = 1; t <= k; t++) { var it = heroItem(t), kk = key(it); if (W.owned.indexOf(kk) >= 0) continue;
+      W.owned.push(kk); earn(HERO_STARS[t], 0); got.push(t); }
+    if (!got.length) return; lookDirty = true; saveLocal(); sendSoon(5000); drawAll(); heroCard(got);
+  }
+  function heroCard(got){
+    var top = got[got.length - 1], it = heroItem(top), stars = got.reduce(function(a, t){ return a + HERO_STARS[t]; }, 0), L = Object.assign({}, look); L[it.slot] = it.id;
+    var ov = document.createElement('div'); ov.className = 'mav-hero-ov'; ov.setAttribute('role', 'dialog'); ov.setAttribute('aria-label', 'Practice Hero reward');
+    ov.innerHTML = '<div class="mav-hero-card"><span class="mav-hero-medal">' + HERO_IC[top] + '</span><h3>' + HERO_NAMES[top] + ' Practice Hero!</h3><p>You practiced ' + HERO_H[top] + (HERO_H[top] === 1 ? ' hour' : ' hours') + '. That is serious work.</p>'
+      + '<div class="mav-hero-av av" data-idle="bounce">' + avatar(clean(L), { label: 'Your avatar with ' + it.name, rank: rankNow() }) + '</div>'
+      + '<div class="mav-hero-got"><span>' + it.ic + ' ' + it.name + '</span><span>+' + stars + ' ★</span></div>'
+      + (got.length > 1 ? '<p>Also unlocked: ' + got.slice(0, -1).map(function(t){ return heroItem(t).name; }).join(', ') + '</p>' : '')
+      + '<div class="mav-hero-btns"><button type="button" class="go" data-h="wear">Wear it</button><button type="button" class="ok" data-h="ok">Awesome!</button></div></div>';
+    var cols = ['#ffb020', '#ffd23f', '#fff', '#a45cff', '#3d8bff', '#5cf0a0'];
+    for (var i = 0; i < 70; i++) { var c = document.createElement('span'); c.className = 'mav-conf'; c.style.left = Math.random() * 100 + '%'; c.style.background = cols[i % 6]; c.style.animationDuration = (1.6 + Math.random() * 1.8) + 's'; c.style.animationDelay = Math.random() * .5 + 's'; ov.appendChild(c); }
+    ov.addEventListener('click', function(e){ var b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.h === 'wear') { look[it.slot] = it.id; look = wearOwned(clean(look)); saveLocal(); sendOnline(); drawAll(); act(look.dance); }
+      ov.remove(); });
+    document.body.appendChild(ov);
+    try { [392, 494, 587, 784, 988].forEach(function(f, i){ tone(f, i * .1, .9, .06); }); } catch(e){}
+  }
   var key = function(it){ return it.slot + ':' + it.id; };
   var RANK_ITEMS = { 'gear:baton': 8, 'bg:wreath': 9 };   // rank index that unlocks them
   // The developer (signed in as Maestro, on a device where the admin has opened the teacher dashboard) owns every item (David 2026-11-18)
@@ -2577,16 +2637,17 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       return '<div class="mav-row"><div class="mav-lab">' + label + '</div><div class="mav-opts">' + opts + '</div></div>';
     }).join('');
   }
-  var COIN = '<i class="mav-coin" aria-label="coins"></i>';
+  var COIN = '<i class="mav-coin" aria-label="coins"></i>', RN_SUB = '';
   function price(it){ return it.c ? it.c + ' ' + COIN : it.p ? cost(it).toLocaleString() + ' ★' : ''; }
   function card(it, big){
     var on = draft[it.slot] === it.id, have = owns(it), t = trying && key(trying) === key(it), r = rarity(it);
-    var tag = on ? '<span class="mav-ctag eq">EQUIPPED</span>' : have ? (it.free ? '' : '<span class="mav-ctag own">✓ OWNED</span>') : it.enc ? '<span class="mav-ctag lk">🎭 ENCORE ' + it.enc + '</span>' : it.lock ? '<span class="mav-ctag lk">🔒 MASTERY</span>' : '';
+    var tag = on ? '<span class="mav-ctag eq">EQUIPPED</span>' : have ? (it.free ? '' : '<span class="mav-ctag own">✓ OWNED</span>') : it.enc ? '<span class="mav-ctag lk">🎭 ENCORE ' + it.enc + '</span>' : it.lock ? '<span class="mav-ctag lk">' + (it.tier ? '⏱ PRACTICE' : '🔒 MASTERY') + '</span>' : '';
     var cst = cost(it), need = P ? cst - (it.c ? W.coins : W.points) : 0;
     var pr = have || it.lock || it.enc ? '' : '<span class="mav-pr ' + (P && need <= 0 ? 'ok' : 'no') + '">' + (it.c ? COIN + ' ' + it.c : '★ ' + cst.toLocaleString()) + (P && need > 0 ? '<small>need ' + need.toLocaleString() + '</small>' : '') + '</span>';
     var v = !!it.p, gone = v && hidden(it), wk = v && key(it) === weekItem() && !have;
     if (v && !have && wk) tag = '<span class="mav-ctag new">⏳ 25% OFF</span>';
-    var sub = v ? (have ? 'Star Vault' : '<span class="mav-vbar"><i style="width:' + Math.min(100, Math.round(100 * (P ? W.points : 0) / cst)) + '%"></i></span>★ ' + Math.min(P ? W.points : 0, cst) + ' / ' + cst) : RN[r];
+    if (it.tier && !v) { var hm = heroMin() / 60, need2 = HERO_H[it.tier]; RN_SUB = have ? HERO_NAMES[it.tier] + ' Practice Hero' : '<span class="mav-vbar"><i style="width:' + Math.min(100, Math.round(100 * hm / need2)) + '%"></i></span>' + (Math.floor(hm * 10) / 10) + ' / ' + need2 + ' h'; }
+    var sub = it.tier && !v ? RN_SUB : v ? (have ? 'Star Vault' : '<span class="mav-vbar"><i style="width:' + Math.min(100, Math.round(100 * (P ? W.points : 0) / cst)) + '%"></i></span>★ ' + Math.min(P ? W.points : 0, cst) + ' / ' + cst) : RN[r];
     return '<button type="button" class="mav-card r-' + r + (v ? ' vault' + (it.p >= 300 ? ' legend' : '') + (gone ? ' gone' : '') : '') + (big ? ' big' : '') + (on ? ' on' : '') + (t ? ' try' : '') + '" data-item="' + key(it) + '" title="' + (it.lock && !have ? 'How to get it: ' + it.lock : it.d || it.name) + '">'
       + '<span class="mav-cbg"></span><span class="mav-pic">' + thumb(it) + '</span>' + tag + pr + '<span class="mav-lbl"><b>' + it.name + '</b><small>' + sub + '</small></span></button>';
   }
@@ -2633,6 +2694,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       return '<div class="mav-vweek">★ <div><b>How to earn Stars</b><br>Great runs (80% or better) · all 3 daily quests · streaks · tests · new ranks · mastering a game · Live Class Showdowns</div></div>'
         + (wi ? '<div class="mav-vweek">⏳ <div><b>Star of the Week: ' + wi.name + ' is 25% off</b><br>Only ★ ' + cost(wi) + ' until ' + sunday() + ' night. Tap something you are wearing to take it off.</div></div>' : '')
         + (P ? '' : '<p class="mav-sub">Sign in to earn ★ Stars.</p>')
+        + '<div class="mav-vsec">⏱ Practice Hero: earned only by practice time</div><div class="mav-grid">' + ITEMS.filter(function(x){ return x.tier || (x.slot === 'hero' && x.id === 'none'); }).map(function(x){ return card(x); }).join('') + '</div>'
         + VS.map(function(g){ var l = []; g[1].forEach(function(sl){ l = l.concat(itemsOf(sl, 1)); });
           return l.length ? '<div class="mav-vsec">' + g[0] + '</div><div class="mav-grid">' + l.map(function(x){ return card(x); }).join('') + '</div>' : ''; }).join('');
     }
@@ -2789,6 +2851,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   var OFF = false;
   function start(){ if (OFF) return true; if (!place()) return false; drawAll(); perchStart();
     if (starNote && P) { starNote = false; saveLocal(); setTimeout(function(){ pop('⭐ Your points are now ★ Stars! (' + W.points + ' ★)', '#ffd166'); }, 2500); }
+    if (P) { setTimeout(heroCheck, 6000); setInterval(heroCheck, 60000); addEventListener('mtghist', function(e){ if (e.detail && e.detail.type === 'run') setTimeout(heroCheck, 2500); }); }
     return true; }
   avatarsOff(function(off){
     if (off) { OFF = true; P = null; corner.remove(); return; }   // P = null: no earning, no saving
@@ -2821,7 +2884,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       h.style.cssText = 'width:' + size + 'px;height:' + size + 'px;border-color:' + tier(v.rank) + (v.encores ? ';box-shadow:0 0 0 2px ' + encCol(v.encores) : '');
       h.title = RANKS[v.rank][1] + (v.encores ? ' · Encore ' + encMark(v.encores) : '');
       h.innerHTML = avatar(v.look, { crop: 1, label: 'Avatar' }); el.insertBefore(h, el.firstChild);
-      if (v.look.glow === 'gold') el.classList.add('mav-goldname');   // Star Vault Gold Name (2026-11-18)
+      if (v.look.glow === 'gold') el.classList.add('mav-goldname');
+      if (v.look.hero === 'wings' && !el.querySelector('.mav-legend')) { var lg = document.createElement('span'); lg.className = 'mav-legend'; lg.textContent = '🏆'; lg.title = 'Practice Legend: 100 hours of practice'; el.appendChild(lg); }   // Star Vault Gold Name (2026-11-18)
     });
   }
   window.MTGAvatar = { draw: function(L, o){ return avatar(clean(Object.assign({}, DEF, L)), o || {}); }, peer: peer, badge: badge, off: function(){ return OFF; }, signedIn: function(){ return !!P; }, rank: function(){ return P ? { n: rankNow() + 1, name: RANKS[rankNow()][1], encores: W.encores || 0 } : null; },
@@ -2848,7 +2912,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   var SDK = 'https://www.gstatic.com/firebasejs/10.12.2/', COL = 'practice_time', HOME = 'https://drkeyzzz.github.io/';
   var MIN = 60000, MAX_SEND = 30, GAP = 60000, LOCK_MS = 45000, DOC_TTL = 300000, BOARD_TTL = 60000, BACKOFF = 600000;
   // Practice Hero tiers in minutes (My Report's badge uses the first five; Legend shows here only)
-  var TIERS = [[60, 'Bronze', '🥉'], [300, 'Silver', '🥈'], [600, 'Gold', '🥇'], [1500, 'Platinum', '💠'], [3000, 'Diamond', '💎'], [6000, 'Legend', '🏆']];
+  var TIERS = [[60, 'Bronze', '🥉', 'Bronze Ring + 10 ★'], [300, 'Silver', '🥈', 'Silver Sparkles + 25 ★'], [600, 'Gold', '🥇', 'Golden Notes + 50 ★'], [1500, 'Platinum', '💠', 'Platinum Cape + 100 ★'], [3000, 'Diamond', '💎', 'Diamond Crown + 150 ★'], [6000, 'Legend', '🏆', 'Legend Wings + 250 ★']];   // rewards: avatar snippet (2026-11-18)
   var TAB_ID = Math.random().toString(36).slice(2);
 
   var css = document.createElement('style');
@@ -2976,7 +3040,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   function tierOf(min){
     var k = 0; while (k < TIERS.length && min >= TIERS[k][0]) k++;
     var from = k ? TIERS[k - 1][0] : 0, next = TIERS[k] || null;
-    return { k: k, name: k ? TIERS[k - 1][1] : '', ic: k ? TIERS[k - 1][2] : '', next: next ? next[1] : '', nextIc: next ? next[2] : '',
+    return { k: k, name: k ? TIERS[k - 1][1] : '', ic: k ? TIERS[k - 1][2] : '', next: next ? next[1] : '', nextIc: next ? next[2] : '', reward: next ? next[3] : '',
       left: next ? next[0] - min : 0, pct: next ? Math.max(0, Math.min(100, Math.round(100 * (min - from) / (next[0] - from)))) : 100 };
   }
   function fmt(min){ min = Math.max(0, Math.round(min)); if (min < 60) return min + ' min'; var h = Math.floor(min / 60), m = min % 60; return h + ' h' + (m ? ' ' + m + ' min' : ''); }
@@ -3163,7 +3227,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   function showTip(b){
     if (!tip) { tip = document.createElement('div'); tip.className = 'mtgtm-tip ' + theme; tip.setAttribute('aria-hidden', 'true'); tip.hidden = true; document.body.appendChild(tip); }
     var s = stats();
-    tip.innerHTML = s ? 'Your practice time in all the games · open the leaderboard' + (s.tier.next ? '<small>' + esc(fmt(s.tier.left)) + ' to ' + (s.tier.nextIc + ' ' + esc(s.tier.next)) + '</small>' : '<small>🏆 Legend: the top tier!</small>')
+    tip.innerHTML = s ? 'Your practice time in all the games · open the leaderboard' + (s.tier.next ? '<small>' + esc(fmt(s.tier.left)) + ' to ' + (s.tier.nextIc + ' ' + esc(s.tier.next)) + ': ' + esc(s.tier.reward) + '</small>' : '<small>🏆 Legend: the top tier!</small>')
       : 'Sign in on the home page to track your practice time';
     tip.hidden = false;
     var r = b.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
@@ -3250,7 +3314,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     var t = s.tier;
     el.innerHTML = 'Today <b>' + fmt(s.today) + '</b> · All time <b>' + fmt(s.all) + '</b>' + (t.name ? ' · ' + t.ic + ' <b>' + t.name + '</b>' : '') +
       '<div class="mtgtm-mebar" aria-hidden="true"><i style="width:' + t.pct + '%"></i></div>' +
-      (t.next ? esc(fmt(t.left)) + ' to ' + t.nextIc + ' ' + t.next : '🏆 Legend: the top tier!') + ' <span style="opacity:.75">(Bronze 1 h · Silver 5 h · Gold 10 h · Platinum 25 h · Diamond 50 h · Legend 100 h)</span>';
+      (t.next ? esc(fmt(t.left)) + ' to ' + t.nextIc + ' ' + t.next + ': <b>' + esc(t.reward) + '</b>' : '🏆 Legend: the top tier!') + ' <span style="opacity:.75">(Bronze 1 h · Silver 5 h · Gold 10 h · Platinum 25 h · Diamond 50 h · Legend 100 h)</span>';
   }
   function openBoard(from){
     hideTip(); pickTheme();
