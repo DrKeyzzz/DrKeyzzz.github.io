@@ -266,6 +266,8 @@ if (SCREEN) {
   }
   // the Curtain call draws each star's own avatar (one read each, kept 10 minutes)
   const ccDraw = () => app.querySelectorAll('[data-cc]').forEach(el => { if (el.dataset.done || !window.MTGAvatar || !MTGAvatar.peer) return; el.dataset.done = 1;
+    // 2026-11-19 (kids bought dances that didn't show): the avatar code keeps each student's look for 10 min, so the Curtain call drops that copy and reads it fresh
+    try { sessionStorage.removeItem('mtg_avatar_peer_v1:' + (code || 'none') + '_' + String(el.dataset.cc || '').toLowerCase().replace(/[^a-z]/g, '').slice(0, 16)); } catch {}
     MTGAvatar.peer(code, el.dataset.cc).then(v => { el.innerHTML = MTGAvatar.draw(v ? v.look : {}, { label: 'Avatar' });   // no avatar yet: the default one
       el.dataset.dance = (v && v.look && v.look.dance) || 'groove'; el.dataset.act = el.dataset.dance; }); });
   // each star loops their own dance move (the one they picked for 'End of a run'), restarted every 3.4 s (David, 2026-11-17)
