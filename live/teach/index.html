@@ -346,11 +346,28 @@ function autoQueue(round) { const A = AUTO(); if (!A || A.manual || A.paused) re
 async function autoStep(round) { const A = AUTO(), L = S.live; if (!A || A.manual || A.paused || !L || L.round !== round || L.open) return; if (A.n && A.i >= A.n) return finishShow(); return goGame(false); }
 // every player's place for their own screen ("You're #8 of 22"), up to 80 players, keyed by a short hash of the student id
 const placesMap = () => Object.fromEntries(Object.entries(G().scores).sort((a, b) => b[1].p - a[1].p).slice(0, 80).map(([s], i) => [LC.hid(s), i + 1]));
+// Class Star (2026-11-19, fair rewards): today's questions with a right answer, counted from each student's first answer when the question locks.
+// 5+ questions and 80%+ right = the class wins it once a day; bc_live.cls = { id, pct } tells every student page (+2 ★ for everyone who answered today).
+const CK = () => 'mtg_live_cls_v1:' + S.code;
+function clsStats() { const day = new Date().toDateString(); let o = null; try { o = JSON.parse(localStorage.getItem(CK()) || 'null'); } catch {} return o && o.day === day ? o : { day, q: 0, ans: 0, right: 0, won: false, seen: [] }; }
+const clsField = () => { const c = clsStats(); return c.won ? { cls: { id: c.id, pct: c.pct } } : {}; };
+function clsTally(d) {
+  if (!d || !d.q || d.open || d.reveal == null) return; const cs = clsStats(); if (cs.seen.includes(d.round)) return;
+  const c = correct(); if (!c) return;
+  const first = {}; S.ans.slice().sort((a, b) => (a.at || 0) - (b.at || 0)).forEach(a => { if (!first[a.sid]) first[a.sid] = a; });
+  const F = Object.values(first); if (!F.length) return;
+  cs.seen = cs.seen.concat(d.round).slice(-200); cs.q++; cs.ans += F.length; cs.right += F.filter(a => a.text === c).length;
+  const pct = Math.round(100 * cs.right / cs.ans);
+  if (!cs.won && cs.q >= 5 && pct >= 80) { cs.won = true; cs.pct = pct; cs.id = S.code + '-' + Date.now().toString(36); toast('🌟 Class Star! ' + pct + '% right: everyone who answered gets +2 ★'); setTimeout(() => upd(clsField()), 300); }
+  try { localStorage.setItem(CK(), JSON.stringify(cs)); } catch {}
+}
+function clsChip() { const c = clsStats(); if (c.won) return `<span class="chip gold" title="The class got ${c.pct}% right today: everyone who answered got +2 ★">🌟 Class Star won</span>`;
+  const pct = c.ans ? Math.round(100 * c.right / c.ans) : 0; return `<span class="chip" title="5 questions and 80% right today = +2 ★ for everyone who answered">🌟 Class Star: ${Math.min(c.q, 5)}/5 · ${c.ans ? pct + '%' : '–'}</span>`; }
 async function finishShow() {
   const A = G().auto; if (A) { A.on = false; saveG(); } clearTimeout(S.autoT);
   const L = S.live; if (!L || !L.q) return;
   if (L.open && L.game) await gameLock(L);
-  return upd({ open: false, final: true, board: topBoard(), places: placesMap(), show: { st: 'done', n: A ? A.n : 0, i: A ? Math.min(A.i, 30) : 0 } });
+  return upd({ open: false, final: true, board: topBoard(), places: placesMap(), show: { st: 'done', n: A ? A.n : 0, i: A ? Math.min(A.i, 30) : 0, id: (A && A.id) || '' } });
 }
 const lobbyNames = who => who.length
   ? who.map((student, i) => `<span class="chip">${esc(S.curtain ? 'Student ' + (i + 1) : student.name)}</span>`).join('')
@@ -390,7 +407,7 @@ function openClass(code) {
   S.offs.forEach(f => f && f()); S.offs = []; if (S.offA) S.offA(); S.offA = null;
   S.code = code; S.live = null; S.ans = []; S.pulses = []; S.priv = []; S.round = ''; S.err = '';
   const fail = e => { S.err = ERR(e); draw(); };
-  db.watchDoc(livePath(), d => { S.live = d; if (d && d.game && d.round && d.updated_at && !G().starts[d.round]) { G().starts[d.round] = d.updated_at; saveG(); } watchAnswers(); draw(); }, fail).then(f => S.offs.push(f));
+  db.watchDoc(livePath(), d => { S.live = d; try { clsTally(d); } catch {} if (d && d.game && d.round && d.updated_at && !G().starts[d.round]) { G().starts[d.round] = d.updated_at; saveG(); } watchAnswers(); draw(); }, fail).then(f => S.offs.push(f));
   db.watchCol('bc_pulse', { class_code: code, owner: S.email }, l => { S.pulses = l; draw(); }, fail).then(f => S.offs.push(f));
   db.watchCol('bc_private', { class_code: code, owner: S.email }, l => { S.priv = l; draw(); }, fail).then(f => S.offs.push(f));
   let pin = null; try { pin = localStorage.getItem(LK()); } catch {} watchLead(pin);
@@ -426,7 +443,7 @@ function headCard() {
   return `<section class="card row between">
     <div class="row">${S.classes.length > 1 ? `<label class="f" for="cls" style="flex-direction:row;align-items:center;gap:8px">Class <select id="cls" style="width:auto">${S.classes.map(c => `<option value="${esc(c.code)}" ${c.code === S.code ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>` : `<b>${esc((S.classes[0] || {}).name || S.code)}</b>`}
       <span class="muted small">Students open <b>musictheoryacademy.org/live</b> signed in with code <b class="mono">${esc(S.code)}</b> · ${recent().length} joined</span></div>
-    <div class="row"><button class="btn ${G().on ? 'pri' : ''}" type="button" data-act="game" aria-pressed="${G().on}" title="Showdown: right and fast answers score points; the top 5 show on the projector">🏁 Showdown: ${G().on ? 'On' : 'Off'}</button>${AUTO() && S.live && S.live.q ? `<span class="chip gold" style="align-self:center">🏁 Question ${AUTO().i}${AUTO().n ? ' of ' + AUTO().n : ''}</span>` : ''}<button class="btn ${S.lead ? 'pri' : ''}" type="button" data-act="lead">🎓 ${S.lead ? 'Student leading' : 'Let a student lead'}</button><a class="btn" href="${scr}" target="_blank" rel="noopener">📽 Open projector</a>${S.confirm === 'fresh' ? '<button class="btn warn" type="button" data-act="fresh" title="Clears the screen, Showdown scores, I\'m lost and private questions (Questions asked stays)">Yes, clear all</button><button class="btn" type="button" data-act="confirm" data-v="fresh">Cancel</button>' : '<button class="btn" type="button" data-act="confirm" data-v="fresh" title="Clear for a new class: screen, Showdown scores, I\'m lost, private questions. Questions asked stays.">🧹 Clear all</button>'}${PREVIEW ? `<a class="btn" href="../?preview=1" target="_blank" rel="noopener">👀 Student view</a>` : ''}</div></section>`;
+    <div class="row"><button class="btn ${G().on ? 'pri' : ''}" type="button" data-act="game" aria-pressed="${G().on}" title="Showdown: right and fast answers score points; the top 5 show on the projector">🏁 Showdown: ${G().on ? 'On' : 'Off'}</button>${AUTO() && S.live && S.live.q ? `<span class="chip gold" style="align-self:center">🏁 Question ${AUTO().i}${AUTO().n ? ' of ' + AUTO().n : ''}</span>` : ''}<button class="btn ${S.lead ? 'pri' : ''}" type="button" data-act="lead">🎓 ${S.lead ? 'Student leading' : 'Let a student lead'}</button><a class="btn" href="${scr}" target="_blank" rel="noopener">📽 Open projector</a>${clsChip()}${S.confirm === 'fresh' ? '<button class="btn warn" type="button" data-act="fresh" title="Clears the screen, Showdown scores, I\'m lost and private questions (Questions asked stays)">Yes, clear all</button><button class="btn" type="button" data-act="confirm" data-v="fresh">Cancel</button>' : '<button class="btn" type="button" data-act="confirm" data-v="fresh" title="Clear for a new class: screen, Showdown scores, I\'m lost, private questions. Questions asked stays.">🧹 Clear all</button>'}${PREVIEW ? `<a class="btn" href="../?preview=1" target="_blank" rel="noopener">👀 Student view</a>` : ''}</div></section>`;
 }
 function roundCard() {
   const L = S.live, A = latest(S.ans), n = recent().length, s = left(L);
@@ -654,7 +671,8 @@ async function post(o = {}) {
   if (c.gen && qgame(c.gen.g)) { d.gen = { g: c.gen.g, d: c.gen.d }; if (Array.isArray(c.gen.n) && c.gen.n.length) { d.gen.n = c.gen.n.slice(0, 2); if (c.clef === 'bass' || c.clef === 'alto') d.clef = c.clef; }
     if (Array.isArray(c.gen.m) && c.gen.m.length) { d.gen.m = c.gen.m.slice(0, 4); d.gen.p = c.gen.p || 'up'; }
     if (Array.isArray(c.gen.r) && c.gen.r.length) { d.gen.r = c.gen.r.slice(0, 16); d.gen.t = String(c.gen.t || '').slice(0, 5); } }
-  if (G().on) { d.game = true; d.reveal = null; d.final = false; d.board = topBoard(); if (!c.timer) d.ends_at = at(Date.now() + lead + GT * 1000); G().qn++; if (A) { d.show = { st: 'play', n: A.n, i: Math.min(A.i, 30), at: Date.now() + lead }; G().starts[round] = Date.now() + lead; } saveG(); }
+  Object.assign(d, clsField());
+  if (G().on) { d.game = true; d.reveal = null; d.final = false; d.board = topBoard(); if (!c.timer) d.ends_at = at(Date.now() + lead + GT * 1000); G().qn++; if (A) { d.show = { st: 'play', n: A.n, i: Math.min(A.i, 30), at: Date.now() + lead, id: A.id || '' }; G().starts[round] = Date.now() + lead; } saveG(); }
   try {
     await db.set(livePath(), d);
     try { localStorage.setItem(TK(), JSON.stringify({ round, correct: c.type === 'mc' && !opts.includes(c.correct) ? '' : String(c.correct || ''), why: c.why || {} })); } catch {}
@@ -779,8 +797,8 @@ app.addEventListener('click', async e => {
     return;
   }
   if (act === 'sdnum') { const p = gpick(); p.sn = Number(t.dataset.v); savePick(p); draw(); return; }
-  if (act === 'sdstart') { const p = gpick(), g = G(); g.scores = {}; g.qn = 0; g.done = {}; g.prev = {}; g.auto = { on: true, n: p.pace === 'manual' ? 0 : snum(p), i: 0, paused: false, manual: p.pace === 'manual' }; saveG(); S.startOpen = false; S.cust = null;
-    S.whoKey = '[]'; return db.set(livePath(), { round: LC.roundId(), q: '', type: 'mc', open: false, game: true, final: false, reveal: null, board: [], show: { st: 'lobby', n: g.auto.n, i: 0, at: Date.now(), who: [] }, updated_at: NOW }).catch(er => { S.err = ERR(er); draw(); }); }
+  if (act === 'sdstart') { const p = gpick(), g = G(); g.scores = {}; g.qn = 0; g.done = {}; g.prev = {}; g.auto = { on: true, n: p.pace === 'manual' ? 0 : snum(p), i: 0, paused: false, manual: p.pace === 'manual', id: LC.roundId() }; saveG(); S.startOpen = false; S.cust = null;
+    S.whoKey = '[]'; return db.set(livePath(), { round: LC.roundId(), q: '', type: 'mc', open: false, game: true, final: false, reveal: null, board: [], show: { st: 'lobby', n: g.auto.n, i: 0, at: Date.now(), who: [], id: g.auto.id }, ...clsField(), updated_at: NOW }).catch(er => { S.err = ERR(er); draw(); }); }
   if (act === 'sdbegin') { const A = AUTO(); if (A && LC.isLobby(L)) { A.players = lobbyStudents(L).map(w => w.sid); saveG(); } return goGame(false); }
   if (act === 'sdcancel') { const g = G(); if (g.auto) g.auto.on = false; saveG(); return db.del(livePath()).catch(er => { S.err = ERR(er); draw(); }); }
   if (act === 'sdpause') { const A = AUTO(); if (!A) return; A.paused = !A.paused; saveG(); clearTimeout(S.autoT); if (!A.paused && L && !L.open) return autoStep(L.round); draw(); return; }

@@ -405,6 +405,26 @@ function liveStars(L) {
   return r;
 }
 const starLine = r => !r ? '' : r.paid ? `<p style="margin:0;color:#ffd166;font-weight:800">+${r.paid} ★ ${esc(r.why)}</p>` : r.n ? `<p class="muted small" style="margin:0">★ ${esc(r.why)} ${r.capped ? "(today's 10 ★ from Live Class are used up)" : '(Stars are saved when your avatar is on)'}</p>` : r.slow ? '<p class="muted small" style="margin:0">Right! Answer faster for a ★</p>' : '';
+// Bonus Stars (2026-11-19, David 'go with your picks', fair rewards): paid once per key on this device, through the avatar's own daily limit.
+// Class Star: when the class reaches 80% right over 5+ questions today, the teacher's console sets bc_live.cls; everyone who answered today gets +2 ★.
+// Perfect Show: every question of a Showdown right (first answers, any speed) = +3 ★.
+function liveBonus(key, n, why) {
+  ME.bonus = ME.bonus || {}; if (ME.bonus[key]) return ME.bonus[key];
+  const a = window.MTGAvatar; if (!a || !a.award) return 0;
+  const before = a.wallet().stars; if (!a.award(n, why)) return 0;
+  ME.bonus[key] = Math.max(1, a.wallet().stars - before); const ks = Object.keys(ME.bonus); if (ks.length > 60) delete ME.bonus[ks[0]];
+  saveMe(); toast(`+${n} ★ ${why}!`); return ME.bonus[key];
+}
+function clsCheck(L) {
+  if (!L || !L.cls || !L.cls.id) return;
+  const today = new Date().toDateString(), answered = (ME.hist || []).some(h => h.code === code && new Date(h.at).toDateString() === today);
+  if (answered) liveBonus('cls:' + L.cls.id, 2, 'Class Star');
+}
+function perfectShow(L) {
+  const id = L && L.show && L.show.id, asked = (L && L.show && L.show.i) || 0; if (!id || asked < 3) return 0;
+  const mine = Object.values(SD.done).filter(x => x.show === id);
+  return mine.length >= asked && mine.every(x => x.ok) ? liveBonus('perfect:' + id, 3, 'Perfect Show') : 0;
+}
 function questionCard() {
   const L = S.live;
   if (!S.loaded) return '<section class="card"><p class="muted empty">Connecting…</p></section>';
@@ -443,7 +463,7 @@ function sdScore(L) {   // my own points for this round (the class board uses th
   const mine = mineFor(L.round), ok = mine && L.reveal != null && mine.text === (L.opts || [])[L.reveal];
   const seen = SD.seen[L.round] || 0, dur = L.ends_at && seen ? Math.max(5000, L.ends_at - seen) : 20000, secs = mine && seen ? Math.max(0, (mine.at - seen) / 1000) : dur / 2000;
   let pts = 0; if (ok) { SD.st++; pts = 500 + Math.round(500 * Math.max(0, 1 - secs / (dur / 1000))) + (SD.st > 2 ? 100 : 0); } else SD.st = 0;
-  SD.pts += pts; SD.done[L.round] = { ok: !!ok, pts, mine: !!mine, st: SD.st, star: 0 };
+  SD.pts += pts; SD.done[L.round] = { ok: !!ok, pts, mine: !!mine, st: SD.st, star: 0, show: (L.show && L.show.id) || '' };
   // Stars (2026-11-17, second pass): only the one Live Class rule (liveStars), on game questions; no Star per right answer any more
   saveSD(); return SD.done[L.round];
 }
@@ -471,8 +491,8 @@ function sdCard(L) {
   const head = `<div class="row between"><span class="label">🏁 Showdown${L.show && L.show.n ? ` · question ${L.show.i} of ${L.show.n}` : ''}</span><span class="chip gold">${SD.pts.toLocaleString()} points</span></div>`;
   const cd = LC.cdNum(L); if (cd > 0) return `<section class="card stack">${head}<div class="sd-res good" style="background:rgba(255,255,255,.05);border-color:#ffc85c"><span class="label">Get ready</span><span class="sd-cd">${cd}</span></div></section>`;
   if (L.final) {
-    const stars = Object.entries(SD.done).reduce((total, [round, score]) => total + (score.star || ME.stars?.[round]?.paid || 0), 0);
-    return `<section class="card stack">${head}<div class="sd-res good"><span class="sd-big">🎭</span><h2 style="margin:0">${place >= 0 && place < 3 ? 'You made the Curtain call!' : 'Showdown over!'}</h2><span class="sd-pts">${SD.pts.toLocaleString()} points</span>${sdPlace(L) ? `<p style="margin:0;font-weight:800">You finished #${sdPlace(L)} of ${Object.keys(L.places).length}</p>` : ''}<div class="row" style="justify-content:center"><span class="chip gold">★ ${stars} ${stars === 1 ? 'Star' : 'Stars'} earned</span><span class="chip">0 Coins earned</span></div></div>${sdMini(board, L)}</section>`;
+    const perfect = perfectShow(L), stars = Object.entries(SD.done).reduce((total, [round, score]) => total + (score.star || ME.stars?.[round]?.paid || 0), 0) + perfect;
+    return `<section class="card stack">${head}<div class="sd-res good"><span class="sd-big">🎭</span><h2 style="margin:0">${place >= 0 && place < 3 ? 'You made the Curtain call!' : 'Showdown over!'}</h2>${perfect ? '<p style="margin:0;font-weight:800">🌟 Perfect Show! Every answer right: +3 ★</p>' : ''}<span class="sd-pts">${SD.pts.toLocaleString()} points</span>${sdPlace(L) ? `<p style="margin:0;font-weight:800">You finished #${sdPlace(L)} of ${Object.keys(L.places).length}</p>` : ''}<div class="row" style="justify-content:center"><span class="chip gold">★ ${stars} ${stars === 1 ? 'Star' : 'Stars'} earned</span><span class="chip">🪙 ${Math.min(20, 2 * Object.values(SD.done).filter(x => x.show && x.show === (L.show && L.show.id) && x.mine).length)} Coins earned</span></div></div>${sdMini(board, L)}</section>`;
   }
   if (!L.open && L.reveal != null) {
     const r = sdScore(L), my = place >= 0 ? `You're #${place + 1} on the board` : sdPlace(L) ? `You're #${sdPlace(L)} of ${Object.keys(L.places).length}` : 'Keep going to reach the top 5';
@@ -574,6 +594,7 @@ function leadCard() {
     <p class="dim small" style="margin:0">Your teacher's computer posts each question, so it may take a second.</p></section>`;
 }
 function draw() {
+  try { clsCheck(S.live); } catch {}
   const a = document.activeElement, keep = a && a.id ? { id: a.id, s: a.selectionStart, e: a.selectionEnd } : null;
   const pq = $('pq') ? $('pq').value : '';
   app.innerHTML = shell(`<h1 style="font-size:clamp(26px,5vw,36px)">Live Class</h1><p class="msg" role="alert">${esc(S.err)}</p>
