@@ -340,6 +340,7 @@
   .gprev { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: -2px 0 4px 26px; font: 600 13px var(--f-ui); color: var(--muted); }
   .note { font-size: 14px; color: var(--muted); margin: 8px 0 0; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
   .note.open { display: block; }
+  .msg:empty { display: none; }
   .note:not(:empty)::before { content: 'ⓘ '; }
   .fbtext { white-space: normal; min-width: 260px; max-width: 520px; }
   .x { font: 700 14px var(--f-ui); border: 1px solid var(--card-border); background: transparent; color: var(--muted); border-radius: 999px; padding: 4px 11px 2px; cursor: pointer; }
@@ -520,6 +521,18 @@
   .welcome h2 { margin: 0; color: var(--gold); font-size: 15px; }
   .welcome ol { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; flex: 1 1 520px; }
   .welcome li button { width: 100%; border-radius: 12px; padding: 9px 12px 7px; font-size: 14.5px; }
+  details.more { position: relative; display: inline-block; }
+  details.more > summary { list-style: none; display: inline-block; } details.more > summary::-webkit-details-marker { display: none; }
+  .morem { position: absolute; z-index: 30; top: calc(100% + 6px); left: 0; display: flex; flex-direction: column; gap: 6px; padding: 8px; background: #1a2538; border: 1px solid var(--card-border); border-radius: 12px; box-shadow: 0 12px 30px rgba(0,0,0,.5); min-width: 190px; }
+  .morem .btn { text-align: left; }
+  @media (min-width: 900px) {
+    #panel.gv { display: grid; grid-template-columns: 340px minmax(0, 1fr); column-gap: 16px; align-content: start;
+      grid-template-areas: "o o" "m m" "b b" "l d" "l2 d"; grid-template-rows: auto auto auto auto 1fr; }
+    #panel.gv > .opts { grid-area: o; } #panel.gv > #msg { grid-area: m; } #panel.gv > #gradebar { grid-area: b; }
+    #panel.gv > #gradelist { grid-area: l; } #panel.gv > #gradelist2 { grid-area: l2; align-self: start; } #panel.gv > #data { grid-area: d; min-width: 0; }
+    #panel.gv .gi { flex-wrap: wrap; } #panel.gv .gw { flex-basis: 100%; }
+    #panel.gv #data .tw { margin-top: 0; }
+  }
   @media (max-width: 760px) {
     #main { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) 62px; }
     .snav { display: none; }
@@ -601,10 +614,11 @@
           <label class="f" for="tsel">Test<select id="tsel"></select></label>
           <label class="f" for="tout" title="Grades show as points, e.g. 19/20. Change it to match your grade book.">Grade out of<input id="tout" type="number" min="1" max="1000" step="1" inputmode="numeric" style="width:84px"></label>
           <button class="btn sm" type="button" id="tnew">+ New test</button>
-          <button class="btn sm" type="button" id="tedit">Edit test</button>
+          <button class="btn ghost sm" type="button" id="tedit">Edit test</button>
+          <details class="more"><summary class="btn ghost sm">⋯ More</summary><div class="morem">
           <button class="btn ghost sm" type="button" id="ttoggle">Switch off</button>
           <button class="btn ghost sm" type="button" id="treset">Reset a student</button>
-          <button class="btn ghost sm" type="button" id="tdel">Delete test</button>
+          <button class="btn ghost sm" type="button" id="tdel">Delete test</button></div></details>
         </div>
         <p class="note" id="tmeta"></p>
       </div>
@@ -621,9 +635,10 @@
       <div id="newtestbox" hidden><button class="btn ghost sm" type="button" id="tback" style="margin-top:14px">← Back to Tests</button><iframe id="tframe" title="Create a test" style="width:100%;border:0;min-height:700px;margin-top:8px;background:transparent"></iframe></div>
       <div id="gradebar" class="opts" style="margin-top:14px" hidden>
         <button class="btn sm" type="button" id="anew">+ New assignment</button>
-        <button class="btn sm" type="button" id="aedit">Edit assignment</button>
+        <button class="btn ghost sm" type="button" id="aedit">Edit assignment</button>
+        <details class="more"><summary class="btn ghost sm">⋯ More</summary><div class="morem">
         <button class="btn ghost sm" type="button" id="aend">End assignment</button>
-        <button class="btn ghost sm" type="button" id="adelete">Delete assignment</button>
+        <button class="btn ghost sm" type="button" id="adelete">Delete assignment</button></div></details>
         <label class="f" for="aout" title="Points for your grade book, e.g. 9/10. Change it to match your grade book.">Grade out of<input id="aout" type="number" min="1" max="1000" step="1" inputmode="numeric" style="width:84px"></label>
       </div>
       <div id="gradelist" class="glist" hidden></div>
@@ -1182,7 +1197,7 @@ function render() {
   if (av) COLS.activity = { player: ACT_PLAYER_COLS, teacher: ACT_TEACHER_COLS }[$('actby').value] || ACT_VISIT_COLS;
   if (!ad) S.teacher = '';
   const tpg = ad && !!S.teacher;
-  $('upbox').hidden = !(ts || S.view === 'grades' || S.view === 'progress'); $('adminsum').hidden = !ad; $('adminacc').hidden = !ad || tpg;
+  $('upbox').hidden = true;   // redesign: Upcoming and scheduled items live on Today $('adminsum').hidden = !ad; $('adminacc').hidden = !ad || tpg;
   const gv = S.view === 'grades'; if (gv) { gradePick(); renderGradeList(); }
   $('gradelist').hidden = $('gradelist2').hidden = $('gradebar').hidden = !gv;
   if (gv) { $('aout').closest('label').hidden = !S.gradeA; if (S.gradeA) $('aout').value = aOut(S.classes.find(x => x.code === S.code), S.gradeA); }
@@ -1191,7 +1206,7 @@ function render() {
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (S.view === 'messages' && b.dataset.v === 'board') || (nt && b.dataset.v === 'tests') || (asg && b.dataset.v === 'grades'))));
   if (asg) { showAssign(); return; }
   if (nt) { showNewTest(); return; }
-  if (ts) { renderUpcoming(); renderTestsBox(); } else if (S.view === 'grades' || S.view === 'progress') renderUpcoming();
+  if (ts) renderTestsBox();
   const cols = COLS[S.view]; const st = S.sort[S.view] || DEFAULT_SORT[S.view]; const rows = visible();
   const head = cols.map(c => c.t === 'x' || c.t === 'r' ? '<th></th>' : `<th class="${c.num ? 'num' : ''}${c.pc ? ' pc' : ''}" aria-sort="${st.k === c.k ? (st.dir > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" data-k="${c.k}">${esc(c.h)}<span class="ar" aria-hidden="true">${st.k === c.k ? (st.dir > 0 ? '▲' : '▼') : ''}</span></button></th>`).join('');
   const per = perPage(), pages = Math.max(1, Math.ceil(rows.length / per)); if (S.pg >= pages) S.pg = pages - 1;
@@ -1200,8 +1215,9 @@ function render() {
   const body = rows.length ? shown.map(r => '<tr>' + cols.map(c => `<td class="${(c.num ? 'num ' : '') + (c.pc ? 'pc ' : '') + (c.cls || '')}">${cellText(c, r)}</td>`).join('') + '</tr>').join('')
     : `<tr><td class="empty" colspan="${cols.length}">${S.loading ? 'Loading…' : !S.classes.length && S.code !== WORLD ? 'You have no classes yet. Make one to get a code for your students.<br><button class="btn" type="button" data-newcls="1">➕ New class</button>' : 'Nothing here yet for this class and time.'}</td></tr>`;
   $('tbl').innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
+  setTimeout(fitRows, 0);
   if (ad) { renderAdminSum(); renderAccess(); }
-  const label = { activity: $('actby').value === 'player' ? (rows.length === 1 ? 'player' : 'players') : $('actby').value === 'teacher' ? (rows.length === 1 ? 'teacher row' : 'teacher rows') : rows.length === 1 ? 'game visit' : 'game visits', progress: 'practice records', scores: 'scores', feedback: 'notes', tests: 'students with a result', admin: 'teacher and game rows' }[S.view];
+  const label = { activity: $('actby').value === 'player' ? (rows.length === 1 ? 'player' : 'players') : $('actby').value === 'teacher' ? (rows.length === 1 ? 'teacher row' : 'teacher rows') : rows.length === 1 ? 'game visit' : 'game visits', progress: S.allRec ? 'practice records' : rows.length === 1 ? 'student practiced' : 'students practiced', scores: 'scores', feedback: 'notes', tests: 'students with a result', admin: 'teacher and game rows' }[S.view];
   $('count').textContent = S.loading && !rows.length ? '' : S.view === 'tests' ? testSummary(rows) : S.view === 'grades' ? `${rows.length} student${rows.length === 1 ? '' : 's'} practiced for this assignment` : rows.length + ' ' + label + (S.game === 'all' ? ' across all games' : ' in ' + g.name);
   $('note').textContent = S.view === 'grades' ? 'Grade = how much of each task is done (each capped at 100%), averaged. Points = that grade out of the assignment\'s "Grade out of" (10 unless you change it), rounded down, for your grade book. It counts all practice in that game during the dates, the same number students see on their home page. Students who have not practiced yet do not appear. Earshot Saloon tasks cannot be counted yet. Click any assignment to open or close its grades. Past assignments are kept from now on (the list starts with the assignment each class had when this was added).'
     : S.view === 'progress' && S.game === 'earshot'
@@ -1214,7 +1230,7 @@ function render() {
     : S.view === 'admin' ? 'Time is student practice time recorded in each teacher\'s classes (not teacher log-ins, and not tests). Earshot Saloon records scores only, so it shows no minutes. What they practice lists the most used levels, keys, scale types, modes and time signatures in the records.' : '';
 }
 async function load() {
-  S.pg = 0;
+  S.pg = 0; S.perCut = 0;
   if (S.view === 'today') { msg(''); render(); return loadToday(); }
   if (S.view === 'settings') { ++load.n; msg(''); render(); return; }
   if (S.view === 'assign' || S.view === 'newtest') { ++load.n; render(); return; }
@@ -2770,6 +2786,7 @@ function shellRender() {
   const c = S.classes.find(x => x.code === S.code);
   $('codechip').hidden = !c; if (c) { $('codechip').textContent = c.code + ' 🖨'; $('codechip').setAttribute('aria-label', 'Share class code ' + c.code); }
   $('acct').textContent = (S.me && S.me.name ? S.me.name : S.email || '?').split(/[\s@.]+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+  $('panel').classList.toggle('gv', S.view === 'grades');
   $('mainc').classList.toggle('wide', S.view === 'live' || S.view === 'assign' || S.view === 'newtest');
 }
 function go(v) {
@@ -2780,16 +2797,23 @@ function go(v) {
 }
 function acctMenu(open) { $('acctmenu').hidden = !open; $('acct').setAttribute('aria-expanded', String(open)); }
 // rows that fit the screen without scrolling (at least 5)
+// after drawing: if the page still overflows, show fewer rows (never under 5) so nothing scrolls
+function fitRows() {
+  const m = $('mainc'), tb = $('tbl').tBodies[0]; if (!m || !tb || $('data').hidden || S.view === 'today' || S.view === 'settings') return;
+  const over = m.scrollHeight - m.clientHeight, n = tb.rows.length, rh = n ? tb.rows[0].offsetHeight || 38 : 38;
+  if (over > 1 && n > 5 && (fitRows.k || 0) < 4) { fitRows.k = (fitRows.k || 0) + 1; S.perCut = (S.perCut || 0) + Math.min(n - 5, Math.ceil(over / rh)); render(); }
+  else fitRows.k = 0;
+}
 function perPage() {
   const m = $('mainc'), d = $('data'); if (!m || !d) return 10;
   const top = d.getBoundingClientRect().top - m.getBoundingClientRect().top + m.scrollTop + ($('count').offsetHeight || 0);
-  return Math.max(5, Math.min(30, Math.floor((m.clientHeight - top - 42 - 50 - 30) / 39)));
+  return Math.max(5, Math.min(30, Math.floor((m.clientHeight - top - 42 - 50 - 30) / 39)) - (S.perCut || 0));
 }
 // Students: one row per student, all their games and days added up
 const PROG_REC_COLS = COLS.progress;
 const PROG_STU_COLS = [
   { k: 'name', h: 'Student', t: 's' }, { k: 'minutes', h: 'Minutes', t: 'n', num: 1 }, { k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) },
-  { k: 'attempts', h: 'Answers', t: 'n', num: 1, pc: 1 }, { k: 'games', h: 'Games', t: 's', pc: 1 }, { k: 'days', h: 'Days', t: 'n', num: 1, pc: 1 },
+  { k: 'attempts', h: 'Answers', t: 'n', num: 1, pc: 1 }, { k: 'games', h: 'Games', t: 's', pc: 1, f: r => r.gids.map(id => `<span class="dot" style="background:${(G[id] || {}).color || '#888'}" title="${esc((G[id] || { name: id }).name)}"></span>`).join('') + ' ' + r.gids.length }, { k: 'days', h: 'Days', t: 'n', num: 1, pc: 1 },
   { k: 'dateMs', h: 'Last played', t: 'n', f: r => esc(fmtDate(r.dateMs)) },
 ];
 function byStudent(recs) {
@@ -2799,7 +2823,7 @@ function byStudent(recs) {
     const a = m.get(k) || { name: r.name, minutes: 0, attempts: 0, correct: 0, g: new Set(), d: new Set(), dateMs: 0 };
     a.minutes += +r.minutes || 0; a.attempts += +r.attempts || 0; a.correct += +r.correct || 0; a.g.add(r.game); if (r.date) a.d.add(r.date); a.dateMs = Math.max(a.dateMs, r.dateMs || 0); m.set(k, a);
   });
-  return [...m.values()].map(a => ({ ...a, minutes: Math.round(a.minutes * 10) / 10, acc: pct(a.correct, a.attempts), days: a.d.size, games: [...a.g].map(id => (G[id] || { name: id }).name).join(', ') }));
+  return [...m.values()].map(a => ({ ...a, minutes: Math.round(a.minutes * 10) / 10, acc: pct(a.correct, a.attempts), days: a.d.size, gids: [...a.g], games: [...a.g].map(id => (G[id] || { name: id }).name).join(', ') }));
 }
 // ----- Today -----
 async function loadToday() {
@@ -2867,6 +2891,7 @@ function renderSettings() {
 }
 function wireShell() {
   document.addEventListener('click', e => {
+    document.querySelectorAll('details.more[open]').forEach(d => { if (!d.contains(e.target) || e.target.closest('.morem button')) d.open = false; });
     const n = e.target.closest('[data-nav]'); if (n) return go(n.dataset.nav);
     const sv = e.target.closest('[data-sv]');
     if (sv) { const [v, m] = sv.dataset.sv.split(':'); if (v === 'progress') S.allRec = m === 'rec'; if (['students', 'board', 'messages'].includes(v)) S.lastSocial = v; S.view = v; return load(); }
@@ -2883,7 +2908,7 @@ function wireShell() {
   $('gsel').innerHTML = GAMES.map(g => `<option value="${g.id}">${esc(g.name)}</option>`).join('');
   $('gsel').onchange = () => { S.game = $('gsel').value; S.pg = 0; render(); if (S.view === 'progress' || S.view === 'scores') load(); };
   new MutationObserver(() => navRender()).observe($('views'), { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden'] });
-  addEventListener('resize', () => { clearTimeout(wireShell.t); wireShell.t = setTimeout(() => { if (!$('main').hidden) render(); }, 150); });
+  addEventListener('resize', () => { clearTimeout(wireShell.t); wireShell.t = setTimeout(() => { if (!$('main').hidden) { S.perCut = 0; render(); } }, 150); });
 }
 // ---------- New class + welcome for new teachers (2026-11-18) ----------
 // Makes a class exactly like the games' Classes tabs (scale-quest Cloud.createClass): doc classes/<code> = { name, ownerEmail, created_at },
