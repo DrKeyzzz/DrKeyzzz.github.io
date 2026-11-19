@@ -345,7 +345,8 @@ const whoList = students => students.slice(0, 40).map(({ name, sid }) => ({ n: S
 function autoQueue(round) { const A = AUTO(); if (!A || A.manual || A.paused) return; clearTimeout(S.autoT); S.autoT = setTimeout(() => autoStep(round), 7000); }
 async function autoStep(round) { const A = AUTO(), L = S.live; if (!A || A.manual || A.paused || !L || L.round !== round || L.open) return; if (A.n && A.i >= A.n) return finishShow(); return goGame(false); }
 // every player's place for their own screen ("You're #8 of 22"), up to 80 players, keyed by a short hash of the student id
-const placesMap = () => Object.fromEntries(Object.entries(G().scores).sort((a, b) => b[1].p - a[1].p).slice(0, 80).map(([s], i) => [LC.hid(s), i + 1]));
+// 2026-11-19 (kids: 'my screen and the projector don't match'): each entry is [place, total points, points this question], the console's official numbers
+const placesMap = () => Object.fromEntries(Object.entries(G().scores).sort((a, b) => b[1].p - a[1].p).slice(0, 80).map(([s, x], i) => [LC.hid(s), [i + 1, x.p || 0, x.g || 0]]));
 // Class Star (2026-11-19, fair rewards): today's questions with a right answer, counted from each student's first answer when the question locks.
 // 5+ questions and 80%+ right = the class wins it once a day; bc_live.cls = { id, pct } tells every student page (+2 ★ for everyone who answered today).
 const CK = () => 'mtg_live_cls_v1:' + S.code;

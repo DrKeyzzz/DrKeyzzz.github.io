@@ -481,25 +481,28 @@ const PLAYS = {};
 const replays = round => Math.min(20, Math.max(0, (PLAYS[round] || 0) - 1));
 function sdMini(board, L) {
   if (!board || !board.length) return '';
-  const me = !board.slice(0, 5).some(b => b.s === sid) && sdPlace(L) ? `<div class="sd-mrow me" style="margin-top:4px"><b>${sdPlace(L)}</b><span class="nm">You</span><span class="pp">${SD.pts.toLocaleString()}</span></div>` : '';
+  const me = !board.slice(0, 5).some(b => b.s === sid) && sdPlace(L) ? `<div class="sd-mrow me" style="margin-top:4px"><b>${sdPlace(L)}</b><span class="nm">You</span><span class="pp">${sdPts(L).toLocaleString()}</span></div>` : '';
   return `<div class="sd-mini" aria-label="Top 5">${board.slice(0, 5).map((b, i) => `<div class="sd-mrow ${b.s === sid ? 'me' : ''}"><b>${i + 1}</b><span class="nm">${esc(b.s === sid ? 'You' : b.n)}</span>${b.g ? `<span class="up">+${b.g}</span>` : ''}${b.m > 0 ? `<span class="mv">▲${b.m}</span>` : b.m < 0 ? `<span class="mv dn">▼${-b.m}</span>` : ''}<span class="pp">${Number(b.p || 0).toLocaleString()}</span></div>`).join('')}${me}</div>`;
 }
-const sdPlace = L => L && L.places ? L.places[LC.hid(sid)] || 0 : 0;   // my place from the teacher's full ranking (2026-11-18)
+// my place and points from the teacher's console (the projector uses the same numbers): [place, total, this question]; older pages sent a number
+const sdMe = L => { const v = L && L.places ? L.places[LC.hid(sid)] : null; return Array.isArray(v) ? { place: v[0], pts: v[1], g: v[2] } : v ? { place: v } : null; };
+const sdPlace = L => (sdMe(L) || {}).place || 0;
+const sdPts = L => { const m = sdMe(L); return m && m.pts != null ? m.pts : SD.pts; };
 function sdCard(L) {
   // A teacher can end while answers are open, so the first reveal may arrive with the final screen.
   if (L.final && !L.open && L.reveal != null) {
     sdReward(L, sdScore(L));
   }
   const mine = mineFor(L.round), s = left(L), board = L.board || [], place = board.findIndex(b => b.s === sid);
-  const head = `<div class="row between"><span class="label">🏁 Showdown${L.show && L.show.n ? ` · question ${L.show.i} of ${L.show.n}` : ''}</span><span class="chip gold">${SD.pts.toLocaleString()} points</span></div>`;
+  const head = `<div class="row between"><span class="label">🏁 Showdown${L.show && L.show.n ? ` · question ${L.show.i} of ${L.show.n}` : ''}</span><span class="chip gold">${sdPts(L).toLocaleString()} points</span></div>`;
   const cd = LC.cdNum(L); if (cd > 0) return `<section class="card stack">${head}<div class="sd-res good" style="background:rgba(255,255,255,.05);border-color:#ffc85c"><span class="label">Get ready</span><span class="sd-cd">${cd}</span></div></section>`;
   if (L.final) {
     const perfect = perfectShow(L), stars = Object.entries(SD.done).reduce((total, [round, score]) => total + (score.star || ME.stars?.[round]?.paid || 0), 0) + perfect;
-    return `<section class="card stack">${head}<div class="sd-res good"><span class="sd-big">🎭</span><h2 style="margin:0">${place >= 0 && place < 3 ? 'You made the Curtain call!' : 'Showdown over!'}</h2>${perfect ? '<p style="margin:0;font-weight:800">🌟 Perfect Show! Every answer right: +3 ★</p>' : ''}<span class="sd-pts">${SD.pts.toLocaleString()} points</span>${sdPlace(L) ? `<p style="margin:0;font-weight:800">You finished #${sdPlace(L)} of ${Object.keys(L.places).length}</p>` : ''}<div class="row" style="justify-content:center"><span class="chip gold">★ ${stars} ${stars === 1 ? 'Star' : 'Stars'} earned</span><span class="chip">🪙 ${Math.min(20, 2 * Object.values(SD.done).filter(x => x.show && x.show === (L.show && L.show.id) && x.mine).length)} Coins earned</span></div></div>${sdMini(board, L)}</section>`;
+    return `<section class="card stack">${head}<div class="sd-res good"><span class="sd-big">🎭</span><h2 style="margin:0">${place >= 0 && place < 3 ? 'You made the Curtain call!' : 'Showdown over!'}</h2>${perfect ? '<p style="margin:0;font-weight:800">🌟 Perfect Show! Every answer right: +3 ★</p>' : ''}<span class="sd-pts">${sdPts(L).toLocaleString()} points</span>${sdPlace(L) ? `<p style="margin:0;font-weight:800">You finished #${sdPlace(L)} of ${Object.keys(L.places).length}</p>` : ''}<div class="row" style="justify-content:center"><span class="chip gold">★ ${stars} ${stars === 1 ? 'Star' : 'Stars'} earned</span><span class="chip">🪙 ${Math.min(20, 2 * Object.values(SD.done).filter(x => x.show && x.show === (L.show && L.show.id) && x.mine).length)} Coins earned</span></div></div>${sdMini(board, L)}</section>`;
   }
   if (!L.open && L.reveal != null) {
     const r = sdScore(L), my = place >= 0 ? `You're #${place + 1} on the board` : sdPlace(L) ? `You're #${sdPlace(L)} of ${Object.keys(L.places).length}` : 'Keep going to reach the top 5';
-    return `<section class="card stack">${head}<div class="sd-res ${r.ok ? 'good' : 'bad'}"><span class="sd-big">${r.ok ? '🎯' : r.mine ? '🎵' : '⏰'}</span><h2 style="margin:0">${r.ok ? 'Right on!' : r.mine ? 'Not this time' : 'Out of time'}</h2><span class="sd-pts">+${r.pts}</span>${starLine(sdReward(L, r))}${r.st > 2 ? `<p style="margin:0">🔥 ${r.st} in a row!</p>` : ''}<p class="muted" style="margin:0">${r.mine && !r.ok && mineFor(L.round) ? `You picked ${esc(mineFor(L.round).text)}. ` : ''}The answer was <b>${esc((L.opts || [])[L.reveal] || '')}</b>. ${my}.</p></div>${sdMini(board, L)}</section>`;
+    return `<section class="card stack">${head}<div class="sd-res ${r.ok ? 'good' : 'bad'}"><span class="sd-big">${r.ok ? '🎯' : r.mine ? '🎵' : '⏰'}</span><h2 style="margin:0">${r.ok ? 'Right on!' : r.mine ? 'Not this time' : 'Out of time'}</h2><span class="sd-pts">+${sdMe(L) && sdMe(L).g != null ? sdMe(L).g : r.pts}</span>${starLine(sdReward(L, r))}${r.st > 2 ? `<p style="margin:0">🔥 ${r.st} in a row!</p>` : ''}<p class="muted" style="margin:0">${r.mine && !r.ok && mineFor(L.round) ? `You picked ${esc(mineFor(L.round).text)}. ` : ''}The answer was <b>${esc((L.opts || [])[L.reveal] || '')}</b>. ${my}.</p></div>${sdMini(board, L)}</section>`;
   }
   if (mine || !L.open || s === 0) return `<section class="card stack">${head}<h2>${esc(L.q)}</h2><div class="sd-res good" style="background:rgba(255,255,255,.05);border-color:#ffc85c"><span class="sd-big">🎼</span><h2 style="margin:0">${mine ? 'Locked in!' : 'Time!'}</h2><p class="muted" style="margin:0">${mine ? 'You picked ' + esc(mine.text) + '. ' : ''}The answer and the Top 5 show here in a moment.</p></div></section>`;
   return `<section class="card stack qhead">${head}<h2>${esc(L.q)}</h2>${LC.staffFor(L, 'me').replace('▶ Play</button>', PLAYS[L.round] ? `▶ Play again (−100)${replays(L.round) ? ' · −' + 100 * replays(L.round) + ' so far' : ''}</button>` : '▶ Play</button>')}
