@@ -1352,11 +1352,11 @@ window.addEventListener('load', draw, { once: true });
     // Real instrument pictures (Fluent Emoji 3D, David 2026-11-16 'go with your picks'). The 9 below: David's ChatGPT pictures (2026-11-16, 'swap all 9').
     {id:'flute',slot:'gear',name:'Flute',ic:'🪈',art:'concert_flute',c:100},{id:'clarinet',slot:'gear',name:'Clarinet',ic:'🎷',art:'clarinet',c:100},
     {id:'trombone',slot:'gear',name:'Trombone',ic:'🎺',art:'trombone',c:140},{id:'horn',slot:'gear',name:'French Horn',ic:'📯',art:'french_horn',c:160},
-    {id:'tuba',slot:'gear',name:'Tuba',ic:'🎺',art:'tuba',c:180},{id:'snare',slot:'gear',name:'Snare Drum',ic:'🥁',art:'snare_drum',c:110},
-    {id:'viola',slot:'gear',name:'Viola',ic:'🎻',art:'viola',c:120},{id:'cello',slot:'gear',name:'Cello',ic:'🎻',art:'cello',c:180},
-    {id:'bass',slot:'gear',name:'String Bass',ic:'🎻',art:'string_bass',c:200},
+    {id:'tuba',slot:'gear',name:'Tuba',ic:'🎺',art:'tuba',c:180},{id:'snare',slot:'gear',name:'Snare Drum',ic:'🥁',art:'snare_drum-v2',c:110},
+    {id:'viola',slot:'gear',name:'Viola',ic:'🎻',art:'viola-v2',c:120},{id:'cello',slot:'gear',name:'Cello',ic:'🎻',art:'cello-v2',c:180},
+    {id:'bass',slot:'gear',name:'String Bass',ic:'🎻',art:'string_bass-v2',c:200},
     {id:'trumpet',slot:'gear',name:'Trumpet',ic:'🎺',art:'trumpet',c:120},{id:'sax',slot:'gear',name:'Alto Sax',ic:'🎷',art:'saxophone',c:140},
-    {id:'violin',slot:'gear',name:'Violin',ic:'🎻',art:'violin',c:120},   // Wood Flute taken out (David 2026-11-16): wait for a real metal concert flute
+    {id:'violin',slot:'gear',name:'Violin',ic:'🎻',art:'violin-v2',c:120},   // Wood Flute taken out (David 2026-11-16): wait for a real metal concert flute
     {id:'mdrum',slot:'gear',name:'Marching Drum',ic:'🥁',art:'drum',c:110},{id:'handdrum',slot:'gear',name:'Hand Drum',ic:'🪘',art:'long_drum',c:90},
     {id:'banjo',slot:'gear',name:'Banjo',ic:'🪕',art:'banjo',c:120},{id:'accordion',slot:'gear',name:'Accordion',ic:'🪗',art:'accordion',c:150},
     {id:'maracas',slot:'gear',name:'Maracas',ic:'🪇',art:'maracas',c:60},{id:'keyboard',slot:'gear',name:'Keyboard',ic:'🎹',art:'musical_keyboard',c:130},
@@ -1657,12 +1657,12 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       trombone: pic('trombone', 52, 76, 84),   // David's ChatGPT picture (2026-11-16)
       horn: pic('french_horn', 40, 76, 88),   // David's ChatGPT picture (2026-11-16)
       choir: `<g transform="rotate(-8 72 88)"><rect x="61" y="79.5" width="22" height="15" rx="1.6" fill="#1f2230"/><rect x="63" y="81.3" width="18" height="11.4" fill="#fff"/>` + [83.2, 85.4, 87.6, 89.8].map(y => `<path d="M64 ${y} H80" stroke="#9aa3b5" stroke-width=".4"/>`).join('') + [[67, 87.2], [71, 86.1], [75, 85], [78.5, 88.3]].map(([x, y]) => `<ellipse cx="${x}" cy="${y}" rx="1.1" ry=".8" fill="#1f2230"/><path d="M${x + 1} ${y} V${y - 3.4}" stroke="#1f2230" stroke-width=".5"/>`).join('') + `</g>`,
-      violin: pic('violin', 42, 76, 82),
-      viola: pic('viola', 42, 76, 82),   // David's ChatGPT picture (2026-11-16)
-      cello: { hand: '', side: pic('cello', 74, 86, 78) },   // David's ChatGPT picture (2026-11-16)
-      bass: { hand: '', side: pic('string_bass', 102, 84, 64) },   // David's ChatGPT picture (2026-11-16)
+      violin: pic('violin-v2', 42, 76, 82),
+      viola: pic('viola-v2', 42, 76, 82),   // David's ChatGPT picture (2026-11-16)
+      cello: { hand: '', side: pic('cello-v2', 74, 77, 78) },   // David's ChatGPT picture (2026-11-16)
+      bass: { hand: '', side: pic('string_bass-v2', 96, 71, 67) },   // David's ChatGPT picture (2026-11-16)
       tuba: { hand: '', side: pic('tuba', 58, 83, 86) },   // David's ChatGPT picture (2026-11-16)
-      snare: { hand: `<path d="M67 86 L60 101 M72 86 L77 101" stroke="#d9a54b" stroke-width="2" stroke-linecap="round"/>`, side: pic('snare_drum', 36, 85, 104) },   // David's ChatGPT picture (2026-11-16)
+      snare: { hand: pic('drumsticks', 28, 73, 86), side: pic('snare_drum-v2', 38, 50, 92) },   // David's ChatGPT picture (2026-11-16)
       goldmic: `<defs><filter id="${u}gm" color-interpolation-filters="sRGB"><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncR type="table" tableValues=".36 .7 .93 1 1"/><feFuncG type="table" tableValues=".2 .44 .7 .86 .98"/><feFuncB type="table" tableValues="0 .03 .1 .32 .88"/></feComponentTransfer></filter><radialGradient id="${u}gmg"><stop offset="0" stop-color="#ffe38a" stop-opacity=".75"/><stop offset="1" stop-color="#ffb020" stop-opacity="0"/></radialGradient></defs>`
         + `<circle class="mav-rain" cx="74" cy="80" r="11" fill="url(#${u}gmg)"/>` + pic('microphone', 28, 72, 84).replace('/>', ` filter="url(#${u}gm)"/>`)
         + `<path class="mav-tw" d="M81 74 l.9 2.2 2.2 .9 -2.2 .9 -.9 2.2 -.9 -2.2 -2.2 -.9 2.2 -.9Z" fill="#fff"/><path class="mav-tw mav-tw2" d="M66 77 l.7 1.6 1.6 .7 -1.6 .7 -.7 1.6 -.7 -1.6 -1.6 -.7 1.6 -.7Z" fill="#fff6c8"/>`,   // Golden Mic redrawn 2026-11-18 (David: it looked terrible): the real mic picture turned gold, a glow and twinkles

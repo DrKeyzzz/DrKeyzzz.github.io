@@ -21,3 +21,6 @@ snare_drum. Made by David Milnes in ChatGPT for Music Theory Academy (his to use
 
 Generated instrument artwork (2026-11-19): drumsticks, keytar, baton, marimba.
 Created with OpenAI ImageGen for Music Theory Academy. Transparent PNG assets resized to 320 px.
+
+Replacement set (2026-11-19): snare_drum-v2, violin-v2, viola-v2, cello-v2 and string_bass-v2.
+Generated with OpenAI ImageGen for Music Theory Academy, transparent PNGs retained at 640 px.
