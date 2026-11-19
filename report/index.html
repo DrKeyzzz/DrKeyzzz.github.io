@@ -1928,7 +1928,12 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     if (L.cover === 'none' || (OUT && OUT !== 'robot')) {
       const H = {
         short: `<path d="M29.5 38 Q29 17 50 17 Q71 17 70.5 38 Q66 27 55 26.5 Q45 29.5 35 29.5 Q31 32 29.5 38Z"/>`,
-        buzz: `<path d="M30.5 36 Q31 19 50 19 Q69 19 69.5 36 Q60 26.5 50 26.5 Q40 26.5 30.5 36Z" opacity=".75"/>`,
+        buzz: (() => {   // buzz cut (redrawn 2026-11-19, David: 'buzz looks weird'): hugs the head shape, temple corners, short sides, a little stubble texture
+          const ov = L.face === 'oval', so = L.face === 'soft', w = ov ? 18.8 : so ? 19.8 : 21.3, xl = 50 - w + .4, xr = 50 + w - .4;
+          const top = so ? `M${xl} 38 V31 Q${xl} 19.2 43 19.2 H57 Q${xr} 19.2 ${xr} 31 V38` : `M${xl} 38 A${w} ${ov ? 22.8 : w} 0 1 1 ${xr} 38`;
+          const line = ` L${xr - 2.6} 37.5 Q${xr - 2.8} 31 ${xr - 6.3} 29 Q57 26.6 50 27 Q43 26.6 ${xl + 6.3} 29 Q${xl + 2.8} 31 ${xl + 2.6} 37.5 Z`;
+          return `<path d="${top}${line}" opacity=".92"/>` + [[38, 23], [44, 21], [50, 20.5], [56, 21], [62, 23], [41, 26.5], [47, 24.5], [53, 24.5], [59, 26.5], [34.5, 28.5], [65.5, 28.5]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r=".45" fill="${shade(hc, 1.5)}" opacity=".5"/>`).join('');
+        })(),
         curly: `<path d="M29 39Q24 33 28 28Q27 21 34 20Q35 14 42 15Q48 10 53 14Q60 11 65 17Q73 17 73 24Q78 32 70 39Q67 34 66 29Q61 32 56 26Q51 31 46 26Q42 32 36 30Q33 37 29 39Z"/>`,
         afro: [[32, 28], [38, 21], [46, 17.5], [54, 17.5], [62, 21], [68, 28]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="8"/>`).join(''),
         long: `<path d="M29 40 Q28 16 50 16 Q72 16 71 40 Q65 26 50 27 Q36 27 29 40Z"/>`,
