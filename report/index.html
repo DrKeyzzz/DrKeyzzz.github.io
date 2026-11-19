@@ -2538,7 +2538,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   function perchStart(){
     if (perch || !PERCH.length || OFF) return;
     perch = document.createElement('div'); perch.className = 'mav-perch'; perch.style.display = 'none';
-    perch.title = 'Your avatar: click to change how it looks'; perch.innerHTML = '<div class="av" data-idle="sit"></div>'; pAv = perch.firstChild;
+    perch.title = 'Tap me! Hold to pick me up and move me, fling to throw me, double-tap to send me home'; perch.innerHTML = '<div class="av" data-idle="sit"></div>'; pAv = perch.firstChild;
     perch.addEventListener('click', perchTap);
     perch.addEventListener('pointerdown', perchGrab);
     document.body.appendChild(perch); perchDraw(); perchPlace();
@@ -2679,10 +2679,11 @@ function voice({ pitch = 280, glide = 1, f1 = 700, f2 = 1200, f1b, f2b, dur = .1
   function parked(){ var v = null; try { v = JSON.parse(localStorage.getItem(PARKK) || 'null'); } catch(e){} return v && isFinite(v.x) && isFinite(v.y) ? v : null; }
   function park(x, y){ try { localStorage.setItem(PARKK, JSON.stringify({ x: x / innerWidth, y: y / innerHeight })); } catch(e){} }
   function unpark(){ try { localStorage.removeItem(PARKK); } catch(e){} pSpot = null; perchPlace(); perchDraw(); }
+  function pokeSnd(){ voiceSnd(); if (!pAv || pFly) return; delete pAv.dataset.act; void pAv.offsetWidth; pAv.dataset.act = look.happy; setTimeout(function(){ delete pAv.dataset.act; }, LEN[look.happy] || 900); }
   function perchTap(e){
     if (pDragged) { pDragged = 0; return; }
     if (pTapT) { clearTimeout(pTapT); pTapT = 0; if (parked()) { unpark(); pop('🏠 Back to its spot', '#7be0c3'); } return; }   // double-tap
-    pTapT = setTimeout(function(){ pTapT = 0; openBuilder(); }, 280);
+    pTapT = setTimeout(function(){ pTapT = 0; pokeSnd(); }, 280);   // 2026-11-19 (David): a tap = one of the 10 voice sounds + a happy move; the Locker opens from the corner avatar or My Report
   }
   function perchGrab(e){
     if (!TOSS || pFly || !perch || perch.style.display === 'none' || (e.button != null && e.button !== 0)) return;
