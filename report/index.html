@@ -1837,7 +1837,7 @@ boot();
     {id:'robot',slot:'outfit',name:'Robot',ic:'🤖',c:220},{id:'wizard',slot:'outfit',name:'Wizard',ic:'🧙',c:250},
     {id:'step',slot:'idle',name:'Side step',ic:'👟',c:100},
     // new moves (2026-11-16)
-    {id:'airguitar',slot:'dance',name:'Air Guitar',ic:'🎸',p:60},{id:'conductor',slot:'dance',name:'Conductor',ic:'🪄',p:50},{id:'jacks',slot:'dance',name:'Jumping Jacks',ic:'⭐',c:140},
+    {id:'conductor',slot:'dance',name:'Conductor',ic:'🪄',p:50},{id:'jacks',slot:'dance',name:'Jumping Jacks',ic:'⭐',c:140},
     {id:'raiseroof',slot:'dance',name:'Raise the Roof',ic:'🙌',c:120},{id:'shuffle',slot:'dance',name:'Shuffle',ic:'👟',p:45},{id:'drumsolo',slot:'dance',name:'Drum Solo',ic:'🥁',c:150},
     {id:'clap',slot:'happy',name:'Clap',ic:'👏',c:35},{id:'starjump',slot:'happy',name:'Star Jump',ic:'🌟',c:60},{id:'pointup',slot:'happy',name:'Point Up',ic:'☝️',c:40},
     {id:'tap',slot:'idle',name:'Foot Tap',ic:'🦶',c:50},{id:'look',slot:'idle',name:'Look Around',ic:'👀',c:60},
@@ -2215,7 +2215,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     if (raw && raw.look) look = clean(raw.look);
     if (raw && raw.w) W = { coins: Math.max(0, +raw.w.coins || 0), points: Math.max(0, +raw.w.points || 0), day: String(raw.w.day || today()), dayCoins: Math.max(0, +raw.w.dayCoins || 0), owned: Array.isArray(raw.w.owned) ? raw.w.owned.filter(function(k){ return typeof k === 'string' && k.length <= 40; }).slice(0, 300) : [],
       encores: Math.max(0, Math.min(99, +raw.w.encores || 0)), encXP: Math.max(0, +raw.w.encXP || 0), sv: +raw.w.sv || 0, sSrv: +raw.w.sSrv || 0,
-      dayRun: +raw.w.dayRun || 0, dayAw: +raw.w.dayAw || 0, sFrac: +raw.w.sFrac || 0, dayLive: +raw.w.dayLive || 0, liveDay: String(raw.w.liveDay || '') };
+      dayRun: +raw.w.dayRun || 0, dayAw: +raw.w.dayAw || 0, sFrac: +raw.w.sFrac || 0, dayLive: +raw.w.dayLive || 0, liveDay: String(raw.w.liveDay || ''), agRefund: +raw.w.agRefund || 0 };
     if (raw && raw.w) { hadWallet = true; if (!W.sv) { starNote = W.points > 0; W.points = Math.floor(W.points / 10); W.sv = 1; } }   // rare Stars (2026-11-17): old points / 10
   } catch(e){} }
   if (!look) { look = randomLook(); fresh = !!P; }   // guests: a random avatar for this visit, never saved
@@ -2343,7 +2343,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       W.coins = Math.max(W.coins, sc + dCoins);
       if (f.stars) { W.points = Math.max(W.points, +f.stars.integerValue + dPoints); W.sSrv = 1; }   // online Stars total + what this tab still has to send
       else if (!hadWallet) { W.points = Math.max(W.points, Math.floor(sp / 10)); starNote = starNote || sp > 0; }   // a new device: old online points / 10   // online total + what this tab still has to send
-      ((f.owned && f.owned.arrayValue && f.owned.arrayValue.values) || []).forEach(function(v){ if (v.stringValue && W.owned.indexOf(v.stringValue) < 0 && W.owned.length < 300) W.owned.push(v.stringValue); });   // items bought on another computer
+      ((f.owned && f.owned.arrayValue && f.owned.arrayValue.values) || []).forEach(function(v){ if (v.stringValue && v.stringValue !== 'dance:airguitar' && W.owned.indexOf(v.stringValue) < 0 && W.owned.length < 300) W.owned.push(v.stringValue); });   // items bought on another computer
       if (f.encores && +f.encores.integerValue > W.encores) { W.encores = +f.encores.integerValue; W.encXP = f.encore_xp ? +f.encore_xp.integerValue : W.encXP; }   // an Encore taken on another computer
       if (f.coin_day && f.coin_day.stringValue === W.day) W.dayCoins = Math.max(W.dayCoins, +f.coins_today.integerValue || 0);
       saveLocal(); drawAll(); if (dlg && dlg.open) render();
@@ -2635,6 +2635,10 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   var DEV = !!P && /^\s*maestro\b/i.test(String(P.first || '')) && (function(){ try { return localStorage.getItem('mtg_dev_v1') === '1'; } catch(e){ return false; } })();
   var owns = function(it){ var k = key(it); return DEV || !!it.free || (it.enc && (W.encores || 0) >= it.enc) || W.owned.indexOf(k) >= 0 || (RANK_ITEMS[k] != null && rankNow() >= RANK_ITEMS[k]) || masteredGear(k) || (P && earnedIt(it)); };
   if (DEV) { W.coins = Math.max(W.coins, 999999); W.points = Math.max(W.points, 999999); }   // the developer: unlimited coins and Stars (David 2026-11-19); never sent (only increments are)
+  // Air Guitar dance retired (David 2026-11-19: it looked inappropriate): owners get their 60 ★ back once, and it comes off
+  if (P && W.agRefund) W.owned = W.owned.filter(function(k){ return k !== 'dance:airguitar'; });
+  if (P && W.owned.indexOf('dance:airguitar') >= 0 && !W.agRefund) { W.agRefund = 1; W.owned = W.owned.filter(function(k){ return k !== 'dance:airguitar'; }); if (!DEV) { W.points += 60; dPoints += 60; } lookDirty = true; setTimeout(function(){ pop('🎸 Air Guitar was retired: +60 ★ back', '#ffd166'); }, 3000); }
+  if (look.dance === 'airguitar') look.dance = DEF.dance;
   look = wearOwned(look);   // moved here 2026-11-18: before this, SETS / RANKS / MASTK were not set yet, so earned items came off on every page load (and the Baton crashed it)
   var TABS = [['shop', 'Shop', '🛒'], ['look', 'Look', '🙂'], ['outfit', 'Skins', '🦸'], ['clothes', 'Clothes', '👕'], ['hat', 'Hats', '🎩'], ['gear', 'Gear', '🎺'], ['moves', 'Moves', '🕺'], ['bg', 'Backdrops', '🌌'], ['pet', 'Pets', '🐾'], ['rank', 'Rank', '🏆']];
   // THE LOCKER (2026-11-16). Rarity follows the price (no randomness): Common < 60 coins, Rare 60-149, Epic 150+ coins or any ★ item, Legendary 100+ ★ / earned items.
