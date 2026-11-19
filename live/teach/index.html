@@ -363,6 +363,22 @@ function clsTally(d) {
 }
 function clsChip() { const c = clsStats(); if (c.won) return `<span class="chip gold" title="The class got ${c.pct}% right today: everyone who answered got +2 ★">🌟 Class Star won</span>`;
   const pct = c.ans ? Math.round(100 * c.right / c.ans) : 0; return `<span class="chip" title="5 questions and 80% right today = +2 ★ for everyone who answered">🌟 Class Star: ${Math.min(c.q, 5)}/5 · ${c.ans ? pct + '%' : '–'}</span>`; }
+// ⭐ Give a Star (2026-11-19, fair rewards): for effort, a great explanation, the brave guess. 1 per student per 50 minutes, 3 a day (the rules
+// refuse more than 3), inside the student's own daily Star limit. Written to bc_gift/<class>_<hash of sid>; the student's page adds it.
+const GFK = () => 'mtg_live_gift_v1:' + S.code;
+const gDay = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+function gifts() { let o = null; try { o = JSON.parse(localStorage.getItem(GFK()) || 'null'); } catch {} return o && o.day === gDay() ? o : { day: gDay(), n: {}, t: {} }; }
+const giftWait = sid => { const g = gifts(); return (g.n[sid] || 0) >= 3 ? '3 Stars today already' : Date.now() - (g.t[sid] || 0) < 50 * 60e3 ? 'Already got one this class period' : ''; };
+const starBtn = a => { if (!a.sid) return ''; const w = giftWait(a.sid), n = gifts().n[a.sid] || 0;
+  return `<button class="btn sm ${n ? 'pri' : ''}" type="button" data-act="gift" data-sid="${esc(a.sid)}" data-n="${esc(a.name || '')}" ${w ? 'disabled' : ''} title="${w || 'Give a Star (for effort, a great answer, a brave guess). Only this student sees it.'}">⭐${n ? ' ' + n : ''}</button>`; };
+async function giveStar(sid, nm) {
+  const w = giftWait(sid); if (w) { toast(w); return; }
+  const g = gifts(), n = (g.n[sid] || 0) + 1;
+  try { await db.set('bc_gift/' + S.code + '_' + LC.hid(sid), { class_code: S.code, owner: S.email, day: g.day, n, at: NOW }); }
+  catch (e) { S.err = ERR(e); draw(); return; }
+  g.n[sid] = n; g.t[sid] = Date.now(); try { localStorage.setItem(GFK(), JSON.stringify(g)); } catch {}
+  toast('⭐ Star sent' + (nm && !S.curtain ? ' to ' + nm.replace(/\.$/, '') : '') + '.'); draw();
+}
 async function finishShow() {
   const A = G().auto; if (A) { A.on = false; saveG(); } clearTimeout(S.autoT);
   const L = S.live; if (!L || !L.q) return;
@@ -549,7 +565,7 @@ function answersCard() {
       return `<article class="ans ${sp ? 'spot' : ''}"><header><span style="font-size:22px">${esc(S.curtain ? '🎭' : a.avatar || '🙂')}</span><div style="min-width:0;flex:1"><b>${esc(S.curtain ? 'Student ' + (seq[a.sid] || '') : a.name)}</b><span class="t">${ago(a.at)}</span></div>${placeTag(a)}${a.flag ? '<span class="chip flag">Check</span>' : ''}${sp ? '<span class="chip gold">★</span>' : ''}</header>
       <p class="txt">${esc(a.text)}</p>
       <footer>${sp ? '' : `${S.curtain ? '' : `<button class="btn sm" type="button" data-act="spot" data-id="${esc(a.id)}">★ Spotlight</button>`}<button class="btn sm" type="button" data-act="spot" data-id="${esc(a.id)}" data-anon="1">${S.curtain ? '★ Spotlight' : '★ No name'}</button>${spot.length === 1 ? `<button class="btn sm" type="button" data-act="spot" data-id="${esc(a.id)}" data-add="1">+ Compare</button>` : ''}`}
-        ${S.confirm === 'del:' + a.sid ? `<button class="btn sm warn" type="button" data-act="del" data-sid="${esc(a.sid)}">Delete?</button>` : `<button class="btn sm" type="button" data-act="confirm" data-v="del:${esc(a.sid)}" aria-label="Delete answer">🗑</button>`}</footer></article>`; }).join('')}</div>` : '<p class="muted empty">No answers yet.</p>'}
+        ${starBtn(a)}${S.confirm === 'del:' + a.sid ? `<button class="btn sm warn" type="button" data-act="del" data-sid="${esc(a.sid)}">Delete?</button>` : `<button class="btn sm" type="button" data-act="confirm" data-v="del:${esc(a.sid)}" aria-label="Delete answer">🗑</button>`}</footer></article>`; }).join('')}</div>` : '<p class="muted empty">No answers yet.</p>'}
   </section>`;
 }
 function rosterHtml() {
@@ -796,6 +812,7 @@ app.addEventListener('click', async e => {
     try { await goGame(false); } finally { S.manualNext = null; }
     return;
   }
+  if (act === 'gift') return giveStar(t.dataset.sid, t.dataset.n);
   if (act === 'sdnum') { const p = gpick(); p.sn = Number(t.dataset.v); savePick(p); draw(); return; }
   if (act === 'sdstart') { const p = gpick(), g = G(); g.scores = {}; g.qn = 0; g.done = {}; g.prev = {}; g.auto = { on: true, n: p.pace === 'manual' ? 0 : snum(p), i: 0, paused: false, manual: p.pace === 'manual', id: LC.roundId() }; saveG(); S.startOpen = false; S.cust = null;
     S.whoKey = '[]'; return db.set(livePath(), { round: LC.roundId(), q: '', type: 'mc', open: false, game: true, final: false, reveal: null, board: [], show: { st: 'lobby', n: g.auto.n, i: 0, at: Date.now(), who: [], id: g.auto.id }, ...clsField(), updated_at: NOW }).catch(er => { S.err = ERR(er); draw(); }); }

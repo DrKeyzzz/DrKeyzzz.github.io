@@ -1373,6 +1373,19 @@ service cloud.firestore {
     // bc_lead/<class code>_<4-digit pin> (2026-11-17): a student leads the class. The teacher's console creates it (the pin is shown
     // on the teacher's screen); a student who knows the pin may only change cmd (what to do next) and by (their name). Only the
     // teacher's console posts questions to bc_live, so a student can never post anything themselves.
+    // ⭐ Give a Star (2026-11-19): the class owner gives a student up to 3 Stars a day. Doc id = <class>_<short hash of the student id>;
+    // { class_code, owner, day 'YYYY-MM-DD', n 1-3 (today's total), at }. The student's own page reads it and adds the new Stars once.
+    match /bc_gift/{id} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update: if id.matches('^[A-Z0-9]{4,7}_p[a-z0-9]{1,14}$') && ownsClass(id.split('_')[0])
+        && request.resource.data.keys().hasOnly(['class_code', 'owner', 'day', 'n', 'at'])
+        && request.resource.data.class_code == id.split('_')[0] && request.resource.data.owner == request.auth.token.email
+        && request.resource.data.day is string && request.resource.data.day.size() == 10
+        && request.resource.data.n is int && request.resource.data.n >= 1 && request.resource.data.n <= 3
+        && request.resource.data.at == request.time;
+      allow delete: if isAdmin() || ownsClass(id.split('_')[0]);
+    }
     match /bc_lead/{id} {
       allow get: if true;
       allow list: if false;

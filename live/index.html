@@ -683,6 +683,12 @@ app.addEventListener('keydown', e => { if (e.target.id === 'ans' && e.key === 'E
 
 let wasOpen = null;
 leadWatch();
+// ⭐ Give a Star (2026-11-19): my own gift doc; today's total n, I add the Stars I have not been paid yet (once each, through the avatar's daily limit)
+const localDay = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+if (code && sid) db.watchDoc('bc_gift/' + code + '_' + LC.hid(sid), d => {
+  if (!d || d.day !== localDay()) return;
+  for (let k = 1; k <= Math.min(3, d.n || 0); k++) liveBonus('gift:' + d.day + ':' + k, 1, 'from your teacher');
+}, () => {});
 db.watchDoc('bc_live/' + code, d => {
   const before = S.live; S.live = d; S.loaded = true;
   refreshPresence();
