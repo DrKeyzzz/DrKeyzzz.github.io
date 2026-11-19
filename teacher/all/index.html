@@ -438,6 +438,11 @@
   .brand { display: flex; align-items: center; gap: 8px; width: 196px; flex: none; color: var(--text); text-decoration: none; font-weight: 700; white-space: nowrap; }
   .clsgrp { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .clsgrp select { min-width: 0; max-width: 330px; border-radius: 999px; padding: 8px 14px 6px; font-weight: 700; background: #1a2538; }
+  /* the class you are looking at (2026-11-19, David: 'highlighted a little more'): gold frame + 'Viewing class' label */
+  .clspick { position: relative; display: flex; min-width: 0; }
+  .clspick .lab { position: absolute; left: 16px; top: -8px; padding: 0 6px; background: var(--bg, #0d1420); color: var(--gold); font-weight: 800; font-size: 10px; line-height: 1.4; letter-spacing: .12em; text-transform: uppercase; pointer-events: none; }
+  .clsgrp .clspick select { border: 2px solid var(--gold); background: rgba(255,200,92,.10); color: #fff; font-size: 17px; padding: 9px 38px 7px 16px; box-shadow: 0 0 0 4px rgba(255,200,92,.08); }
+  .clsgrp .clspick select:focus-visible { box-shadow: 0 0 0 4px rgba(255,200,92,.3); }
   .code { background: transparent; border: 1px dashed var(--gold); color: var(--gold); border-radius: 999px; padding: 7px 12px 5px; font: 800 14px ui-monospace, Menlo, monospace; letter-spacing: .1em; white-space: nowrap; cursor: pointer; }
   .code:hover { background: rgba(255,200,92,.1); }
   .btn.newcls { padding: 9px 14px 7px; white-space: nowrap; letter-spacing: .04em; }
@@ -512,7 +517,7 @@
     #main { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) 62px; }
     .snav { display: none; }
     .tbar { flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
-    .brand { width: auto; } .clsgrp { order: 3; width: 100%; } .clsgrp select { flex: 1 1 0; max-width: none; }
+    .brand { width: auto; } .clsgrp { order: 3; width: 100%; } .clsgrp select, .clsgrp .clspick { flex: 1 1 0; max-width: none; }
     .btn.newcls .t { display: none; }
     .bnav { display: grid; grid-template-columns: repeat(5, 1fr); grid-row: 3; background: #0f1724; border-top: 1px solid var(--card-border); }
     .bnav .nv { flex-direction: column; justify-content: center; gap: 2px; padding: 4px 2px; border-radius: 0; font-size: 11px; text-align: center; }
@@ -552,7 +557,7 @@
   <div id="main" hidden>
     <header class="tbar">
       <a class="brand" href="../../" title="Music Theory Academy home">🎼 <span>Music Theory Academy</span></a>
-      <div class="clsgrp"><select id="cls" aria-label="Class"></select><button class="code" type="button" id="codechip" title="Share this class code: print a code card or copy it"></button><button class="btn newcls" type="button" id="newcls" data-newcls="1" title="Make a new class and get a code for your students">➕<span class="t"> New class</span></button></div>
+      <div class="clsgrp"><label class="clspick" for="cls"><span class="lab">Viewing class</span><select id="cls" aria-label="Viewing class"></select></label><button class="code" type="button" id="codechip" title="Share this class code: print a code card or copy it"></button><button class="btn newcls" type="button" id="newcls" data-newcls="1" title="Make a new class and get a code for your students">➕<span class="t"> New class</span></button></div>
       <span class="grow"></span>
       <button type="button" class="tbell" id="tbell" hidden aria-label="New messages">🔔<span class="tn" id="tbelln"></span></button>
       <button type="button" class="acct" id="acct" aria-haspopup="true" aria-expanded="false" title="Account"></button>
@@ -2682,7 +2687,7 @@ async function loadClasses() {
 function fillClasses() {
   if (S.code !== WORLD && !S.classes.some(c => c.code === S.code)) S.code = S.classes.length ? S.classes[0].code : '';
   if (S.code !== WORLD) S.lastCode = S.code;
-  $('cls').innerHTML = (S.classes.length ? S.classes.map(c => `<option value="${esc(c.code)}">${esc(c.name)} · ${esc(c.code)}</option>`).join('') : '<option value="">No classes yet</option>')
+  $('cls').innerHTML = (S.classes.length ? S.classes.map(c => `<option value="${esc(c.code)}">${esc(c.name)}${String(c.name).trim().toUpperCase() === c.code ? '' : ' · ' + esc(c.code)}</option>`).join('') : '<option value="">No classes yet</option>')
     + `<option value="${WORLD}">🌍 World · top scores, every class</option>`;
   $('cls').value = S.code; $('cls').disabled = false;
   welcomeRender();
