@@ -205,7 +205,7 @@
 <body>
 <div id="app"></div>
 <p class="toast" id="toast" role="status"></p>
-<script src="../live-core.js?v=20261118k"></script>
+<script src="../live-core.js?v=20261119a"></script>
 <script>
 (() => {
 const { OPT_DEF, DIFFS, QGAMES, qgame, makeQ, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, BANK, NOW, at, db, results, latest, left, clock, ERR } = LC;
@@ -252,12 +252,13 @@ const timerSeg = p => `<span class="row" style="gap:6px;margin-left:auto"><span 
 // through C D E F G A B, and one row of accidentals. Tap the lit accidental again for 'any'. ✕ Any note clears both.
 const NLET = ['C', 'D', 'E', 'F', 'G', 'A', 'B'], NACC = [['-2', '𝄫'], ['-1', '♭'], ['0', '♮'], ['1', '♯'], ['2', '𝄪']];
 function notePicker(o) {
-  const l = o.nl === 'any' || o.nl == null ? null : +o.nl, a = o.na === 'any' || o.na == null ? null : String(o.na);
-  const big = l == null ? 'Any' : NLET[l] + (a == null || a === '0' ? '' : NACC.find(x => x[0] === a)[1]);
-  return `<div class="crow"><span class="label">Note</span><div class="npick">
-    <div class="nstep"><button type="button" class="btn" data-act="nstep" data-v="1" aria-label="Note up">▲</button><b class="nbig">${esc(big)}</b><button type="button" class="btn" data-act="nstep" data-v="-1" aria-label="Note down">▼</button></div>
-    <div class="nacc" role="group" aria-label="Sharp or flat">${NACC.map(([v, s]) => `<button type="button" data-act="nacc" data-v="${v}" aria-pressed="${a === v}" title="${{ '-2': 'Double flat', '-1': 'Flat', 0: 'Natural', 1: 'Sharp', 2: 'Double sharp' }[v]}">${s}</button>`).join('')}</div>
-    ${l != null || a != null ? '<button type="button" class="btn sm" data-act="nany">✕ Any note</button>' : '<span class="dim small">Any note. Tap ▲ ▼ or a sign to choose.</span>'}</div></div>`;
+  const s = S.cust && S.cust.sample, at = LC.noteAt(s), clef = o.clef && o.clef !== 'any' ? o.clef : 'treble';
+  const dp = o.np !== 'any' && o.np != null ? +o.np : null, a = o.na === 'any' || o.na == null ? null : String(o.na);
+  const big = dp == null && o.nl === 'any' && a == null ? 'Any' : (dp != null ? LC.letterAt(dp, clef) : at ? LC.letterAt(at.dp, s.clef) : '') + (a == null || a === '0' ? '' : NACC.find(x => x[0] === a)[1]);
+  return `<div class="crow"><span class="label">Note <span class="dim" style="text-transform:none;letter-spacing:0;font-weight:500">(▲ ▼ move the note on the staff above; the answers follow)</span></span><div class="npick">
+    <div class="nstep"><button type="button" class="btn" data-act="nstep" data-v="1" aria-label="Move the note up a step">▲</button><b class="nbig">${esc(big)}</b><button type="button" class="btn" data-act="nstep" data-v="-1" aria-label="Move the note down a step">▼</button></div>
+    <div class="nacc" role="group" aria-label="Sharp or flat">${NACC.map(([v, s2]) => `<button type="button" data-act="nacc" data-v="${v}" aria-pressed="${a === v}" title="${{ '-2': 'Double flat', '-1': 'Flat', 0: 'Natural', 1: 'Sharp', 2: 'Double sharp' }[v]}">${s2}</button>`).join('')}</div>
+    ${dp != null || a != null ? '<button type="button" class="btn sm" data-act="nany">✕ Any note</button>' : '<span class="dim small">Any note. Tap ▲ ▼ or a sign to choose.</span>'}</div></div>`;
 }
 function custDrawer() {
   const p = gpick(), G = qgame(p.g), o = S.cust.o, multi = G.multi || [], seg = (k, list) => { const m = multi.includes(k), cur = Array.isArray(o[k]) ? o[k].map(String) : [];
@@ -267,7 +268,7 @@ function custDrawer() {
   return `<div class="cust stack">
     <div class="sample"><span class="label">Sample${G.pick ? '' : ' · ' + esc(DIFFS[p.d])}</span><b>${esc(q.q)}</b>${LC.staffFor(q, 'teach')}<div class="row">${q.opts.map(x => `<span class="chip ${x === q.correct ? 'ok' : ''}">${x === q.correct ? '✓ ' : ''}${esc(x)}</span>`).join('')}</div>
       <button class="btn sm" type="button" data-act="csample" style="align-self:flex-start">↻ Another sample</button></div>
-    ${G.opts.nl ? notePicker(o) : ''}${Object.entries(G.opts).filter(([k]) => !(G.opts.nl && (k === 'nl' || k === 'na'))).map(([k, l]) => seg(k, l)).join('')}
+    ${G.opts.nl ? notePicker(o) : ''}${Object.entries(G.opts).filter(([k]) => !(G.opts.nl && (k === 'nl' || k === 'na' || (k === 'where' && o.np !== 'any' && o.np != null)))).map(([k, l]) => seg(k, l)).join('')}
     <div class="row"><button class="btn pri" type="button" data-act="cuse">Use these</button><button class="btn" type="button" data-act="creset">Back to normal</button><button class="btn" type="button" data-act="cclose">Cancel</button></div></div>`;
 }
 function startCard() {
@@ -737,9 +738,13 @@ app.addEventListener('click', async e => {
   if (act === 'leadStop') return stopLead();
   if (act === 'copen') { S.cust = { o: { ...gpick().o }, sample: null }; draw(); return; }
   if (act === 'cclose') { S.cust = null; draw(); return; }
-  if (act === 'nstep') { const o = S.cust.o, cur = o.nl === 'any' || o.nl == null ? (t.dataset.v === '1' ? -1 : 7) : +o.nl; o.nl = String((cur + Number(t.dataset.v) + 7) % 7); S.cust.sample = null; draw(); return; }
+  if (act === 'nstep') { const o = S.cust.o, s = S.cust.sample, at = LC.noteAt(s);
+    if ((o.np === 'any' || o.np == null) && at && s.clef && (o.clef === 'any' || !o.clef)) o.clef = s.clef;   // keep the clef that is showing
+    const clef = o.clef && o.clef !== 'any' ? o.clef : 'treble';
+    const from = o.np !== 'any' && o.np != null ? +o.np : at && s.clef === clef ? at.dp : 6;   // start from the note on the staff now
+    o.np = String(Math.max(-6, Math.min(18, from + Number(t.dataset.v)))); o.nl = 'any'; if (o.na === 'any' && at) o.na = String(at.acc); S.cust.sample = null; draw(); return; }
   if (act === 'nacc') { const o = S.cust.o; o.na = String(o.na) === t.dataset.v ? 'any' : t.dataset.v; S.cust.sample = null; draw(); return; }
-  if (act === 'nany') { S.cust.o.nl = 'any'; S.cust.o.na = 'any'; S.cust.sample = null; draw(); return; }
+  if (act === 'nany') { S.cust.o.np = 'any'; S.cust.o.nl = 'any'; S.cust.o.na = 'any'; S.cust.sample = null; draw(); return; }
   if (act === 'cset') { const k = t.dataset.k, v = k === 'timer' || k === 'ivs' ? Number(t.dataset.v) : t.dataset.v;
     if (t.dataset.multi) { const a = (S.cust.o[k] || []).slice(), i = a.findIndex(x => String(x) === String(v)); if (i >= 0) a.splice(i, 1); else a.push(v); S.cust.o[k] = a; } else S.cust.o[k] = v;
     S.cust.sample = null; draw(); return; }

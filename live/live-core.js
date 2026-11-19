@@ -180,7 +180,7 @@ window.LC = (() => {
   }
   // Customize (2026-11-17, step 3): OPT holds the teacher's choices while a question is made. clef: any | treble | bass | alto;
   // acc: both | sharps | flats; mode: both | major | minor; type: mix | name | spell | count | relative | odd (Scale Quest).
-  const OPT_DEF = { nl: 'any', na: 'any', where: 'any', clef: 'any', acc: 'both', mode: 'both', type: 'mix', play: 'mix', ivs: [], chords: [], inv: 'root', root: 'any', range: 'mid', timer: 30 };
+  const OPT_DEF = { np: 'any', nl: 'any', na: 'any', where: 'any', clef: 'any', acc: 'both', mode: 'both', type: 'mix', play: 'mix', ivs: [], chords: [], inv: 'root', root: 'any', range: 'mid', timer: 30 };
   let OPT = OPT_DEF;
   const anyClef = def => OPT.clef !== 'any' ? OPT.clef : def || rnd(['treble', 'treble', 'bass', 'alto']);
   const accOk = n => OPT.acc === 'sharps' ? n >= 0 : OPT.acc === 'flats' ? n <= 0 : true;
@@ -480,13 +480,14 @@ window.LC = (() => {
   }
   // The teacher picks the note (2026-11-19, David): OPT.nl = letter 0-6 (C-B), OPT.na = accidental -2..2 (𝄫 ♭ ♮ ♯ 𝄪), OPT.where = staff | below | above.
   // Wrong choices stay close: same letter with the next accidental, one line/space up and down, the same sound with another letter, the other clef's name.
-  const pickedNote = () => OPT.nl !== 'any' || OPT.na !== 'any' || OPT.where !== 'any';
+  const pickedNote = () => (OPT.np !== 'any' && OPT.np != null) || OPT.nl !== 'any' || OPT.na !== 'any' || OPT.where !== 'any';
   function pickNoteQ(d) {
     const clef = OPT.clef !== 'any' ? OPT.clef : 'treble', sh = CLEF_SHIFT[clef];
     const acc = OPT.na !== 'any' ? Number(OPT.na) : rnd([0, 0, 1, -1, 2, -2]);
     const span = { staff: [2, 10], below: [-5, 1], above: [11, 17] }[OPT.where] || [-3, 15];
     const dps = []; for (let dp = span[0]; dp <= span[1]; dp++) if (OPT.nl === 'any' || ((dp - sh) % 7 + 7) % 7 === Number(OPT.nl)) dps.push(dp);
-    const p = rnd(dps.length ? dps : [6]) - sh, right = noteName(p, acc);
+    // np = an exact staff position the teacher moved the note to with ▲ ▼ (2026-11-19): 2 = bottom line … 10 = top line
+    const p = (OPT.np !== 'any' && OPT.np != null ? Math.max(-6, Math.min(18, Number(OPT.np))) : rnd(dps.length ? dps : [6])) - sh, right = noteName(p, acc);
     const toward = acc > 0 ? acc - 1 : acc < 0 ? acc + 1 : rnd([1, -1]);   // the same letter, one accidental closer to natural (a natural gets a sharp or flat)
     const enhP = p + (acc > 0 ? 1 : -1), enhA = pitch(p, acc) - pitch(enhP, 0);   // the same sound spelled with the next letter
     const other = clef === 'treble' ? 'bass' : 'treble', misread = noteName(p + sh - CLEF_SHIFT[other], acc);
@@ -683,5 +684,8 @@ window.LC = (() => {
   const clock = s => s == null ? '' : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   const ERR = e => { const c = String(e && (e.code || e.message) || e); return /permission/i.test(c) ? 'Live Class is not switched on yet (the new database rules are not in place).' : /offline|unavailable|timeout/i.test(c) ? 'No connection. Check the wifi and try again.' : 'Something went wrong: ' + c; };
 
-  return { hid, cdNum, isLobby, KQ, play, audio, unlocked, isSound, staffFor, noteStaff, OPT_DEF, DIFFS, QGAMES, qgame, makeQ, keyNotes, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, BANK, NOW, at, newKey, roundId, flagged, db, fbAuth, results, latest, left, clock, ERR };
+  // the note a Tidal Tones question shows: { dp: staff position in its clef, acc } (used by the teacher's note picker)
+  const noteAt = q => { const c = q && q.gen && q.gen.n && q.gen.n[0]; if (c == null) return null; const d = dec(c), acc = d.w ? ({ 2: 1, 3: -1, 4: 2, 5: -2 })[d.w] || 0 : d.acc; return { dp: d.p + (CLEF_SHIFT[q.clef] || 0), acc }; };
+  const letterAt = (dp, clef) => LETTERS[(((dp - (CLEF_SHIFT[clef] || 0)) % 7) + 7) % 7];
+  return { noteAt, letterAt, hid, cdNum, isLobby, KQ, play, audio, unlocked, isSound, staffFor, noteStaff, OPT_DEF, DIFFS, QGAMES, qgame, makeQ, keyNotes, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, BANK, NOW, at, newKey, roundId, flagged, db, fbAuth, results, latest, left, clock, ERR };
 })();
