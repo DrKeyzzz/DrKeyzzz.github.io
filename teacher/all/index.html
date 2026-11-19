@@ -309,6 +309,32 @@
   .up .s { color: var(--muted); font-size: 13px; margin-left: auto; }
   .up li { display: flex; gap: 6px; align-items: stretch; } .up li button { flex: 1; width: auto; }
   .up li { flex-wrap: wrap; } .up li button { min-width: 0; flex: 1 1 260px; } .up .upv { flex: 0 1 auto; white-space: normal; }   /* phones: Preview buttons drop under the row instead of pushing the page wide (2026-11-16) */
+  /* New class + welcome for new teachers (2026-11-18) */
+  .clsgrp { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; min-width: 0; }
+  @media (max-width: 720px) { .clsgrp, .clsgrp label.f { width: 100%; } .clsgrp select { width: 100%; min-width: 0; } }
+  .btn.newcls { padding: 10px 16px 8px; white-space: nowrap; letter-spacing: .04em; }
+  .welcome { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 14px; padding: 10px 14px; border: 2px solid var(--gold); border-radius: 14px; background: #1a2538; }
+  .welcome h2 { margin: 0; font: 700 16px var(--f-ui); flex: 0 0 auto; }
+  .welcome ol { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 0; list-style: none; flex: 1 1 auto; }
+  .welcome li button { display: inline-flex; align-items: center; gap: 8px; font: 700 14px var(--f-ui); color: var(--text); background: var(--bg); border: 1px solid var(--card-border); border-radius: 999px; padding: 8px 14px 7px; cursor: pointer; }
+  .welcome li button:hover { border-color: var(--gold); }
+  .welcome li .n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--gold); color: #10131a; font-size: 12.5px; }
+  .welcome li.done button { color: var(--muted); border-color: #2f6b4a; }
+  .welcome li.done .n { background: #3ccf7a; }
+  .welcome .wx { margin-left: auto; }
+  .ncbox { position: fixed; inset: 0; z-index: 70; background: rgba(5,8,14,.65); display: flex; align-items: center; justify-content: center; padding: 16px; }
+  .ncbox > div { width: min(460px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; background: #1a2538; border: 2px solid var(--gold); border-radius: 18px; padding: 20px 22px; box-shadow: 0 18px 50px rgba(0,0,0,.6); }
+  .ncbox h2 { margin: 0 0 6px; font: 700 21px var(--f-ui); }
+  .ncbox p { margin: 0 0 12px; color: var(--muted); font-size: 15px; }
+  .ncbox input { width: 100%; box-sizing: border-box; font: 600 17px var(--f-ui); padding: 11px 12px 9px; border-radius: 10px; border: 1px solid var(--card-border); background: var(--bg); color: var(--text); }
+  .ncbox details { margin: 10px 0 0; color: var(--muted); font-size: 14px; } .ncbox summary { cursor: pointer; }
+  .ncbox details input { margin-top: 8px; text-transform: uppercase; letter-spacing: .1em; }
+  .ncbox .err { color: #ff8a8a; min-height: 1.2em; margin: 8px 0 0; font-size: 14px; }
+  .ncbox .row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .ncbox .code { margin: 8px 0 10px; padding: 12px; text-align: center; border: 2px dashed var(--gold); border-radius: 14px; font: 800 clamp(38px, 11vw, 56px)/1.05 ui-monospace, Menlo, monospace; letter-spacing: .12em; color: var(--gold); }
+  .ncbox ol { margin: 0 0 4px; padding-left: 22px; color: var(--text); font-size: 15px; line-height: 1.45; } .ncbox ol b { color: var(--gold); }
+  .empty .btn { margin-top: 10px; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   @media (max-width: 720px) { .up .w { min-width: 0; flex-basis: 100%; } .up .k { margin-left: 0; display: block; } .up .s { margin-left: 0; } }
   .upv, .gprev a { display: inline-flex; align-items: center; gap: 6px; font: 700 13px var(--f-ui); color: var(--text); text-decoration: none; background: var(--bg); border: 1px solid var(--gold); border-radius: 10px; padding: 6px 12px; white-space: nowrap; }
   .upv:hover, .gprev a:hover, .upv:focus-visible, .gprev a:focus-visible { background: var(--gold); color: #111; }
@@ -441,11 +467,13 @@
   <div id="main" hidden>
     <div class="who"><span id="who"></span><button type="button" class="tbell" id="tbell" hidden aria-label="New messages">🔔<span class="tn" id="tbelln"></span></button><button class="btn ghost sm" type="button" id="signout">Sign out</button></div>
 
+    <section class="welcome" id="welcome" hidden aria-label="Getting started"></section>
+
     <ul class="games" id="games" aria-label="Games"></ul>
 
     <section class="card" id="panel">
       <div class="opts">
-        <label class="f" for="cls">Class<select id="cls"></select></label>
+        <div class="clsgrp"><label class="f" for="cls">Class<select id="cls"></select></label><button class="btn newcls" type="button" id="newcls" data-newcls="1" title="Make a new class and get a code for your students">➕ New class</button></div>
         <label class="ck avsw" id="avbox" hidden title="Students in this class see a cartoon avatar in the corner of every game. Turn it off to show their old icon instead."><input type="checkbox" id="avon"> Student avatars</label>
         <label class="f" for="rng">Time<select id="rng">
           <option value="1">Today</option>
@@ -1034,8 +1062,8 @@ function render() {
   $('msgview').hidden = S.view !== 'messages'; $('boardview').hidden = S.view !== 'board'; $('liveview').hidden = S.view !== 'live'; document.querySelector('footer').hidden = social; $('games').hidden = social; syncHash();
   if (social) {
     ['upbox', 'actbox', 'adminsum', 'adminacc', 'data', 'gradebar', 'gradelist', 'gradelist2', 'assignbox', 'testsbox', 'newtestbox', 'csv'].forEach(id => { $(id).hidden = true; });
-    $('cls').closest('label').hidden = true; $('rng').closest('label').hidden = true;
-    if (S.view === 'students') { $('cls').closest('label').hidden = false; return renderSm(); }
+    $('cls').closest('.clsgrp').hidden = true; $('rng').closest('label').hidden = true;
+    if (S.view === 'students') { $('cls').closest('.clsgrp').hidden = false; return renderSm(); }
     return S.view === 'live' ? showLive() : S.view === 'messages' ? renderMessages() : renderBoard();
   }
   const asg = S.view === 'assign', nt = S.view === 'newtest', ts = S.view === 'tests', ad = S.view === 'admin', av = S.view === 'activity';
@@ -1051,7 +1079,7 @@ function render() {
   $('gradelist').hidden = $('gradelist2').hidden = $('gradebar').hidden = !gv;
   if (gv) { $('aout').closest('label').hidden = !S.gradeA; if (S.gradeA) $('aout').value = aOut(S.classes.find(x => x.code === S.code), S.gradeA); }
   $('data').hidden = asg || nt || tpg || (gv && !S.gradeA); $('assignbox').hidden = !asg; $('testsbox').hidden = !ts; $('newtestbox').hidden = !nt; $('csv').hidden = asg || nt || tpg || (gv && !S.gradeA);
-  $('cls').closest('label').hidden = asg || ad || av || S.view === 'feedback'; $('rng').closest('label').hidden = asg || nt || ts;
+  $('cls').closest('.clsgrp').hidden = asg || ad || av || S.view === 'feedback'; $('rng').closest('label').hidden = asg || nt || ts;
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (S.view === 'messages' && b.dataset.v === 'board') || (nt && b.dataset.v === 'tests') || (asg && b.dataset.v === 'grades'))));
   if (asg) { showAssign(); return; }
   if (nt) { showNewTest(); return; }
@@ -1059,7 +1087,7 @@ function render() {
   const cols = COLS[S.view]; const st = S.sort[S.view] || DEFAULT_SORT[S.view]; const rows = visible();
   const head = cols.map(c => c.t === 'x' || c.t === 'r' ? '<th></th>' : `<th class="${c.num ? 'num' : ''}" aria-sort="${st.k === c.k ? (st.dir > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" data-k="${c.k}">${esc(c.h)}<span class="ar" aria-hidden="true">${st.k === c.k ? (st.dir > 0 ? '▲' : '▼') : ''}</span></button></th>`).join('');
   const body = rows.length ? rows.map(r => '<tr>' + cols.map(c => `<td class="${(c.num ? 'num ' : '') + (c.cls || '')}">${cellText(c, r)}</td>`).join('') + '</tr>').join('')
-    : `<tr><td class="empty" colspan="${cols.length}">${S.loading ? 'Loading…' : 'Nothing here yet for this class and time.'}</td></tr>`;
+    : `<tr><td class="empty" colspan="${cols.length}">${S.loading ? 'Loading…' : !S.classes.length && S.code !== WORLD ? 'You have no classes yet. Make one to get a code for your students.<br><button class="btn" type="button" data-newcls="1">➕ New class</button>' : 'Nothing here yet for this class and time.'}</td></tr>`;
   $('tbl').innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
   if (ad) { renderAdminSum(); renderAccess(); }
   const label = { activity: $('actby').value === 'player' ? (rows.length === 1 ? 'player' : 'players') : $('actby').value === 'teacher' ? (rows.length === 1 ? 'teacher row' : 'teacher rows') : rows.length === 1 ? 'game visit' : 'game visits', progress: 'practice records', scores: 'scores', feedback: 'notes', tests: 'students with a result', admin: 'teacher and game rows' }[S.view];
@@ -2465,6 +2493,7 @@ function wire() {
   $('actwho').onchange = $('actdev').onchange = $('actby').onchange = $('actteach').onchange = render;
   setInterval(() => { if (S.view === 'activity' && !document.hidden) render(); }, 60000);   // keeps "Playing now" honest (no reads)
   $('actclean').onclick = () => actClean(false);
+  document.addEventListener('click', e => { const n = e.target.closest('[data-newcls]'); if (n) return ncOpen(); const w = e.target.closest('[data-wk]'); if (w) welcomeClick(w.dataset.wk); });
   $('anew').onclick = () => { S.assignmentEdit = ''; showAssign(true); S.view = 'assign'; msg(''); load(); };
   $('aedit').onclick = () => { if (!S.gradeA) return; S.assignmentEdit = aKey(S.gradeA); showAssign(true); S.view = 'assign'; msg(''); load(); };
   $('aend').onclick = () => changeAssignment('end');
@@ -2585,8 +2614,128 @@ function fillClasses() {
   $('cls').innerHTML = (S.classes.length ? S.classes.map(c => `<option value="${esc(c.code)}">${esc(c.name)} · ${esc(c.code)}</option>`).join('') : '<option value="">No classes yet</option>')
     + `<option value="${WORLD}">🌍 World · top scores, every class</option>`;
   $('cls').value = S.code; $('cls').disabled = false;
-  if (!S.classes.length) $('note').textContent = "You have no classes yet. Create one in any game's Teacher dashboard (Classes tab).";
+  welcomeRender();
+  if (!PREVIEW && !S.ncAuto && new URLSearchParams(location.search).has('newclass')) { S.ncAuto = true; setTimeout(ncOpen, 0); }
   load();
+}
+// ---------- New class + welcome for new teachers (2026-11-18) ----------
+// Makes a class exactly like the games' Classes tabs (scale-quest Cloud.createClass): doc classes/<code> = { name, ownerEmail, created_at },
+// code = 6 random characters with no 0/O or 1/I/L, or the teacher's own 6–7 letters and numbers. No rules change.
+// FREE TIER HOOK (teacher plan, Claude outputs/teacher-subscription-plan.md: free = 1 class). Not built yet: everyone may make classes.
+function canMakeClass() { return true; }
+const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+const newClassCode = () => Array.from({ length: 6 }, () => CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]).join('');
+const cleanCode = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+async function createClass(name, custom) {
+  if (PREVIEW) {   // in memory only
+    if (custom && S.classes.some(c => c.code === custom)) throw new Error(`The code ${custom} is already taken. Try another.`);
+    let code = custom; while (!code || S.classes.some(c => c.code === code)) code = newClassCode();
+    return { code, email: S.email };
+  }
+  return run(async ({ fs, db, auth }) => {
+    const email = auth.currentUser.email, put = async code => {
+      const ref = fs.doc(db, 'classes', code);
+      if ((await fs.getDoc(ref)).exists()) return false;
+      await fs.setDoc(ref, { name, ownerEmail: email, created_at: fs.serverTimestamp() }); return true;
+    };
+    if (custom) { if (!(await put(custom))) throw new Error(`The code ${custom} is already taken. Try another.`); return { code: custom, email }; }
+    for (let i = 0; i < 6; i++) { const code = newClassCode(); if (await put(code)) return { code, email }; }
+    throw new Error('Could not make a new code. Try again.');
+  });
+}
+const ncClose = () => { const b = $('ncbox'); if (b) b.remove(); };
+function ncShow(html) {
+  ncClose();
+  document.body.insertAdjacentHTML('beforeend', `<div class="ncbox" id="ncbox"><div role="dialog" aria-modal="true" aria-labelledby="nc-h">${html}</div></div>`);
+  const b = $('ncbox'); b.onclick = e => { if (e.target === b || e.target.closest('[data-ncclose]')) ncClose(); };
+  b.onkeydown = e => { if (e.key === 'Escape') ncClose(); };
+  return b;
+}
+function ncOpen() {
+  if (!canMakeClass()) { msg('Your plan allows one class.'); return; }   // free tier hook: never reached for now
+  const b = ncShow(`<h2 id="nc-h">➕ New class</h2><p>Give it a name your students will recognize. You get a code to share with them.</p>
+    <form id="ncform"><input id="ncname" maxlength="40" placeholder="e.g. Period 3 Music Theory" aria-label="Class name" autocomplete="off">
+    <details><summary>Pick my own code (optional)</summary><input id="nccode" maxlength="7" placeholder="6–7 letters and numbers" aria-label="Your own class code" autocomplete="off"></details>
+    <p class="err" id="ncerr" role="alert"></p>
+    <div class="row"><button class="btn" type="submit" id="ncgo">Create class</button><button class="btn ghost" type="button" data-ncclose="1">Cancel</button></div></form>`);
+  b.querySelector('#ncname').focus();
+  b.querySelector('#ncform').onsubmit = async e => {
+    e.preventDefault();
+    const name = b.querySelector('#ncname').value.trim().replace(/\s+/g, ' '), custom = cleanCode(b.querySelector('#nccode').value), err = b.querySelector('#ncerr');
+    if (!name) { err.textContent = 'Type a class name first.'; return; }
+    if (custom && !/^[A-Z0-9]{6,7}$/.test(custom)) { err.textContent = 'Your own code needs 6–7 letters and numbers.'; return; }
+    const go = b.querySelector('#ncgo'); go.disabled = true; go.textContent = 'Creating…'; err.textContent = '';
+    try {
+      const { code, email } = await createClass(name.slice(0, 40), custom);
+      S.classes.push({ code, name: name.slice(0, 40), ownerEmail: email, created_at: new Date() });
+      S.classes.sort((a, c) => String(a.name).localeCompare(String(c.name)));
+      S.code = code; S.lastCode = code; if (['admin', 'activity', 'feedback'].includes(S.view)) S.view = 'progress';
+      fillClasses(); ncShare(code, true);
+    } catch (x) { err.textContent = errText(x); go.disabled = false; go.textContent = 'Create class'; }
+  };
+}
+// Share a class code: big code, join steps, Print code card / Copy code (also welcome step 2).
+function ncShare(code, fresh) {
+  const c = S.classes.find(x => x.code === code); if (!c) return ncOpen();
+  const b = ncShow(`<h2 id="nc-h">${fresh ? '🎉 ' + esc(c.name) + ' is ready' : 'Share the code for ' + esc(c.name)}</h2><p>Students join with this code:</p>
+    <div class="code" aria-label="Class code ${esc(code.split('').join(' '))}">${esc(code)}</div>
+    <ol><li>Open <b>musictheoryacademy.org</b></li><li>Type your <b>first name</b> and <b>last initial</b></li><li>Type the class code <b>${esc(code)}</b></li></ol>
+    <div class="row"><button class="btn" type="button" id="ncprint">🖨 Print code card</button><button class="btn ghost" type="button" id="nccopy">📋 Copy</button><button class="btn ghost" type="button" data-ncclose="1">Done</button></div>
+    <p class="err" id="ncmsg" style="color:var(--muted)"></p>`);
+  b.querySelector('#ncprint').focus();
+  b.querySelector('#ncprint').onclick = () => { printCodeCard(c); welcomeShared(); };
+  b.querySelector('#nccopy').onclick = async () => {
+    const t = `Join ${c.name} on Music Theory Academy:\n1. Open musictheoryacademy.org\n2. Type your first name and last initial\n3. Type the class code ${code}`;
+    try { await navigator.clipboard.writeText(t); b.querySelector('#ncmsg').textContent = 'Copied. Paste it into Google Classroom, an email or your class page.'; welcomeShared(); }
+    catch { b.querySelector('#ncmsg').textContent = 'Could not copy. The code is ' + code + '.'; }
+  };
+}
+// Printable page: one big card for the board + 8 cut-out slips for students.
+function printCodeCard(c) {
+  const slip = `<div class="slip"><b>Music Theory Academy</b><span>${esc(c.name)}</span><ol><li>Open <b>musictheoryacademy.org</b></li><li>Type your first name + last initial</li><li>Type the class code</li></ol><div class="sc">${esc(c.code)}</div></div>`;
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>Class code ${esc(c.code)}</title><style>
+    @page { size: letter; margin: 0.5in; } * { box-sizing: border-box; } body { margin: 0; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; color: #111; }
+    .big { border: 3px solid #111; border-radius: 18px; padding: 22px 28px; text-align: center; margin-bottom: 18px; }
+    .big h1 { margin: 0; font-size: 22px; letter-spacing: .08em; text-transform: uppercase; } .big h2 { margin: 6px 0 0; font-size: 26px; font-weight: 600; }
+    .big .code { margin: 14px auto; font: 800 84px/1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .14em; }
+    .big ol { display: inline-block; text-align: left; margin: 0; font-size: 21px; line-height: 1.5; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-top: 1px dashed #999; border-left: 1px dashed #999; }
+    .slip { padding: 10px 14px; border-right: 1px dashed #999; border-bottom: 1px dashed #999; font-size: 13px; }
+    .slip b, .slip span { display: block; } .slip span { font-size: 15px; font-weight: 600; } .slip ol { margin: 4px 0; padding-left: 18px; }
+    .sc { font: 800 26px/1.1 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .12em; } .cut { font-size: 11px; color: #666; margin: 0 0 4px; }
+  </style></head><body><div class="big"><h1>Music Theory Academy</h1><h2>${esc(c.name)}</h2><div class="code">${esc(c.code)}</div>
+    <ol><li>Open <b>musictheoryacademy.org</b></li><li>Type your <b>first name</b> and <b>last initial</b></li><li>Type the class code <b>${esc(c.code)}</b></li></ol></div>
+    <p class="cut">✂ Cut out a slip for each student</p><div class="grid">${slip.repeat(8)}</div></body></html>`;
+  const old = $('ncprintf'); if (old) old.remove();
+  const f = document.createElement('iframe'); f.id = 'ncprintf'; f.title = 'Class code card'; f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+  document.body.appendChild(f);
+  const d = f.contentDocument; d.open(); d.write(html); d.close();
+  setTimeout(() => { try { f.contentWindow.focus(); f.contentWindow.print(); } catch { msg('Could not open printing. Try again.'); } }, 150);
+}
+// Welcome for a teacher with no classes: three steps that tick off. localStorage mtg_welcome_v1:<email> = 'on' (showing) | 'off' (closed);
+// mtg_welcome_shared_v1:<email> = a code card was printed or copied.
+const WK = () => 'mtg_welcome_v1:' + S.email, WSK = () => 'mtg_welcome_shared_v1:' + S.email;
+const lsGet = k => { try { return localStorage.getItem(k) || ''; } catch { return ''; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+function welcomeShared() { lsSet(WSK(), '1'); welcomeRender(); }
+function welcomeRender() {
+  const el = $('welcome'); if (!el || !S.email) return;
+  let st = lsGet(WK());
+  if (!st && !S.classes.length) { st = 'on'; lsSet(WK(), st); }
+  if (st !== 'on') { el.hidden = true; return; }
+  const has = !!S.classes.length, shared = has && !!lsGet(WSK()), asg = S.classes.some(c => c.hub_assignment || (c.hub_assignments || []).length), all = has && shared && asg;
+  const step = (i, ok, k, t) => `<li class="${ok ? 'done' : ''}"><button type="button" data-wk="${k}"><span class="n" aria-hidden="true">${ok ? '✓' : i}</span>${t}${ok ? '<span class="sr-only"> (done)</span>' : ''}</button></li>`;
+  el.innerHTML = `<h2>${all ? '🎉 You\'re all set!' : '👋 Welcome! Get started:'}</h2><ol>${step(1, has, 'make', 'Make a class')}${step(2, shared, 'share', 'Share the code')}${step(3, asg, 'assign', 'Give your first assignment')}</ol>
+    <button class="btn ghost sm wx" type="button" data-wk="close">${all ? 'Close' : 'Hide'}</button>`;
+  el.hidden = false;
+}
+function welcomeClick(k) {
+  if (k === 'close') { lsSet(WK(), 'off'); return welcomeRender(); }
+  if (k === 'make' || !S.classes.length) return ncOpen();
+  const code = S.classes.some(c => c.code === S.code) ? S.code : S.classes[0].code;
+  if (code !== S.code) { S.code = S.lastCode = code; $('cls').value = code; }
+  if (k === 'share') return ncShare(code);
+  if (k === 'assign') { S.assignmentEdit = ''; S.view = 'assign'; msg(''); load(); }
 }
 async function start() {
   wire();
@@ -2597,7 +2746,8 @@ async function start() {
     if (hashView()) S.view = hashView();
     startSocial();
     { const dk = n => ymd(new Date(Date.now() + n * 86400000)); S.classes = [{ code: 'PREVW', name: 'Period 3 Music Theory', hub_assignment: { start: dk(3), end: dk(9), tasks: [{ game: 'scale', skills: ['Major scales'], goal: 15, unit: 'minutes' }] }, hub_assignments: [{ q: 1, start: dk(10), end: dk(16), tasks: [{ game: 'scale', goal: 20, unit: 'answers', settings: { ksLevel: 2 } }, { game: 'tidal', goal: 10, unit: 'minutes' }] }] }, { code: 'PREV2', name: 'Period 5 Band', hub_assignment: { start: dk(-2), end: dk(4), tasks: [{ game: 'tidal', goal: 60, unit: 'answers' }] } }]; }
-     return fillClasses();
+     if (new URLSearchParams(location.search).get('empty') === '1') S.classes = [];   // ?preview=1&empty=1: a brand-new teacher with no classes (2026-11-18)
+     fillClasses(); if (new URLSearchParams(location.search).has('newclass')) ncOpen(); return;
   }
   try {
     const { auth, authMod } = await fbAuth();

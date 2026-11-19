@@ -741,7 +741,7 @@ async function loadClasses() {
   $('pick-hint').hidden = !canPick();
   $('pick-hint').textContent = cls() ? 'Tap a different class to switch.' : 'Tap a class to give it an assignment.';
   $('form').hidden = !cls();
-  if (!S.classes.length && !$('classes').querySelector('.msg')) $('classes').innerHTML = '<li>You have no classes yet. Create one in any game\'s Teacher dashboard (Classes tab).</li>';
+  if (!S.classes.length && !$('classes').querySelector('.msg')) $('classes').innerHTML = '<li>You have no classes yet. <a href="all/?newclass=1" target="_top">➕ Make a class</a> on the All games dashboard.</li>';
   pickClass();
   if (!TESTMODE && APARAMS.has('code') && !APARAMS.has('new') && !cls()) $('classes').innerHTML = '<li class="msg">The selected class is unavailable.</li>';   // + New assignment starts unpicked on purpose
 }
