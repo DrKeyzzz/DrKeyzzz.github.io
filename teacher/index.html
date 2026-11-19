@@ -367,6 +367,7 @@
           <label class="opt"><input type="radio" name="when" value="today" checked><span>Today only</span></label>
           <label class="opt"><input type="radio" name="when" value="week"><span id="week-label">This week</span></label>
           <label class="opt"><input type="radio" name="when" value="custom"><span>Pick dates</span></label>
+          <label class="opt"><input type="radio" name="when" value="open"><span>No end date</span></label>
         </div>
         <div class="dates" id="dates" hidden>
           <label class="f" for="d-start">Start<input type="date" id="d-start"></label>
@@ -453,6 +454,9 @@ const addDays = n => { const d = new Date(); d.setDate(d.getDate() + n); return 
 const toDate = k => { const [y, m, d] = k.split('-').map(Number); return new Date(y, m - 1, d); };
 const niceDay = k => toDate(k).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+// No end date (2026-11-19, David): the assignment stays open until the teacher presses End. Stored as end '9999-12-31' so every page's
+// date checks keep working unchanged; pages show 'No end date' instead of the date.
+const OPEN_END = '9999-12-31';
 
 // ---------- games and skills ----------
 // Each skill is a label the game itself saves in the practice history (MTG_HIST) AND opens with ?focus=<label>,
@@ -507,6 +511,7 @@ const taskText = t => `${GNAME[t.game] || t.game}: ${skillsOf(t).join(', ') || '
 function whenText(a) {
   const today = dayKey();
   const span = a.start === a.end ? niceDay(a.start) : `${niceDay(a.start)} to ${niceDay(a.end)}`;
+  if (a.end === OPEN_END) return a.start > today ? `Starts ${niceDay(a.start)} · no end date` : 'Open · no end date (until you end it)';
   if (a.end < today) return `Ended · ${span}`;
   if (a.start > today) return `Starts later · ${span}`;
   return a.end === today ? 'Today only' : `Now through ${niceDay(a.end)}`;
@@ -770,7 +775,7 @@ function pickClass() {
   if (a && DATE_RE.test(a.start) && DATE_RE.test(a.end) && Array.isArray(a.tasks) && a.tasks.length) {
     S.tasks = a.tasks.slice(0, 3).map(t => { const game = GNAME[t.game] ? t.game : 'any';
       return { game, skills: skillsOf(t).filter(x => hasSkill(t.game, x)).slice(0, 12), goal: t.goal, unit: t.unit === 'minutes' ? 'minutes' : 'answers', settings: setsFrom(game, t.settings), open: false }; });
-    S.when = a.start === today && a.end === today ? 'today' : a.start === today && a.end === addDays(6) ? 'week' : 'custom';
+    S.when = a.end === OPEN_END ? 'open' : a.start === today && a.end === today ? 'today' : a.start === today && a.end === addDays(6) ? 'week' : 'custom';
     $('d-start').value = a.start; $('d-end').value = a.end;
   } else {
     const g0 = APARAMS.get('game');   // ?game=scale etc.: a game's dashboard opens the page with that game picked
@@ -877,6 +882,7 @@ function build() {
   const today = dayKey();
   let start = today, end = today;
   if (S.when === 'week') end = addDays(6);
+  if (S.when === 'open') { start = S.originalAssignment && S.originalAssignment.end === OPEN_END ? S.originalAssignment.start : today; end = OPEN_END; }
   if (S.when === 'custom') {
     start = $('d-start').value; end = $('d-end').value;
     if (!DATE_RE.test(start) || !DATE_RE.test(end)) return { err: 'Pick a start date and an end date.', focus: DATE_RE.test(start) ? 'd-end' : 'd-start' };

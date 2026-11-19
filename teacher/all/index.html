@@ -771,6 +771,8 @@ const BW_AREA_ID = { 'Sharp or Flat?': 'synapse', 'Intervals': 'intervals', 'Cho
 const BW_LEVELS = { intervals: 6, chords: 8, progressions: 6, scales: 8, pitch: 9 };
 const lvAreas = t => t.game === 'brainwaves' ? [].concat(t.skills || t.skill || []).map(k => BW_AREA_ID[k]).filter(a => BW_LEVELS[a]) : [];
 const BW_AREA_NAME = Object.fromEntries(Object.entries(BW_AREA_ID).map(([k, v]) => [v, k]));
+const OPEN_END = '9999-12-31';   // an assignment with No end date (open until the teacher ends it)
+const endText = (a, f) => a.end === OPEN_END ? 'no end date' : f(a.end);
 const dayList = (a, b) => { const out = []; for (let d = new Date(a + 'T12:00:00'); ymd(d) <= b && out.length < 120; d.setDate(d.getDate() + 1)) out.push(ymd(d)); return out; };
 const taskName = t => { const g = G[t.game], keys = t.game === 'scale' && t.settings && Array.isArray(t.settings.keys) ? t.settings.keys : [], sk = [].concat(t.skills || t.skill || []).filter(Boolean);
   const ksl = t.game === 'scale' && t.settings && t.settings.ksLevel >= 1 ? t.settings.ksLevel : 0;   // Scale Quest key signature ladder
@@ -842,7 +844,7 @@ const PREVIEW_NOLINK = a => !previewBtns(a);
 function renderGradeList() {
   const today = ymd(new Date()), open = S.gradeA ? aKey(S.gradeA) : '';
   const item = (a, i) => { const on = aKey(a) === open, st = !live.has(aKey(a)) ? ['Ended', 'end'] : a.start > today ? ['Upcoming', 'up'] : ['Now', 'now'];
-    return `<button type="button" class="gi${on ? ' on' : ''}" data-ga="${i}" aria-expanded="${on}"><span class="gar" aria-hidden="true">▸</span><span class="gd">${esc(fmtDay(a.start))}${a.end !== a.start ? ' – ' + esc(fmtDay(a.end)) : ''}</span>`
+    return `<button type="button" class="gi${on ? ' on' : ''}" data-ga="${i}" aria-expanded="${on}"><span class="gar" aria-hidden="true">▸</span><span class="gd">${esc(fmtDay(a.start))}${a.end !== a.start ? ' – ' + esc(endText(a, fmtDay)) : ''}</span>`
       + `<span class="gw">${a.tasks.map(t => esc(taskName(t)) + ', ' + t.goal + (t.unit === 'minutes' ? ' min' : ' answers')).join(' · ')}</span><span class="gs ${st[1]}">${st[0]}</span></button>`; };
   $('aedit').disabled = $('adelete').disabled = PREVIEW || !S.gradeA || !!S.assignmentBusy;
   $('anew').disabled = PREVIEW || !S.code || !!S.assignmentBusy;
@@ -870,6 +872,7 @@ async function loadGrades(c, assignment, through = assignment?.end) {
       return result;
     });
   }
+  if (through > ymd(new Date())) through = ymd(new Date());   // never read days that have not happened (No end date = 9999)
   if (through < assignment.start) return [];
   const games = [...new Set(assignment.tasks.flatMap(t => t.game === 'any' ? GAMES.slice(1).filter(g => g.prog).map(g => g.id) : [t.game]))].filter(id => G[id] && G[id].prog);
   const ds = dayList(assignment.start, through);
@@ -1354,7 +1357,7 @@ function renderTeacherPage() {
     (LA.length ? LA : [c.hub_assignment]).forEach(a => { if (a && Array.isArray(a.tasks)) {
       const st = a.start > today ? ['Upcoming', ''] : a.end < today ? ['Past', ''] : ['Active', ' on'];
       const what = a.tasks.map(t => `${GNAMES[t.game] || t.game}${[].concat(t.skills || t.skill || []).filter(Boolean).length ? ': ' + [].concat(t.skills || t.skill).filter(Boolean).join(', ') : ''} · ${t.goal} ${t.unit === 'minutes' ? 'min' : 'answers'}${t.settings ? ' (' + setsText(t.settings) + ')' : ''}`).join('<br>');
-      asg.push({ key: (st[0] === 'Active' ? 0 : st[0] === 'Upcoming' ? 1 : 2) + a.end, html: `<tr><td>${esc(cname(c.code))}</td><td class="wrap">${what.split('<br>').map(esc).join('<br>')}</td><td>${esc(fmtDay(a.start))} – ${esc(fmtDay(a.end))}</td><td><span class="st${st[1]}">${st[0]}</span></td></tr>` });
+      asg.push({ key: (st[0] === 'Active' ? 0 : st[0] === 'Upcoming' ? 1 : 2) + a.end, html: `<tr><td>${esc(cname(c.code))}</td><td class="wrap">${what.split('<br>').map(esc).join('<br>')}</td><td>${esc(fmtDay(a.start))} – ${esc(endText(a, fmtDay))}</td><td><span class="st${st[1]}">${st[0]}</span></td></tr>` });
     } });
     Object.entries(OLD_ASSIGN).forEach(([k, gname]) => { const v = c[k]; if (v && typeof v === 'object' && Object.keys(v).length) asg.push({ key: '3', html: `<tr><td>${esc(cname(c.code))}</td><td class="wrap">${esc(gname)} (set inside the game) · ${esc(setsText(v).slice(0, 160))}</td><td></td><td><span class="st">In game</span></td></tr>` }); });
   });
@@ -1390,7 +1393,7 @@ function renderClassList() {
   const tn = {}; (S.adminTeachers || []).forEach(t => { tn[String(t.email).toLowerCase()] = t; });
   const today = ymd(new Date()), list = (S.adminClasses || []).slice().sort((a, b) => b.dateMs - a.dateMs || b.created - a.created);
   const asg = a => !a ? '<span style="color:var(--muted)">None</span>' : a.end < today ? `<span style="color:var(--muted)">Past (ended ${esc(fmtDay(a.end))})</span>`
-    : a.start > today ? `<span class="st">Upcoming</span>` : `<span class="st on">Active</span> <span style="color:var(--muted)">to ${esc(fmtDay(a.end))}</span>`;
+    : a.start > today ? `<span class="st">Upcoming</span>` : `<span class="st on">Active</span> <span style="color:var(--muted)">${a.end === OPEN_END ? 'no end date' : 'to ' + esc(fmtDay(a.end))}</span>`;
   const row = c => { const t = tn[c.owner] || {}, nm = t.name || (ADMIN_EMAILS.includes(c.owner) ? 'You' : c.owner || 'Unknown');
     return `<tr${c.owner ? ` class="trow" data-teacher="${esc(c.owner)}"` : ''}><td><b>${esc(c.name || c.code)}</b><br><span style="color:var(--muted);font-size:13px">${esc(c.code)}</span></td>`
       + `<td>${esc(nm)}${t.school ? `<br><span style="color:var(--muted);font-size:13px">${esc(t.school)}</span>` : ''}</td><td class="num">${c.students}</td>`
@@ -1492,8 +1495,8 @@ function upItems() {
   S.classes.forEach(c => liveAssigns(c, today).forEach(a => {
     const what = a.tasks.map(t => `${(G[t.game] || {}).name || 'Any game'}${(t.skills && t.skills.length) ? ': ' + t.skills.join(', ') : ''}, ${t.goal} ${t.unit === 'minutes' ? 'min' : 'answers'}`).join(' · ');
     const it = { kind: 'Assignment', cls: cn(c.code), code: c.code, name: what, view: 'grades', color: '#4ea1ff', asg: a };
-    if (a.start > today) soon.push({ ...it, ms: dayMs(a.start), when: dayText(a.start) + (a.end !== a.start ? ' to ' + dayText(a.end) : ''), sub: 'Starts ' + dayText(a.start) });
-    else live.push({ ...it, ms: dayMs(a.end), when: 'Ends ' + dayText(a.end), sub: 'Running now' });
+    if (a.start > today) soon.push({ ...it, ms: dayMs(a.start), when: dayText(a.start) + (a.end === OPEN_END ? ', no end date' : a.end !== a.start ? ' to ' + dayText(a.end) : ''), sub: 'Starts ' + dayText(a.start) });
+    else live.push({ ...it, ms: dayMs(a.end), when: a.end === OPEN_END ? 'No end date' : 'Ends ' + dayText(a.end), sub: 'Running now' });
   }));
   (S.upTests || []).forEach(t => {
     const st = tstate(t), gm = G[t.game] || { name: t.game, color: '#ff5d6c' };

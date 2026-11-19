@@ -921,6 +921,7 @@ function saveAssigns(p, cs, ds) {
   try { localStorage.setItem(ASSIGN_KEY(p), JSON.stringify(by)); localStorage.setItem(ASSIGN_KEY2(p), JSON.stringify(all)); } catch {}
 }
 const dueText = end => {
+  if (end === '9999-12-31') return 'no due date';   // No end date: open until the teacher ends it
   if (end === dayKey()) return 'due today';
   if (end === nextDay(dayKey())) return 'due tomorrow';
   const [y, m, d] = end.split('-').map(Number), dt = new Date(y, m - 1, d);
