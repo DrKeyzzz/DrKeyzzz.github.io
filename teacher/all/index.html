@@ -1222,7 +1222,8 @@ function render() {
   const per = perPage(), pages = Math.max(1, Math.ceil(rows.length / per)); if (S.pg >= pages) S.pg = pages - 1;
   const shown = rows.slice(S.pg * per, S.pg * per + per);
   $('pager').innerHTML = pages > 1 ? `<span>${S.pg * per + 1}–${S.pg * per + shown.length} of ${rows.length}</span><button class="btn ghost sm" type="button" data-pg="-1" ${S.pg ? '' : 'disabled'} aria-label="Previous page">‹</button><button class="btn ghost sm" type="button" data-pg="1" ${S.pg < pages - 1 ? '' : 'disabled'} aria-label="Next page">›</button>` : '';
-  const body = rows.length ? shown.map(r => '<tr>' + cols.map(c => `<td class="${(c.num ? 'num ' : '') + (c.pc ? 'pc ' : '') + (c.cls || '')}">${cellText(c, r)}</td>`).join('') + '</tr>').join('')
+  const stu = S.view === 'progress' && !S.allRec;
+  const body = rows.length ? shown.map(r => (stu ? `<tr class="trow" data-stu="${esc(r.key)}" title="Click for every game and day">` : '<tr>') + cols.map(c => `<td class="${(c.num ? 'num ' : '') + (c.pc ? 'pc ' : '') + (c.cls || '')}">${cellText(c, r)}</td>`).join('') + '</tr>').join('')
     : `<tr><td class="empty" colspan="${cols.length}">${S.loading ? 'Loading…' : !S.classes.length && S.code !== WORLD ? 'You have no classes yet. Make one to get a code for your students.<br><button class="btn" type="button" data-newcls="1">➕ New class</button>' : 'Nothing here yet for this class and time.'}</td></tr>`;
   $('tbl').innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
   setTimeout(fitRows, 0);
@@ -1233,7 +1234,7 @@ function render() {
   $('note').textContent = S.view === 'grades' ? 'Grade = how much of each task is done (each capped at 100%), averaged. Points = that grade out of the assignment\'s "Grade out of" (10 unless you change it), rounded down, for your grade book. It counts all practice in that game during the dates, the same number students see on their home page. Students who have not practiced yet do not appear. Earshot Saloon tasks cannot be counted yet. Click any assignment to open or close its grades. Past assignments are kept from now on (the list starts with the assignment each class had when this was added).'
     : S.view === 'progress' && S.game === 'earshot'
     ? G[S.game].name + ' does not keep daily practice records yet. Open Scores to see its results.'
-    : S.view === 'progress' ? (S.allRec ? 'One row per student per game per day. Accuracy is correct answers out of all answers.' : 'One row per student for the time range, all their games added up. Click Every session to see each game and day.')
+    : S.view === 'progress' ? (S.allRec ? 'One row per student per game per day. Accuracy is correct answers out of all answers.' : 'One row per student for the time range, all their games added up. Practiced = the keys, levels and skills they worked on most. Click a student for every game and day.')
     : S.view === 'scores' && S.code === WORLD ? 'World: the top 50 scores in each game from every class and the world boards, all time (the time range does not apply). Details shows each score\'s class.'
     : S.view === 'tests' ? 'Best score is the highest of all tries. Grade = accuracy of the best try as points out of the test\'s "Grade out of" (20 unless you change it), e.g. 95% of 20 = 19/20. Students who have not started do not appear.'
     : S.view === 'activity' && !amAdmin() ? 'Who is playing: one row each time a student in your classes opens a game and stays at least 20 seconds. On screen = time the game was open and visible; Playing = time spent answering (pauses over 2 minutes don\'t count). Furthest = the highest level, town, floor or number of keys reached. Playing now = seen in the last few minutes. By player adds up each student\'s visits for the time range. Visits are deleted after 30 days.'
@@ -2826,16 +2827,36 @@ const PROG_REC_COLS = COLS.progress;
 const PROG_STU_COLS = [
   { k: 'name', h: 'Student', t: 's' }, { k: 'minutes', h: 'Minutes', t: 'n', num: 1 }, { k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) },
   { k: 'attempts', h: 'Answers', t: 'n', num: 1, pc: 1 }, { k: 'games', h: 'Games', t: 's', pc: 1, f: r => r.gids.map(id => `<span class="dot" style="background:${(G[id] || {}).color || '#888'}" title="${esc((G[id] || { name: id }).name)}"></span>`).join('') + ' ' + r.gids.length }, { k: 'days', h: 'Days', t: 'n', num: 1, pc: 1 },
+  { k: 'what', h: 'Practiced', t: 's', pc: 1, f: r => r.what ? esc(r.what) : '<span style="color:var(--muted)">–</span>' },
   { k: 'dateMs', h: 'Last played', t: 'n', f: r => esc(fmtDate(r.dateMs)) },
 ];
+// click a student (By student): every game and every day for the time range
+function stuDetail(key) {
+  const a = S.stuRows && S.stuRows.get(key); if (!a) return;
+  const g = {}; a.recs.forEach(r => { const x = g[r.game] = g[r.game] || { minutes: 0, attempts: 0, correct: 0, d: new Set(), det: {}, ms: 0 }; x.minutes += +r.minutes || 0; x.attempts += +r.attempts || 0; x.correct += +r.correct || 0; if (r.date) x.d.add(r.date); x.ms = Math.max(x.ms, r.dateMs || 0); recDetail(x.det, r); });
+  const td = (v, c = 'num') => `<td class="${c}">${v}</td>`, row = (id, x) => `<tr><td>${cellText({ k: 'game' }, { game: id })}</td>${td(Math.round(x.minutes * 10) / 10)}${td(x.attempts)}${td(accCell(pct(x.correct, x.attempts)))}${td(x.d.size, 'num pc')}<td class="pc" style="padding-left:16px">${esc(topOf(x.det, 6)) || "–"}</td></tr>`;
+  const days = a.recs.slice().sort((x, y) => (y.dateMs || 0) - (x.dateMs || 0)).slice(0, 8);
+  const b = ncShow(`<h2 id="nc-h">${esc(a.name)}</h2><p>${esc($('rng').selectedOptions[0].text)} · ${Math.round(a.minutes * 10) / 10} min · ${a.attempts} answers · accuracy ${pct(a.correct, a.attempts) ?? '–'}%</p>
+    <div class="tw" style="margin:0"><table><thead><tr><th>Game</th><th class="num">Min</th><th class="num">Answers</th><th class="num">Accuracy</th><th class="num pc">Days</th><th class="pc" style="padding-left:16px">Practiced</th></tr></thead><tbody>${Object.entries(g).map(([id, x]) => row(id, x)).join('')}</tbody></table></div>
+    <p style="margin:12px 0 4px">Latest sessions:</p><div class="tw" style="margin:0"><table><tbody>${days.map(r => `<tr><td>${esc(fmtDate(r.dateMs) || fmtDay(r.date))}</td><td>${cellText({ k: 'game' }, r)}</td>${td(r.minutes + ' min')}${td(accCell(r.acc))}</tr>`).join('')}</tbody></table></div>
+    <div class="row"><button class="btn ghost" type="button" data-ncclose="1">Close</button></div>`);
+  b.querySelector('div[role=dialog]').style.width = 'min(720px, 100%)';
+}
+// what a practice record says the student worked on: keys, levels, skills, Brainwaves areas, time signatures… (same fields as the admin summary)
+function recDetail(m, r) {
+  const d = r.raw || {}; ['levels', 'ts', 'skills', 'types', 'by_key', 'by_game', 'diff', 'clef'].forEach(f => addDetail(m, d[f]));
+  if (d.by_area) addDetail(m, Object.fromEntries(Object.entries(d.by_area).map(([a, x]) => [BW_NAME[a] || a, x])));
+}
 function byStudent(recs) {
   const m = new Map();
   recs.forEach(r => {
     const k = String((r.raw && r.raw.sid) || r.name).toLowerCase();
-    const a = m.get(k) || { name: r.name, minutes: 0, attempts: 0, correct: 0, g: new Set(), d: new Set(), dateMs: 0 };
+    const a = m.get(k) || { key: k, name: r.name, minutes: 0, attempts: 0, correct: 0, g: new Set(), d: new Set(), dateMs: 0, recs: [], det: {} };
+    a.recs.push(r); recDetail(a.det, r);
     a.minutes += +r.minutes || 0; a.attempts += +r.attempts || 0; a.correct += +r.correct || 0; a.g.add(r.game); if (r.date) a.d.add(r.date); a.dateMs = Math.max(a.dateMs, r.dateMs || 0); m.set(k, a);
   });
-  return [...m.values()].map(a => ({ ...a, minutes: Math.round(a.minutes * 10) / 10, acc: pct(a.correct, a.attempts), days: a.d.size, gids: [...a.g], games: [...a.g].map(id => (G[id] || { name: id }).name).join(', ') }));
+  S.stuRows = m;
+  return [...m.values()].map(a => ({ ...a, what: topOf(a.det, 3), minutes: Math.round(a.minutes * 10) / 10, acc: pct(a.correct, a.attempts), days: a.d.size, gids: [...a.g], games: [...a.g].map(id => (G[id] || { name: id }).name).join(', ') }));
 }
 // ----- Today -----
 async function loadToday() {
@@ -2909,6 +2930,7 @@ function wireShell() {
     if (sv) { const [v, m] = sv.dataset.sv.split(':'); if (v === 'admin') { S.adm = m; if (S.view === 'admin') { S.teacher = ''; return render(); } } if (v === 'progress') S.allRec = m === 'rec'; if (['students', 'board', 'messages'].includes(v)) S.lastSocial = v; S.view = v; return load(); }
     if (e.target.closest('[data-newasg]')) { S.assignmentEdit = ''; S.view = 'assign'; msg(''); return load(); }
     if (e.target.closest('[data-share]') || e.target.closest('#codechip')) { if (S.code && S.code !== WORLD) ncShare(S.code); return; }
+    const sr = e.target.closest('tr[data-stu]'); if (sr) return stuDetail(sr.dataset.stu);
     const pg = e.target.closest('[data-pg]'); if (pg) { S.pg += +pg.dataset.pg; return render(); }
     const t = e.target.closest('#todaybody [data-view]'); if (t) { S.code = t.dataset.code; $('cls').value = S.code; if (t.dataset.test) S.testId = t.dataset.test; S.view = t.dataset.view; return load(); }
     if (e.target.closest('#acct')) return acctMenu($('acctmenu').hidden);
