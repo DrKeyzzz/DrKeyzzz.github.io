@@ -2106,6 +2106,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   // The developer (signed in as Maestro, on a device where the admin has opened the teacher dashboard) owns every item (David 2026-11-18)
   var DEV = !!P && /^\s*maestro\b/i.test(String(P.first || '')) && (function(){ try { return localStorage.getItem('mtg_dev_v1') === '1'; } catch(e){ return false; } })();
   var owns = function(it){ var k = key(it); return DEV || !!it.free || (it.enc && (W.encores || 0) >= it.enc) || W.owned.indexOf(k) >= 0 || (RANK_ITEMS[k] != null && rankNow() >= RANK_ITEMS[k]) || masteredGear(k) || (P && earnedIt(it)); };
+  if (DEV) { W.coins = Math.max(W.coins, 999999); W.points = Math.max(W.points, 999999); }   // the developer: unlimited coins and Stars (David 2026-11-19); never sent (only increments are)
   look = wearOwned(look);   // moved here 2026-11-18: before this, SETS / RANKS / MASTK were not set yet, so earned items came off on every page load (and the Baton crashed it)
   var TABS = [['shop', 'Shop', '🛒'], ['look', 'Look', '🙂'], ['outfit', 'Skins', '🦸'], ['clothes', 'Clothes', '👕'], ['hat', 'Hats', '🎩'], ['gear', 'Gear', '🎺'], ['moves', 'Moves', '🕺'], ['bg', 'Backdrops', '🌌'], ['pet', 'Pets', '🐾'], ['rank', 'Rank', '🏆']];
   // THE LOCKER (2026-11-16). Rarity follows the price (no randomness): Common < 60 coins, Rare 60-149, Epic 150+ coins or any ★ item, Legendary 100+ ★ / earned items.
@@ -2156,7 +2157,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     var u = dlg && dlg.querySelector('.mav-undo'); if (u) u.hidden = JSON.stringify(look) === JSON.stringify(undoLook);
     var sv = dlg && dlg.querySelector('.mav-saved'); if (sv) { sv.hidden = false; clearTimeout(savedT); savedT = setTimeout(function(){ sv.hidden = true; }, 1600); }
   }
-  function drawWallet(){ var c = dlg.querySelector('.mav-c'), p = dlg.querySelector('.mav-p'); if (c) c.textContent = W.coins.toLocaleString(); if (p) p.textContent = W.points.toLocaleString(); }
+  function drawWallet(){ var c = dlg.querySelector('.mav-c'), p = dlg.querySelector('.mav-p'); if (c) c.textContent = DEV ? '∞' : W.coins.toLocaleString(); if (p) p.textContent = DEV ? '∞' : W.points.toLocaleString(); }
   function shown(){ var L = Object.assign({}, draft); if (trying) L[trying.slot] = trying.id; return L; }
   function drawBig(pose){ var L = shown(), big = dlg.querySelector('.mav-big'); big.innerHTML = avatar(L, { label: 'Your avatar', rank: rankNow() }); big.dataset.idle = L.idle;
     if (pose) { big.classList.remove('pose'); void big.offsetWidth; big.classList.add('pose'); } }
@@ -2427,7 +2428,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     });
   }
   window.MTGAvatar = { draw: function(L, o){ return avatar(clean(Object.assign({}, DEF, L)), o || {}); }, peer: peer, badge: badge, off: function(){ return OFF; }, signedIn: function(){ return !!P; }, rank: function(){ return P ? { n: rankNow() + 1, name: RANKS[rankNow()][1], encores: W.encores || 0 } : null; },
-    wallet: function(){ return { coins: W.coins, points: W.points, stars: W.points }; }, look: function(){ return Object.assign({}, look); }, svg: function(o){ o = o || {}; if (o.rank == null && P) o.rank = rankNow(); return avatar(look, o); }, open: openBuilder, quests: questsInfo, questsHtml: questsHtml,
+    wallet: function(){ return { coins: W.coins, points: W.points, stars: W.points, unlimited: DEV }; }, look: function(){ return Object.assign({}, look); }, svg: function(o){ o = o || {}; if (o.rank == null && P) o.rank = rankNow(); return avatar(look, o); }, open: openBuilder, quests: questsInfo, questsHtml: questsHtml,
     award: function(pts, why){ if (!P) return false; if (W.day !== today()) { W.day = today(); W.dayCoins = 0; W.dayRun = 0; W.dayAw = 0; } pts = Math.max(0, Math.min(15, 25 - (W.dayAw || 0), Math.round(+pts || 0))); if (!pts) return false; W.dayAw = (W.dayAw || 0) + pts; earn(pts, 0); pop('+' + pts + ' ★' + (why ? ' · ' + why : ''), '#ffd166'); return true; } };   // Live Class Showdown rewards (2026-11-17)
 
 })();
