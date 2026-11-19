@@ -1249,7 +1249,7 @@ window.addEventListener('load', draw, { once: true });
     nose:[['dot','Dot'],['button','Button'],['none','None']],
     mouth:[['smile','Smile'],['grin','Big grin'],['o','Ooh'],['smirk','Smirk'],['tongue','Silly'],['braces','Braces']],   // Braces: David 2026-11-18
     hair:[['short','Short'],['buzz','Buzz'],['curly','Curly'],['afro','Afro'],['long','Long'],['braids','Braids'],['bun','Bun'],['spiky','Spiky'],['swoop','Swoop'],['part','Side part'],['waves','Waves'],['bob','Bob'],['bald','None']],
-    cover:[['none','None'],['hijab','Hijab'],['wrap','Head wrap']],
+    cover:[['none','None'],['hijab','Hijab'],['wrap','Head wrap'],['turban','Turban'],['patka','Patka'],['kippah','Kippah'],['kufi','Kufi'],['durag','Durag'],['scarf','Headscarf']],
     glasses:[['none','None'],['round','Round'],['square','Square'],['shades','Aviator shades']],
     beard:[['none','None'],['stubble','Stubble'],['mustache','Mustache'],['goatee','Goatee'],['short','Short beard'],['full','Full beard']],   // David 2026-11-16; same color as the hair
   };
@@ -1375,10 +1375,10 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     else if (L.bg === 'spotlight') { defs += `<radialGradient id="${u}p" cx=".5" cy=".95" r=".7"><stop offset="0" stop-color="#3a2a6a"/><stop offset="1" stop-color="#0b0820"/></radialGradient>`; bg = `<rect ${B} fill="url(#${u}p)"/><path d="M44 0 L56 0 L84 120 L16 120Z" fill="#fff6c8" opacity=".18"/><ellipse cx="50" cy="112" rx="34" ry="6" fill="#fff6c8" opacity=".22"/>`; }
   else if (L.bg === 'wreath') { defs += `<radialGradient id="${u}w"><stop offset="0" stop-color="#4a3800"/><stop offset="1" stop-color="#140f00"/></radialGradient>`; bg = `<rect ${B} fill="url(#${u}w)"/>` + Array.from({length: 16}, (_, i) => { const side = i < 8 ? 1 : -1, k = i % 8, a = Math.PI / 2 + side * (.45 + k * .33), x = 50 + 40 * Math.cos(a), y = 62 + 44 * Math.sin(a); return `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="5" ry="2.4" fill="#f5c542" transform="rotate(${(a * 180 / Math.PI + 90).toFixed(0)} ${x.toFixed(1)} ${y.toFixed(1)})"/>`; }).join(''); }
     else if (o.crop) bg = `<rect ${B} fill="#26305a"/>`;
-    const covered = L.cover !== 'none' && !OUT;
+    const covered = L.cover !== 'none' && !OUT, showHair = L.cover === 'none' || L.cover === 'kippah' || L.cover === 'kufi';   // kippah and kufi sit on top of the hair
     let hairBack = '';
     // Keep the rear hair and head coverings attached during head animations.
-    if (L.cover === 'none' || OUT === 'astronaut' || OUT === 'hero' || OUT === 'rockstar') {
+    if (showHair || OUT === 'astronaut' || OUT === 'hero' || OUT === 'rockstar') {
       if (L.hair === 'afro') hairBack += `<circle cx="50" cy="35" r="27" fill="${hc}"/>`;
       if (L.hair === 'long') hairBack += `<path d="M28 36 Q28 15 50 15 Q72 15 72 36 L74 70 Q67 75 62 67 L62 42 L38 42 L38 67 Q33 75 26 70Z" fill="${hc}"/>`;
       if (L.hair === 'waves') hairBack += `<path d="M27 37C25 14 75 14 73 37Q70 48 75 55Q80 64 72 72Q66 72 62 64L38 64Q33 73 26 71Q19 64 25 54Q30 46 27 37Z" fill="${hc}"/>`;
@@ -1387,6 +1387,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     }
     const hijabC = tc === '#f1f3f5' ? '#c9b6e4' : shade(tc, .75);
     if (L.cover === 'hijab') hairBack += `<path d="M24 44 Q23 13 50 13 Q77 13 76 44 L80 72 Q50 82 20 72Z" fill="${hijabC}"/>`;
+    // more head coverings (2026-11-19, David 'more head coverings'): cloth follows the top color like the hijab
+    if (!OUT && L.cover === 'scarf') hairBack += `<path d="M65.5 47 L70.5 56.5 L66.8 57.2Z M65.5 47 L63.4 56.8 L60.6 55.6Z" fill="${shade(hijabC, .85)}"/><circle cx="65.5" cy="47" r="2.6" fill="${shade(hijabC, .9)}"/>`;
     // face
     const faceShape = {
       heart: 'M29 36C29 13 71 13 71 36Q71 52 53 61Q50 63 47 61Q29 52 29 36Z',
@@ -1436,7 +1438,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     const beard = BD[L.beard] || BD.none;
     const blush = `<circle cx="37" cy="48" r="2.6" fill="#ff7a8a" opacity=".28"/><circle cx="63" cy="48" r="2.6" fill="#ff7a8a" opacity=".28"/>`;
     // hair in front
-    if (L.cover === 'none' || (OUT && OUT !== 'robot')) {
+    if (showHair || (OUT && OUT !== 'robot')) {
       const H = {
         short: `<path d="M29.5 38 Q29 17 50 17 Q71 17 70.5 38 Q66 27 55 26.5 Q45 29.5 35 29.5 Q31 32 29.5 38Z"/>`,
         buzz: (() => {   // buzz cut (redrawn 2026-11-19, David: 'buzz looks weird'): hugs the head shape, temple corners, short sides, a little stubble texture
@@ -1457,10 +1459,24 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
         bob: `<path d="M28 43Q25 21 41 16Q49 13 58 16Q75 21 72 43L68 48Q70 34 60 25Q50 25 37 29Q30 36 32 48Z"/>`,
         bald: '',
       };
-      if (L.cover === 'none' || OUT) front += `<g fill="${hc}">${H[L.hair]}</g>`;
+      if (showHair || OUT) front += `<g fill="${hc}">${H[L.hair]}</g>`;
     }
     if (!OUT && L.cover === 'hijab') front += `<path d="M28.5 38 Q29 16 50 16 Q71 16 71.5 38 Q63 24.5 50 24.5 Q37 24.5 28.5 38Z" fill="${hijabC}"/>`;
     if (!OUT && L.cover === 'wrap') front += `<path d="M28 35 Q25 9 50 7 Q76 8 72 35 Q62 23.5 50 25.5 Q38 23.5 28 35Z" fill="#ffb020"/><path d="M30 26 Q50 15 70 26 M33 18 Q50 9 67 18" fill="none" stroke="#e8590c" stroke-width="2.2"/><circle cx="62" cy="10" r="5" fill="#ffb020" stroke="#e8590c" stroke-width="1.5"/>`;
+    if (!OUT && L.cover === 'turban') { const tf = shade(hijabC, .78);
+      front += `<path d="M27.5 37 Q24.5 12 50 7.5 Q75.5 12 72.5 37 Q67 30.5 58.5 28.5 L50 32 L41.5 28.5 Q33 30.5 27.5 37Z" fill="${hijabC}"/>`
+        + `<path d="M31.5 27 Q41 26 50 29.5 Q59 26 68.5 27 M30.5 20.5 Q41 19.5 50 23.5 Q59 19.5 69.5 20.5 M34 14 Q42 13 50 17 Q58 13 66 14" fill="none" stroke="${tf}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`; }
+    if (!OUT && L.cover === 'patka') front += `<path d="M29.5 38 Q29 17.5 50 17.5 Q71 17.5 70.5 38 Q62 27 50 28 Q38 27 29.5 38Z" fill="${hijabC}"/><circle cx="50" cy="14.5" r="6.5" fill="${hijabC}"/><path d="M45 17.5 Q50 21 55 17.5" fill="none" stroke="${shade(hijabC, .78)}" stroke-width="1.3"/><path d="M33 31 Q50 22 67 31" fill="none" stroke="${shade(hijabC, .78)}" stroke-width="1.1"/>`;
+    if (!OUT && L.cover === 'kippah') { const ky = { afro: -8, curly: -4, spiky: -5, waves: -3, bun: -1, swoop: -1, part: -1 }[L.hair] || 0;
+      front += `<g transform="translate(0 ${ky})"><path d="M38.5 21.5 Q39 15 50 14.6 Q61 15 61.5 21.5 Q50 24 38.5 21.5Z" fill="${shade(hijabC, .8)}"/><path d="M39.5 21 Q50 23.2 60.5 21" fill="none" stroke="#f5c542" stroke-width="1" stroke-dasharray="1.6 1.2"/></g>`; }
+    if (!OUT && L.cover === 'kufi') { const ky = { afro: -6, curly: -3, spiky: -3, waves: -2 }[L.hair] || 0;
+      front += `<g transform="translate(0 ${ky})"><path d="M30.2 31.5 Q29.6 15 50 14.2 Q70.4 15 69.8 31.5 Q50 27 30.2 31.5Z" fill="#f4f1e8"/><path d="M30.6 29.2 Q50 24.6 69.4 29.2" fill="none" stroke="${shade(hijabC, .8)}" stroke-width="2.4"/>`
+        + [34, 38.5, 43, 47.5, 52, 56.5, 61, 65.5].map(x => `<path d="M${x} ${28.3 - Math.sin((x - 30) / 40 * Math.PI) * 2.1} l1.1 -1.1 l1.1 1.1 l-1.1 1.1Z" fill="#f5c542"/>`).join('') + `</g>`; }
+    if (!OUT && L.cover === 'durag') { const dr = shade(hijabC, .85);
+      front += `<path d="M28.8 40.5 Q28 16.5 50 16.5 Q72 16.5 71.2 40.5 L68.6 39.5 Q68.2 30.5 64 28.3 Q57 26 50 26 Q43 26 36 28.3 Q31.8 30.5 31.4 39.5Z" fill="${hijabC}"/>`
+        + `<path d="M50 16.8 V26" stroke="${dr}" stroke-width="1"/><path d="M34.5 28.9 Q50 24.6 65.5 28.9" fill="none" stroke="${dr}" stroke-width="2.6" stroke-linecap="round"/><path d="M38 20 Q45 17.2 50 17.2" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="1.6" stroke-linecap="round"/>`; }
+    if (!OUT && L.cover === 'scarf') front += `<path d="M28 37 Q26.5 14.5 50 14 Q73.5 14.5 72 37 Q62 25 50 25.5 Q38 25 28 37Z" fill="${hijabC}"/>`
+        + [[38, 19.5], [46, 17.5], [54, 17.5], [62, 19.5], [34, 26], [42, 23], [50, 21.5], [58, 23], [66, 26]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="1.1" fill="#fff" opacity=".8"/>`).join('');
     const G = {
       none: '',
       round: `<g fill="none" stroke="${line}" stroke-width="1.3"><circle cx="42" cy="41" r="5.4"/><circle cx="58" cy="41" r="5.4"/><path d="M47.4 41 H52.6"/></g>`,
@@ -1484,6 +1500,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       captain: `<path d="M29 27 Q30 10 50 10 Q70 10 71 27Z" fill="#fff"/><rect x="28" y="24" width="44" height="6" rx="2" fill="#1d2a52"/><path d="M34 30 Q50 37 66 30 L66 31.5 Q50 39 34 31.5Z" fill="#111"/><text x="50" y="22" font-size="9" text-anchor="middle" fill="#f5c542">⚓</text>`,
     };
     let hat = HT[L.hat] || '';
+    if (!OUT && /^(turban|patka|kufi|durag|scarf)$/.test(L.cover) && L.hat !== 'phones') hat = '';   // a hat can't sit on these head coverings (headphones still fit)
     const star = (cx, cy, rr, f) => { let p = ''; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + i * Math.PI / 5, q = i % 2 ? rr * .45 : rr; p += (i ? 'L' : 'M') + (cx + q * Math.cos(a)).toFixed(2) + ' ' + (cy + q * Math.sin(a)).toFixed(2); } return `<path d="${p}Z" fill="${f}"/>`; };
   // clothes: torso + sleeves (upper and lower arm) + shoes
     let topFill = tc, sleeve = tc, fore = tc, shoe = '#f1f3f5', stripe = '#ff4d6d', extra = '';
