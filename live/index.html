@@ -2184,6 +2184,40 @@ function voice({ pitch = 280, glide = 1, f1 = 700, f2 = 1200, f1b, f2b, dur = .1
       o.connect(g).connect(c.destination); o.start(tt); o.stop(tt + .4); }));
   }
   
+  // ---------- instrument riffs (2026-11-19, David: tap an instrument, hear it) ----------
+  // A short original riff in that instrument's own sound, made in the browser. Plays when an instrument card is tapped in the Locker.
+  // Follows the same 🔊 Sounds switch. Families: keys, pluck, bow, brass, flute, reed, mallet, drums, shaker, voice (mics), hit (baton).
+  var hz = function(m){ return 440 * Math.pow(2, (m - 69) / 12); };
+  function tn(c, type, f, t, dur, vol, o){ o = o || {}; var os = c.createOscillator(), g = c.createGain(), dest = c.destination;
+    if (o.lp) { var lp = c.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.setValueAtTime(o.lp, t); if (o.lpTo) lp.frequency.linearRampToValueAtTime(o.lpTo, t + Math.min(dur, .25)); lp.connect(dest); dest = lp; }
+    os.type = type; os.frequency.setValueAtTime(f, t); if (o.to) os.frequency.exponentialRampToValueAtTime(o.to, t + dur);
+    if (o.vib) { var l = c.createOscillator(), lg = c.createGain(); l.frequency.value = 5.5; lg.gain.value = f * o.vib; l.connect(lg).connect(os.frequency); l.start(t); l.stop(t + dur + .1); }
+    var a = o.att || .01; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(vol, t + a);
+    if (o.sus) { g.gain.setValueAtTime(vol * .8, t + Math.max(a, dur - .08)); g.gain.linearRampToValueAtTime(0, t + dur); } else g.gain.exponentialRampToValueAtTime(.0006, t + dur);
+    os.connect(g).connect(dest); os.start(t); os.stop(t + dur + .05); }
+  function nz(c, t, dur, vol, f, type){ var n = c.createBufferSource(), b = c.createBuffer(1, Math.ceil(c.sampleRate * dur), c.sampleRate), d = b.getChannelData(0);
+    for (var i = 0; i < d.length; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / d.length, 2); n.buffer = b;
+    var bf = c.createBiquadFilter(); bf.type = type || 'bandpass'; bf.frequency.value = f; bf.Q.value = .8; var g = c.createGain(); g.gain.value = vol; n.connect(bf).connect(g).connect(c.destination); n.start(t); }
+  var FAM = { keyboard: 'keys', keytar: 'keys', sheet: 'keys', accordion: 'reed', guitar: 'pluck', banjo: 'pluck', violin: 'bow', viola: 'bow', cello: 'bow', bass: 'bow',
+    trumpet: 'brass', trombone: 'brass', horn: 'brass', tuba: 'brass', flute: 'flute', clarinet: 'reed', sax: 'reed', marimba: 'mallet',
+    snare: 'drums', mdrum: 'drums', handdrum: 'drums', sticks: 'drums', maracas: 'shaker', mic: 'voice', studiomic: 'voice', goldmic: 'voice', baton: 'hit' };
+  var BASE = { bass: 40, cello: 48, tuba: 41, trombone: 50, horn: 53, viola: 55, clarinet: 58, sax: 56, banjo: 62, guitar: 55, violin: 67, flute: 72, trumpet: 64, keytar: 64, marimba: 64, accordion: 60, keyboard: 60, sheet: 60 };
+  function instRiff(id){
+    if (!sndOn()) return; var c = actx(); if (!c) return; var fam = FAM[id]; if (!fam) return; var t = c.currentTime + .03, b = BASE[id] || 60;
+    var run = function(steps, each){ steps.forEach(function(s, i){ each(b + s[0], t + s[1], s[2] || .25, i); }); };
+    if (fam === 'keys') run([[0, 0], [4, .12], [7, .24], [12, .36], [7, .5, .5], [16, .5, .6]], function(m, at, d){ tn(c, 'triangle', hz(m), at, d + .5, .12); tn(c, 'sine', hz(m + 12), at, d, .04); });
+    else if (fam === 'pluck') run([[0, 0], [7, .1], [12, .2], [16, .3], [19, .4, .8]], function(m, at, d){ tn(c, 'triangle', hz(m), at, d + .3, .14, { lp: 3200, lpTo: 900 }); });
+    else if (fam === 'bow') run([[0, 0, .4], [4, .35, .4], [7, .7, .7]], function(m, at, d){ tn(c, 'sawtooth', hz(m), at, d, .07, { lp: 1600, att: .08, vib: .006, sus: 1 }); });
+    else if (fam === 'brass') run([[0, 0, .18], [0, .2, .18], [7, .4, .5]], function(m, at, d){ tn(c, 'sawtooth', hz(m), at, d, .08, { lp: 500, lpTo: 2200, att: .03, sus: 1 }); });
+    else if (fam === 'flute') run([[0, 0, .2], [2, .18, .2], [4, .36, .2], [7, .54, .5]], function(m, at, d){ tn(c, 'sine', hz(m), at, d, .13, { att: .04, vib: .004, sus: 1 }); });
+    else if (fam === 'reed') run([[0, 0, .2], [3, .2, .2], [5, .4, .2], [7, .6, .45]], function(m, at, d){ tn(c, 'square', hz(m), at, d, .05, { lp: 1800, att: .03, vib: .004, sus: 1 }); });
+    else if (fam === 'mallet') run([[0, 0], [4, .12], [7, .24], [12, .36], [7, .48], [12, .6, .5]], function(m, at, d){ tn(c, 'sine', hz(m), at, .5, .16); tn(c, 'sine', hz(m) * 4, at, .08, .03); });
+    else if (fam === 'drums') [[0, 'k'], [.2, 's'], [.4, 'k'], [.5, 'k'], [.6, 's'], [.72, 's'], [.8, 's']].forEach(function(h){ var at = t + h[0];
+      if (h[1] === 'k') tn(c, 'sine', id === 'handdrum' ? 220 : 130, at, .25, .3, { to: id === 'handdrum' ? 140 : 55 }); else { nz(c, at, .12, .25, 2200); tn(c, 'triangle', 190, at, .08, .08); } });
+    else if (fam === 'shaker') [0, .12, .24, .36, .48, .6].forEach(function(o, i){ nz(c, t + o, .06, i % 2 ? .12 : .2, 6000, 'highpass'); });
+    else if (fam === 'voice') [[0, 280], [.18, 330], [.36, 370], [.54, 330]].forEach(function(n){ setTimeout(function(){ voice({ pitch: n[1], glide: 1.02, f1: 700, f2: 1200, dur: .17, vol: .14 }); }, n[0] * 1000); });
+    else if (fam === 'hit') { [48, 55, 60, 64, 67].forEach(function(m){ tn(c, 'sawtooth', hz(m), t, .7, .05, { lp: 2400, lpTo: 700 }); }); nz(c, t, .3, .18, 300, 'lowpass'); }
+  }
   var lastV = -1;
   function voiceSnd(){ if (!sndOn() || !actx()) return; var i; do { i = Math.floor(Math.random() * VOICES.length); } while (i === lastV && VOICES.length > 1); lastV = i; try { VOICES[i][2](); } catch(e){} }
   // ---------- pick up, move and toss (2026-11-19) ----------
@@ -2536,6 +2570,7 @@ function voice({ pitch = 280, glide = 1, f1 = 700, f2 = 1200, f1b, f2b, dur = .1
           render(); drawBig(1);
           if (/^(idle|happy|aww|dance)$/.test(it.slot) && it.slot !== 'idle') play(it.id);
           if (it.slot === 'fx' && it.id !== 'none') burstAt(dlg.querySelector('.mav-big'), 16);
+          if (it.slot === 'gear' && it.id !== 'none') instRiff(it.id);   // hear the instrument (2026-11-19)
           return;
         }
         if (b.dataset.do === 'door') { var lk = dlg.querySelector('.mav-lk'); lk.classList.add('spin'); lkDoor = false; try { localStorage.setItem('mtg_locker_door_v1', today()); } catch(e){}
