@@ -2180,7 +2180,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     if (raw && raw.look) look = clean(raw.look);
     if (raw && raw.w) W = { coins: Math.max(0, +raw.w.coins || 0), points: Math.max(0, +raw.w.points || 0), day: String(raw.w.day || today()), dayCoins: Math.max(0, +raw.w.dayCoins || 0), owned: Array.isArray(raw.w.owned) ? raw.w.owned.filter(function(k){ return typeof k === 'string' && k.length <= 40; }).slice(0, 300) : [],
       encores: Math.max(0, Math.min(99, +raw.w.encores || 0)), encXP: Math.max(0, +raw.w.encXP || 0), sv: +raw.w.sv || 0, sSrv: +raw.w.sSrv || 0,
-      dayRun: +raw.w.dayRun || 0, dayAw: +raw.w.dayAw || 0, sFrac: +raw.w.sFrac || 0 };
+      dayRun: +raw.w.dayRun || 0, dayAw: +raw.w.dayAw || 0, sFrac: +raw.w.sFrac || 0, dayLive: +raw.w.dayLive || 0, liveDay: String(raw.w.liveDay || '') };
     if (raw && raw.w) { hadWallet = true; if (!W.sv) { starNote = W.points > 0; W.points = Math.floor(W.points / 10); W.sv = 1; } }   // rare Stars (2026-11-17): old points / 10
   } catch(e){} }
   if (!look) { look = randomLook(); fresh = !!P; }   // guests: a random avatar for this visit, never saved
@@ -2921,6 +2921,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   }
   window.MTGAvatar = { draw: function(L, o){ return avatar(clean(Object.assign({}, DEF, L)), o || {}); }, peer: peer, badge: badge, off: function(){ return OFF; }, signedIn: function(){ return !!P; }, rank: function(){ return P ? { n: rankNow() + 1, name: RANKS[rankNow()][1], encores: W.encores || 0 } : null; },
     wallet: function(){ return { coins: W.coins, points: W.points, stars: W.points, unlimited: DEV }; }, look: function(){ return Object.assign({}, look); }, svg: function(o){ o = o || {}; if (o.rank == null && P) o.rank = rankNow(); return avatar(look, o); }, open: openBuilder, quests: questsInfo, questsHtml: questsHtml,
+    liveCoins: function(n){ if (!P || OFF) return false; if (W.liveDay !== today()) { W.liveDay = today(); W.dayLive = 0; } n = Math.max(0, Math.min(+n || 0, 20 - (W.dayLive || 0))); if (!n) return false; W.dayLive = (W.dayLive || 0) + n; earn(0, 0, n); pop('+' + n + ' 🪙', '#ffd166'); return true; },   // Live Class: coins for taking part, 20 a day (2026-11-19)
     award: function(pts, why){ if (!P) return false; if (W.day !== today()) { W.day = today(); W.dayCoins = 0; W.dayRun = 0; W.dayAw = 0; } pts = Math.max(0, Math.min(15, 25 - (W.dayAw || 0), Math.round(+pts || 0))); if (!pts) return false; W.dayAw = (W.dayAw || 0) + pts; earn(pts, 0); pop('+' + pts + ' ★' + (why ? ' · ' + why : ''), '#ffd166'); return true; } };   // Live Class Showdown rewards (2026-11-17)
 
 })();
