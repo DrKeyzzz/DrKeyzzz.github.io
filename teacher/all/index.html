@@ -188,13 +188,6 @@
   .msg.ok { color: var(--ok); }
 
   /* game tabs, each in its game's color */
-  .games { display: flex; flex-wrap: wrap; gap: 10px; margin: 0 0 16px; padding: 0; list-style: none; }
-  .gt { font: 700 16px var(--f-ui); color: var(--text); background: var(--card); border: 2px solid var(--gc); border-radius: 14px; padding: 12px 18px 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 9px; }
-  .gt i { width: 12px; height: 12px; border-radius: 50%; background: var(--gc); flex: none; }
-  .gt:hover { filter: brightness(1.12); }
-  .gt[aria-pressed="true"] { background: var(--gc); color: #10131a; }
-  .gt[aria-pressed="true"] i { background: #10131a; }
-  .gt:focus-visible { outline: 2px solid var(--text); outline-offset: 3px; }
 
   /* options */
   .opts { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px 16px; }
@@ -220,17 +213,11 @@
   #views button[aria-pressed="true"] { background: var(--gc); border-color: var(--gc); color: #10131a; box-shadow: 0 0 0 3px rgba(255,255,255,.08), 0 6px 18px -6px var(--gc); }
   #views button.adm { border-color: rgba(255,200,92,.45); border-style: dashed; }
   #views button.adm::after { content: 'Admin only'; position: absolute; top: -8px; left: 50%; transform: translateX(-50%); padding: 1px 6px 0; border-radius: 999px; background: var(--bg); color: var(--gold); font-size: 9px; letter-spacing: .1em; white-space: nowrap; }
-  .vtip { position: absolute; z-index: 50; max-width: 260px; padding: 8px 11px 7px; border-radius: 10px; background: #0b111c; border: 1px solid var(--gc); color: var(--text); font: 600 13px/1.35 var(--f-ui); box-shadow: 0 8px 24px rgba(0,0,0,.45); pointer-events: none; }
-  .vtip b { display: block; margin-top: 4px; color: var(--gold); font-weight: 700; }
   .fbbox { position: fixed; inset: 0; z-index: 60; background: rgba(5,8,14,.6); display: flex; align-items: center; justify-content: center; padding: 16px; }
   .fbcard { width: min(620px, 100%); max-height: calc(100vh - 32px); display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--card-border); border-radius: 16px; overflow: hidden; }
   .fbcard .mx-log { min-height: 160px; }
   .fbcard .warn { color: #ffb547; font-size: 13px; margin: 0 0 8px; }
   .smbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; margin: 14px 0 0; }
-  .bdswitch { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
-  .bdswitch button { font: 700 14px var(--f-ui); color: var(--text); background: var(--bg); border: 1px solid #33445f; border-radius: 999px; padding: 9px 16px 7px; cursor: pointer; }
-  .bdswitch button[aria-pressed="true"] { background: var(--gold); border-color: var(--gold); color: #10131a; }
-  .bdswitch .nb { display: inline-block; min-width: 18px; margin-left: 6px; padding: 1px 5px 0; border-radius: 999px; background: #c0392b; color: #fff; font-size: 12px; }
   /* Instagram-style red bubbles on the tiles (2026-11-16) */
   #views button .rq, #views button .nb { position: absolute; top: -8px; right: -8px; margin: 0; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: #ff3b47; color: #fff; font: 700 12.5px/22px system-ui, sans-serif; letter-spacing: 0; text-align: center; box-shadow: 0 0 0 3px var(--card); animation: tpop 1.6s ease-in-out infinite; }
   @keyframes tpop { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.14); } }
@@ -299,16 +286,6 @@
   .tp .st { font-size: 13px; font-weight: 700; padding: 2px 8px; border-radius: 99px; background: color-mix(in srgb, var(--text) 10%, transparent); }
   .tp .st.on { background: color-mix(in srgb, #5fe3a4 25%, transparent); color: #5fe3a4; }
   .tp td.wrap { white-space: normal; min-width: 220px; }
-  .up { margin: 16px 0 6px; }
-  .up h3 { font: 700 12px var(--f-ui); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
-  .up ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
-  .up li button { width: 100%; text-align: left; display: flex; flex-wrap: wrap; gap: 2px 14px; align-items: baseline; background: var(--bg); color: var(--ink, inherit); border: 1px solid var(--line, rgba(255,255,255,.12)); border-left: 4px solid var(--ic, var(--gc)); border-radius: 10px; padding: 8px 12px; font: inherit; font-size: 15px; cursor: pointer; }
-  .up li button:hover, .up li button:focus-visible { border-color: var(--ic, var(--gc)); }
-  .up .w { font-weight: 700; min-width: 190px; }
-  .up .k { font: 700 11px var(--f-ui); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-left: 8px; }
-  .up .s { color: var(--muted); font-size: 13px; margin-left: auto; }
-  .up li { display: flex; gap: 6px; align-items: stretch; } .up li button { flex: 1; width: auto; }
-  .up li { flex-wrap: wrap; } .up li button { min-width: 0; flex: 1 1 260px; } .up .upv { flex: 0 1 auto; white-space: normal; }   /* phones: Preview buttons drop under the row instead of pushing the page wide (2026-11-16) */
   /* New class + welcome for new teachers (2026-11-18) */
   .clsgrp { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; min-width: 0; }
   .btn.newcls { padding: 10px 16px 8px; white-space: nowrap; letter-spacing: .04em; }
@@ -334,7 +311,6 @@
   .ncbox ol { margin: 0 0 4px; padding-left: 22px; color: var(--text); font-size: 15px; line-height: 1.45; } .ncbox ol b { color: var(--gold); }
   .empty .btn { margin-top: 10px; }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-  @media (max-width: 720px) { .up .w { min-width: 0; flex-basis: 100%; } .up .k { margin-left: 0; display: block; } .up .s { margin-left: 0; } }
   .upv, .gprev a { display: inline-flex; align-items: center; gap: 6px; font: 700 13px var(--f-ui); color: var(--text); text-decoration: none; background: var(--bg); border: 1px solid var(--gold); border-radius: 10px; padding: 6px 12px; white-space: nowrap; }
   .upv:hover, .gprev a:hover, .upv:focus-visible, .gprev a:focus-visible { background: var(--gold); color: #111; }
   .gprev { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: -2px 0 4px 26px; font: 600 13px var(--f-ui); color: var(--muted); }
@@ -485,7 +461,7 @@
   .mainc { overflow-y: auto; padding: 16px 22px; min-width: 0; }
   .mainc > .card { margin-bottom: 0; }
   .mainc .pv { margin: 0 0 10px; }
-  #games, #views, #bdswitch, #newsbar, #upbox:empty { display: none !important; }
+  #views { display: none !important; }   /* the old tiles stay hidden: their badges (rqcount, fbcount, smcount, boardcount) feed the side nav */
   .opts { align-items: flex-end; }
   .subsw { display: inline-flex; border: 1px solid var(--card-border); border-radius: 999px; overflow: hidden; flex: none; }
   .subsw button { position: relative; font: 700 14px var(--f-ui); background: var(--bg); color: var(--muted); border: 0; padding: 10px 16px 8px; cursor: pointer; white-space: nowrap; }
@@ -493,7 +469,6 @@
   .subsw .nb { display: inline-block; min-width: 18px; margin-left: 6px; padding: 1px 5px 0; border-radius: 999px; background: #ff3b47; color: #fff; font-size: 12px; }
   .pager { display: flex; align-items: center; justify-content: flex-end; gap: 10px; color: var(--muted); font-size: 14px; margin-top: 8px; }
   .tw { margin-top: 10px; }
-  .up { margin-top: 10px; }
   /* Today */
   .tday h1 { font: 700 26px var(--f-ui); margin: 0; }
   .tday .sub { color: var(--muted); margin: 2px 0 14px; }
@@ -589,7 +564,6 @@
     <div id="todayview" hidden><section class="welcome" id="welcome" hidden aria-label="Getting started"></section><div id="todaybody"></div></div>
     <div id="setview" class="card" hidden></div>
 
-    <ul class="games" id="games" aria-label="Games"></ul>
 
     <section class="card" id="panel">
       <div class="opts">
@@ -618,7 +592,6 @@
         <button class="btn ghost sm" type="button" id="csv">Download CSV</button>
       </div>
       <p class="msg" id="msg" role="status"></p>
-      <div id="upbox" hidden></div>
       <div id="testsbox" hidden>
         <div class="opts" style="margin-top:14px">
           <label class="f" for="tsel">Test<select id="tsel"></select></label>
@@ -659,7 +632,6 @@
         <p class="note" id="note" title="Click to read more"></p>
       </div>
       <div id="gradelist2" class="glist" hidden></div>
-      <div class="bdswitch" id="bdswitch" role="group" aria-label="Board sections" hidden></div>
       <div id="msgview" hidden></div>
       <div id="smview" hidden></div>
       <div id="boardview" hidden></div>
@@ -669,7 +641,6 @@
     </div>
   </div>
   <p class="sr" id="srlive" aria-live="polite"></p>
-  <footer>Click any column heading to sort. Click again to reverse.</footer>
 </div>
 
 <script>
@@ -1189,14 +1160,13 @@ function render() {
   renderAvSwitch();
   syncLive(); syncAct();
   const g = G[S.game]; document.documentElement.style.setProperty('--gc', g.color);
-  document.querySelectorAll('.gt').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.g === S.game)));
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (S.view === 'messages' && b.dataset.v === 'board') || (S.view === 'newtest' && b.dataset.v === 'tests') || (S.view === 'assign' && b.dataset.v === 'grades'))));
-  const social = S.view === 'messages' || S.view === 'board' || S.view === 'live' || S.view === 'students'; bdSwitch(); $('smview').hidden = S.view !== 'students';
-  $('msgview').hidden = S.view !== 'messages'; $('boardview').hidden = S.view !== 'board'; $('liveview').hidden = S.view !== 'live'; document.querySelector('footer').hidden = social; $('games').hidden = social; syncHash();
+  const social = S.view === 'messages' || S.view === 'board' || S.view === 'live' || S.view === 'students'; $('smview').hidden = S.view !== 'students';
+  $('msgview').hidden = S.view !== 'messages'; $('boardview').hidden = S.view !== 'board'; $('liveview').hidden = S.view !== 'live'; syncHash();
   if (social) {
-    ['upbox', 'actbox', 'adminsum', 'adminacc', 'data', 'gradebar', 'gradelist', 'gradelist2', 'assignbox', 'testsbox', 'newtestbox', 'csv'].forEach(id => { $(id).hidden = true; });
-    S.clsHide = true; $('rng').closest('label').hidden = true;
-    if (S.view === 'students') { S.clsHide = false; return renderSm(); }
+    ['actbox', 'adminsum', 'adminacc', 'data', 'gradebar', 'gradelist', 'gradelist2', 'assignbox', 'testsbox', 'newtestbox', 'csv'].forEach(id => { $(id).hidden = true; });
+    $('rng').closest('label').hidden = true;
+    if (S.view === 'students') return renderSm();
     return S.view === 'live' ? showLive() : S.view === 'messages' ? renderMessages() : renderBoard();
   }
   const asg = S.view === 'assign', nt = S.view === 'newtest', ts = S.view === 'tests', ad = S.view === 'admin', av = S.view === 'activity';
@@ -1207,12 +1177,12 @@ function render() {
   if (av) COLS.activity = { player: ACT_PLAYER_COLS, teacher: ACT_TEACHER_COLS }[$('actby').value] || ACT_VISIT_COLS;
   if (!ad) S.teacher = '';
   const tpg = ad && !!S.teacher;
-  $('upbox').hidden = true; $('adminsum').hidden = !ad; $('adminacc').hidden = !ad || tpg;   // redesign: Upcoming and scheduled items live on Today
+  $('adminsum').hidden = !ad; $('adminacc').hidden = !ad || tpg;   // redesign: Upcoming and scheduled items live on Today
   const gv = S.view === 'grades'; if (gv) { gradePick(); renderGradeList(); }
   $('gradelist').hidden = $('gradelist2').hidden = $('gradebar').hidden = !gv;
   if (gv) { $('aout').closest('label').hidden = !S.gradeA; if (S.gradeA) $('aout').value = aOut(S.classes.find(x => x.code === S.code), S.gradeA); }
   $('data').hidden = asg || nt || tpg || (gv && !S.gradeA); $('assignbox').hidden = !asg; $('testsbox').hidden = !ts; $('newtestbox').hidden = !nt; $('csv').hidden = asg || nt || tpg || (gv && !S.gradeA);
-  S.clsHide = asg || ad || av || S.view === 'feedback'; $('rng').closest('label').hidden = asg || nt || ts;
+  $('rng').closest('label').hidden = asg || nt || ts;
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (S.view === 'messages' && b.dataset.v === 'board') || (nt && b.dataset.v === 'tests') || (asg && b.dataset.v === 'grades'))));
   if (asg) { showAssign(); return; }
   if (nt) { showNewTest(); return; }
@@ -1528,12 +1498,6 @@ function upItems() {
   });
   const by = (a, b) => a.ms - b.ms;
   return { soon: soon.sort(by), live: live.sort(by) };
-}
-function renderUpcoming() {
-  const { soon, live } = upItems(), all = soon.concat(live).sort((x, y) => x.ms - y.ms);
-  const li = i => `<li><button type="button" data-code="${esc(i.code)}" data-view="${i.view}" data-test="${esc(i.testId || '')}" style="--ic:${i.color}"><span class="w">${esc(i.when)}</span><span>${esc(i.name)}<span class="k">${i.kind} · ${esc(i.cls)}</span></span><span class="s">${esc(i.sub)}</span></button>${i.asg ? previewBtns(i.asg, 'upv') : ''}</li>`;
-  $('upbox').hidden = !all.length && !S.loading;
-  $('upbox').innerHTML = all.length ? '<div class="up"><h3>' + (S.view === 'tests' ? 'Scheduled (click to change)' : 'Upcoming and running now (click to open, ▶ to try it)') + '</h3><ul>' + all.map(li).join('') + '</ul></div>' : '';
 }
 // ---------- Tests: tests/<id> made here, results in test_results/<id>_<sid> ----------
 const tstate = t => !t.open ? 'closed' : (t.opens_at && toMs(t.opens_at) > Date.now()) ? 'scheduled' : (t.closes_at && toMs(t.closes_at) < Date.now()) ? 'ended' : 'open';
@@ -1922,16 +1886,9 @@ function setBadge(v, n) {
   c.hidden = !t; c.textContent = t > 99 ? '99+' : String(t);
   b.classList.toggle('waiting', t > 0);
   b.dataset.note = [m ? `${m} unread private message${m > 1 ? 's' : ''}` : '', bd ? `${bd} new on the Board` : ''].filter(Boolean).join(' · ');
-  newsBar(); bdSwitch(); bellUpdate();
+  bellUpdate();
 }
 // the two sections of Board: All teachers (view 'board') and Private with support (view 'messages')
-function bdSwitch() {
-  const el = $('bdswitch'); if (!el) return;
-  const on = S.view === 'messages' || S.view === 'board'; el.hidden = !on; if (!on) return;
-  const c = S.newCounts || {}, n = k => c[k] ? ` <span class="nb">${c[k] > 99 ? '99+' : c[k]}</span>` : '';
-  el.innerHTML = `<button type="button" data-go="board" aria-pressed="${S.view === 'board'}">📌 All teachers${n('board')}</button>`
-    + `<button type="button" data-go="messages" aria-pressed="${S.view === 'messages'}">🔒 Private with support${n('messages')}</button>`;
-}
 // A line under "Signed in as" that says what's new and jumps to it (hidden when nothing is new)
 // ---------- 🔔 and the sign-in card (2026-11-16; spec hub/docs/notifications-spec.md): student messages, private support chat,
 // new on the Board and (admin) student answers to feedback replies. Counts come from the loads that already run; no extra reads.
@@ -1957,23 +1914,6 @@ function bellCard() {
   document.body.insertAdjacentHTML('beforeend', `<div class="tcard" id="tcard"><div role="dialog" aria-modal="true" aria-labelledby="tcard-h"><div class="big" aria-hidden="true">🔔</div><h2 id="tcard-h">You have ${n} new</h2><p>${parts.map(x => esc(x[2](x[1]))).join(' · ')}</p><button class="btn" type="button" data-tgo="${parts[0][0]}">Show me</button> <button class="btn ghost" type="button" data-tlater="1">Later</button></div></div>`);
   const el = $('tcard'); el.querySelector('[data-tgo]').focus();
   el.onclick = e => { const g = e.target.closest('[data-tgo]'); if (g || e.target.closest('[data-tlater]') || e.target === el) { el.remove(); if (g) { S.view = g.dataset.tgo; load(); } } };
-}
-const vtip = { t: 0 };
-function vtipShow(b) {
-  let el = $('vtip'); if (!el) { document.body.insertAdjacentHTML('beforeend', '<div id="vtip" class="vtip" role="tooltip" hidden></div>'); el = $('vtip'); }
-  el.innerHTML = esc(b.dataset.tip) + (b.dataset.note ? `<b>${esc(b.dataset.note)}</b>` : ''); el.hidden = false;
-  const r = b.getBoundingClientRect(), w = el.offsetWidth, x = Math.max(8, Math.min(innerWidth - w - 8, r.left + r.width / 2 - w / 2));
-  el.style.left = x + scrollX + 'px'; el.style.top = r.bottom + scrollY + 8 + 'px'; b.setAttribute('aria-describedby', 'vtip');
-}
-function vtipHide() { clearTimeout(vtip.t); const el = $('vtip'); if (el) el.hidden = true; document.querySelectorAll('#views [aria-describedby]').forEach(b => b.removeAttribute('aria-describedby')); }
-function newsBar() {
-  let bar = $('newsbar');
-  if (!bar) { $('who').closest('.who').insertAdjacentHTML('afterend', '<div id="newsbar" class="newsbar" role="status" hidden></div>'); bar = $('newsbar');
-    bar.onclick = e => { const t = e.target.closest('[data-go]'); if (t) $('views').querySelector(`[data-v=${t.dataset.go}]`).click(); }; }
-  const c = S.newCounts || {}, m = c.messages || 0, b = c.board || 0, parts = [];
-  if (m) parts.push(`<button type="button" class="btn sm" data-go="messages">🔒 ${m} new private message${m > 1 ? 's' : ''}</button>`);
-  if (b) parts.push(`<button type="button" class="btn sm" data-go="board">📌 ${b} new on the Board</button>`);
-  bar.innerHTML = parts.length ? '<span>📬 New for you:</span> ' + parts.join(' ') : ''; bar.hidden = !parts.length;
 }
 // After a draft-keeping re-render: put focus and the message list's scroll position back.
 function keepFocus(box, fn) {
@@ -2524,10 +2464,6 @@ function csv() {
 }
 
 // ---------- wiring ----------
-function buildTabs() {
-  $('games').innerHTML = GAMES.map(g => `<li><button class="gt" type="button" data-g="${g.id}" style="--gc:${g.color}" aria-pressed="false"><i></i>${esc(g.name)}</button></li>`).join('');
-  $('games').onclick = e => { const b = e.target.closest('.gt'); if (!b) return; S.game = b.dataset.g; render(); if (S.view === 'progress' || S.view === 'scores') load(); };
-}
 async function changeAssignment(action) {
   const c = S.classes.find(x => x.code === S.code), a = S.gradeA;
   if (!c || !a || PREVIEW || S.assignmentBusy) return;
@@ -2589,8 +2525,7 @@ async function changeAssignment(action) {
 }
 
 function wire() {
-  buildTabs(); wireShell();
-  $('upbox').onclick = e => { const b = e.target.closest('button[data-view]'); if (!b) return; S.code = b.dataset.code; $('cls').value = S.code; if (b.dataset.test) { S.testId = b.dataset.test; S.editId = b.dataset.test; S.view = 'newtest'; } else S.view = b.dataset.view; load(); };
+  wireShell();
   // One-time tool (added 2026-10-22): scores the developer posted under an old name become "Maestro" (the rules let only the
   // admin change a score's name, and only to Maestro). Super Genius rows under the old name are deleted (one row per player there).
   // One-time privacy move (added 2026-10-29): old top level scores (readable by anyone) are copied into each of their classes
@@ -2602,15 +2537,9 @@ function wire() {
     if (e.target.closest('#tpback')) { S.teacher = ''; S.tp = null; render(); return; }
     const t = e.target.closest('[data-teacher]'); if (t) openTeacher(t.dataset.teacher);
   };
-  $('views').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.view = b.dataset.v; vtipHide(); load(); };
+  $('views').onclick = e => { const b = e.target.closest('button'); if (!b) return; S.view = b.dataset.v; load(); };
   smWire(); fbWire();
   $('tbell').onclick = () => { const v = $('tbell').dataset.go; if (v) { S.view = v; load(); } };
-  $('bdswitch').onclick = e => { const b = e.target.closest('[data-go]'); if (!b || S.view === b.dataset.go) return; S.view = b.dataset.go; load(); };
-  // hover pop-ups on the tiles (2026-11-16): a small bubble under the tile after a short rest; none on touch screens
-  $('views').addEventListener('pointerover', e => { const b = e.target.closest('button[data-tip]'); if (!b || e.pointerType === 'touch') return; clearTimeout(vtip.t); vtip.t = setTimeout(() => vtipShow(b), 350); });
-  $('views').addEventListener('pointerout', e => { const b = e.target.closest('button[data-tip]'); if (b && !b.contains(e.relatedTarget)) vtipHide(); });
-  $('views').addEventListener('focusin', e => { const b = e.target.closest('button[data-tip]'); if (b && b.matches(':focus-visible')) vtipShow(b); });
-  $('views').addEventListener('focusout', vtipHide);
   $('cls').onchange = () => { if (S.view === 'assign') S.view = 'grades'; S.gradeOpen = undefined; S.code = $('cls').value; if (S.code === WORLD) { if (!['scores', 'admin'].includes(S.view)) S.view = 'scores'; } else S.lastCode = S.code; load(); };
   $('rng').onchange = load;
   $('avon').onchange = e => setAvatars(e.target.checked);
@@ -2806,7 +2735,7 @@ function go(v) {
   if (v === 'social') v = S.lastSocial || 'students';
   if (v === 'progress') S.allRec = false;
   if (['students', 'board', 'messages'].includes(v)) S.lastSocial = v;
-  acctMenu(false); vtipHide(); S.view = v; $('mainc').scrollTop = 0; load();
+  acctMenu(false); S.view = v; $('mainc').scrollTop = 0; load();
 }
 function acctMenu(open) { $('acctmenu').hidden = !open; $('acct').setAttribute('aria-expanded', String(open)); }
 // rows that fit the screen without scrolling (at least 5)
