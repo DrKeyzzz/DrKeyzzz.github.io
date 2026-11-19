@@ -1825,6 +1825,7 @@ boot();
     {id:'burst',slot:'fx',name:'Star Burst',ic:'💥',p:60,d:'Gold stars pop out on every right answer, in every game'},{id:'gold',slot:'glow',name:'Gold Name',ic:'🏅',p:80,d:'Your name glows gold with a ★ on class boards'},
     {id:'holo',slot:'top',name:'Holo Jacket',ic:'🧥',p:100,d:'Shimmers like a hologram'},{id:'rain',slot:'aura',name:'Rainbow Aura',ic:'🌈',p:120,d:'A rainbow glow pulses behind you'},
     {id:'galaxy',slot:'top',name:'Night Sky Hoodie',ic:'🌌',p:150,d:'Moving stars inside it'},{id:'dragon',slot:'pet',name:'Baby Dragon',ic:'🐉',p:200,d:'Flaps and puffs music notes'},
+    {id:'hands2',slot:'perk',name:'Second Hand',ic:'🤲',p:250,d:'Hold two instruments at once: one in each hand'},   // David 2026-11-19
     {id:'jelly',slot:'pet',name:'Glow Jellyfish',ic:'🪼',p:120,d:'Floats beside you and glows'},{id:'starfox',slot:'pet',name:'Star Fox',ic:'🦊',p:160,d:'A fox whose tail sparkles with stars'},{id:'unicorn',slot:'pet',name:'Mini Unicorn',ic:'🦄',p:220,d:'A tiny unicorn with a rainbow mane and a glowing horn'},   // more Vault pets (David 2026-11-19)
     {id:'phoenix',slot:'pet',name:'Phoenix',ic:'🔥',p:300,d:'Legendary: a fire bird that leaves sparks'},
     {id:'none',slot:'pet',name:'No pet',ic:'🚫',free:1},{id:'note',slot:'pet',name:'Note Buddy',ic:'🎵',c:60},{id:'cat',slot:'pet',name:'Cat',ic:'🐱',c:80,d:'Pick its color and give it a name!'},{id:'dog',slot:'pet',name:'Dog',ic:'🐶',c:80,d:'A cute pup. Pick its color and give it a name!'},{id:'bird',slot:'pet',name:'Bird',ic:'🐦',c:70,d:'A little parakeet. Pick its color and name it!'},{id:'bunny',slot:'pet',name:'Bunny',ic:'🐰',c:90,d:'Floppy ears and a puffy tail. Name it!'},{id:'hamster',slot:'pet',name:'Hamster',ic:'🐹',c:60,d:'Round and fluffy. Name it!'},{id:'fish',slot:'pet',name:'Fish',ic:'🐠',c:50,d:'A fish in its own bowl. Name it!'},{id:'turtle',slot:'pet',name:'Turtle',ic:'🐢',c:70,d:'Slow and steady. Name it!'},   // Dog: David 2026-11-18 (default name Biscuit)
@@ -2135,8 +2136,10 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     };
     // jointed limbs: shoulder > elbow > hand, hip > knee > foot
     const gv = GR[L.gear] || '', gHand = typeof gv === 'string' ? gv : gv.hand, gSide = typeof gv === 'string' ? '' : gv.side;   // big instruments stand beside the avatar
+    const gv2 = L.gear2 && L.gear2 !== 'none' ? GR[L.gear2] || '' : '', MIR = h => h ? `<g transform="matrix(-1 0 0 1 100 0)">${h}</g>` : '';   // Second Hand (2026-11-19): mirrored to the left
+    const gHand2 = MIR(typeof gv2 === 'string' ? gv2 : gv2.hand), gSide2 = MIR(typeof gv2 === 'string' ? '' : gv2.side);
     const arm = s => { const l = s === 'l', sx = l ? 37 : 63, ex = l ? 33 : 67, wx = l ? 31 : 69, hx = l ? 30.5 : 69.5;
-      return `<g class="arm-${s}"><path d="M${sx} 64 L${ex} 75" stroke="${sleeve}" stroke-width="8.5" stroke-linecap="round"/><g class="fore-${s}"><path d="M${ex} 75 L${wx} 85" stroke="${fore}" stroke-width="7.2" stroke-linecap="round"/><circle cx="${hx}" cy="88" r="4.3" fill="${sk}"/>${l ? '' : gHand}</g></g>`; };
+      return `<g class="arm-${s}"><path d="M${sx} 64 L${ex} 75" stroke="${sleeve}" stroke-width="8.5" stroke-linecap="round"/><g class="fore-${s}"><path d="M${ex} 75 L${wx} 85" stroke="${fore}" stroke-width="7.2" stroke-linecap="round"/><circle cx="${hx}" cy="88" r="4.3" fill="${sk}"/>${l ? gHand2 : gHand}</g></g>`; };
     const leg = s => { const l = s === 'l', hx = l ? 45 : 55, kx = l ? 44.5 : 55.5, fx = l ? 43.5 : 56.5;
       return `<g class="leg-${s}"><path d="M${hx} 90 L${kx} 99" stroke="${pc}" stroke-width="8.5" stroke-linecap="round"/><g class="shin-${s}"><path d="M${kx} 99 L${kx} 105" stroke="${pc}" stroke-width="7.8" stroke-linecap="round"/><ellipse cx="${fx}" cy="108" rx="6" ry="3.3" fill="${shoe}"/><path d="M${fx - 5.5} 109 H${fx + 5.5}" stroke="${stripe}" stroke-width="1.1"/></g></g>`; };
     const vb = o.crop ? '18 4 64 64' : '0 0 100 120';
@@ -2159,7 +2162,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     return `<svg viewBox="${vb}" role="img" aria-label="${o.label || 'Your avatar'}"><defs>${defs}</defs>${bg}${auraB}${o.crop || o.bare ? '' : platform(rank)}${heroP}
   <g class="root">${heroB}${behind}${back}${leg('l')}${leg('r')}<rect x="40" y="86" width="20" height="7" rx="3" fill="${pc}"/><rect x="45.5" y="54" width="9" height="7" fill="${dk}"/><path d="${torsoD}" fill="${topFill}"/>${extra}
   <g class="head">${hairBack}${ears}${face}${blush}${eyes}${nose}${beard[0]}${M[L.mouth]}${beard[1]}${brows}${front}${glasses}${headX}${hat}</g>
-  ${o.bare ? '' : gSide}${arm('l')}${arm('r')}</g>
+  ${o.bare ? '' : gSide + gSide2}${arm('l')}${arm('r')}</g>
   ${o.crop || o.bare ? '' : `<g class="pet">${PT[L.pet] || ''}</g>`}${auraF}</svg>`;
   }
 
@@ -2180,7 +2183,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
 
   // ---------- the look: saved on this device, and online for signed-in students ----------
   var DEF = { skin: 2, face: 'round', eyes: 'big', brows: 'arch', browC: 0, nose: 'dot', mouth: 'smile', hair: 'curly', hairC: 1, cover: 'none', glasses: 'none', beard: 'none',
-    top: 'hoodie', topC: 0, pantC: 0, hat: 'none', gear: 'none', bg: 'none', pet: 'none', outfit: 'none', idle: 'bounce', happy: 'hop', aww: 'shrug', dance: 'groove', aura: 'none', fx: 'none', glow: 'none', dogC: 0, petC: 0, hero: 'none' };   // aura / fx / glow: Star Vault (2026-11-18)
+    top: 'hoodie', topC: 0, pantC: 0, hat: 'none', gear: 'none', bg: 'none', pet: 'none', outfit: 'none', idle: 'bounce', happy: 'hop', aww: 'shrug', dance: 'groove', aura: 'none', fx: 'none', glow: 'none', dogC: 0, petC: 0, hero: 'none', gear2: 'none' };   // aura / fx / glow: Star Vault (2026-11-18)
   var TOPS = [['hoodie', 'Hoodie'], ['tee', 'Tee'], ['jacket', 'Jacket']];   // the free tops (the Store adds more later)
   var pick = function(a){ return a[Math.floor(Math.random() * a.length)]; };
   function randomLook(){
@@ -2217,6 +2220,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   } catch(e){} }
   if (!look) { look = randomLook(); fresh = !!P; }   // guests: a random avatar for this visit, never saved
   function wearOwned(L){   // a paid item that isn't in this student's owned list goes back to the free default
+    if (L.gear2 && L.gear2 !== 'none' && typeof owns === 'function') { var g2 = ITEMS.filter(function(x){ return x.slot === 'gear' && x.id === L.gear2; })[0]; if (!g2 || !owns(g2) || !owns({ slot: 'perk', id: 'hands2' })) L.gear2 = 'none'; }
     if (typeof DEV !== 'undefined' && DEV) return L;
     ITEMS.forEach(function(it){ var k = it.slot + ':' + it.id; if (L[it.slot] === it.id && !it.free && W.owned.indexOf(k) < 0 && !(k === 'gear:baton' && rankNow() >= 8) && !(k === 'bg:wreath' && rankNow() >= 9) && !masteredGear(k) && !(it.enc && (W.encores || 0) >= it.enc) && !(P && typeof earnedIt === 'function' && earnedIt(it))) L[it.slot] = DEF[it.slot]; });
     if (!ITEMS.some(function(it){ return it.slot === 'top' && it.id === L.top; })) L.top = DEF.top;
@@ -2675,6 +2679,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     ['Hair', 'hair'], ['Hair color', 'hairC', 'swatch', HAIRC], ['Beard', 'beard'], ['Head covering', 'cover'], ['Glasses', 'glasses'],
   ];
   var CLOTHROWS = [['Top color', 'topC', 'swatch', TOPC], ['Pants', 'pantC', 'swatch', PANTC]];
+  var gearHand = 1;   // Second Hand: which hand the Gear shelf fills
   var dlg = null, draft = null, tab = 'shop', trying = null, note = '', clockT = 0, undoLook = null, savedT = 0;
   function commit(){   // every change saves on its own (2026-11-18): the look, here and online (one write 3 s after the last change)
     look = wearOwned(clean(Object.assign({}, draft))); saveLocal(); sendOnline(); drawAll();
@@ -2702,7 +2707,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   var COIN = '<i class="mav-coin" aria-label="coins"></i>', RN_SUB = '';
   function price(it){ return it.c ? it.c + ' ' + COIN : it.p ? cost(it).toLocaleString() + ' ★' : ''; }
   function card(it, big){
-    var on = draft[it.slot] === it.id, have = owns(it), t = trying && key(trying) === key(it), r = rarity(it);
+    var on = it.slot === 'gear' && gearHand === 2 ? draft.gear2 === it.id : draft[it.slot] === it.id, have = owns(it), t = trying && key(trying) === key(it), r = rarity(it);
     var tag = on ? '<span class="mav-ctag eq">EQUIPPED</span>' : have ? (it.free ? '' : '<span class="mav-ctag own">✓ OWNED</span>') : it.enc ? '<span class="mav-ctag lk">🎭 ENCORE ' + it.enc + '</span>' : it.lock ? '<span class="mav-ctag lk">' + (it.tier ? '⏱ PRACTICE' : '🔒 MASTERY') + '</span>' : '';
     var cst = cost(it), need = P ? cst - (it.c ? W.coins : W.points) : 0;
     var pr = have || it.lock || it.enc ? '' : '<span class="mav-pr ' + (P && need <= 0 ? 'ok' : 'no') + '">' + (it.c ? COIN + ' ' + it.c : '★ ' + cst.toLocaleString()) + (P && need > 0 ? '<small>need ' + need.toLocaleString() + '</small>' : '') + '</span>';
@@ -2752,7 +2757,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   function tabHtml(){
     if (tab === 'home') return lockerHtml();
     if (tab === 'vault') {
-      var wi = ITEMS.filter(function(x){ return key(x) === weekItem(); })[0], VS = [['Effects', ['aura', 'fx', 'glow']], ['Clothes', ['top', 'outfit', 'hat']], ['Pets', ['pet']], ['Moves', ['idle', 'happy', 'dance']], ['Backdrops', ['bg', 'gear']]];
+      var wi = ITEMS.filter(function(x){ return key(x) === weekItem(); })[0], VS = [['Effects', ['perk', 'aura', 'fx', 'glow']], ['Clothes', ['top', 'outfit', 'hat']], ['Pets', ['pet']], ['Moves', ['idle', 'happy', 'dance']], ['Backdrops', ['bg', 'gear']]];
       return '<div class="mav-vweek">★ <div><b>How to earn Stars</b><br>Great runs (80% or better) · all 3 daily quests · streaks · tests · new ranks · mastering a game · Live Class Showdowns</div></div>'
         + (wi ? '<div class="mav-vweek">⏳ <div><b>Star of the Week: ' + wi.name + ' is 25% off</b><br>Only ★ ' + cost(wi) + ' until ' + sunday() + ' night. Tap something you are wearing to take it off.</div></div>' : '')
         + (P ? '' : '<p class="mav-sub">Sign in to earn ★ Stars.</p>')
@@ -2783,6 +2788,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     var html = '';
     if (tab === 'clothes') html = '<div class="mav-grid">' + itemsOf('top').map(function(x){ return card(x); }).join('') + '</div>' + rowsHtml(CLOTHROWS);
     else if (tab === 'moves') html = MOVE_SLOTS.map(function(m){ return '<div class="mav-sec">' + m[1] + '</div><div class="mav-grid">' + itemsOf(m[0]).map(function(x){ return card(x); }).join('') + '</div>'; }).join('');
+    else if (tab === 'gear' && owns({ slot: 'perk', id: 'hands2' })) html = '<div class="mav-cls-tabs" style="margin:4px 0 10px"><button type="button" data-do="hand" data-v="1" class="' + (gearHand === 1 ? 'on' : '') + '">🤚 Hand 1</button><button type="button" data-do="hand" data-v="2" class="' + (gearHand === 2 ? 'on' : '') + '">🤚 Hand 2</button></div><div class="mav-grid">' + itemsOf(tab).map(function(x){ return card(x); }).join('') + '</div>';
     else html = '<div class="mav-grid">' + itemsOf(tab).map(function(x){ return card(x); }).join('') + '</div>';
     return html;
   }
@@ -2856,7 +2862,9 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
         if (b.dataset.k) { var k = b.dataset.k; draft[k] = typeof DEF[k] === 'number' ? +b.dataset.v : b.dataset.v; commit(); render(); return; }
         if (b.dataset.item) {
           var it = ITEMS.filter(function(x){ return key(x) === b.dataset.item; })[0]; if (!it) return;
-          tick(); if (owns(it)) { draft[it.slot] = it.p && draft[it.slot] === it.id ? DEF[it.slot] : it.id; trying = null; commit(); } else trying = it;   // not yours yet: try it on; a worn Vault item: tap again to take it off
+          if (owns(it) && it.slot === 'perk') { tick(); return; }
+          tick(); if (owns(it) && it.slot === 'gear' && gearHand === 2) { draft.gear2 = draft.gear2 === it.id ? 'none' : it.id; trying = null; commit(); }
+          else if (owns(it)) { draft[it.slot] = it.p && draft[it.slot] === it.id ? DEF[it.slot] : it.id; trying = null; commit(); } else trying = it;   // not yours yet: try it on; a worn Vault item: tap again to take it off
           render(); drawBig(1);
           if (/^(idle|happy|aww|dance)$/.test(it.slot) && it.slot !== 'idle') play(it.id);
           if (it.slot === 'fx' && it.id !== 'none') burstAt(dlg.querySelector('.mav-big'), 16);
@@ -2876,6 +2884,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
         if (b.dataset.do === 'try') { play(pick([draft.happy, draft.aww, draft.dance])); return; }
         if (b.dataset.do === 'save' || b.dataset.do === 'close') { dlg.close(); return; }
         if (b.dataset.do === 'undo') { tick(); draft = wearOwned(clean(Object.assign({}, undoLook))); trying = null; commit(); render(); drawBig(1); return; }
+        if (b.dataset.do === 'hand') { tick(); gearHand = +b.dataset.v === 2 ? 2 : 1; render(); return; }
         if (b.dataset.do === 'pname') { tick(); note = '<b>Name your ' + ((ITEMS.filter(function(x){ return x.slot === 'pet' && x.id === shown().pet; })[0] || {}).name || 'pet').toLowerCase() + '</b><br><input class="mav-pin" maxlength="12" value="' + esc(petName()) + '" aria-label="Pet name"> <button type="button" class="mav-btn" data-do="pnsave">Save name</button>'; render(); note = ''; var inp = dlg.querySelector('.mav-pin'); if (inp) { inp.focus(); inp.select(); inp.onkeydown = function(e){ if (e.key === 'Enter') { var sb = dlg.querySelector('[data-do="pnsave"]'); if (sb) sb.click(); } }; } return; }
         if (b.dataset.do === 'pnsave') { var pi = dlg.querySelector('.mav-pin'); setPetName(pi ? pi.value : ''); tick(); render(); play(look.happy); return; }
         if (b.dataset.do === 'coinfo') { tick(); note = '<b>' + COIN + ' Coins</b><br><small>Everyday money: 1 for every minute you play (up to 60 a day), +10 for each daily quest.</small>'; render(); note = ''; return; }
