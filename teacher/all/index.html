@@ -335,6 +335,19 @@
   .gw { flex: 1; min-width: 180px; color: var(--muted); font-weight: 400; font-size: 15px; }
   .gs { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 6px; border: 1px solid currentColor; }
   .gs.now { color: var(--ok, #2fbf71); } .gs.up { color: var(--gold); } .gs.end { color: var(--muted); }
+  /* One Assignments list for practice goals and tests (2026-11-19, David: merge before teachers get used to two) */
+  .mlh { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; position: relative; }
+  .mnew { background: var(--gold); color: #10131a; border: 0; border-radius: 999px; padding: 9px 16px 7px; font: 800 15px var(--f-ui); cursor: pointer; }
+  .mflt { display: inline-flex; border: 1px solid var(--card-border); border-radius: 999px; overflow: hidden; margin-left: auto; }
+  .mflt button { background: var(--bg); color: var(--muted); border: 0; padding: 7px 11px 5px; font: 700 13px var(--f-ui); cursor: pointer; }
+  .mflt button[aria-pressed="true"] { background: #26344b; color: var(--text); }
+  .mmenu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; width: min(340px, 90vw); background: #1a2538; border: 1px solid var(--card-border); border-radius: 14px; padding: 6px; box-shadow: 0 12px 30px rgba(0,0,0,.5); }
+  .mmenu button { display: flex; gap: 12px; width: 100%; text-align: left; background: none; border: 0; border-radius: 10px; padding: 10px; color: var(--text); cursor: pointer; font: 400 14px var(--f-ui); }
+  .mmenu button:hover, .mmenu button:focus-visible { background: #26344b; } .mmenu .e { font-size: 24px; } .mmenu b { display: block; font-size: 16px; } .mmenu small { color: var(--muted); font-size: 13px; }
+  .mk { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
+  .mk.p { background: rgba(123,224,195,.14); color: #7be0c3; } .mk.t { background: rgba(169,147,255,.16); color: #a993ff; }
+  .gi .mk + .gs { margin-left: auto; } .gi .mn { flex-basis: 100%; font-weight: 800; } .gi .mw { flex-basis: 100%; color: var(--muted); font-weight: 400; font-size: 14px; }
+  .mrep { display: flex; gap: 8px; flex-wrap: wrap; } .mrep .btn { font-size: 13px; }
   footer { text-align: center; color: var(--muted); font-size: 14px; margin-top: 28px; }
   .pv { background: var(--gold); color: #10131a; font-weight: 700; text-align: center; padding: 6px; font-size: 14px; border-radius: 10px; margin: 12px 0 0; }
 
@@ -508,7 +521,7 @@
   @media (min-width: 900px) {
     #panel.gv { display: grid; grid-template-columns: 340px minmax(0, 1fr); column-gap: 16px; align-content: start;
       grid-template-areas: "o o" "m m" "b b" "l d" "l2 d"; grid-template-rows: auto auto auto auto 1fr; }
-    #panel.gv > .opts { grid-area: o; } #panel.gv > #msg { grid-area: m; } #panel.gv > #gradebar { grid-area: b; }
+    #panel.gv > .opts { grid-area: o; } #panel.gv > #msg { grid-area: m; } #panel.gv > #gradebar, #panel.gv > #testsbox { grid-area: b; }
     #panel.gv > #gradelist { grid-area: l; } #panel.gv > #gradelist2 { grid-area: l2; align-self: start; } #panel.gv > #data { grid-area: d; min-width: 0; }
     #panel.gv .gi { flex-wrap: wrap; } #panel.gv .gw { flex-basis: 100%; }
     #panel.gv #data .tw { margin-top: 0; }
@@ -536,7 +549,7 @@
     #testsbox .opts { margin-top: 8px !important; }
     .opts { gap: 8px 10px; } .opts label.f { font-size: 0; gap: 0; } .opts select { font-size: 15px; min-width: 0; }
     #csv { display: none; }
-    .gi:not(.on) .gw { display: none; } .gi { padding: 9px 12px; font-size: 14.5px; } .gprev { display: none; }
+    .gi:not(.on) .gw, .gi:not(.on) .mw { display: none; } .gi { padding: 9px 12px; font-size: 14.5px; } .gprev { display: none; }
     .tday h1 { font-size: 21px; } .tday .sub { margin-bottom: 10px; }
     .stat b { font-size: 21px; }
     .pc { display: none; }
@@ -599,9 +612,9 @@
       <p class="msg" id="msg" role="status"></p>
       <div id="testsbox" hidden>
         <div class="opts" style="margin-top:14px">
-          <label class="f" for="tsel">Test<select id="tsel"></select></label>
+          <label class="f" for="tsel" hidden>Test<select id="tsel"></select></label>
           <label class="f" for="tout" title="Grades show as points, e.g. 19/20. Change it to match your grade book.">Grade out of<input id="tout" type="number" min="1" max="1000" step="1" inputmode="numeric" style="width:84px"></label>
-          <button class="btn sm" type="button" id="tnew">+ New test</button>
+          <button class="btn sm" type="button" id="tnew" hidden>+ New test</button>
           <button class="btn ghost sm" type="button" id="tedit">Edit test</button>
           <details class="more"><summary class="btn ghost sm">⋯ More</summary><div class="morem">
           <button class="btn ghost sm" type="button" id="ttoggle">Switch off</button>
@@ -622,7 +635,7 @@
       <div id="adminsum" hidden></div>
       <div id="newtestbox" hidden><button class="btn ghost sm" type="button" id="tback" style="margin-top:14px">← Back to Tests</button><iframe id="tframe" title="Create a test" style="width:100%;border:0;min-height:700px;margin-top:8px;background:transparent"></iframe></div>
       <div id="gradebar" class="opts" style="margin-top:14px" hidden>
-        <button class="btn sm" type="button" id="anew">+ New assignment</button>
+        <button class="btn sm" type="button" id="anew" hidden>+ New assignment</button>
         <button class="btn ghost sm" type="button" id="aedit">Edit assignment</button>
         <details class="more"><summary class="btn ghost sm">⋯ More</summary><div class="morem">
         <button class="btn ghost sm" type="button" id="aend">End assignment</button>
@@ -841,6 +854,33 @@ function gradePick() {
     [{ k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) }, { k: 'grade', h: 'Grade', t: 'n', num: 1, f: r => `<b>${r.grade}%</b>` }, { k: 'points', h: 'Points', t: 's', num: 1, f: r => gradeCell(r.points) }, { k: 'status', h: 'Status', t: 's', f: r => r.grade >= 100 ? '<b style="color:#2fbf71">✓ Done</b>' : r.status }, { k: 'dateMs', h: 'Last practiced', t: 'n', f: r => esc(fmtDate(r.dateMs)) }]);
 }
 const PREVIEW_NOLINK = a => !previewBtns(a);
+// ---------- One Assignments list (2026-11-19): practice goals (classes.hub_assignments) and tests (tests collection) together ----------
+// Each item is tagged 🎯 Practice or 📝 Test; one ＋ New asks which; clicking an item opens its own results (view 'grades' or 'tests').
+const OPEN_KIND = { open: ['Running', 'now'], scheduled: ['Upcoming', 'up'], closed: ['Closed', 'end'], ended: ['Ended', 'end'] };
+function mergedList() {
+  const today = ymd(new Date()), cc = S.classes.find(c => c.code === S.code), L = gradeList(cc);
+  const live = new Set(PREVIEW ? L.filter(a => a.end >= today).map(aKey) : liveAssigns(cc, today).map(aKey));
+  const tests = S.testsCode === S.code ? (S.tests || []) : [];
+  const items = L.map(a => ({ k: 'p', a, ms: dayMs(a.start), on: S.view === 'grades' && S.gradeA && aKey(S.gradeA) === aKey(a),
+      st: !live.has(aKey(a)) ? ['Ended', 'end'] : a.start > today ? ['Upcoming', 'up'] : a.end === OPEN_END ? ['No end date', 'now'] : ['Now', 'now'] }))
+    .concat(tests.map(t => ({ k: 't', t, ms: toMs(t.created_at) || toMs(t.opens_at) || 0, on: S.view === 'tests' && S.testId === t.id, st: OPEN_KIND[tstate(t)] || ['', ''] })))
+    .sort((x, y) => (x.st[1] === 'end') - (y.st[1] === 'end') || y.ms - x.ms);   // running and upcoming first, then newest
+  const f = S.afilt || 'all', shown = items.filter(x => f === 'all' || x.k === f);
+  const head = `<div class="mlh"><button class="mnew" type="button" data-mnew="1" aria-expanded="${!!S.mmenu}" ${PREVIEW || !S.code ? 'disabled' : ''}>＋ New</button>
+    <span class="mflt" role="group" aria-label="Show">${[['all', 'All'], ['p', '🎯 Practice'], ['t', '📝 Tests']].map(([v, l]) => `<button type="button" data-mf="${v}" aria-pressed="${f === v}">${l}</button>`).join('')}</span>
+    ${S.mmenu ? `<div class="mmenu" role="menu"><button type="button" role="menuitem" data-mmake="p"><span class="e" aria-hidden="true">🎯</span><span><b>Practice goal</b><small>Did they do enough? A number of answers or minutes in any game. Students choose their level.</small></span></button>
+      <button type="button" role="menuitem" data-mmake="t"><span class="e" aria-hidden="true">📝</span><span><b>Test</b><small>How well did they do? One game, settings locked, tries counted, scored by accuracy.</small></span></button></div>` : ''}</div>`;
+  const tline = t => `${G[t.game] ? G[t.game].name : t.game} · ${t.tries ? (t.tries === 1 ? 'one try' : t.tries + ' tries') : 'unlimited tries'} · by ${t.grade === 'score' ? 'points' : 'accuracy'}`;
+  const twhen = t => t.closes_at ? (tstate(t) === 'open' ? 'Closes ' : 'Closed ') + fmtWhen(t.closes_at) : t.opens_at && tstate(t) === 'scheduled' ? 'Opens ' + fmtWhen(t.opens_at) : tstate(t) === 'open' ? 'Open until you close it' : '';
+  const item = x => x.k === 'p'
+    ? `<button type="button" class="gi${x.on ? ' on' : ''}" data-mi="p" data-key="${esc(aKey(x.a))}" aria-expanded="${x.on}"><span class="mk p">🎯 Practice</span><span class="gs ${x.st[1]}">${x.st[0]}</span>`
+      + `<span class="mn">${esc(fmtDay(x.a.start))}${x.a.end !== x.a.start ? ' – ' + esc(endText(x.a, fmtDay)) : ''}</span><span class="mw">${x.a.tasks.map(t => esc(taskName(t)) + ', ' + t.goal + (t.unit === 'minutes' ? ' min' : ' answers')).join(' · ')}</span></button>`
+      + (x.on && !PREVIEW_NOLINK(x.a) ? `<div class="gprev">Try it as a student:${previewBtns(x.a)}</div>` : '')
+    : `<button type="button" class="gi${x.on ? ' on' : ''}" data-mi="t" data-key="${esc(x.t.id)}" aria-expanded="${x.on}"><span class="mk t">📝 Test</span><span class="gs ${x.st[1]}">${x.st[0]}</span>`
+      + `<span class="mn">${esc(x.t.name || 'Test')}</span><span class="mw">${esc([twhen(x.t), tline(x.t)].filter(Boolean).join(' · '))}</span></button>`;
+  const reports = tests.length && f !== 'p' ? `<div class="mrep">${Object.entries(TEST_MODES).map(([v, l]) => `<button class="btn ghost sm" type="button" data-mi="t" data-key="${v}" aria-pressed="${S.view === 'tests' && S.testId === v}">${v === '__book' ? '📒' : '📊'} ${esc(l)}</button>`).join('')}</div>` : '';
+  return head + (shown.length ? shown.map(item).join('') : `<p class="count">${f === 't' ? 'No tests yet for this class.' : f === 'p' ? 'No practice goals yet for this class.' : 'Nothing assigned to this class yet.'} Click ＋ New to make one.</p>`) + reports;
+}
 function renderGradeList() {
   const today = ymd(new Date()), open = S.gradeA ? aKey(S.gradeA) : '';
   const item = (a, i) => { const on = aKey(a) === open, st = !live.has(aKey(a)) ? ['Ended', 'end'] : a.start > today ? ['Upcoming', 'up'] : ['Now', 'now'];
@@ -851,9 +891,7 @@ function renderGradeList() {
   $('aout').disabled = !!S.assignmentBusy;
   const cc = S.classes.find(c => c.code === S.code), live = new Set(PREVIEW ? (S.gradeList || []).filter(a => a.end >= today).map(aKey) : liveAssigns(cc, today).map(aKey));
   $('aend').disabled = PREVIEW || !!S.assignmentBusy || !S.gradeA || !live.has(open);
-  const L = S.gradeList || [], at = L.findIndex(a => aKey(a) === open);
-  $('gradelist').innerHTML = L.length ? L.slice(0, at < 0 ? L.length : at + 1).map((a, i) => item(a, i) + (i === at && !PREVIEW_NOLINK(a) ? `<div class="gprev">Try it as a student:${previewBtns(a)}</div>` : '')).join('') : '<p class="count">This class has no assignment yet. Click + New assignment to make one.</p>';
-  $('gradelist2').innerHTML = at < 0 ? '' : L.slice(at + 1).map((a, j) => item(a, at + 1 + j)).join('');
+  $('gradelist').innerHTML = mergedList(); $('gradelist2').innerHTML = '';
 }
 async function loadGrades(c, assignment, through = assignment?.end) {
   if (!assignment) return [];
@@ -1187,7 +1225,8 @@ function render() {
   const tpg = ad && !!S.teacher;
   $('adminsum').hidden = !ad; $('adminacc').hidden = !ad || tpg;   // redesign: Upcoming and scheduled items live on Today
   const gv = S.view === 'grades'; if (gv) { gradePick(); renderGradeList(); }
-  $('gradelist').hidden = $('gradelist2').hidden = $('gradebar').hidden = !gv;
+  if (ts) $('gradelist').innerHTML = mergedList();
+  $('gradelist').hidden = !gv && !ts; $('gradelist2').hidden = $('gradebar').hidden = !gv;
   if (gv) { $('aout').closest('label').hidden = !S.gradeA; if (S.gradeA) $('aout').value = aOut(S.classes.find(x => x.code === S.code), S.gradeA); }
   $('data').hidden = asg || nt || tpg || (gv && !S.gradeA); $('assignbox').hidden = !asg; $('testsbox').hidden = !ts; $('newtestbox').hidden = !nt; $('csv').hidden = asg || nt || tpg || (gv && !S.gradeA);
   $('rng').closest('label').hidden = asg || nt || ts;
@@ -1235,6 +1274,7 @@ async function load() {
     if (S.view === 'admin') rows = await loadAdmin();
     else if (S.view === 'activity') rows = PREVIEW ? (SAMPLE = SAMPLE || sample()).activity.filter(r => !PV_TEACHER || S.classes.some(c => c.code === r.class_code)) : act ? act.rows : [];
     else if (S.view === 'grades') {
+      if (S.testsCode !== S.code) { try { if (PREVIEW) { SAMPLE = SAMPLE || sample(); S.tests = SAMPLE.testList; } else await loadTests(); S.testsCode = S.code; } catch (e) {} }   // the merged list shows tests too
       const c = S.classes.find(x => x.code === S.code), assignment = S.gradeA;
       const out = aOut(c, assignment);
       rows = c ? (await loadGrades(c, assignment)).map(r => ({ ...r, points: ptsOf(r.grade, out) })) : [];
@@ -1243,10 +1283,10 @@ async function load() {
       SAMPLE = SAMPLE || sample();
       rows = S.view === 'progress' ? SAMPLE.prog : S.view === 'scores' ? SAMPLE.scores : S.view === 'tests' ? SAMPLE.tests : SAMPLE.fbs;
       if (S.view === 'feedback') { rows.forEach(actWho); await fbLoad(); fbBadge(); }
-      if (S.view === 'tests') { await loadUpcoming().catch(() => {}); S.tests = SAMPLE.testList; if (!S.testId) S.testId = S.tests[0].id; rows = await loadTestRows(); }
+      if (S.view === 'tests') { await loadUpcoming().catch(() => {}); S.tests = SAMPLE.testList; S.testsCode = S.code; if (!S.testId) S.testId = S.tests[0].id; rows = await loadTestRows(); }
       await new Promise(r => setTimeout(r, 120));
     } else if (S.view === 'tests') {
-      await loadUpcoming().catch(() => {}); await loadTests(); rows = await loadTestRows();
+      await loadUpcoming().catch(() => {}); await loadTests(); S.testsCode = S.code; rows = await loadTestRows();
     } else if (S.view === 'feedback') {
       rows = await fetchFeedback();   // every class and guest (no class filter)
     } else if (S.code) {
@@ -2551,6 +2591,17 @@ function wire() {
   $('cls').onchange = () => { if (S.view === 'assign') S.view = 'grades'; S.gradeOpen = undefined; S.code = $('cls').value; if (S.code === WORLD) { if (!['scores', 'admin'].includes(S.view)) S.view = 'scores'; } else S.lastCode = S.code; load(); };
   $('rng').onchange = load;
   $('avon').onchange = e => setAvatars(e.target.checked);
+  $('gradelist').addEventListener('click', e => {
+    const b = e.target.closest('[data-mnew],[data-mmake],[data-mf],[data-mi]'); if (!b) return;
+    if (b.dataset.mnew) { S.mmenu = !S.mmenu; render(); return; }
+    S.mmenu = false;
+    if (b.dataset.mmake === 'p') return $('anew').onclick();
+    if (b.dataset.mmake === 't') return $('tnew').onclick();
+    if (b.dataset.mf) { S.afilt = b.dataset.mf; render(); return; }
+    if (b.dataset.mi === 'p') { S.gradeOpen = b.dataset.key; S.view = 'grades'; load(); return; }
+    if (b.dataset.mi === 't') { S.testId = b.dataset.key; S.live = ''; if (S.sort) delete S.sort.tests; S.view = 'tests'; load(); }
+  });
+  document.addEventListener('click', e => { if (S.mmenu && !e.target.closest('.mlh')) { S.mmenu = false; render(); } });
   const gclick = e => { const b = e.target.closest('[data-ga]'); if (!b) return; const a = S.gradeList[+b.dataset.ga]; S.gradeOpen = S.gradeA && aKey(S.gradeA) === aKey(a) ? '' : aKey(a); load(); };
   $('gradelist').onclick = $('gradelist2').onclick = gclick;
   $('tbl').onclick = async e => {
@@ -2722,7 +2773,6 @@ function subswRender() {
   const v = S.view, n = navCounts(), d = k => n[k] ? `<span class="nb">${n[k]}</span>` : '';
   const sets = {
     progress: [['progress:stu', 'By student', v === 'progress' && !S.allRec], ['progress:rec', 'Every session', v === 'progress' && S.allRec], ['scores', 'Best scores', v === 'scores']],
-    grades: [['grades', '📋 Assignments', v === 'grades'], ['tests', '📝 Tests', v === 'tests']],
     admin: [['admin:acc', 'Requests & access' + (n.admin ? `<span class="nb">${n.admin}</span>` : ''), (S.adm || 'acc') === 'acc'], ['admin:sum', 'Every teacher', S.adm === 'sum'], ['admin:use', 'Use by game', S.adm === 'use']],
     social: [['students', 'Students' + d('students'), v === 'students'], ['board', 'Teacher Board' + d('board'), v === 'board'], ['messages', 'Private with support' + d('messages'), v === 'messages']],
   }[navKey(v)];
@@ -2736,7 +2786,7 @@ function shellRender() {
   const c = S.classes.find(x => x.code === S.code);
   $('codechip').hidden = !c; if (c) { $('codechip').textContent = c.code + ' 🖨'; $('codechip').setAttribute('aria-label', 'Share class code ' + c.code); }
   $('acct').textContent = (S.me && S.me.name ? S.me.name : S.email || '?').split(/[\s@.]+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
-  $('panel').classList.toggle('gv', S.view === 'grades');
+  $('panel').classList.toggle('gv', S.view === 'grades' || S.view === 'tests');
   $('mainc').classList.toggle('wide', S.view === 'live' || S.view === 'assign' || S.view === 'newtest');
 }
 function go(v) {
