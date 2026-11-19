@@ -115,12 +115,14 @@ window.LC = (() => {
   // Clefs (2026-11-17, David): treble, bass or alto. A key signature sits 2 steps lower in bass clef and 1 lower in alto (as in Scale Quest).
   const KS_CLEFS = { treble: { sh: 0, name: 'Treble' }, bass: { sh: -2, name: 'Bass' }, alto: { sh: -1, name: 'Alto' } };
   const clefOk = c => c === 'treble' || c === 'bass' || c === 'alto';
+  // Clefs from the Noto Music font (2026-11-19, David: the drawn treble clef was not accurate). Noto Music is built like engraving fonts:
+  // font size = the staff height (4 spaces = 80 here) and the baseline on the bottom line. Then the treble clef's curl sits on the G line,
+  // the bass clef's dots sit around the F line and the alto clef centers on middle C, at the same proportions as printed music.
+  const CLEF_FONT = "font-family:'Noto Music','Apple Symbols','Segoe UI Symbol',serif";
   const CLEF_SVG = {
-    // The treble clef curls around the second staff line (G).
-    treble: `<g transform="translate(30 ${ksY(4)})" fill="#1d2433"><path d="M-3 16C-15 13-20 3-17-8C-14-20-3-27 7-37C17-47 20-61 15-68C9-65 6-55 7-44C8-24 12-3 16 16C19 32 24 43 18 51C14 58 4 60-2 55C-9 50-7 41 0 39C8 37 12 47 5 52C10 54 15 50 16 45C17 37 13 27 11 16C7-4 3-25 2-43C1-58 6-73 15-81C22-78 26-65 24-55C22-43 14-33 5-25C-4-16-11-9-12 0C-12 8-8 13-3 16Z"/><path d="M-3 17C-11 12-11 0-4-6C4-13 17-10 22-1C28 10 21 23 8 24C0 25-8 21-12 16C-5 21 3 22 10 19C17 16 19 10 16 4C13-2 6-4 1 0C-4 3-5 12-3 17Z"/></g>`,
-    // The bass clef's curl and dots mark the fourth staff line (F).
-    bass: `<g transform="translate(18 ${ksY(8)})" fill="#1d2433"><path d="M1 1C-2-9 8-18 20-18C34-18 42-9 42 2C42 20 23 35 0 46L-1 44C18 32 32 15 32 0C32-9 28-15 20-15C11-15 5-8 6 0Z"/><circle cx="9" cy="0" r="8"/><circle cx="49" cy="-10" r="4"/><circle cx="49" cy="10" r="4"/></g>`,
-    alto: `<text x="14" y="${170 - 2 * 10 + 1}" font-size="80" fill="#1d2433" style="font-family:'Noto Music','Apple Symbols','Segoe UI Symbol',serif">𝄡</text>` };
+    treble: `<text x="12" y="${ksY(2)}" font-size="80" fill="#1d2433" style="${CLEF_FONT}">𝄞</text>`,
+    bass: `<text x="12" y="${ksY(2)}" font-size="80" fill="#1d2433" style="${CLEF_FONT}">𝄢</text>`,
+    alto: `<text x="14" y="${ksY(2)}" font-size="80" fill="#1d2433" style="${CLEF_FONT}">𝄡</text>` };
   function ksStaff(n, label, clef) {
     if (!ksOk(n)) return '';
     const C = clefOk(clef) ? clef : 'treble', sh = KS_CLEFS[C].sh;
