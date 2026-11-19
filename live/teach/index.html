@@ -161,6 +161,8 @@
   .kpanel .kskeys .btn { padding: 5px 2px; font-size: 13px; flex-direction: row; gap: 4px; }
   @media (max-width: 600px) { .kpanel .kskeys { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
   .kpanel .kqt button { padding: 4px 10px; font-size: 13px; }
+  .chordrow .chipset button { padding: 3px 9px; font-size: 13px; }
+  .startq:has(.chordrow) .diff { padding: 8px; } .startq:has(.chordrow) .diff small { display: none; }
   .gtiles .gtile { padding: 9px 12px; }  /* 2026-11-18: a little shorter so the key panel fits 768 px */
   .kpanel .kskeys .btn[aria-pressed="true"] { border-color: var(--gold); background: rgba(255,200,92,.2); }
   .gtile { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 14px; border-radius: 14px; border: 2px solid var(--line2); background: rgba(255,255,255,.04); color: var(--ink); cursor: pointer; text-align: left; font: 800 18px Outfit, system-ui, sans-serif; }
@@ -231,6 +233,11 @@ const kpick = p => ({ ...KDEF, ...(p.k || {}) });
 const gopts = (p, o) => { const G = qgame(p.g); if (!G || !G.pick) return o || p.o; const k = kpick(p); return { ...(o || p.o), keys: k.keys, mode: k.mode, clef: k.clef, qt: (k.qt || {})[p.g] || [] }; };
 const kTypes = p => { const G = qgame(p.g), q = (kpick(p).qt || {})[p.g] || []; return q.length ? q : G.qdef; };
 const kLabel = p => { const k = kpick(p), n = k.keys.length; return (n ? (n <= 3 ? k.keys.map(x => LC.ksName(+x, k.mode === 'minor').replace(/ (major|minor)$/, '')).join(', ') : n + ' keys') : 'All keys') + ' · ' + ({ major: 'Major', minor: 'Minor', both: 'Major + minor' })[k.mode] + ' · ' + ({ treble: 'Treble', bass: 'Bass', alto: 'Alto', any: 'Mixed clefs' })[k.clef]; };
+// Brainwaves chord quality right on the card (2026-11-19, David): tap any number of chord types; none = the level decides. Same setting as Customize's Chords row.
+function chordRow(p) {
+  const cur = (p.o.chords || []).map(String), G = qgame('brainwaves'), list = (G.opts.chords || []);
+  return `<div class="chordrow row" style="gap:6px;align-items:center"><span class="label" title="${cur.length ? 'Only these are asked' : 'None picked = the level decides'}">Chord quality${cur.length ? ' · ' + cur.length : ''}</span><span class="chipset">${list.map(([v, l]) => `<button type="button" data-act="qchord" data-v="${esc(v)}" aria-pressed="${cur.includes(String(v))}">${esc(l)}</button>`).join('')}${cur.length ? '<button type="button" data-act="qchord" data-v="">✕ Clear</button>' : ''}</span></div>`;
+}
 function kPanel(p) {
   const k = kpick(p), seg = (f, list) => `<span class="seg">${list.map(([v, l]) => `<button type="button" data-act="kset" data-k="${f}" data-v="${v}" aria-pressed="${k[f] === v}">${l}</button>`).join('')}</span>`;
   const nm = n => k.mode === 'minor' ? LC.ksName(n, true).replace(' minor', 'm') : LC.ksName(n, false).replace(' major', '') + (k.mode === 'both' ? ' / ' + LC.ksName(n, true).replace(' minor', 'm') : '');
@@ -278,6 +285,7 @@ function startCard() {
     <div class="gtiles" role="group" aria-label="Game">${QGAMES.map(g => `<button type="button" class="gtile" data-act="ggame" data-v="${g.id}" aria-pressed="${p.mixOn ? p.mix.includes(g.id) : g.id === p.g}"><b>${esc(g.name)}</b><small>${esc(g.what)}</small></button>`).join('')}</div>
     ${p.mixOn ? `<p class="small" style="margin:0"><b>Mix:</b> tap the games to mix (${p.mix.length} picked). Each question comes from one of them at random. The level below is for every game; Scale Quest and Key signatures use your saved keys.</p>` : ''}
     ${G.pick && !p.mixOn ? kPanel(p) : `<div class="diffs" role="group" aria-label="Difficulty">${Object.entries(DIFFS).map(([k, v]) => `<button type="button" class="diff d-${k}" data-act="gdiff" data-v="${k}" aria-pressed="${p.d === k}">${v}<small>${k === 'warmup' ? 'Get everyone in' : k === 'challenge' ? 'Solid practice' : 'Really hard'}</small></button>`).join('')}</div>`}
+    ${G.id === 'brainwaves' && !p.mixOn ? chordRow(p) : ''}
     ${AUTO() && S.live && S.live.q ? `<p class="chip gold" style="justify-content:center;font-size:16px;padding:12px">🏁 Showdown running: question ${AUTO().i}${AUTO().n ? ' of ' + AUTO().n : ''}. Changes here apply to the next question.</p>` : G2().on ? `<button class="btn pri go" type="button" data-act="sdstart">🏁 Start a Showdown · ${p.pace === 'manual' ? 'I press Next' : snum(p) ? snum(p) + ' questions' : 'no end'}</button>` : '<button class="btn pri go" type="button" data-act="go">Go ▶</button>'}
     ${S.cust ? custDrawer() : `<div class="row between"><button class="btn" type="button" data-act="copen">⚙ Customize</button>${custLabel(G, p.o) ? `<span class="chip">${esc(custLabel(G, p.o))}</span>` : ''}${G2().on && p.pace === 'auto' ? numSeg(p) : ''}${timerSeg(p)}</div>`}
     ${G2().on && !AUTO() ? paceSeg(p) : ''}
@@ -767,6 +775,7 @@ app.addEventListener('click', async e => {
   if (act === 'kqt') { const p = gpick(), k = kpick(p), own = ((k.qt || {})[p.g] || []).length, a = own ? kTypes(p).slice() : [], i = a.indexOf(t.dataset.v); if (!own) a.push(t.dataset.v); else if (i >= 0) { if (a.length > 1) a.splice(i, 1); } else a.push(t.dataset.v); /* first tap = only that type; then tap to add or remove */ p.k = { ...k, qt: { ...(k.qt || {}), [p.g]: a } }; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
   if (act === 'kclear') { const p = gpick(); p.k = { ...kpick(p), keys: [] }; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
   if (act === 'gtime') { const p = gpick(); p.t = Number(t.dataset.v); savePick(p); draw(); return; }
+  if (act === 'qchord') { const p = gpick(), v = t.dataset.v, c = (p.o.chords || []).map(String); if (!v) p.o.chords = []; else { const i = c.indexOf(v); if (i >= 0) c.splice(i, 1); else c.push(v); p.o.chords = c; } savePick(p); if (S.cust) S.cust = { o: { ...gpick().o }, sample: null }; draw(); return; }
   if (act === 'gdiff') { const p = gpick(); p.d = t.dataset.v; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
   if (act === 'go') { S.cust = null; return goGame(false); }
   if (act === 'lead') { if (S.lead) return stopLead(); return startLead(); }
