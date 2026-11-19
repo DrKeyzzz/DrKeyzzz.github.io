@@ -1679,7 +1679,9 @@ boot();
 .mav-vbar{display:block;height:5px;border-radius:999px;background:rgba(255,255,255,.15);overflow:hidden;margin-top:4px}.mav-vbar i{display:block;height:100%;background:linear-gradient(90deg,#ffe08a,#ffb820)}
 .mav-card.vault.gone{filter:saturate(.35) brightness(.7)}
 .mav-rev.vault{background:radial-gradient(circle at 50% 45%,rgba(255,215,90,.25),rgba(10,7,2,.95) 60%)}
-.mav-rev.vault::before{content:'';position:absolute;inset:-30%;background:repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,215,90,.22) 0 6deg,transparent 6deg 18deg);animation:mav-rays 8s linear infinite}
+.mav-rev.vault::before{content:'';position:absolute;inset:-30%;z-index:0;pointer-events:none;background:repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,215,90,.12) 0 6deg,transparent 6deg 18deg);animation:mav-rays 8s linear infinite}
+.mav-rev.vault>.mav-card,.mav-rev.vault>h3,.mav-rev.vault>.mav-btn{position:relative;z-index:1}   /* 2026-11-19 fix: the rays covered the Awesome! button, so kids were stuck after buying from the Vault */
+.mav-rev{cursor:pointer}
 @keyframes mav-rays{to{transform:rotate(360deg)}}
 .mav-rev.vault h3{color:#ffd23f;text-shadow:0 0 20px rgba(255,200,61,.8),0 4px 0 rgba(0,0,0,.4)}
 
@@ -2845,7 +2847,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       document.body.appendChild(dlg);
       dlg.addEventListener('close', function(){ trying = null; if (JSON.stringify(look) !== JSON.stringify(undoLook)) act(look.happy); });
       dlg.addEventListener('click', function(e){
-        var b = e.target.closest('button'); if (!b) { if (e.target === dlg) dlg.close(); return; }
+        var b = e.target.closest('button'); if (!b) { var rvo = e.target.closest('.mav-rev'); if (rvo && rvo.innerHTML) { rvo.innerHTML = ''; return; }   // tap anywhere on the unlock screen to go back (2026-11-19)
+          if (e.target === dlg) dlg.close(); return; }
         if (b.dataset.do === 'revok') { dlg.querySelector('.mav-rev').innerHTML = ''; return; }
         if (b.dataset.tab) { tick(); tab = b.dataset.tab; trying = null; render(); dlg.querySelector('.mav-rows').scrollTop = 0; return; }
         if (b.dataset.lo) { tick(); var i = +b.dataset.lo; if (LO[i]) { draft = wearOwned(clean(Object.assign({}, LO[i]))); trying = null; drawBig(1); commit(); } else { LO[i] = Object.assign({}, draft); saveLO(); } render(); return; }
