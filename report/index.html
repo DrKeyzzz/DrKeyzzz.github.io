@@ -1677,6 +1677,12 @@ boot();
 .mav-rev.vault::before{content:'';position:absolute;inset:-30%;background:repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,215,90,.22) 0 6deg,transparent 6deg 18deg);animation:mav-rays 8s linear infinite}
 @keyframes mav-rays{to{transform:rotate(360deg)}}
 .mav-rev.vault h3{color:#ffd23f;text-shadow:0 0 20px rgba(255,200,61,.8),0 4px 0 rgba(0,0,0,.4)}
+
+/* ---- Dog + pet name (2026-11-18) ---- */
+.av .mav-wag{transform-box:fill-box;transform-origin:0% 100%;animation:mav-wag .32s ease-in-out infinite alternate}@keyframes mav-wag{from{transform:rotate(-18deg)}to{transform:rotate(16deg)}}
+.mav-pname{min-height:0;display:flex;justify-content:center}.mav-pname:empty{display:none}
+.mav-pname button{font:inherit;font-weight:900;font-size:14px;color:#2a1a00;background:linear-gradient(#ffe08a,#ffb820);border:0;border-radius:999px;padding:5px 14px;cursor:pointer;box-shadow:0 3px 0 #b97800}
+.mav-pin{font:inherit;font-size:16px;font-weight:800;padding:7px 10px;border-radius:10px;border:2px solid #ffc85c;background:#0f1430;color:#fff;width:9.5em;max-width:46vw}
 </style>
 <script id="mtg-avatar" data-mount=".wrap > .top" data-perch="">
 /* Avatar, build step 1 (added 2026-11-16; spec: Claude outputs/avatar-spec.md). A small cartoon avatar sits right after the
@@ -1768,7 +1774,8 @@ boot();
     {id:'holo',slot:'top',name:'Holo Jacket',ic:'🧥',p:100,d:'Shimmers like a hologram'},{id:'rain',slot:'aura',name:'Rainbow Aura',ic:'🌈',p:120,d:'A rainbow glow pulses behind you'},
     {id:'galaxy',slot:'top',name:'Night Sky Hoodie',ic:'🌌',p:150,d:'Moving stars inside it'},{id:'dragon',slot:'pet',name:'Baby Dragon',ic:'🐉',p:200,d:'Flaps and puffs music notes'},
     {id:'phoenix',slot:'pet',name:'Phoenix',ic:'🔥',p:300,d:'Legendary: a fire bird that leaves sparks'},
-    {id:'none',slot:'pet',name:'No pet',ic:'🚫',free:1},{id:'note',slot:'pet',name:'Note Buddy',ic:'🎵',c:60},{id:'cat',slot:'pet',name:'Cat',ic:'🐱',c:120},
+    {id:'none',slot:'pet',name:'No pet',ic:'🚫',free:1},{id:'note',slot:'pet',name:'Note Buddy',ic:'🎵',c:60},{id:'cat',slot:'pet',name:'Cat',ic:'🐱',c:120},{id:'dog',slot:'pet',name:'Dog',ic:'🐶',c:80,d:'A cute orange pup. Give it a name!'},   // Dog: David 2026-11-18 (default name Biscuit)
+   
     {id:'owl',slot:'pet',name:'Owl',ic:'🦉',c:100},{id:'robo',slot:'pet',name:'Robo Pal',ic:'🤖',p:250},
     // skins: full costumes over your look
     {id:'none',slot:'outfit',name:'My own clothes',ic:'👕',free:1},{id:'dj',slot:'outfit',name:'DJ',ic:'🎧',c:120},{id:'pirate',slot:'outfit',name:'Pirate',ic:'🏴‍☠️',c:150},
@@ -2017,6 +2024,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     const PT = {
       none: '',
       note: `<g><ellipse cx="83" cy="110" rx="6.6" ry="4.8" transform="rotate(-22 83 110)" fill="#4f7cff"/><rect x="88.1" y="88" width="1.9" height="21" rx=".9" fill="#4f7cff"/><path d="M89.9 88 C91 92.5 97.6 94 97 100.8 C96.8 102.4 96.1 103.6 95.4 104.2 C96.3 99.6 93.6 96.6 89.9 95.6Z" fill="#4f7cff"/><circle cx="80.6" cy="109.4" r="1.25" fill="#fff"/><circle cx="84.6" cy="108.2" r="1.25" fill="#fff"/><circle cx="80.9" cy="109.6" r=".6" fill="#111"/><circle cx="84.9" cy="108.4" r=".6" fill="#111"/><path d="M80.8 112 Q83 113.4 85.2 111.4" fill="none" stroke="#fff" stroke-width=".7" stroke-linecap="round"/><ellipse cx="81" cy="108" rx="1.6" ry=".8" transform="rotate(-22 81 108)" fill="#fff" opacity=".35"/></g>`,   // Note Buddy: a smooth eighth note with a face (redrawn 2026-11-16)
+      dog: `<path class="mav-wag" d="M93 108 Q99 104 98 98" fill="none" stroke="#f08c2e" stroke-width="2.2" stroke-linecap="round"/><ellipse cx="87" cy="110" rx="8" ry="5.2" fill="#f59f3a"/><path d="M82 113.5 v2.4 M86 114 v2.2 M90 114 v2.2" stroke="#d97a1e" stroke-width="1.8" stroke-linecap="round"/><circle cx="81" cy="101.5" r="5.8" fill="#f59f3a"/><path d="M76.2 98.5 Q73.4 100 74.6 105 Q76.6 104.6 77.4 101.6Z M85.8 98.5 Q88.6 100 87.4 105 Q85.4 104.6 84.6 101.6Z" fill="#c8661a"/><ellipse cx="81" cy="104.2" rx="3.2" ry="2.3" fill="#ffe2bd"/><ellipse cx="81" cy="103.1" rx="1.2" ry=".85" fill="#3a2618"/><path d="M81 104 V105 M79.9 105.3 Q81 106.1 82.1 105.3" fill="none" stroke="#3a2618" stroke-width=".5" stroke-linecap="round"/><circle cx="79" cy="100.3" r=".9" fill="#1b1420"/><circle cx="83" cy="100.3" r=".9" fill="#1b1420"/><circle cx="79.3" cy="100" r=".3" fill="#fff"/><circle cx="83.3" cy="100" r=".3" fill="#fff"/><path d="M77 106.9 Q81 108.4 85 106.9" fill="none" stroke="#e03131" stroke-width="1.2"/><circle cx="81" cy="108.4" r=".9" fill="#f5c542"/>`,   // Biscuit (David 2026-11-18)
       cat: `<ellipse cx="86" cy="110" rx="8" ry="5.5" fill="#ffb020"/><circle cx="82" cy="102" r="5.5" fill="#ffb020"/><path d="M77.5 99 L78 93 L82 97.5Z M86.5 99 L86 93 L82 97.5Z" fill="#ffb020"/><circle cx="80" cy="102" r=".9" fill="#111"/><circle cx="84" cy="102" r=".9" fill="#111"/><path d="M94 109 Q99 102 96 99" fill="none" stroke="#ffb020" stroke-width="2" stroke-linecap="round"/>`,
       owl: `<ellipse cx="85" cy="105" rx="7.5" ry="9" fill="#8a5a3a"/><circle cx="82" cy="102" r="3" fill="#fff"/><circle cx="88" cy="102" r="3" fill="#fff"/><circle cx="82" cy="102" r="1.4" fill="#111"/><circle cx="88" cy="102" r="1.4" fill="#111"/><path d="M84 105 L85 107 L86 105Z" fill="#ffb020"/>`,
       dragon: `<g transform="translate(70 84) scale(.29)"><g class="mav-wing"><path d="M46 40 Q30 6 10 14 Q22 22 18 34 Q32 30 46 40Z" fill="#b48cff" stroke="#6a3fd0" stroke-width="2"/></g><ellipse cx="55" cy="50" rx="22" ry="16" fill="#5cd68f" stroke="#2d8a55" stroke-width="2"/><path d="M33 52 Q18 62 22 74 Q28 64 38 60Z" fill="#5cd68f" stroke="#2d8a55" stroke-width="2"/><circle cx="74" cy="36" r="14" fill="#5cd68f" stroke="#2d8a55" stroke-width="2"/><path d="M68 23 L66 13 L73 21 M79 23 L83 13 L82 24" fill="#ffd166" stroke="#c98f00" stroke-width="1.5"/><circle cx="70" cy="33" r="3.2" fill="#fff"/><circle cx="70.6" cy="33.4" r="1.8" fill="#1f2230"/><path d="M78 41 Q83 43 87 40" stroke="#2d8a55" stroke-width="2" fill="none" stroke-linecap="round"/><ellipse cx="57" cy="55" rx="12" ry="7" fill="#c8f5d9"/><path d="M48 63 v8 M62 64 v8" stroke="#2d8a55" stroke-width="4" stroke-linecap="round"/></g><text class="mav-puff" x="97" y="93" font-size="6" fill="#7af0ff">♪</text><text class="mav-puff mav-puff2" x="97" y="93" font-size="5" fill="#b48cff">♫</text>`,   // Star Vault (2026-11-18)
@@ -2652,8 +2660,14 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     var lo = dlg.querySelector('.mav-lo'); if (lo) lo.innerHTML = loHtml();
     dlg.querySelector('.mav-rows').innerHTML = tabHtml();
     var tr = dlg.querySelector('.mav-tryrow'); tr.innerHTML = tryHtml(); var tb = tr.firstChild; if (tb && trying) tb.style.setProperty('--c2', { common: '#6c7690', rare: '#3d8bff', epic: '#a45cff', legendary: '#ffb020' }[rarity(trying)]);
-    drawBig(); drawWallet();
+    drawBig(); drawWallet(); var pn = dlg.querySelector('.mav-pname'); if (pn) pn.innerHTML = pnameHtml();
   }
+  // the dog's name (2026-11-18): kept on this device only (localStorage mtg_petname_v1:<sid>), never sent anywhere; default Biscuit
+  var PNK = 'mtg_petname_v1:' + (SID || 'guest'), pnMem = '';
+  function petName(){ var v = pnMem; if (P) try { v = localStorage.getItem(PNK) || ''; } catch(e){} return v || 'Biscuit'; }
+  function setPetName(v){ v = String(v || '').replace(/[^A-Za-z0-9 '\-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 12); pnMem = v; if (P) try { if (v) localStorage.setItem(PNK, v); else localStorage.removeItem(PNK); } catch(e){} }
+  function pnameHtml(){ var L = shown(); return L.pet === 'dog' ? '<button type="button" data-do="pname" title="Give your dog a name">🐶 ' + esc(petName()) + ' ✎</button>' : ''; }
+  function esc(t){ return String(t).replace(/[&<>"]/g, function(c){ return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function cost0(it){ return cost(it); }
   function buy(it){
     var cost = cost0(it), pot = it.c ? 'coins' : 'points';
@@ -2708,12 +2722,14 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
         if (b.dataset.do === 'try') { play(pick([draft.happy, draft.aww, draft.dance])); return; }
         if (b.dataset.do === 'save' || b.dataset.do === 'close') { dlg.close(); return; }
         if (b.dataset.do === 'undo') { tick(); draft = wearOwned(clean(Object.assign({}, undoLook))); trying = null; commit(); render(); drawBig(1); return; }
+        if (b.dataset.do === 'pname') { tick(); note = '<b>Name your dog</b><br><input class="mav-pin" maxlength="12" value="' + esc(petName()) + '" aria-label="Dog name"> <button type="button" class="mav-btn" data-do="pnsave">Save name</button>'; render(); note = ''; var inp = dlg.querySelector('.mav-pin'); if (inp) { inp.focus(); inp.select(); inp.onkeydown = function(e){ if (e.key === 'Enter') { var sb = dlg.querySelector('[data-do="pnsave"]'); if (sb) sb.click(); } }; } return; }
+        if (b.dataset.do === 'pnsave') { var pi = dlg.querySelector('.mav-pin'); setPetName(pi ? pi.value : ''); tick(); render(); play(look.happy); return; }
         if (b.dataset.do === 'coinfo') { tick(); note = '<b>' + COIN + ' Coins</b><br><small>Everyday money: 1 for every minute you play (up to 60 a day), +10 for each daily quest.</small>'; render(); note = ''; return; }
         if (b.dataset.do === 'stinfo') { tick(); note = '<b>★ Stars</b><br><small>Rare! Earn them for a great run (80% or better), all 3 daily quests, streaks, tests, a new rank, mastering a game and Live Class Showdowns.</small>'; render(); note = ''; return; }
       });
     }
     draft = Object.assign({}, look); undoLook = Object.assign({}, look); trying = null; note = ''; tab = 'home';
-    dlg.innerHTML = '<div class="mav-wrap"><div class="mav-left"><div class="mav-stage"><div class="mav-beam"></div><div class="mav-big av"></div></div>'
+    dlg.innerHTML = '<div class="mav-wrap"><div class="mav-left"><div class="mav-stage"><div class="mav-beam"></div><div class="mav-big av"></div></div><div class="mav-pname"></div>'
       + '<div class="mav-lo" aria-label="Saved outfits"></div><div class="mav-leftbtns"><button type="button" class="mav-ib" data-do="try"><i>▶</i>Move</button><button type="button" class="mav-ib" data-do="random"><i>🎲</i>Random</button>'
       + (PERCH.length ? '<button type="button" class="mav-ib" data-do="perch" aria-pressed="' + perchWanted() + '" title="Show your avatar sitting on the game, or only in the corner"><i>🪑</i>On game</button>' : '') + '</div></div>'
       + '<div class="mav-right"><div class="mav-top"><h2>MY LOCKER</h2>'
