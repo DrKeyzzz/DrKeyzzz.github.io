@@ -337,13 +337,16 @@
   .gs.now { color: var(--ok, #2fbf71); } .gs.up { color: var(--gold); } .gs.end { color: var(--muted); }
   /* One Assignments list for practice goals and tests (2026-11-19, David: merge before teachers get used to two) */
   .mlh { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; position: relative; }
-  .mnew { background: var(--gold); color: #10131a; border: 0; border-radius: 999px; padding: 9px 16px 7px; font: 800 15px var(--f-ui); cursor: pointer; }
+  .mbig { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; width: 100%; margin-bottom: 16px; }
+  .mbig button { display: flex; gap: 12px; align-items: center; text-align: left; border-radius: 16px; padding: 16px 16px 14px; cursor: pointer; font: 400 14px var(--f-ui); color: #10131a; border: 0; min-height: 84px; box-shadow: 0 4px 14px rgba(0,0,0,.25); transition: transform .12s, filter .12s; }
+  .mbig button:hover:not(:disabled) { transform: translateY(-2px); filter: brightness(1.06); }
+  .mbig button:disabled { opacity: .5; cursor: default; }
+  .mbig .p { background: linear-gradient(135deg, #7fe0b8, #4cc39a); } .mbig .t { background: linear-gradient(135deg, #ffd77a, #f4b740); }
+  .mbig .e { font-size: 40px; line-height: 1; } .mbig b { display: block; font: 800 22px var(--f-ui); } .mbig small { display: block; font-size: 14px; opacity: .8; margin-top: 2px; }
+  @media (max-width: 520px) { .mbig { grid-template-columns: 1fr; } .mbig button { min-height: 70px; } }
   .mflt { display: inline-flex; border: 1px solid var(--card-border); border-radius: 999px; overflow: hidden; margin-left: auto; }
   .mflt button { background: var(--bg); color: var(--muted); border: 0; padding: 7px 11px 5px; font: 700 13px var(--f-ui); cursor: pointer; }
   .mflt button[aria-pressed="true"] { background: #26344b; color: var(--text); }
-  .mmenu { position: absolute; top: calc(100% + 6px); left: 0; z-index: 30; width: min(340px, 90vw); background: #1a2538; border: 1px solid var(--card-border); border-radius: 14px; padding: 6px; box-shadow: 0 12px 30px rgba(0,0,0,.5); }
-  .mmenu button { display: flex; gap: 12px; width: 100%; text-align: left; background: none; border: 0; border-radius: 10px; padding: 10px; color: var(--text); cursor: pointer; font: 400 14px var(--f-ui); }
-  .mmenu button:hover, .mmenu button:focus-visible { background: #26344b; } .mmenu .e { font-size: 24px; } .mmenu b { display: block; font-size: 16px; } .mmenu small { color: var(--muted); font-size: 13px; }
   .mk { font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: 2px 8px; border-radius: 999px; }
   .mk.p { background: rgba(123,224,195,.14); color: #7be0c3; } .mk.t { background: rgba(169,147,255,.16); color: #a993ff; }
   .gi .mk + .gs { margin-left: auto; } .gi .mn { flex-basis: 100%; font-weight: 800; } .gi .mw { flex-basis: 100%; color: var(--muted); font-weight: 400; font-size: 14px; }
@@ -520,8 +523,8 @@
   .morem .btn { text-align: left; }
   @media (min-width: 900px) {
     #panel.gv { display: grid; grid-template-columns: 340px minmax(0, 1fr); column-gap: 16px; align-content: start;
-      grid-template-areas: "o o" "m m" "b b" "l d" "l2 d"; grid-template-rows: auto auto auto auto 1fr; }
-    #panel.gv > .opts { grid-area: o; } #panel.gv > #msg { grid-area: m; } #panel.gv > #gradebar, #panel.gv > #testsbox { grid-area: b; }
+      grid-template-areas: "k k" "o o" "m m" "b b" "l d" "l2 d"; grid-template-rows: auto auto auto auto auto 1fr; }
+    #panel.gv > #mkbar { grid-area: k; } #panel.gv > .opts { grid-area: o; } #panel.gv > #msg { grid-area: m; } #panel.gv > #gradebar, #panel.gv > #testsbox { grid-area: b; }
     #panel.gv > #gradelist { grid-area: l; } #panel.gv > #gradelist2 { grid-area: l2; align-self: start; } #panel.gv > #data { grid-area: d; min-width: 0; }
     #panel.gv .gi { flex-wrap: wrap; } #panel.gv .gw { flex-basis: 100%; }
     #panel.gv #data .tw { margin-top: 0; }
@@ -584,6 +587,7 @@
 
 
     <section class="card" id="panel">
+      <div class="mbig" id="mkbar" hidden></div>
       <div class="opts">
         <div class="subsw" id="subsw" role="group" aria-label="Show"></div>
         <label class="f" for="gsel" id="gselbox">Game<select id="gsel"></select></label>
@@ -866,10 +870,10 @@ function mergedList() {
     .concat(tests.map(t => ({ k: 't', t, ms: toMs(t.created_at) || toMs(t.opens_at) || 0, on: S.view === 'tests' && S.testId === t.id, st: OPEN_KIND[tstate(t)] || ['', ''] })))
     .sort((x, y) => (x.st[1] === 'end') - (y.st[1] === 'end') || y.ms - x.ms);   // running and upcoming first, then newest
   const f = S.afilt || 'all', shown = items.filter(x => f === 'all' || x.k === f);
-  const head = `<div class="mlh"><button class="mnew" type="button" data-mnew="1" aria-expanded="${!!S.mmenu}" ${PREVIEW || !S.code ? 'disabled' : ''}>＋ New</button>
-    <span class="mflt" role="group" aria-label="Show">${[['all', 'All'], ['p', '🎯 Practice'], ['t', '📝 Tests']].map(([v, l]) => `<button type="button" data-mf="${v}" aria-pressed="${f === v}">${l}</button>`).join('')}</span>
-    ${S.mmenu ? `<div class="mmenu" role="menu"><button type="button" role="menuitem" data-mmake="p"><span class="e" aria-hidden="true">🎯</span><span><b>Practice goal</b><small>Did they do enough? A number of answers or minutes in any game. Students choose their level.</small></span></button>
-      <button type="button" role="menuitem" data-mmake="t"><span class="e" aria-hidden="true">📝</span><span><b>Test</b><small>How well did they do? One game, settings locked, tries counted, scored by accuracy.</small></span></button></div>` : ''}</div>`;
+  $('mkbar').innerHTML = `<button class="p" type="button" data-mmake="p" ${!S.code ? 'disabled' : ''}><span class="e" aria-hidden="true">🎯</span><span><b>New practice goal</b><small>Answers or minutes in any game</small></span></button>
+      <button class="t" type="button" data-mmake="t" ${!S.code ? 'disabled' : ''}><span class="e" aria-hidden="true">📝</span><span><b>New test</b><small>One game, locked settings, scored</small></span></button>`;
+  const head = `<div class="mlh">
+    <span class="mflt" role="group" aria-label="Show">${[['all', 'All'], ['p', '🎯 Practice'], ['t', '📝 Tests']].map(([v, l]) => `<button type="button" data-mf="${v}" aria-pressed="${f === v}">${l}</button>`).join('')}</span></div>`;
   const tline = t => `${G[t.game] ? G[t.game].name : t.game} · ${t.tries ? (t.tries === 1 ? 'one try' : t.tries + ' tries') : 'unlimited tries'} · by ${t.grade === 'score' ? 'points' : 'accuracy'}`;
   const twhen = t => t.closes_at ? (tstate(t) === 'open' ? 'Closes ' : 'Closed ') + fmtWhen(t.closes_at) : t.opens_at && tstate(t) === 'scheduled' ? 'Opens ' + fmtWhen(t.opens_at) : tstate(t) === 'open' ? 'Open until you close it' : '';
   const item = x => x.k === 'p'
@@ -879,7 +883,7 @@ function mergedList() {
     : `<button type="button" class="gi${x.on ? ' on' : ''}" data-mi="t" data-key="${esc(x.t.id)}" aria-expanded="${x.on}"><span class="mk t">📝 Test</span><span class="gs ${x.st[1]}">${x.st[0]}</span>`
       + `<span class="mn">${esc(x.t.name || 'Test')}</span><span class="mw">${esc([twhen(x.t), tline(x.t)].filter(Boolean).join(' · '))}</span></button>`;
   const reports = tests.length && f !== 'p' ? `<div class="mrep">${Object.entries(TEST_MODES).map(([v, l]) => `<button class="btn ghost sm" type="button" data-mi="t" data-key="${v}" aria-pressed="${S.view === 'tests' && S.testId === v}">${v === '__book' ? '📒' : '📊'} ${esc(l)}</button>`).join('')}</div>` : '';
-  return head + (shown.length ? shown.map(item).join('') : `<p class="count">${f === 't' ? 'No tests yet for this class.' : f === 'p' ? 'No practice goals yet for this class.' : 'Nothing assigned to this class yet.'} Click ＋ New to make one.</p>`) + reports;
+  return head + (shown.length ? shown.map(item).join('') : `<p class="count">${f === 't' ? 'No tests yet for this class.' : f === 'p' ? 'No practice goals yet for this class.' : 'Nothing assigned to this class yet.'} Make one with the buttons at the top.</p>`) + reports;
 }
 function renderGradeList() {
   const today = ymd(new Date()), open = S.gradeA ? aKey(S.gradeA) : '';
@@ -1210,7 +1214,7 @@ function render() {
   const social = S.view === 'messages' || S.view === 'board' || S.view === 'live' || S.view === 'students'; $('smview').hidden = S.view !== 'students';
   $('msgview').hidden = S.view !== 'messages'; $('boardview').hidden = S.view !== 'board'; $('liveview').hidden = S.view !== 'live'; syncHash();
   if (social) {
-    ['actbox', 'adminsum', 'adminacc', 'data', 'gradebar', 'gradelist', 'gradelist2', 'assignbox', 'testsbox', 'newtestbox', 'csv'].forEach(id => { $(id).hidden = true; });
+    ['mkbar', 'actbox', 'adminsum', 'adminacc', 'data', 'gradebar', 'gradelist', 'gradelist2', 'assignbox', 'testsbox', 'newtestbox', 'csv'].forEach(id => { $(id).hidden = true; });
     $('rng').closest('label').hidden = true;
     if (S.view === 'students') return renderSm();
     return S.view === 'live' ? showLive() : S.view === 'messages' ? renderMessages() : renderBoard();
@@ -1224,7 +1228,7 @@ function render() {
   if (!ad) S.teacher = '';
   const tpg = ad && !!S.teacher;
   $('adminsum').hidden = !ad; $('adminacc').hidden = !ad || tpg;   // redesign: Upcoming and scheduled items live on Today
-  const gv = S.view === 'grades'; if (gv) { gradePick(); renderGradeList(); }
+  const gv = S.view === 'grades'; $('mkbar').hidden = !gv && !ts; if (gv) { gradePick(); renderGradeList(); }
   if (ts) $('gradelist').innerHTML = mergedList();
   $('gradelist').hidden = !gv && !ts; $('gradelist2').hidden = $('gradebar').hidden = !gv;
   if (gv) { $('aout').closest('label').hidden = !S.gradeA; if (S.gradeA) $('aout').value = aOut(S.classes.find(x => x.code === S.code), S.gradeA); }
@@ -1732,11 +1736,10 @@ function renderTestsBox() {
   $('tmeta').textContent = t ? `${G[t.game] ? G[t.game].name : t.game} · ${t.tries ? (t.tries === 1 ? 'One and done' : t.tries + ' tries, best counts') : 'Unlimited tries, best counts'} · Scored by ${t.grade === 'score' ? 'points' : 'accuracy'} · ${STATE_TEXT[tstate(t)]}${t.opens_at ? ' · opens ' + fmtWhen(t.opens_at) : ''}${t.closes_at ? ' · closes ' + fmtWhen(t.closes_at) : ''}` : 'Make a test with + New test. It shows up on your students\' home page.';
 }
 function showNewTest() {
-  const f = $('tframe'); const want = '../index.html?embed=1&test=1' + (S.editId ? '&edit=' + encodeURIComponent(S.editId) : '');
+  const f = $('tframe'); const want = '../index.html?embed=1&test=1' + (S.code ? '&code=' + encodeURIComponent(S.code) : '') + (S.editId ? '&edit=' + encodeURIComponent(S.editId) : '');
   if (f.getAttribute('src') !== want) {
     f.src = want;
     f.onload = () => { try { const d = f.contentDocument; const fit = () => { f.style.height = (d.documentElement.scrollHeight + 10) + 'px'; }; fit(); new ResizeObserver(fit).observe(d.body); } catch (e) {} };
-    f.src = src;
   }
 }
 addEventListener('message', e => { if (e.origin === location.origin && e.data && e.data.type === 'mtg-test-saved') { S.view = 'tests'; S.testId = e.data.id || ''; S.editId = ''; load(); } });
@@ -2591,17 +2594,16 @@ function wire() {
   $('cls').onchange = () => { if (S.view === 'assign') S.view = 'grades'; S.gradeOpen = undefined; S.code = $('cls').value; if (S.code === WORLD) { if (!['scores', 'admin'].includes(S.view)) S.view = 'scores'; } else S.lastCode = S.code; load(); };
   $('rng').onchange = load;
   $('avon').onchange = e => setAvatars(e.target.checked);
-  $('gradelist').addEventListener('click', e => {
-    const b = e.target.closest('[data-mnew],[data-mmake],[data-mf],[data-mi]'); if (!b) return;
-    if (b.dataset.mnew) { S.mmenu = !S.mmenu; render(); return; }
-    S.mmenu = false;
+  const mclick = e => {
+    const b = e.target.closest('[data-mmake],[data-mf],[data-mi]'); if (!b) return;
+    if (b.dataset.mmake && PREVIEW) return msg('Preview: this opens the ' + (b.dataset.mmake === 'p' ? 'practice goal' : 'test') + ' maker when you are signed in. Nothing saves here.');
     if (b.dataset.mmake === 'p') return $('anew').onclick();
     if (b.dataset.mmake === 't') return $('tnew').onclick();
     if (b.dataset.mf) { S.afilt = b.dataset.mf; render(); return; }
     if (b.dataset.mi === 'p') { S.gradeOpen = b.dataset.key; S.view = 'grades'; load(); return; }
     if (b.dataset.mi === 't') { S.testId = b.dataset.key; S.live = ''; if (S.sort) delete S.sort.tests; S.view = 'tests'; load(); }
-  });
-  document.addEventListener('click', e => { if (S.mmenu && !e.target.closest('.mlh')) { S.mmenu = false; render(); } });
+  };
+  $('gradelist').addEventListener('click', mclick); $('mkbar').addEventListener('click', mclick);
   const gclick = e => { const b = e.target.closest('[data-ga]'); if (!b) return; const a = S.gradeList[+b.dataset.ga]; S.gradeOpen = S.gradeA && aKey(S.gradeA) === aKey(a) ? '' : aKey(a); load(); };
   $('gradelist').onclick = $('gradelist2').onclick = gclick;
   $('tbl').onclick = async e => {
