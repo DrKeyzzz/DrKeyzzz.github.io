@@ -1355,13 +1355,15 @@ service cloud.firestore {
     }
     match /bc_answers/{id} {
       allow read: if bcMine(resource);
-      allow create: if request.resource.data.keys().hasOnly(['round', 'class_code', 'owner', 'sid', 'name', 'key', 'type', 'text', 'flag', 'avatar', 'at'])
+      allow create: if request.resource.data.keys().hasOnly(['round', 'class_code', 'owner', 'sid', 'name', 'key', 'type', 'text', 'flag', 'avatar', 'plays', 'at'])
         && request.resource.data.keys().hasAll(['round', 'class_code', 'owner', 'sid', 'name', 'key', 'type', 'text', 'at'])
         && bcClassOk(request.resource.data) && bcNameOk(request.resource.data) && bcKeyOk(request.resource.data.key)
         && request.resource.data.type in ['text', 'mc', 'yn', 'num', 'emoji', 'word']
         && request.resource.data.text is string && request.resource.data.text.size() >= 1 && request.resource.data.text.size() <= 280
         && (!('flag' in request.resource.data) || request.resource.data.flag is bool)
         && (!('avatar' in request.resource.data) || (request.resource.data.avatar is string && request.resource.data.avatar.size() <= 200))
+        // plays = extra plays of a Showdown sound question (2026-11-19): each costs 100 points
+        && (!('plays' in request.resource.data) || (request.resource.data.plays is int && request.resource.data.plays >= 0 && request.resource.data.plays <= 20))
         && bcLive(request.resource.data.class_code).open == true
         && bcLive(request.resource.data.class_code).round == request.resource.data.round
         && request.resource.data.at == request.time;

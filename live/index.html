@@ -153,7 +153,7 @@
 <body>
 <div id="app"></div>
 <p class="toast" id="toast" role="status"></p>
-<script src="live-core.js?v=20261119a"></script>
+<script src="live-core.js?v=20261119snd"></script>
 <script>
 (() => {
 const { PREVIEW, Q, esc, TYPES, EMOJIS, REACTS, NOW, db, results, latest, left, clock, ERR } = LC;
@@ -450,7 +450,7 @@ function questionCard() {
   const after = GQ && right ? `<p class="${mine && mine.text === right ? 'sent' : 'locked'}" style="margin:0">${mine ? (mine.text === right ? '🎯 Right!' : `You picked ${esc(mine.text)}.`) : '⏰ No answer.'} The answer was <b>${esc(right)}</b>.</p>${starLine(liveStars(L))}
     <a class="btn" href="${GQ.url}" target="_blank" rel="noopener" style="align-self:flex-start">🎮 Practice this in ${esc(GQ.game || GQ.name)}</a>` : '';
   return `<section class="card stack qhead"><div class="row between"><span class="label">${esc(TYPES[L.type] || '')}</span>${tag}</div>${s != null ? tbar(L, s, false) : ''}
-    <h2>${esc(L.q)}</h2>${LC.staffFor(L)}${after || input}${mine && !after ? `<p class="sent">✓ Sent: “${esc(mine.text)}”</p>` : ''}
+    <h2>${esc(L.q)}</h2>${LC.staffFor(L, 'me')}${after || input}${mine && !after ? `<p class="sent">✓ Sent: “${esc(mine.text)}”</p>` : ''}
     <p class="dim small" style="margin:0">Only your teacher sees your answer.</p></section>`;
 }
 // ---------- Showdown on the phone (2026-11-17): tap one piano key (your first answer counts), then see how you did ----------
@@ -462,7 +462,7 @@ function sdScore(L) {   // my own points for this round (the class board uses th
   if (SD.done[L.round]) return SD.done[L.round];
   const mine = mineFor(L.round), ok = mine && L.reveal != null && mine.text === (L.opts || [])[L.reveal];
   const seen = SD.seen[L.round] || 0, dur = L.ends_at && seen ? Math.max(5000, L.ends_at - seen) : 20000, secs = mine && seen ? Math.max(0, (mine.at - seen) / 1000) : dur / 2000;
-  let pts = 0; if (ok) { SD.st++; pts = 500 + Math.round(500 * Math.max(0, 1 - secs / (dur / 1000))) + (SD.st > 2 ? 100 : 0); } else SD.st = 0;
+  let pts = 0; if (ok) { SD.st++; pts = Math.max(100, 500 + Math.round(500 * Math.max(0, 1 - secs / (dur / 1000))) + (SD.st > 2 ? 100 : 0) - 100 * replays(L.round)); } else SD.st = 0;
   SD.pts += pts; SD.done[L.round] = { ok: !!ok, pts, mine: !!mine, st: SD.st, star: 0, show: (L.show && L.show.id) || '' };
   // Stars (2026-11-17, second pass): only the one Live Class rule (liveStars), on game questions; no Star per right answer any more
   saveSD(); return SD.done[L.round];
@@ -476,6 +476,9 @@ function sdReward(L, score) {
   return reward;
 }
 // The Top 5 on the student's own screen (2026-11-18, David: no projector needed): rank, name, points, +this round, places moved; my row in gold
+// Showdown sound questions (2026-11-19, David): the first play is free; each extra play costs 100 points (never below 100 for a right answer)
+const PLAYS = {};
+const replays = round => Math.min(20, Math.max(0, (PLAYS[round] || 0) - 1));
 function sdMini(board, L) {
   if (!board || !board.length) return '';
   const me = !board.slice(0, 5).some(b => b.s === sid) && sdPlace(L) ? `<div class="sd-mrow me" style="margin-top:4px"><b>${sdPlace(L)}</b><span class="nm">You</span><span class="pp">${SD.pts.toLocaleString()}</span></div>` : '';
@@ -499,7 +502,7 @@ function sdCard(L) {
     return `<section class="card stack">${head}<div class="sd-res ${r.ok ? 'good' : 'bad'}"><span class="sd-big">${r.ok ? '🎯' : r.mine ? '🎵' : '⏰'}</span><h2 style="margin:0">${r.ok ? 'Right on!' : r.mine ? 'Not this time' : 'Out of time'}</h2><span class="sd-pts">+${r.pts}</span>${starLine(sdReward(L, r))}${r.st > 2 ? `<p style="margin:0">🔥 ${r.st} in a row!</p>` : ''}<p class="muted" style="margin:0">${r.mine && !r.ok && mineFor(L.round) ? `You picked ${esc(mineFor(L.round).text)}. ` : ''}The answer was <b>${esc((L.opts || [])[L.reveal] || '')}</b>. ${my}.</p></div>${sdMini(board, L)}</section>`;
   }
   if (mine || !L.open || s === 0) return `<section class="card stack">${head}<h2>${esc(L.q)}</h2><div class="sd-res good" style="background:rgba(255,255,255,.05);border-color:#ffc85c"><span class="sd-big">🎼</span><h2 style="margin:0">${mine ? 'Locked in!' : 'Time!'}</h2><p class="muted" style="margin:0">${mine ? 'You picked ' + esc(mine.text) + '. ' : ''}The answer and the Top 5 show here in a moment.</p></div></section>`;
-  return `<section class="card stack qhead">${head}<h2>${esc(L.q)}</h2>${LC.staffFor(L)}
+  return `<section class="card stack qhead">${head}<h2>${esc(L.q)}</h2>${LC.staffFor(L, 'me').replace('▶ Play</button>', PLAYS[L.round] ? `▶ Play again (−100)${replays(L.round) ? ' · −' + 100 * replays(L.round) + ' so far' : ''}</button>` : '▶ Play</button>')}
     <div class="sd-keys">${(L.opts || []).map((o, i) => `<button type="button" class="sd-key" data-pick="${esc(o)}" ${S.busy ? 'disabled' : ''}><span class="sd-l">${i + 1}</span><span class="sd-n">${NOTES[i]}</span>${esc(o)}</button>`).join('')}</div>
     <p class="dim small" style="margin:0">Your first answer counts. Fast and right scores the most. On a computer, press the number next to your answer.</p></section>`;
 }
@@ -615,6 +618,7 @@ async function send(text) {
   const d = { round: L.round, ...base(), key: ME.key, type: L.type, text, at: NOW };
   if (LC.flagged(text)) d.flag = true;
   if (typeof p.icon === 'string' && p.icon) d.avatar = p.icon.slice(0, 20);
+  if (L.game && replays(L.round)) d.plays = replays(L.round);
   try {
     await db.add('bc_answers', d);
     const prev = ME.hist.find(h => h.round === L.round && h.code === code);
@@ -627,6 +631,8 @@ async function send(text) {
 }
 
 app.addEventListener('click', async e => {
+  // sound questions play on the student's own computer too (2026-11-19, David: no phones, computers with headphones)
+  const pb = e.target.closest('[data-play]'); if (pb && S.live && LC.isSound(S.live)) { LC.audio(); LC.play(S.live.gen.m, S.live.gen.p); PLAYS[S.live.round] = (PLAYS[S.live.round] || 0) + 1; if (S.live.game) draw(); return; }
   const lb = e.target.closest('[data-lead]');
   if (lb) { const a = lb.dataset.lead;
     if (a === 'ask') { LD.ask = true; LD.err = ''; draw(); setTimeout(() => { const i = $('leadpin'); if (i) { i.focus(); i.scrollIntoView({ block: 'center' }); } }, 30); return; }

@@ -205,7 +205,7 @@
 <body>
 <div id="app"></div>
 <p class="toast" id="toast" role="status"></p>
-<script src="../live-core.js?v=20261119a"></script>
+<script src="../live-core.js?v=20261119snd"></script>
 <script>
 (() => {
 const { OPT_DEF, DIFFS, QGAMES, qgame, makeQ, KS_ORDER, KS_CLEFS, clefOk, ksOk, ksName, ksCount, ksStaff, ksQuestion, PREVIEW, Q, esc, TYPES, EMOJIS, BANK, NOW, at, db, results, latest, left, clock, ERR } = LC;
@@ -306,7 +306,7 @@ function scoreRound(L) {
   Object.values(first).forEach(a => {
     const x = g.scores[a.sid] || (g.scores[a.sid] = { n: a.name, p: 0, st: 0 }); x.n = a.name;
     const ok = c && a.text === c, secs = start ? Math.max(0, ((a.at || start) - start) / 1000) : dur / 2000;
-    x.a = (x.a || 0) + 1; if (ok) { x.r = (x.r || 0) + 1; x.st++; x.g = 500 + Math.round(500 * Math.max(0, 1 - secs / (dur / 1000))) + (x.st > 2 ? 100 : 0); x.p += x.g; } else x.st = 0;
+    x.a = (x.a || 0) + 1; if (ok) { x.r = (x.r || 0) + 1; x.st++; x.g = Math.max(100, 500 + Math.round(500 * Math.max(0, 1 - secs / (dur / 1000))) + (x.st > 2 ? 100 : 0) - 100 * Math.min(20, a.plays || 0)); x.p += x.g;   /* each extra play of a sound question = -100 (2026-11-19) */ } else x.st = 0;
   });
   Object.entries(g.scores).forEach(([sid, x]) => { if (!seen.has(sid)) x.st = 0; });
   g.done[L.round] = 1; saveG();
