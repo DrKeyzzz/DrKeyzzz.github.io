@@ -502,7 +502,7 @@
   .act:hover { border-color: var(--gold); }
   .act .e { font-size: 26px; } .act b { font-size: 17px; } .act small { color: var(--muted); font-size: 13.5px; }
   .act.main { background: linear-gradient(135deg, #2b2410, #1a2538); border-color: var(--gold); }
-  .two { display: grid; grid-template-columns: 1.15fr 1fr; gap: 12px; }
+  .two { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 12px; }
   .two .card { margin: 0; }
   .two h2, .setc h2 { margin: 0 0 8px; font: 700 13px var(--f-ui); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
   .stats { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 2px 0 10px; }
@@ -544,9 +544,19 @@
     .bnav .nv[aria-current="page"] { background: none; color: var(--gold); }
     .bnav .nv .nd { position: absolute; top: 4px; right: calc(50% - 24px); margin: 0; }
     .mainc { padding: 12px; }
-    .acts { grid-template-columns: 1fr 1fr; gap: 8px; }
-    .act { flex-direction: row; align-items: center; gap: 8px; padding: 10px 12px; } .act .e { font-size: 21px; } .act b { font-size: 15px; } .act small { display: none; }
-    .two, .welcome ol { grid-template-columns: 1fr; }
+    .acts { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+    .act { align-items: center; text-align: center; gap: 2px; padding: 8px 4px 6px; border-radius: 12px; } .act .e { font-size: 22px; } .act b { font-size: 12px; line-height: 1.2; } .act small { display: none; }
+    .two { grid-template-columns: minmax(0, 1fr); gap: 10px; } .two .card { padding: 12px 14px; }
+    .welcome { padding: 8px 10px; gap: 6px 8px; } .welcome h2 { font-size: 14px; flex: 1; } .welcome .wx { order: 1; padding: 4px 10px 3px; }
+    .welcome ol { order: 2; flex-basis: 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+    .welcome li button { flex-direction: column; gap: 3px; padding: 6px 4px 5px; font-size: 12px; text-align: center; }
+    .tday .sub { display: none; } .acts { margin-bottom: 10px; }
+    .tli:nth-of-type(n+2) { display: none; }
+    .setc .row { padding: 8px 0; } .setc h2 { margin-bottom: 2px; }
+    #testsbox .opts { margin-top: 8px !important; }
+    .opts { gap: 8px 10px; } .opts label.f { font-size: 0; gap: 0; } .opts select { font-size: 15px; min-width: 0; }
+    #csv { display: none; }
+    .gi:not(.on) .gw { display: none; } .gi { padding: 9px 12px; font-size: 14.5px; } .gprev { display: none; }
     .tday h1 { font-size: 21px; } .tday .sub { margin-bottom: 10px; }
     .stat b { font-size: 21px; }
     .pc { display: none; }
@@ -1197,7 +1207,7 @@ function render() {
   if (av) COLS.activity = { player: ACT_PLAYER_COLS, teacher: ACT_TEACHER_COLS }[$('actby').value] || ACT_VISIT_COLS;
   if (!ad) S.teacher = '';
   const tpg = ad && !!S.teacher;
-  $('upbox').hidden = true;   // redesign: Upcoming and scheduled items live on Today $('adminsum').hidden = !ad; $('adminacc').hidden = !ad || tpg;
+  $('upbox').hidden = true; $('adminsum').hidden = !ad; $('adminacc').hidden = !ad || tpg;   // redesign: Upcoming and scheduled items live on Today
   const gv = S.view === 'grades'; if (gv) { gradePick(); renderGradeList(); }
   $('gradelist').hidden = $('gradelist2').hidden = $('gradebar').hidden = !gv;
   if (gv) { $('aout').closest('label').hidden = !S.gradeA; if (S.gradeA) $('aout').value = aOut(S.classes.find(x => x.code === S.code), S.gradeA); }
@@ -1217,6 +1227,7 @@ function render() {
   $('tbl').innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
   setTimeout(fitRows, 0);
   if (ad) { renderAdminSum(); renderAccess(); }
+  if (ad && !tpg) { const a = S.adm || 'acc'; $('adminacc').hidden = a !== 'acc'; $('adminsum').hidden = a !== 'sum'; $('data').hidden = $('csv').hidden = a !== 'use'; $('rng').closest('label').hidden = a === 'acc'; }
   const label = { activity: $('actby').value === 'player' ? (rows.length === 1 ? 'player' : 'players') : $('actby').value === 'teacher' ? (rows.length === 1 ? 'teacher row' : 'teacher rows') : rows.length === 1 ? 'game visit' : 'game visits', progress: S.allRec ? 'practice records' : rows.length === 1 ? 'student practiced' : 'students practiced', scores: 'scores', feedback: 'notes', tests: 'students with a result', admin: 'teacher and game rows' }[S.view];
   $('count').textContent = S.loading && !rows.length ? '' : S.view === 'tests' ? testSummary(rows) : S.view === 'grades' ? `${rows.length} student${rows.length === 1 ? '' : 's'} practiced for this assignment` : rows.length + ' ' + label + (S.game === 'all' ? ' across all games' : ' in ' + g.name);
   $('note').textContent = S.view === 'grades' ? 'Grade = how much of each task is done (each capped at 100%), averaged. Points = that grade out of the assignment\'s "Grade out of" (10 unless you change it), rounded down, for your grade book. It counts all practice in that game during the dates, the same number students see on their home page. Students who have not practiced yet do not appear. Earshot Saloon tasks cannot be counted yet. Click any assignment to open or close its grades. Past assignments are kept from now on (the list starts with the assignment each class had when this was added).'
@@ -2774,6 +2785,7 @@ function subswRender() {
   const sets = {
     progress: [['progress:stu', 'By student', v === 'progress' && !S.allRec], ['progress:rec', 'Every session', v === 'progress' && S.allRec], ['scores', 'Best scores', v === 'scores']],
     grades: [['grades', '📋 Assignments', v === 'grades'], ['tests', '📝 Tests', v === 'tests']],
+    admin: [['admin:acc', 'Requests & access' + (n.admin ? `<span class="nb">${n.admin}</span>` : ''), (S.adm || 'acc') === 'acc'], ['admin:sum', 'Every teacher', S.adm === 'sum'], ['admin:use', 'Use by game', S.adm === 'use']],
     social: [['students', 'Students' + d('students'), v === 'students'], ['board', 'Teacher Board' + d('board'), v === 'board'], ['messages', 'Private with support' + d('messages'), v === 'messages']],
   }[navKey(v)];
   const el = $('subsw'); el.hidden = !sets || v === 'assign' || v === 'newtest';
@@ -2861,7 +2873,7 @@ function renderToday() {
       <section class="card"><h2>This week in ${esc(c ? c.name : '')}</h2>
         ${!w ? '<p>Loading…</p>' : !st.length ? '<p>No practice yet this week. Share the class code so students can join: <button class="lnk" type="button" data-share="1">🖨 Print code card</button></p>'
           : `<div class="stats"><div class="stat"><b>${st.length}</b><span>student${st.length > 1 ? 's' : ''} practiced</span></div><div class="stat"><b>${Math.round(mins)}</b><span>minutes</span></div><div class="stat"><b>${pct(cor, att) ?? '–'}${att ? '%' : ''}</b><span>accuracy</span></div></div>
-          <p style="margin:0 0 6px">Most practice:</p><div>${top.map(x => chip(x, Math.round(x.minutes) + ' min')).join('')}</div>
+          <div class="pc"><p style="margin:0 0 6px">Most practice:</p><div>${top.map(x => chip(x, Math.round(x.minutes) + ' min')).join('')}</div></div>
           ${help.length ? `<p style="margin:8px 0 6px">May need help (under 60%):</p><div>${help.map(x => chip(x, x.acc + '%')).join('')}</div>` : ''}`}
         <p style="margin:6px 0 0"><button class="lnk" type="button" data-nav="progress">See every student →</button></p></section>
       <section class="card"><h2>Running now and coming up</h2>
@@ -2894,7 +2906,7 @@ function wireShell() {
     document.querySelectorAll('details.more[open]').forEach(d => { if (!d.contains(e.target) || e.target.closest('.morem button')) d.open = false; });
     const n = e.target.closest('[data-nav]'); if (n) return go(n.dataset.nav);
     const sv = e.target.closest('[data-sv]');
-    if (sv) { const [v, m] = sv.dataset.sv.split(':'); if (v === 'progress') S.allRec = m === 'rec'; if (['students', 'board', 'messages'].includes(v)) S.lastSocial = v; S.view = v; return load(); }
+    if (sv) { const [v, m] = sv.dataset.sv.split(':'); if (v === 'admin') { S.adm = m; if (S.view === 'admin') { S.teacher = ''; return render(); } } if (v === 'progress') S.allRec = m === 'rec'; if (['students', 'board', 'messages'].includes(v)) S.lastSocial = v; S.view = v; return load(); }
     if (e.target.closest('[data-newasg]')) { S.assignmentEdit = ''; S.view = 'assign'; msg(''); return load(); }
     if (e.target.closest('[data-share]') || e.target.closest('#codechip')) { if (S.code && S.code !== WORLD) ncShare(S.code); return; }
     const pg = e.target.closest('[data-pg]'); if (pg) { S.pg += +pg.dataset.pg; return render(); }
