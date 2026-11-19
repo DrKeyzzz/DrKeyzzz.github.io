@@ -18,3 +18,6 @@ Files here were resized to 160 px. Copied 2026-11-16.
 
 ChatGPT pictures (added 2026-11-16): trombone, tuba, french_horn, clarinet, concert_flute, viola, cello, string_bass,
 snare_drum. Made by David Milnes in ChatGPT for Music Theory Academy (his to use), backgrounds removed and resized to 160 px.
+
+Generated instrument artwork (2026-11-19): drumsticks, keytar, baton, marimba.
+Created with OpenAI ImageGen for Music Theory Academy. Transparent PNG assets resized to 320 px.
