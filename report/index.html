@@ -2292,13 +2292,16 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
   addEventListener('pagehide', sendNow);
 
   // once per visit (this tab): pick up the online look and totals (another computer may have earned or saved some)
-  var READ = 'mtg_avatar_read_v1:' + SID;
-  if (P && !LOCAL && (fresh || !sessionStorage.getItem(READ))) {
-    try { sessionStorage.setItem(READ, '1'); } catch(e){}
+  // 2026-11-19: read on every page load and when the Locker opens (was once per tab, so coins and Stars given by the teacher or
+  // earned on another device didn't show until a brand-new tab). One small read per page.
+  var lastRead = 0;
+  function readOnline(){
+    if (!P || LOCAL) return; lastRead = Date.now();
     try { fetch(FS + 'avatars/' + DOC + '?key=' + FKEY).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
       var f = d && d.fields; if (!f) { if (fresh) { lookDirty = true; sendSoon(5000); } return; }
       var lf = f.look && f.look.mapValue && f.look.mapValue.fields;
       if (lf && fresh) look = clean(fromFields(lf));
+      fresh = false;   // later reads (Locker open) never replace the look again
       look = wearOwned(look);
       var sc = f.coins ? +f.coins.integerValue : 0, sp = f.points ? +f.points.integerValue : 0;
       W.coins = Math.max(W.coins, sc + dCoins);
@@ -2307,9 +2310,10 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
       ((f.owned && f.owned.arrayValue && f.owned.arrayValue.values) || []).forEach(function(v){ if (v.stringValue && W.owned.indexOf(v.stringValue) < 0 && W.owned.length < 300) W.owned.push(v.stringValue); });   // items bought on another computer
       if (f.encores && +f.encores.integerValue > W.encores) { W.encores = +f.encores.integerValue; W.encXP = f.encore_xp ? +f.encore_xp.integerValue : W.encXP; }   // an Encore taken on another computer
       if (f.coin_day && f.coin_day.stringValue === W.day) W.dayCoins = Math.max(W.dayCoins, +f.coins_today.integerValue || 0);
-      saveLocal(); drawAll();
+      saveLocal(); drawAll(); if (dlg && dlg.open) render();
     }).catch(function(){}); } catch(e){}
   }
+  readOnline();
   if (fresh && LOCAL) saveLocal();
 
   // ---------- the corner avatar, right after the home and My Report pills ----------
@@ -2844,6 +2848,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
         if (b.dataset.do === 'stinfo') { tick(); note = '<b>★ Stars</b><br><small>Rare! Earn them for a great run (80% or better), all 3 daily quests, streaks, tests, a new rank, mastering a game and Live Class Showdowns.</small>'; render(); note = ''; return; }
       });
     }
+    if (Date.now() - lastRead > 30000) readOnline();   // fresh totals when the Locker opens
     draft = Object.assign({}, look); undoLook = Object.assign({}, look); trying = null; note = ''; tab = 'home';
     dlg.innerHTML = '<div class="mav-wrap"><div class="mav-left"><div class="mav-stage"><div class="mav-beam"></div><div class="mav-big av"></div></div><div class="mav-pname"></div>'
       + '<div class="mav-lo" aria-label="Saved outfits"></div><div class="mav-leftbtns"><button type="button" class="mav-ib" data-do="try"><i>▶</i>Move</button><button type="button" class="mav-ib" data-do="random"><i>🎲</i>Random</button>'
