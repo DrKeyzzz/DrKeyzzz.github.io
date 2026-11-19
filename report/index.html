@@ -2173,7 +2173,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     return `<svg viewBox="${vb}" role="img" aria-label="${o.label || 'Your avatar'}"><defs>${defs}</defs>${bg}${auraB}${o.crop || o.bare ? '' : platform(rank)}${heroP}
   <g class="root">${heroB}${behind}${back}${leg('l')}${leg('r')}<rect x="40" y="86" width="20" height="7" rx="3" fill="${pc}"/><rect x="45.5" y="54" width="9" height="7" fill="${dk}"/><path d="${torsoD}" fill="${topFill}"/>${extra}
   <g class="head">${hairBack}${ears}${face}${blush}${eyes}${nose}${beard[0]}${M[L.mouth]}${beard[1]}${brows}${front}${glasses}${headX}${hat}</g>
-  ${o.bare ? '' : gSide + gSide2}${arm('l')}${arm('r')}</g>
+  ${o.bare ? '' : (L.gear === 'bass' ? '' : gSide) + (L.gear2 === 'bass' ? '' : gSide2)}${arm('l')}${arm('r')}${o.bare ? '' : (L.gear === 'bass' ? gSide : '') + (L.gear2 === 'bass' ? gSide2 : '')}</g>
   ${o.crop || o.bare ? '' : `<g class="pet">${PT[L.pet] || ''}</g>`}${auraF}</svg>`;
   }
 
