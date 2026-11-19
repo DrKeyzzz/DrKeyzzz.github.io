@@ -311,7 +311,6 @@
   .up li { flex-wrap: wrap; } .up li button { min-width: 0; flex: 1 1 260px; } .up .upv { flex: 0 1 auto; white-space: normal; }   /* phones: Preview buttons drop under the row instead of pushing the page wide (2026-11-16) */
   /* New class + welcome for new teachers (2026-11-18) */
   .clsgrp { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; min-width: 0; }
-  @media (max-width: 720px) { .clsgrp, .clsgrp label.f { width: 100%; } .clsgrp select { width: 100%; min-width: 0; } }
   .btn.newcls { padding: 10px 16px 8px; white-space: nowrap; letter-spacing: .04em; }
   .welcome { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 14px; padding: 10px 14px; border: 2px solid var(--gold); border-radius: 14px; background: #1a2538; }
   .welcome h2 { margin: 0; font: 700 16px var(--f-ui); flex: 0 0 auto; }
@@ -339,7 +338,9 @@
   .upv, .gprev a { display: inline-flex; align-items: center; gap: 6px; font: 700 13px var(--f-ui); color: var(--text); text-decoration: none; background: var(--bg); border: 1px solid var(--gold); border-radius: 10px; padding: 6px 12px; white-space: nowrap; }
   .upv:hover, .gprev a:hover, .upv:focus-visible, .gprev a:focus-visible { background: var(--gold); color: #111; }
   .gprev { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: -2px 0 4px 26px; font: 600 13px var(--f-ui); color: var(--muted); }
-  .note { font-size: 15px; color: var(--muted); margin: 12px 0 0; }
+  .note { font-size: 14px; color: var(--muted); margin: 8px 0 0; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
+  .note.open { display: block; }
+  .note:not(:empty)::before { content: 'ⓘ '; }
   .fbtext { white-space: normal; min-width: 260px; max-width: 520px; }
   .x { font: 700 14px var(--f-ui); border: 1px solid var(--card-border); background: transparent; color: var(--muted); border-radius: 999px; padding: 4px 11px 2px; cursor: pointer; }
   .x:hover { color: var(--err); border-color: var(--err); }
@@ -452,6 +453,92 @@
   html[data-skin="day"] th[aria-sort] button { color: var(--text); }
 .gjoin label { display: flex; flex-direction: column; gap: 4px; }
 .gjoin input { width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 15px; }
+  /* ===== App layout (redesign 2026-11-18): top bar, side nav (phone: bottom bar), one page at a time, fits the screen ===== */
+  body:has(#main:not([hidden])) { padding: 0; overflow: hidden; }
+  body:has(#main:not([hidden])) .wrap > .back, body:has(#main:not([hidden])) .wrap > header, body:has(#main:not([hidden])) footer { display: none; }
+  #main { position: fixed; inset: 0; display: grid; grid-template-columns: 214px minmax(0, 1fr); grid-template-rows: 58px minmax(0, 1fr); }
+  .tbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 10px; padding: 0 16px; background: #0f1724; border-bottom: 1px solid var(--card-border); position: relative; min-width: 0; }
+  .brand { display: flex; align-items: center; gap: 8px; width: 196px; flex: none; color: var(--text); text-decoration: none; font-weight: 700; white-space: nowrap; }
+  .clsgrp { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .clsgrp select { min-width: 0; max-width: 330px; border-radius: 999px; padding: 8px 14px 6px; font-weight: 700; background: #1a2538; }
+  .code { background: transparent; border: 1px dashed var(--gold); color: var(--gold); border-radius: 999px; padding: 7px 12px 5px; font: 800 14px ui-monospace, Menlo, monospace; letter-spacing: .1em; white-space: nowrap; cursor: pointer; }
+  .code:hover { background: rgba(255,200,92,.1); }
+  .btn.newcls { padding: 9px 14px 7px; white-space: nowrap; letter-spacing: .04em; }
+  .tbar .tbell { margin-left: 0; width: 38px; height: 38px; flex: none; }
+  .acct { width: 36px; height: 36px; border-radius: 50%; border: 0; background: #7c8cff; color: #fff; font: 700 13px var(--f-ui); cursor: pointer; flex: none; }
+  .acctmenu { position: absolute; top: 54px; right: 12px; z-index: 40; background: #1a2538; border: 1px solid var(--card-border); border-radius: 14px; padding: 6px; min-width: 240px; box-shadow: 0 14px 40px rgba(0,0,0,.5); }
+  .acctmenu .who { display: block; margin: 0; padding: 8px 12px; font-size: 13.5px; border-bottom: 1px solid var(--card-border); }
+  .mi { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 0; padding: 9px 12px 8px; border-radius: 9px; font: 700 14.5px var(--f-ui); color: var(--text); cursor: pointer; }
+  .mi:hover { background: var(--bg); } .mi.adm { color: #ffb547; }
+  .snav { background: #0f1724; border-right: 1px solid var(--card-border); padding: 14px 10px; display: flex; flex-direction: column; gap: 3px; overflow-y: auto; }
+  .nv { position: relative; display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: 0; border-radius: 11px; padding: 10px 12px 8px; text-align: left; font: 700 15px var(--f-ui); color: var(--muted); cursor: pointer; }
+  .nv .i { width: 22px; text-align: center; font-size: 18px; }
+  .nv:hover { color: var(--text); background: var(--card); }
+  .nv[aria-current="page"] { background: var(--gold); color: #10131a; }
+  .nv .nd { margin-left: auto; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: #ff3b47; color: #fff; font: 700 12px/20px system-ui, sans-serif; text-align: center; }
+  .nsect { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 14px 12px 4px; font-weight: 700; }
+  .nadm { margin-top: auto; border: 1px dashed rgba(255,181,71,.55); border-radius: 12px; padding: 4px; }
+  .nadm .nsect { color: #ffb547; margin-top: 6px; }
+  .nadm .nv[aria-current="page"] { background: #ffb547; }
+  .bnav { display: none; }
+  .mainc { overflow-y: auto; padding: 16px 22px; min-width: 0; }
+  .mainc > .card { margin-bottom: 0; }
+  .mainc .pv { margin: 0 0 10px; }
+  #games, #views, #bdswitch, #newsbar, #upbox:empty { display: none !important; }
+  .opts { align-items: flex-end; }
+  .subsw { display: inline-flex; border: 1px solid var(--card-border); border-radius: 999px; overflow: hidden; flex: none; }
+  .subsw button { position: relative; font: 700 14px var(--f-ui); background: var(--bg); color: var(--muted); border: 0; padding: 10px 16px 8px; cursor: pointer; white-space: nowrap; }
+  .subsw button[aria-pressed="true"] { background: var(--gold); color: #10131a; }
+  .subsw .nb { display: inline-block; min-width: 18px; margin-left: 6px; padding: 1px 5px 0; border-radius: 999px; background: #ff3b47; color: #fff; font-size: 12px; }
+  .pager { display: flex; align-items: center; justify-content: flex-end; gap: 10px; color: var(--muted); font-size: 14px; margin-top: 8px; }
+  .tw { margin-top: 10px; }
+  .up { margin-top: 10px; }
+  /* Today */
+  .tday h1 { font: 700 26px var(--f-ui); margin: 0; }
+  .tday .sub { color: var(--muted); margin: 2px 0 14px; }
+  .acts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 14px; }
+  .act { text-align: left; background: var(--card); border: 1px solid var(--card-border); border-radius: 16px; padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 4px; color: var(--text); font: inherit; cursor: pointer; }
+  .act:hover { border-color: var(--gold); }
+  .act .e { font-size: 26px; } .act b { font-size: 17px; } .act small { color: var(--muted); font-size: 13.5px; }
+  .act.main { background: linear-gradient(135deg, #2b2410, #1a2538); border-color: var(--gold); }
+  .two { display: grid; grid-template-columns: 1.15fr 1fr; gap: 12px; }
+  .two .card { margin: 0; }
+  .two h2, .setc h2 { margin: 0 0 8px; font: 700 13px var(--f-ui); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+  .stats { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 2px 0 10px; }
+  .stat b { display: block; font-size: 26px; } .stat span { color: var(--muted); font-size: 13px; }
+  .tli { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 0; border: 0; border-top: 1px solid var(--card-border); background: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+  .tli:first-of-type { border-top: 0; }
+  .tag { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; padding: 3px 8px 2px; border-radius: 999px; background: var(--bg); white-space: nowrap; }
+  .tli .s { margin-left: auto; color: var(--muted); font-size: 13px; white-space: nowrap; }
+  /* Class settings */
+  .setc .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; padding: 12px 0; border-top: 1px solid var(--card-border); }
+  .setc .row:first-of-type { border-top: 0; }
+  .setc .row > b { flex: 1 1 220px; } .setc .row small { display: block; color: var(--muted); font-weight: 500; font-size: 13px; }
+  .setc input[type=text] { font: 600 15px var(--f-ui); padding: 8px 10px; border-radius: 10px; border: 1px solid var(--card-border); background: var(--bg); color: var(--text); width: 240px; max-width: 100%; }
+  .setc .avsw { align-self: auto; padding: 0; }
+  .welcome { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 0 0 12px; padding: 10px 14px; }
+  .welcome h2 { margin: 0; color: var(--gold); font-size: 15px; }
+  .welcome ol { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; flex: 1 1 520px; }
+  .welcome li button { width: 100%; border-radius: 12px; padding: 9px 12px 7px; font-size: 14.5px; }
+  @media (max-width: 760px) {
+    #main { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) 62px; }
+    .snav { display: none; }
+    .tbar { flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
+    .brand { width: auto; } .clsgrp { order: 3; width: 100%; } .clsgrp select { flex: 1 1 0; max-width: none; }
+    .btn.newcls .t { display: none; }
+    .bnav { display: grid; grid-template-columns: repeat(5, 1fr); grid-row: 3; background: #0f1724; border-top: 1px solid var(--card-border); }
+    .bnav .nv { flex-direction: column; justify-content: center; gap: 2px; padding: 4px 2px; border-radius: 0; font-size: 11px; text-align: center; }
+    .bnav .nv[aria-current="page"] { background: none; color: var(--gold); }
+    .bnav .nv .nd { position: absolute; top: 4px; right: calc(50% - 24px); margin: 0; }
+    .mainc { padding: 12px; }
+    .acts { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .act { flex-direction: row; align-items: center; gap: 8px; padding: 10px 12px; } .act .e { font-size: 21px; } .act b { font-size: 15px; } .act small { display: none; }
+    .two, .welcome ol { grid-template-columns: 1fr; }
+    .tday h1 { font-size: 21px; } .tday .sub { margin-bottom: 10px; }
+    .stat b { font-size: 21px; }
+    .pc { display: none; }
+    .subsw button { padding: 9px 11px 7px; font-size: 13px; }
+  }
 </style>
 </head>
 <body>
@@ -465,15 +552,26 @@
   <section class="card" id="gate" aria-live="polite"><p>Loading…</p></section>
 
   <div id="main" hidden>
-    <div class="who"><span id="who"></span><button type="button" class="tbell" id="tbell" hidden aria-label="New messages">🔔<span class="tn" id="tbelln"></span></button><button class="btn ghost sm" type="button" id="signout">Sign out</button></div>
-
-    <section class="welcome" id="welcome" hidden aria-label="Getting started"></section>
+    <header class="tbar">
+      <a class="brand" href="../../" title="Music Theory Academy home">🎼 <span>Music Theory Academy</span></a>
+      <div class="clsgrp"><select id="cls" aria-label="Class"></select><button class="code" type="button" id="codechip" title="Share this class code: print a code card or copy it"></button><button class="btn newcls" type="button" id="newcls" data-newcls="1" title="Make a new class and get a code for your students">➕<span class="t"> New class</span></button></div>
+      <span class="grow"></span>
+      <button type="button" class="tbell" id="tbell" hidden aria-label="New messages">🔔<span class="tn" id="tbelln"></span></button>
+      <button type="button" class="acct" id="acct" aria-haspopup="true" aria-expanded="false" title="Account"></button>
+      <div class="acctmenu" id="acctmenu" hidden><div class="who"><span id="who"></span></div><div id="acctmore"></div><button class="mi" type="button" id="signout">Sign out</button></div>
+    </header>
+    <nav class="snav" id="snav" aria-label="Teacher pages"></nav>
+    <nav class="bnav" id="bnav" aria-label="Teacher pages"></nav>
+    <div class="mainc" id="mainc">
+    <div id="todayview" hidden><section class="welcome" id="welcome" hidden aria-label="Getting started"></section><div id="todaybody"></div></div>
+    <div id="setview" class="card" hidden></div>
 
     <ul class="games" id="games" aria-label="Games"></ul>
 
     <section class="card" id="panel">
       <div class="opts">
-        <div class="clsgrp"><label class="f" for="cls">Class<select id="cls"></select></label><button class="btn newcls" type="button" id="newcls" data-newcls="1" title="Make a new class and get a code for your students">➕ New class</button></div>
+        <div class="subsw" id="subsw" role="group" aria-label="Show"></div>
+        <label class="f" for="gsel" id="gselbox">Game<select id="gsel"></select></label>
         <label class="ck avsw" id="avbox" hidden title="Students in this class see a cartoon avatar in the corner of every game. Turn it off to show their old icon instead."><input type="checkbox" id="avon"> Student avatars</label>
         <label class="f" for="rng">Time<select id="rng">
           <option value="1">Today</option>
@@ -532,7 +630,8 @@
       <div id="data">
         <p class="count" id="count"></p>
         <div class="tw"><table id="tbl"></table></div>
-        <p class="note" id="note"></p>
+        <div class="pager" id="pager"></div>
+        <p class="note" id="note" title="Click to read more"></p>
       </div>
       <div id="gradelist2" class="glist" hidden></div>
       <div class="bdswitch" id="bdswitch" role="group" aria-label="Board sections" hidden></div>
@@ -542,6 +641,7 @@
       <div id="liveview" hidden><iframe id="lframe" title="Live Class" style="width:100%;border:0;min-height:760px;margin-top:6px;background:transparent"></iframe></div>
       <div id="assignbox" hidden><button class="btn ghost sm" type="button" id="aback" style="margin-top:14px">← Back to Assignments</button><iframe id="aframe" title="Assign practice" style="width:100%;border:0;min-height:700px;margin-top:14px;background:transparent"></iframe></div>
     </section>
+    </div>
   </div>
   <p class="sr" id="srlive" aria-live="polite"></p>
   <footer>Click any column heading to sort. Click again to reverse.</footer>
@@ -590,7 +690,7 @@ const CLL_ID = { 'Filter Spotter': 'filter', 'Boost Hunt': 'peak', 'Boost or Cut
 const CLL_NAME = Object.fromEntries(Object.entries(CLL_ID).map(([k, v]) => [v, k]));
 const FB_NAME = { 'critical-listening-lab': 'listen', 'tidal-tones': 'tidal', 'rooftop-runner': 'rooftop', 'rhythm-trainer': 'rhythm', 'scale-quest': 'scale', 'earshot-saloon': 'earshot', 'ear-brain': 'brainwaves', hub: null };
 
-const S = { teacher: '', tp: null, email: '', classes: [], code: '', game: 'all', view: 'progress', rows: [], sort: {}, loading: 0, tests: [], testId: '', live: '' };
+const S = { teacher: '', tp: null, email: '', classes: [], code: '', game: 'all', view: 'today', rows: [], sort: {}, pg: 0, allRec: false, loading: 0, tests: [], testId: '', live: '' };
 
 // ---------- Firebase ----------
 let fbP = null, fbAuthP = null;
@@ -805,7 +905,7 @@ async function loadGrades(c, assignment, through = assignment?.end) {
   });
 }
 const fmtN = n => Number(n || 0).toLocaleString();
-function days() { const n = +$('rng').value; return n ? lastDays(n) : null; }
+function days() { const n = S.view === 'today' ? 7 : +$('rng').value; return n ? lastDays(n) : null; }
 async function fetchProgress(gid) {
   const g = G[gid]; if (!g.prog) return [];
   const ds = days();
@@ -1017,7 +1117,7 @@ function actPlayers(rows) {
 }
 COLS.grades = [{ k: 'name', h: 'Student', t: 's' }];   // filled in by loadGrades from the class's assignment
 const TEST_COLS = COLS.tests;   // one test's results; the All tests overview and grade book swap in their own columns
-const DEFAULT_SORT = { grades: { k: 'name', dir: 1 }, progress: { k: 'dateMs', dir: -1 }, scores: { k: 'score', dir: -1 }, tests: { k: 'best', dir: -1 }, admin: { k: 'minutes', dir: -1 }, activity: { k: 'dateMs', dir: -1 }, feedback: { k: 'dateMs', dir: -1 } };
+const DEFAULT_SORT = { grades: { k: 'name', dir: 1 }, progress: { k: 'minutes', dir: -1 }, scores: { k: 'score', dir: -1 }, tests: { k: 'best', dir: -1 }, admin: { k: 'minutes', dir: -1 }, activity: { k: 'dateMs', dir: -1 }, feedback: { k: 'dateMs', dir: -1 } };
 function accCell(a) { return a == null ? '<span style="color:var(--muted)">–</span>' : `<span class="${a < 60 ? 'low' : a >= 85 ? 'good' : ''}">${a}%</span>`; }
 function cellText(c, r) {
   if (c.k === 'game') { const g = G[r.game]; return g ? `<span class="dot" style="background:${g.color}"></span>${esc(g.name)}` : esc(r.game); }
@@ -1028,7 +1128,9 @@ function cellText(c, r) {
 
 // ---------- render ----------
 function visible() {
+  if (S.view === 'progress') COLS.progress = S.allRec ? PROG_REC_COLS : PROG_STU_COLS;
   let rows = S.rows.filter(r => S.view === 'grades' || S.game === 'all' || r.game === S.game);
+  if (S.view === 'progress' && !S.allRec) rows = byStudent(rows);
   if (S.view === 'activity') { rows.forEach(actWho); actTeachOpts(rows); const w = $('actwho').value, d = $('actdev').value, t = $('actteach').value, by = $('actby').value;
     rows = rows.filter(r => (!w || (w === 'guest') === r.guest) && (!d || r.device.startsWith(d)) && (!t || (t === '~none' ? !r.temail : r.temail === t)));
     if (by === 'player') rows = actPlayers(rows); else if (by === 'teacher') rows = actTeachers(rows); }
@@ -1053,6 +1155,12 @@ async function setAvatars(on) {
   catch (e) { $('avon').checked = !c.avatars_off; msg(errText(e)); }
 }
 function render() {
+  shellRender();
+  if (S.view === 'today' || S.view === 'settings') {
+    ['panel'].forEach(id => { $(id).hidden = true; }); syncHash();
+    return S.view === 'today' ? renderToday() : renderSettings();
+  }
+  $('panel').hidden = false;
   renderAvSwitch();
   syncLive(); syncAct();
   const g = G[S.game]; document.documentElement.style.setProperty('--gc', g.color);
@@ -1062,8 +1170,8 @@ function render() {
   $('msgview').hidden = S.view !== 'messages'; $('boardview').hidden = S.view !== 'board'; $('liveview').hidden = S.view !== 'live'; document.querySelector('footer').hidden = social; $('games').hidden = social; syncHash();
   if (social) {
     ['upbox', 'actbox', 'adminsum', 'adminacc', 'data', 'gradebar', 'gradelist', 'gradelist2', 'assignbox', 'testsbox', 'newtestbox', 'csv'].forEach(id => { $(id).hidden = true; });
-    $('cls').closest('.clsgrp').hidden = true; $('rng').closest('label').hidden = true;
-    if (S.view === 'students') { $('cls').closest('.clsgrp').hidden = false; return renderSm(); }
+    S.clsHide = true; $('rng').closest('label').hidden = true;
+    if (S.view === 'students') { S.clsHide = false; return renderSm(); }
     return S.view === 'live' ? showLive() : S.view === 'messages' ? renderMessages() : renderBoard();
   }
   const asg = S.view === 'assign', nt = S.view === 'newtest', ts = S.view === 'tests', ad = S.view === 'admin', av = S.view === 'activity';
@@ -1079,14 +1187,17 @@ function render() {
   $('gradelist').hidden = $('gradelist2').hidden = $('gradebar').hidden = !gv;
   if (gv) { $('aout').closest('label').hidden = !S.gradeA; if (S.gradeA) $('aout').value = aOut(S.classes.find(x => x.code === S.code), S.gradeA); }
   $('data').hidden = asg || nt || tpg || (gv && !S.gradeA); $('assignbox').hidden = !asg; $('testsbox').hidden = !ts; $('newtestbox').hidden = !nt; $('csv').hidden = asg || nt || tpg || (gv && !S.gradeA);
-  $('cls').closest('.clsgrp').hidden = asg || ad || av || S.view === 'feedback'; $('rng').closest('label').hidden = asg || nt || ts;
+  S.clsHide = asg || ad || av || S.view === 'feedback'; $('rng').closest('label').hidden = asg || nt || ts;
   document.querySelectorAll('#views button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.v === S.view || (S.view === 'messages' && b.dataset.v === 'board') || (nt && b.dataset.v === 'tests') || (asg && b.dataset.v === 'grades'))));
   if (asg) { showAssign(); return; }
   if (nt) { showNewTest(); return; }
   if (ts) { renderUpcoming(); renderTestsBox(); } else if (S.view === 'grades' || S.view === 'progress') renderUpcoming();
   const cols = COLS[S.view]; const st = S.sort[S.view] || DEFAULT_SORT[S.view]; const rows = visible();
-  const head = cols.map(c => c.t === 'x' || c.t === 'r' ? '<th></th>' : `<th class="${c.num ? 'num' : ''}" aria-sort="${st.k === c.k ? (st.dir > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" data-k="${c.k}">${esc(c.h)}<span class="ar" aria-hidden="true">${st.k === c.k ? (st.dir > 0 ? '▲' : '▼') : ''}</span></button></th>`).join('');
-  const body = rows.length ? rows.map(r => '<tr>' + cols.map(c => `<td class="${(c.num ? 'num ' : '') + (c.cls || '')}">${cellText(c, r)}</td>`).join('') + '</tr>').join('')
+  const head = cols.map(c => c.t === 'x' || c.t === 'r' ? '<th></th>' : `<th class="${c.num ? 'num' : ''}${c.pc ? ' pc' : ''}" aria-sort="${st.k === c.k ? (st.dir > 0 ? 'ascending' : 'descending') : 'none'}"><button type="button" data-k="${c.k}">${esc(c.h)}<span class="ar" aria-hidden="true">${st.k === c.k ? (st.dir > 0 ? '▲' : '▼') : ''}</span></button></th>`).join('');
+  const per = perPage(), pages = Math.max(1, Math.ceil(rows.length / per)); if (S.pg >= pages) S.pg = pages - 1;
+  const shown = rows.slice(S.pg * per, S.pg * per + per);
+  $('pager').innerHTML = pages > 1 ? `<span>${S.pg * per + 1}–${S.pg * per + shown.length} of ${rows.length}</span><button class="btn ghost sm" type="button" data-pg="-1" ${S.pg ? '' : 'disabled'} aria-label="Previous page">‹</button><button class="btn ghost sm" type="button" data-pg="1" ${S.pg < pages - 1 ? '' : 'disabled'} aria-label="Next page">›</button>` : '';
+  const body = rows.length ? shown.map(r => '<tr>' + cols.map(c => `<td class="${(c.num ? 'num ' : '') + (c.pc ? 'pc ' : '') + (c.cls || '')}">${cellText(c, r)}</td>`).join('') + '</tr>').join('')
     : `<tr><td class="empty" colspan="${cols.length}">${S.loading ? 'Loading…' : !S.classes.length && S.code !== WORLD ? 'You have no classes yet. Make one to get a code for your students.<br><button class="btn" type="button" data-newcls="1">➕ New class</button>' : 'Nothing here yet for this class and time.'}</td></tr>`;
   $('tbl').innerHTML = `<thead><tr>${head}</tr></thead><tbody>${body}</tbody>`;
   if (ad) { renderAdminSum(); renderAccess(); }
@@ -1095,7 +1206,7 @@ function render() {
   $('note').textContent = S.view === 'grades' ? 'Grade = how much of each task is done (each capped at 100%), averaged. Points = that grade out of the assignment\'s "Grade out of" (10 unless you change it), rounded down, for your grade book. It counts all practice in that game during the dates, the same number students see on their home page. Students who have not practiced yet do not appear. Earshot Saloon tasks cannot be counted yet. Click any assignment to open or close its grades. Past assignments are kept from now on (the list starts with the assignment each class had when this was added).'
     : S.view === 'progress' && S.game === 'earshot'
     ? G[S.game].name + ' does not keep daily practice records yet. Open Scores to see its results.'
-    : S.view === 'progress' ? 'One row per student per game per day. Accuracy is correct answers out of all answers.'
+    : S.view === 'progress' ? (S.allRec ? 'One row per student per game per day. Accuracy is correct answers out of all answers.' : 'One row per student for the time range, all their games added up. Click Every session to see each game and day.')
     : S.view === 'scores' && S.code === WORLD ? 'World: the top 50 scores in each game from every class and the world boards, all time (the time range does not apply). Details shows each score\'s class.'
     : S.view === 'tests' ? 'Best score is the highest of all tries. Grade = accuracy of the best try as points out of the test\'s "Grade out of" (20 unless you change it), e.g. 95% of 20 = 19/20. Students who have not started do not appear.'
     : S.view === 'activity' && !amAdmin() ? 'Who is playing: one row each time a student in your classes opens a game and stays at least 20 seconds. On screen = time the game was open and visible; Playing = time spent answering (pauses over 2 minutes don\'t count). Furthest = the highest level, town, floor or number of keys reached. Playing now = seen in the last few minutes. By player adds up each student\'s visits for the time range. Visits are deleted after 30 days.'
@@ -1103,6 +1214,9 @@ function render() {
     : S.view === 'admin' ? 'Time is student practice time recorded in each teacher\'s classes (not teacher log-ins, and not tests). Earshot Saloon records scores only, so it shows no minutes. What they practice lists the most used levels, keys, scale types, modes and time signatures in the records.' : '';
 }
 async function load() {
+  S.pg = 0;
+  if (S.view === 'today') { msg(''); render(); return loadToday(); }
+  if (S.view === 'settings') { ++load.n; msg(''); render(); return; }
   if (S.view === 'assign' || S.view === 'newtest') { ++load.n; render(); return; }
   if (S.view === 'live') { msg(''); render(); return; }
   if (S.view === 'students') { msg(''); render(); return openSm(); }
@@ -1804,7 +1918,7 @@ function bellUpdate() {
   const parts = bellParts(), n = parts.reduce((a, x) => a + x[1], 0);
   b.hidden = !n; $('tbelln').textContent = n > 99 ? '99+' : String(n);
   b.dataset.go = parts.length ? parts[0][0] : ''; b.setAttribute('aria-label', parts.map(x => x[2](x[1])).join(', ') || 'No new messages');
-  b.title = parts.map(x => x[2](x[1])).join(' · ');
+  b.title = parts.map(x => x[2](x[1])).join(' · '); navRender(); if (S.view !== 'today' && S.view !== 'settings') subswRender();
   clearTimeout(bellUpdate.t); bellUpdate.t = setTimeout(bellCard, 2500);   // once the sign-in counts have arrived
 }
 function bellCard() {
@@ -2447,7 +2561,7 @@ async function changeAssignment(action) {
 }
 
 function wire() {
-  buildTabs();
+  buildTabs(); wireShell();
   $('upbox').onclick = e => { const b = e.target.closest('button[data-view]'); if (!b) return; S.code = b.dataset.code; $('cls').value = S.code; if (b.dataset.test) { S.testId = b.dataset.test; S.editId = b.dataset.test; S.view = 'newtest'; } else S.view = b.dataset.view; load(); };
   // One-time tool (added 2026-10-22): scores the developer posted under an old name become "Maestro" (the rules let only the
   // admin change a score's name, and only to Maestro). Super Genius rows under the old name are deleted (one row per player there).
@@ -2476,7 +2590,7 @@ function wire() {
   $('gradelist').onclick = $('gradelist2').onclick = gclick;
   $('tbl').onclick = async e => {
     const h = e.target.closest('th button');
-    if (h) { const cur = S.sort[S.view] || DEFAULT_SORT[S.view]; const k = h.dataset.k; S.sort[S.view] = { k, dir: cur.k === k ? -cur.dir : (/^(name|game|detail|text)$/.test(k) ? 1 : -1) }; return render(); }
+    if (h) { const cur = S.sort[S.view] || DEFAULT_SORT[S.view]; const k = h.dataset.k; S.pg = 0; S.sort[S.view] = { k, dir: cur.k === k ? -cur.dir : (/^(name|game|detail|text)$/.test(k) ? 1 : -1) }; return render(); }
     const del = e.target.closest('[data-del]');
     if (del && S.view === 'scores') {   // a wrong or unfair score: removed for good (scores can't be edited, only deleted)
       const r = S.rows.find(x => x.id === del.dataset.del); if (!r) return;
@@ -2618,6 +2732,159 @@ function fillClasses() {
   if (!PREVIEW && !S.ncAuto && new URLSearchParams(location.search).has('newclass')) { S.ncAuto = true; setTimeout(ncOpen, 0); }
   load();
 }
+// ---------- App layout (redesign 2026-11-18; mockup hub/docs/teacher-dashboard-mockup.html) ----------
+// Pages: Today · Students (progress/scores) · Assignments & tests (grades/tests) · Live Class · Messages (students/board/messages)
+// More: Activity, Class settings. Admin box (admin only): admin, feedback. The old #views tiles stay in the page, hidden, for their counts.
+const NAV = [['today', '🏠', 'Today'], ['progress', '👥', 'Students'], ['grades', '📋', 'Assignments & tests'], ['live', '📡', 'Live Class'], ['social', '✉️', 'Messages']];
+const NAV_MORE = [['activity', '👀', 'Activity'], ['settings', '⚙️', 'Class settings']];
+const NAV_ADMIN = [['admin', '🛡️', 'Teachers & site'], ['feedback', '💬', 'Student feedback']];
+const navKey = v => ({ scores: 'progress', tests: 'grades', assign: 'grades', newtest: 'grades', students: 'social', board: 'social', messages: 'social' })[v] || v;
+const badgeOf = id => { const e = $(id); return e && !e.hidden ? (parseInt(e.textContent, 10) || 0) : 0; };
+function navCounts() {
+  const p = Object.fromEntries(bellParts().map(x => [x[0], x[1]]));
+  return { social: (p.students || 0) + (p.messages || 0) + (p.board || 0), admin: badgeOf('rqcount'), feedback: badgeOf('fbcount') + (p.feedback || 0), students: p.students || 0, board: p.board || 0, messages: p.messages || 0 };
+}
+function navRender() {
+  if (!$('snav')) return;
+  const n = navCounts(), cur = navKey(S.view), adm = amAdmin();
+  const b = ([id, i, t], cls = 'nv') => `<button class="${cls}" type="button" data-nav="${id}" ${cur === id ? 'aria-current="page"' : ''}><span class="i" aria-hidden="true">${i}</span><span>${t}</span>${n[id] ? `<span class="nd">${n[id] > 99 ? '99+' : n[id]}</span>` : ''}</button>`;
+  $('snav').innerHTML = NAV.map(x => b(x)).join('') + '<div class="nsect">More</div>' + NAV_MORE.map(x => b(x)).join('')
+    + (adm ? '<div class="nadm"><div class="nsect">Admin · only you</div>' + NAV_ADMIN.map(x => b(x)).join('') + '</div>' : '');
+  $('bnav').innerHTML = NAV.map(([id, i, t]) => b([id, i, t.split(' ')[0]])).join('');
+  $('acctmore').innerHTML = NAV_MORE.map(x => b(x, 'mi')).join('') + (adm ? NAV_ADMIN.map(x => b(x, 'mi adm')).join('') : '');
+}
+function subswRender() {
+  const v = S.view, n = navCounts(), d = k => n[k] ? `<span class="nb">${n[k]}</span>` : '';
+  const sets = {
+    progress: [['progress:stu', 'By student', v === 'progress' && !S.allRec], ['progress:rec', 'Every session', v === 'progress' && S.allRec], ['scores', 'Best scores', v === 'scores']],
+    grades: [['grades', '📋 Assignments', v === 'grades'], ['tests', '📝 Tests', v === 'tests']],
+    social: [['students', 'Students' + d('students'), v === 'students'], ['board', 'Teacher Board' + d('board'), v === 'board'], ['messages', 'Private with support' + d('messages'), v === 'messages']],
+  }[navKey(v)];
+  const el = $('subsw'); el.hidden = !sets || v === 'assign' || v === 'newtest';
+  el.innerHTML = sets ? sets.map(([k, t, on]) => `<button type="button" data-sv="${k}" aria-pressed="${on}">${t}</button>`).join('') : '';
+}
+function shellRender() {
+  navRender(); subswRender();
+  $('todayview').hidden = S.view !== 'today'; $('setview').hidden = S.view !== 'settings';
+  $('gselbox').hidden = !(S.view === 'progress' || S.view === 'scores'); $('gsel').value = S.game;
+  const c = S.classes.find(x => x.code === S.code);
+  $('codechip').hidden = !c; if (c) { $('codechip').textContent = c.code + ' 🖨'; $('codechip').setAttribute('aria-label', 'Share class code ' + c.code); }
+  $('acct').textContent = (S.me && S.me.name ? S.me.name : S.email || '?').split(/[\s@.]+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');
+  $('mainc').classList.toggle('wide', S.view === 'live' || S.view === 'assign' || S.view === 'newtest');
+}
+function go(v) {
+  if (v === 'social') v = S.lastSocial || 'students';
+  if (v === 'progress') S.allRec = false;
+  if (['students', 'board', 'messages'].includes(v)) S.lastSocial = v;
+  acctMenu(false); vtipHide(); S.view = v; $('mainc').scrollTop = 0; load();
+}
+function acctMenu(open) { $('acctmenu').hidden = !open; $('acct').setAttribute('aria-expanded', String(open)); }
+// rows that fit the screen without scrolling (at least 5)
+function perPage() {
+  const m = $('mainc'), d = $('data'); if (!m || !d) return 10;
+  const top = d.getBoundingClientRect().top - m.getBoundingClientRect().top + m.scrollTop + ($('count').offsetHeight || 0);
+  return Math.max(5, Math.min(30, Math.floor((m.clientHeight - top - 42 - 50 - 30) / 39)));
+}
+// Students: one row per student, all their games and days added up
+const PROG_REC_COLS = COLS.progress;
+const PROG_STU_COLS = [
+  { k: 'name', h: 'Student', t: 's' }, { k: 'minutes', h: 'Minutes', t: 'n', num: 1 }, { k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) },
+  { k: 'attempts', h: 'Answers', t: 'n', num: 1, pc: 1 }, { k: 'games', h: 'Games', t: 's', pc: 1 }, { k: 'days', h: 'Days', t: 'n', num: 1, pc: 1 },
+  { k: 'dateMs', h: 'Last played', t: 'n', f: r => esc(fmtDate(r.dateMs)) },
+];
+function byStudent(recs) {
+  const m = new Map();
+  recs.forEach(r => {
+    const k = String((r.raw && r.raw.sid) || r.name).toLowerCase();
+    const a = m.get(k) || { name: r.name, minutes: 0, attempts: 0, correct: 0, g: new Set(), d: new Set(), dateMs: 0 };
+    a.minutes += +r.minutes || 0; a.attempts += +r.attempts || 0; a.correct += +r.correct || 0; a.g.add(r.game); if (r.date) a.d.add(r.date); a.dateMs = Math.max(a.dateMs, r.dateMs || 0); m.set(k, a);
+  });
+  return [...m.values()].map(a => ({ ...a, minutes: Math.round(a.minutes * 10) / 10, acc: pct(a.correct, a.attempts), days: a.d.size, games: [...a.g].map(id => (G[id] || { name: id }).name).join(', ') }));
+}
+// ----- Today -----
+async function loadToday() {
+  const my = ++load.n; S.week = null; render();
+  let recs = [];
+  try {
+    if (PREVIEW) { SAMPLE = SAMPLE || sample(); recs = SAMPLE.prog; }
+    else if (S.code && S.code !== WORLD) recs = (await Promise.all(GAMES.slice(1).map(g => fetchProgress(g.id).catch(() => [])))).flat();
+    await loadUpcoming().catch(() => {});
+  } catch (e) { msg(errText(e)); }
+  if (my === load.n && S.view === 'today') { S.week = recs; render(); }
+}
+function renderToday() {
+  welcomeRender();
+  const c = S.classes.find(x => x.code === S.code), h = new Date().getHours();
+  const first = S.me && S.me.name && !amAdmin() ? S.me.name.split(' ')[0] : '';
+  const hello = (h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening') + (first ? ', ' + esc(first) : '');
+  if (!S.classes.length) {
+    $('todaybody').innerHTML = `<div class="tday"><h1>Welcome${first ? ', ' + esc(first) : ''} 👋</h1><p class="sub">Students practice music theory in free games. You see who practiced, give assignments and run Live Class.</p>
+      <section class="card"><div class="empty">Your class's practice shows up here once students join.<br><button class="btn" type="button" data-newcls="1">➕ Make my first class</button></div></section></div>`;
+    return;
+  }
+  const w = S.week, st = w ? byStudent(w) : [], mins = st.reduce((a, x) => a + x.minutes, 0), att = st.reduce((a, x) => a + x.attempts, 0), cor = st.reduce((a, x) => a + x.correct, 0);
+  const top = st.slice().sort((a, b) => b.minutes - a.minutes).slice(0, 5), help = st.filter(x => x.attempts >= 20 && x.acc != null && x.acc < 60).sort((a, b) => a.acc - b.acc).slice(0, 5);
+  const { soon, live } = upItems(), items = live.concat(soon).filter(i => i.code === S.code).slice(0, 3);
+  const chip = (x, t) => `<span class="chip" style="font-size:13.5px;padding:3px 10px 2px;margin:0 4px 4px 0">${esc(x.name)} · ${t}</span>`;
+  $('todaybody').innerHTML = `<div class="tday"><h1>${hello}</h1><p class="sub">${esc(c ? c.name : 'World scores')} · the last 7 days</p>
+    <div class="acts">
+      <button class="act main" type="button" data-nav="live"><span class="e" aria-hidden="true">📡</span><b>Start Live Class</b><small>Ask questions, see answers live</small></button>
+      <button class="act" type="button" data-newasg="1"><span class="e" aria-hidden="true">📋</span><b>Give an assignment</b><small>Game, goal and dates</small></button>
+      <button class="act" type="button" data-nav="progress"><span class="e" aria-hidden="true">👥</span><b>Who practiced</b><small>Every student, every game</small></button>
+      <button class="act" type="button" data-newcls="1"><span class="e" aria-hidden="true">➕</span><b>New class</b><small>Get a code for students</small></button>
+    </div>
+    <div class="two">
+      <section class="card"><h2>This week in ${esc(c ? c.name : '')}</h2>
+        ${!w ? '<p>Loading…</p>' : !st.length ? '<p>No practice yet this week. Share the class code so students can join: <button class="lnk" type="button" data-share="1">🖨 Print code card</button></p>'
+          : `<div class="stats"><div class="stat"><b>${st.length}</b><span>student${st.length > 1 ? 's' : ''} practiced</span></div><div class="stat"><b>${Math.round(mins)}</b><span>minutes</span></div><div class="stat"><b>${pct(cor, att) ?? '–'}${att ? '%' : ''}</b><span>accuracy</span></div></div>
+          <p style="margin:0 0 6px">Most practice:</p><div>${top.map(x => chip(x, Math.round(x.minutes) + ' min')).join('')}</div>
+          ${help.length ? `<p style="margin:8px 0 6px">May need help (under 60%):</p><div>${help.map(x => chip(x, x.acc + '%')).join('')}</div>` : ''}`}
+        <p style="margin:6px 0 0"><button class="lnk" type="button" data-nav="progress">See every student →</button></p></section>
+      <section class="card"><h2>Running now and coming up</h2>
+        ${items.length ? items.map(i => `<button class="tli" type="button" data-code="${esc(i.code)}" data-view="${i.view}" data-test="${esc(i.testId || '')}"><span class="tag" style="color:${i.color}">${i.kind}</span><span>${esc(i.name)}</span><span class="s">${esc(i.sub === 'Running now' || i.sub === 'Open now' ? i.when : i.sub)}</span></button>`).join('')
+          : '<p>Nothing running. <button class="lnk" type="button" data-newasg="1">+ Give an assignment</button></p>'}
+        <p style="margin:6px 0 0"><button class="lnk" type="button" data-nav="grades">All assignments & tests →</button></p></section>
+    </div></div>`;
+}
+// ----- Class settings -----
+function renderSettings() {
+  const c = S.classes.find(x => x.code === S.code), av = $('avbox'); if (av) av.remove();
+  if (!c) { $('setview').innerHTML = `<div class="empty">Make a class first. Then students join with its code.<br><button class="btn" type="button" data-newcls="1">➕ New class</button></div>`; if (av) $('setview').appendChild(av); return; }
+  $('setview').innerHTML = `<div class="setc"><h2>Class settings · ${esc(c.name)}</h2>
+    <div class="row"><b>Class code: <span style="color:var(--gold);font-family:ui-monospace,Menlo,monospace;letter-spacing:.1em">${esc(c.code)}</span><small>Students type it on musictheoryacademy.org to join.</small></b><button class="btn sm" type="button" data-share="1">🖨 Print or copy</button></div>
+    <div class="row"><b>Class name<small>Students see it after they join.</small></b><input type="text" id="setname" maxlength="40" value="${esc(c.name)}" aria-label="Class name"><button class="btn ghost sm" type="button" id="setnamego">Save name</button></div>
+    <div class="row"><b>Student avatars<small>A cartoon avatar in the corner of every game. Off = their old icon.</small></b><span id="setav"></span></div>
+    <div class="row"><b>Students can message me<small>Messages arrive under Messages → Students.</small></b><label class="ck"><input type="checkbox" id="setsm" ${c.sm_on ? 'checked' : ''}> On</label></div>
+    <div class="row"><b>Another class<small>Each class gets its own code.</small></b><button class="btn ghost sm" type="button" data-newcls="1">➕ New class</button></div>
+    <p class="msg" id="setmsg" role="status"></p></div>`;
+  if (av) { $('setav').appendChild(av); renderAvSwitch(); }
+  $('setsm').onchange = async e => { await smClass(c.code, { sm_on: e.target.checked }); renderSettings(); $('setmsg').textContent = e.target.checked ? 'Students can message you now.' : 'Student messages are off.'; };
+  $('setnamego').onclick = async () => {
+    const v = $('setname').value.trim().replace(/\s+/g, ' ').slice(0, 40); if (!v || v === c.name) return;
+    try { if (!PREVIEW) await run(({ fs, db }) => fs.updateDoc(fs.doc(db, 'classes', c.code), { name: v })); c.name = v; fillClasses(); }
+    catch (e) { $('setmsg').textContent = errText(e); }
+  };
+}
+function wireShell() {
+  document.addEventListener('click', e => {
+    const n = e.target.closest('[data-nav]'); if (n) return go(n.dataset.nav);
+    const sv = e.target.closest('[data-sv]');
+    if (sv) { const [v, m] = sv.dataset.sv.split(':'); if (v === 'progress') S.allRec = m === 'rec'; if (['students', 'board', 'messages'].includes(v)) S.lastSocial = v; S.view = v; return load(); }
+    if (e.target.closest('[data-newasg]')) { S.assignmentEdit = ''; S.view = 'assign'; msg(''); return load(); }
+    if (e.target.closest('[data-share]') || e.target.closest('#codechip')) { if (S.code && S.code !== WORLD) ncShare(S.code); return; }
+    const pg = e.target.closest('[data-pg]'); if (pg) { S.pg += +pg.dataset.pg; return render(); }
+    const t = e.target.closest('#todaybody [data-view]'); if (t) { S.code = t.dataset.code; $('cls').value = S.code; if (t.dataset.test) S.testId = t.dataset.test; S.view = t.dataset.view; return load(); }
+    if (e.target.closest('#acct')) return acctMenu($('acctmenu').hidden);
+    if (!e.target.closest('#acctmenu')) acctMenu(false);
+    if (e.target.closest('#note')) $('note').classList.toggle('open');
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') acctMenu(false); });
+  { const h = document.createElement('div'); h.id = 'avhold'; h.hidden = true; h.appendChild($('avbox')); document.body.appendChild(h); }   // Student avatars switch lives in Class settings
+  $('gsel').innerHTML = GAMES.map(g => `<option value="${g.id}">${esc(g.name)}</option>`).join('');
+  $('gsel').onchange = () => { S.game = $('gsel').value; S.pg = 0; render(); if (S.view === 'progress' || S.view === 'scores') load(); };
+  new MutationObserver(() => navRender()).observe($('views'), { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden'] });
+  addEventListener('resize', () => { clearTimeout(wireShell.t); wireShell.t = setTimeout(() => { if (!$('main').hidden) render(); }, 150); });
+}
 // ---------- New class + welcome for new teachers (2026-11-18) ----------
 // Makes a class exactly like the games' Classes tabs (scale-quest Cloud.createClass): doc classes/<code> = { name, ownerEmail, created_at },
 // code = 6 random characters with no 0/O or 1/I/L, or the teacher's own 6–7 letters and numbers. No rules change.
@@ -2735,14 +3002,14 @@ function welcomeClick(k) {
   const code = S.classes.some(c => c.code === S.code) ? S.code : S.classes[0].code;
   if (code !== S.code) { S.code = S.lastCode = code; $('cls').value = code; }
   if (k === 'share') return ncShare(code);
-  if (k === 'assign') { S.assignmentEdit = ''; S.view = 'assign'; msg(''); load(); }
+  if (k === 'assign') { S.assignmentEdit = ''; S.view = 'assign'; msg(''); load(); }   // opens inside Assignments & tests
 }
 async function start() {
   wire();
   if (PREVIEW) {
     S.email = PV_TEACHER ? 'r.kim@sample' : 'sample@preview';
     $('gate').hidden = true; $('main').hidden = false; $('who').innerHTML = `Signed in as <b>${S.email}</b>`; $('views').querySelector('[data-v=admin]').hidden = $('views').querySelector('[data-v=feedback]').hidden = PV_TEACHER; $('views').querySelector('[data-v=activity]').hidden = false; $('views').querySelector('[data-v=live]').hidden = false; $('views').querySelector('[data-v=students]').hidden = false;
-    $('main').insertAdjacentHTML('afterbegin', `<div class="pv">Preview with sample ${PV_TEACHER ? 'data, seen by a teacher (Ron Kim)' : 'students'}. Nothing here is real.</div>`); if (!PV_TEACHER) checkRequests();
+    $('mainc').insertAdjacentHTML('afterbegin', `<div class="pv">Preview with sample ${PV_TEACHER ? 'data, seen by a teacher (Ron Kim)' : 'students'}. Nothing here is real.</div>`); if (!PV_TEACHER) checkRequests();
     if (hashView()) S.view = hashView();
     startSocial();
     { const dk = n => ymd(new Date(Date.now() + n * 86400000)); S.classes = [{ code: 'PREVW', name: 'Period 3 Music Theory', hub_assignment: { start: dk(3), end: dk(9), tasks: [{ game: 'scale', skills: ['Major scales'], goal: 15, unit: 'minutes' }] }, hub_assignments: [{ q: 1, start: dk(10), end: dk(16), tasks: [{ game: 'scale', goal: 20, unit: 'answers', settings: { ksLevel: 2 } }, { game: 'tidal', goal: 10, unit: 'minutes' }] }] }, { code: 'PREV2', name: 'Period 5 Band', hub_assignment: { start: dk(-2), end: dk(4), tasks: [{ game: 'tidal', goal: 60, unit: 'answers' }] } }]; }
