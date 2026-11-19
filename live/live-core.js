@@ -286,14 +286,47 @@ window.LC = (() => {
   const MF = "font-family:'Noto Music','Apple Symbols','Segoe UI Symbol',serif";
   const NGLYPH = { 16: '\u{1D15D}', 8: '\u{1D15E}', 4: '\u{1D15F}', 2: '\u{1D160}', 1: '\u{1D161}' }, RGLYPH = { 16: '\u{1D13B}', 8: '\u{1D13C}', 4: '\u{1D13D}', 2: '\u{1D13E}', 1: '\u{1D13F}' };
   const baseOf = u => NGLYPH[u] ? [u, false] : [u * 2 / 3, true];   // 6 = dotted quarter -> [4, dot]
+  // Beaming (2026-11-19, David: 'they will never see music like this… you MUST beam the notes'): eighths and sixteenths inside one beat share a beam
+  // (quarter-note beats in x/4, dotted-quarter beats in 6/8 9/8 12/8, 3+2 in 5/8, 2+2+3 in 7/8); four plain eighths may share a beam across
+  // beats 1-2 or 3-4 of 4/4 (or the whole bar of 2/4); rests break a beam; sixteenths get a second beam, a lone sixteenth a short stub
+  // (pointing left, or right when it starts the group, e.g. ♬. = dotted eighth + sixteenth); only a note alone in its beat keeps its flag.
+  // gen.t = the time signature shown; '-6/8' = beam for 6/8 but show no time signature (The Big Score asks which one fits).
+  const BEATS = { '2/4': [4, 4], '3/4': [4, 4, 4], '4/4': [4, 4, 4, 4], '5/4': [4, 4, 4, 4, 4], '3/8': [6], '6/8': [6, 6], '9/8': [6, 6, 6], '12/8': [6, 6, 6, 6], '5/8': [6, 4], '7/8': [4, 4, 6] };
+  const beatsOf = (meter, len) => { const b = (BEATS[meter] || BEATS['4/4']).slice(), unit = b[b.length - 1]; let t = b.reduce((a, x) => a + x, 0); while (t < len) { b.push(unit); t += unit; } return b; };
+  function beamGroups(E, meter) {   // -> list of index lists that share a beam
+    const beats = beatsOf(meter, E.reduce((a, e) => a + e.u, 0)), starts = [0]; beats.forEach(b => starts.push(starts[starts.length - 1] + b));
+    const beatAt = pos => { let k = 0; while (k + 1 < starts.length && starts[k + 1] <= pos) k++; return k; };
+    const groups = []; let cur = [], curBeat = -1, pos = 0;
+    E.forEach((e, i) => {
+      const bt = beatAt(pos), end = pos + e.u, fits = beatAt(end - 1) === bt, beamable = !e.rest && e.u <= 3 && fits;
+      if (!beamable || bt !== curBeat) { if (cur.length) groups.push(cur); cur = []; }
+      if (beamable) { cur.push(i); curBeat = bt; } else curBeat = -1;
+      pos = end;
+    });
+    if (cur.length) groups.push(cur);
+    let out = groups.filter(g => g.length > 1);
+    // four plain eighths across beats 1-2 or 3-4 of 4/4 (or all of 2/4) share one beam
+    if (meter === '4/4' || meter === '2/4') {
+      const merged = []; let k = 0;
+      while (k < out.length) {
+        const a = out[k], b = out[k + 1], plain = g => g && g.length === 2 && g.every(i => E[i].u === 2);
+        if (plain(a) && plain(b) && b[0] === a[1] + 1) { let p = 0; for (let i = 0; i < a[0]; i++) p += E[i].u; if (p % 8 === 0) { merged.push(a.concat(b)); k += 2; continue; } }
+        merged.push(a); k++;
+      }
+      out = merged;
+    }
+    return out;
+  }
   function rhythmStaff(codes, ts) {
     const E = (codes || []).map(c => ({ u: c >> 1, rest: !!(c & 1) })); if (!E.length) return '';
+    const meter = String(ts || '').replace(/^-/, ''), shown = ts && ts[0] !== '-' ? ts : '';
     const lines = [2, 4, 6, 8, 10].map(p => `<line x1="6" x2="W" y1="${ksY(p)}" y2="${ksY(p)}" stroke="#1d2433" stroke-width="1.6"/>`).join('');
-    let x = ts ? 70 : 30, body = '';
-    if (ts) { const [a, b] = ts.split('/'); body += `<text x="22" y="${ksY(8) + 11}" font-size="38" font-weight="800" fill="#1d2433" style="font-family:Georgia,serif">${esc(a)}</text><text x="22" y="${ksY(4) + 11}" font-size="38" font-weight="800" fill="#1d2433" style="font-family:Georgia,serif">${esc(b)}</text>`; }
-    const y0 = ksY(6), K = '#1d2433';   // notes sit on the middle line, stems up; drawn with paths so every computer shows the same thing
-    E.forEach(e => {
-      const [b, dot] = baseOf(e.u);
+    let x = shown ? 70 : 30, body = '';
+    if (shown) { const [a, b] = shown.split('/'); body += `<text x="22" y="${ksY(8) + 11}" font-size="38" font-weight="800" fill="#1d2433" style="font-family:Georgia,serif">${esc(a)}</text><text x="22" y="${ksY(4) + 11}" font-size="38" font-weight="800" fill="#1d2433" style="font-family:Georgia,serif">${esc(b)}</text>`; }
+    const y0 = ksY(6), K = '#1d2433', top = y0 - 44;   // notes sit on the middle line, stems up; drawn with paths so every computer shows the same thing
+    const groups = E.length > 1 && meter ? beamGroups(E, meter) : [], inBeam = new Set(groups.flat()), xs = [];
+    E.forEach((e, i) => {
+      const [b, dot] = baseOf(e.u); xs[i] = x;
       if (e.rest) {
         if (b === 16) body += `<rect x="${x - 9}" y="${ksY(8)}" width="18" height="8" fill="${K}"/>`;
         else if (b === 8) body += `<rect x="${x - 9}" y="${y0 - 8}" width="18" height="8" fill="${K}"/>`;
@@ -305,42 +338,77 @@ window.LC = (() => {
         if (b < 16) {
           // Meet the rim of the hollow half note without entering its opening.
           const stemX = x + (b === 8 ? 8 : 7), stemBottom = y0 - (b === 8 ? 4 : 1);
-          body += `<line x1="${stemX}" y1="${y0 - 44}" x2="${stemX}" y2="${stemBottom}" stroke="${K}" stroke-width="2"/>`;
+          body += `<line x1="${stemX}" y1="${top}" x2="${stemX}" y2="${stemBottom}" stroke="${K}" stroke-width="2"/>`;
         }
-        if (b <= 2) body += `<path d="M${x + 7} ${y0 - 44} c2 10 14 12 9 27" fill="none" stroke="${K}" stroke-width="3"/>`;
-        if (b === 1) body += `<path d="M${x + 7} ${y0 - 34} c2 10 14 12 9 27" fill="none" stroke="${K}" stroke-width="3"/>`;
+        if (!inBeam.has(i)) {   // a note alone in its beat keeps its flag(s)
+          if (b <= 2) body += `<path d="M${x + 7} ${top} c2 10 14 12 9 27" fill="none" stroke="${K}" stroke-width="3"/>`;
+          if (b === 1) body += `<path d="M${x + 7} ${top + 10} c2 10 14 12 9 27" fill="none" stroke="${K}" stroke-width="3"/>`;
+        }
       }
       if (dot) body += `<circle cx="${x + (e.rest ? 14 : 17)}" cy="${ksY(7)}" r="3.4" fill="${K}"/>`;
       x += 28 + Math.min(44, e.u * 4) + (dot ? 8 : 0);
+    });
+    // beams: one thick primary beam over the group, a second beam over each run of sixteenths (a lone sixteenth gets a stub)
+    groups.forEach(g => {
+      const sx = i => xs[i] + 7 - 1;   // the stem's left edge
+      body += `<rect x="${sx(g[0])}" y="${top}" width="${sx(g[g.length - 1]) - sx(g[0]) + 2}" height="6" fill="${K}"/>`;
+      let r = 0;
+      while (r < g.length) {
+        if (E[g[r]].u !== 1) { r++; continue; }
+        let q = r; while (q + 1 < g.length && E[g[q + 1]].u === 1) q++;
+        if (q > r) body += `<rect x="${sx(g[r])}" y="${top + 10}" width="${sx(g[q]) - sx(g[r]) + 2}" height="6" fill="${K}"/>`;
+        else { const left = r > 0, w = 13; body += `<rect x="${left ? sx(g[r]) - w + 2 : sx(g[r])}" y="${top + 10}" width="${w}" height="6" fill="${K}"/>`; }
+        r = q + 1;
+      }
     });
     const W = x + 14;
     return `<div class="ksbox rbox"><svg viewBox="0 30 ${W + 6} 172" role="img" aria-label="A bar of rhythm">${lines.replace(/x2="W"/g, `x2="${W}"`)}<line x1="6" x2="6" y1="${ksY(10)}" y2="${ksY(2)}" stroke="#1d2433" stroke-width="1.6"/><line x1="${W}" x2="${W}" y1="${ksY(10)}" y2="${ksY(2)}" stroke="#1d2433" stroke-width="2.4"/>${body}</svg></div>`;
   }
   const rEnc = (u, rest) => u * 2 + (rest ? 1 : 0);
-  // beat-sized pieces in sixteenths; a bar is filled beat by beat so it always reads cleanly
-  const CHUNKS = { warmup: [[4], [4], [8]], challenge: [[4], [2, 2], [8], [6, 2], [12], [4]], brutal: [[4], [2, 2], [1, 1, 2], [3, 1], [2, 1, 1], [1, 1, 1, 1], [6, 2], [8], [2, 4, 2]] };
-  function fillBar(units, d, rests) {
-    const out = []; let left = units, guard = 0;
-    while (left > 0 && guard++ < 50) {
-      const ok = CHUNKS[d].filter(c => c.reduce((a, b) => a + b, 0) <= left && (left % 4 === 0 || c.reduce((a, b) => a + b, 0) <= left));
-      let c = rnd(ok.length ? ok : [[left >= 4 ? 4 : left >= 2 ? 2 : 1]]); if (c.reduce((a, b) => a + b, 0) > left) c = [left >= 4 ? 4 : left >= 2 ? 2 : 1];
-      c.forEach(u => out.push({ u, rest: rests && (u === 4 || u === 2) && Math.random() < .18 })); left -= c.reduce((a, b) => a + b, 0);
+  // Bars are written beat by beat for their meter (2026-11-19), so every beamed figure stays inside one beat. Longer notes start on a beat:
+  // a half note on beat 1 or 3 of 4/4 (1 or 2 of 3/4), a dotted half or whole on beat 1; in 6/8, 9/8, 12/8 a dotted half takes two beats.
+  // off = sixteenths short (minus) or extra (plus) for "Is it complete?": a short bar ends with a part beat, an extra goes after the bar.
+  const BEAT_FILL = {
+    4: { warmup: [[4], [4], [2, 2]], challenge: [[4], [2, 2], [2, 2], [3, 1]], brutal: [[4], [2, 2], [1, 1, 2], [2, 1, 1], [1, 1, 1, 1], [3, 1], [1, 2, 1], [1, 3]] },
+    6: { warmup: [[6], [2, 2, 2], [4, 2]], challenge: [[6], [2, 2, 2], [4, 2], [2, 4]], brutal: [[6], [2, 2, 2], [4, 2], [2, 4], [3, 1, 2], [1, 1, 2, 2], [2, 1, 1, 2], [2, 2, 1, 1], [3, 1, 1, 1]] } };
+  const PART = { 1: [[1]], 2: [[2], [1, 1]], 3: [[2, 1], [1, 2], [3]], 4: [[4], [2, 2]], 5: [[4, 1], [2, 2, 1]] };
+  function fillBar(meter, d, rests, off) {
+    const beats = BEATS[meter] || BEATS['4/4'], simple = beats[0] === 4 && beats.every(b => b === 4), out = [];
+    const push = (u, rest) => out.push({ u, rest: !!rest });
+    const total = beats.reduce((a, b) => a + b, 0) + (off || 0), longP = d === 'warmup' ? .4 : d === 'challenge' ? .3 : .15;
+    let pos = 0, k = 0;
+    while (k < beats.length && pos < total) {
+      const left = total - pos, b = beats[k];
+      if (left < b) { rnd(PART[left] || [[left]]).forEach(u => push(u)); pos += left; break; }   // a short bar: the last beat is cut short
+      // a longer note that starts on this beat
+      const fullLeft = beats.slice(k).reduce((a, x) => a + x, 0) <= left ? beats.length - k : 0;
+      if (Math.random() < longP && fullLeft >= 2) {
+        let u = 0;
+        if (simple) { const opts = []; if (k === 0 && fullLeft >= 4 && beats.length === 4) opts.push(16); if (k === 0 && fullLeft >= 3) opts.push(12); if ((beats.length === 4 ? k % 2 === 0 : true) && fullLeft >= 2) opts.push(8); if (opts.length) u = rnd(opts); }
+        else if (b === 6 && k % 2 === 0) u = 12;
+        if (u) { push(u, rests && u === 8 && Math.random() < .12); pos += u; k += u / b; continue; }
+      }
+      const fig = rnd((BEAT_FILL[b] || BEAT_FILL[4])[d] || BEAT_FILL[b].challenge);
+      if (rests && Math.random() < .14) { if (fig.length === 1) push(fig[0], true); else fig.forEach((u, n) => push(u, n === fig.length - 1 && u === 2)); }
+      else fig.forEach(u => push(u));
+      pos += b; k++;
     }
+    if (pos < total) { const extra = total - pos; (PART[extra] || [[extra]])[0].forEach(u => push(u)); }   // too many: the extra notes go after the full bar
     return out;
   }
   const TS_UNITS = { '2/4': 8, '3/4': 12, '4/4': 16, '5/4': 20, '3/8': 6, '6/8': 12, '9/8': 18, '12/8': 24, '5/8': 10, '7/8': 14 };
   const beatsTxt = u => { const b = u / 4; return (b === .25 ? '¼' : b === .5 ? '½' : b === .75 ? '¾' : b === 1.5 ? '1½' : String(b)) + (b > 1 ? ' beats' : ' beat'); };
   function tsQ(d) {   // The Big Score: which time signature fits this bar?
     const pool = d === 'warmup' ? ['2/4', '3/4', '4/4'] : d === 'challenge' ? ['2/4', '3/4', '4/4', '6/8'] : ['3/4', '4/4', '5/4', '6/8', '9/8', '7/8', '5/8'];
-    const right = rnd(pool), T = TS_UNITS[right]; let bar = fillBar(T, d, d !== 'warmup');
-    for (let k = 0; k < 30 && bar.length > 12; k++) bar = fillBar(T, d, d !== 'warmup');   // keep the bar readable (12 notes at most)
-    if (bar.length > 12) bar = fillBar(T, 'challenge', true);
+    const right = rnd(pool), T = TS_UNITS[right]; let bar = fillBar(right, d, d !== 'warmup');
+    for (let k = 0; k < 30 && bar.length > 12; k++) bar = fillBar(right, d, d !== 'warmup');   // keep the bar readable (12 notes at most)
+    if (bar.length > 12) bar = fillBar(right, 'challenge', true);
     const noDot = bar.reduce((a, e) => a + baseOf(e.u)[0], 0), noRest = bar.reduce((a, e) => a + (e.rest ? 0 : e.u), 0);
     const all = Object.keys(TS_UNITS).filter(t => TS_UNITS[t] !== T);
     const why = t => TS_UNITS[t] === noDot && noDot !== T ? 'That total leaves out the dots: a dot adds half the note.' : TS_UNITS[t] === noRest && noRest !== T ? 'That total skips the rests: rests count too.' : 'Add up every note and rest: this bar has ' + beatsTxt(T).replace('beats', 'quarter-note beats') + '.';
     const near = all.sort((a, b) => Math.abs(TS_UNITS[a] - T) - Math.abs(TS_UNITS[b] - T)).filter((t, i, l) => l.findIndex(x => TS_UNITS[x] === TS_UNITS[t]) === i);
     const pick = [...all.filter(t => TS_UNITS[t] === noDot || TS_UNITS[t] === noRest), ...near].filter((t, i, l) => l.indexOf(t) === i && (d === 'brutal' || pool.includes(t) || ['2/4', '3/4', '4/4', '5/4'].includes(t)));
-    return mcq('Which time signature fits this bar?', right, pick.map(t => [t, why(t)]), { skills: ['time', 'rhythm'], ks: null, gen_r: bar.map(e => rEnc(e.u, e.rest)), gen_t: '' });
+    return mcq('Which time signature fits this bar?', right, pick.map(t => [t, why(t)]), { skills: ['time', 'rhythm'], ks: null, gen_r: bar.map(e => rEnc(e.u, e.rest)), gen_t: '-' + right });   // '-' = beam for this meter, show no time signature
   }
   const NAMES = { 16: 'Whole', 12: 'Dotted half', 8: 'Half', 6: 'Dotted quarter', 4: 'Quarter', 3: 'Dotted eighth', 2: 'Eighth', 1: 'Sixteenth' };
   function valueQ(d) {   // Rooftop Runner: name it (warm-up), how many beats (challenge), is the bar complete (brutal)
@@ -354,7 +422,8 @@ window.LC = (() => {
       const w = [[beatsTxt(b), dot ? 'That leaves out the dot: a dot adds half the note.' : ''], [beatsTxt(u * 2), 'Twice too long: count the note value again.'], [beatsTxt(u / 2), 'Half too short: count the note value again.'], [beatsTxt(u + (u >= 4 ? 4 : 2)), 'Too long: count it again.'], [beatsTxt(Math.max(1, u - 2)), 'Too short: count it again.'], ...[16, 12, 8, 6, 4, 2].filter(x => x !== u).map(x => [beatsTxt(x), 'Count the note value again: a dot adds half.'])];
       return mcq(`In 4/4, how many beats does this ${rest ? 'rest' : 'note'} get?`, right, w.filter(x => x[1]), { skills: ['rhythm'], ks: null, gen_r: [rEnc(u, rest)], gen_t: '4/4' });
     }
-    const ts = rnd(['3/4', '4/4', '2/4']), T = TS_UNITS[ts], off = rnd([0, 0, -1, -2, -4, 2, 1]), bar = fillBar(T + off, 'brutal', true);
+    const ts = rnd(['3/4', '4/4', '2/4']), T = TS_UNITS[ts], off = rnd([0, 0, -1, -2, -4, 2, 1]);
+    let bar = fillBar(ts, 'brutal', true, off); for (let k = 0; k < 30 && bar.length > 12; k++) bar = fillBar(ts, 'brutal', true, off);   // 12 notes at most (the rules allow 16)
     const LABEL = { 0: 'Complete', '-1': 'A sixteenth short', '-2': 'Half a beat short', '-4': 'One beat short', 2: 'Half a beat too many', 1: 'A sixteenth too many', 4: 'One beat too many' };
     const total = bar.reduce((a, e) => a + e.u, 0), real = total - T, right = LABEL[real] || 'Complete';
     return mcq(`This bar is in ${ts}. Is it complete?`, right, Object.keys(LABEL).filter(k => +k !== real).sort((a, b) => Math.abs(a - real) - Math.abs(b - real)).map(k => [LABEL[k], 'Count again: a dot adds half, rests count, and a dotted eighth + sixteenth = 1 beat.']), { skills: ['rhythm', 'time'], ks: null, gen_r: bar.map(e => rEnc(e.u, e.rest)), gen_t: ts });
