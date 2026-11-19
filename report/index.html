@@ -2590,6 +2590,53 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     perch.style.left = Math.round(x) + 'px'; perch.style.top = Math.round(y) + 'px';
     if (!was || was.m !== spot.m) perchDraw();
   }
+  // ---------- avatar voice sounds (2026-11-19, David: pick-up and throw sounds, a unique one for seeing stars) ----------
+  // Original sounds made in the browser (preview: Claude outputs/avatar-sounds-preview.html), clean (no breath noise). A random one of 10 on
+  // pick-up and on throw, a bonk + woozy + twinkles when a hard hit makes it dizzy. Never on page load. Locker button '🔊 Sounds' (mtg_avatar_snd_v1 '0' = off).
+  var SNDK = 'mtg_avatar_snd_v1';
+  function sndOn(){ try { return localStorage.getItem(SNDK) !== '0'; } catch(e){ return true; } }
+  function actx(){ try { sac = sac || new (window.AudioContext || window.webkitAudioContext)(); if (sac.state === 'suspended') sac.resume(); return sac; } catch(e){ return null; } }
+function voice({ pitch = 280, glide = 1, f1 = 700, f2 = 1200, f1b, f2b, dur = .18, vol = .16, attack = .015, wob = 0 }) {
+    // clean version (David: too breathy and fuzzy): no breath noise; a soft triangle + a quiet square an octave up for a little "voice",
+    // gentle vowel peaks instead of narrow buzzy filters, and a low-pass that removes all the hiss above 2.8 kHz
+    const c = actx(), t = c.currentTime + .01, out = c.createGain(), lp = c.createBiquadFilter();
+    lp.type = 'lowpass'; lp.frequency.value = 2800; lp.Q.value = .5; out.connect(lp).connect(c.destination);
+    out.gain.setValueAtTime(0, t); out.gain.linearRampToValueAtTime(vol, t + attack); out.gain.setValueAtTime(vol, t + dur * .6); out.gain.exponentialRampToValueAtTime(.0008, t + dur);
+    const src = c.createGain();
+    const mkO = (type, mul, g) => { const o = c.createOscillator(), og = c.createGain(); o.type = type; o.frequency.setValueAtTime(pitch * mul, t); o.frequency.exponentialRampToValueAtTime(pitch * glide * mul, t + dur);
+      if (wob) { const l = c.createOscillator(), lg = c.createGain(); l.frequency.value = 6.5; lg.gain.value = pitch * mul * wob; l.connect(lg).connect(o.frequency); l.start(t); l.stop(t + dur + .05); }
+      og.gain.value = g; o.connect(og).connect(src); o.start(t); o.stop(t + dur + .05); };
+    mkO('triangle', 1, 1); mkO('square', 2, .06);
+    const pk = (f, fb, gain) => { const b = c.createBiquadFilter(); b.type = 'peaking'; b.Q.value = 2.2; b.gain.value = gain; b.frequency.setValueAtTime(f, t); if (fb) b.frequency.linearRampToValueAtTime(fb, t + dur); return b; };
+    src.connect(pk(f1, f1b, 9)).connect(pk(f2, f2b, 6)).connect(out);
+  }
+  const after = (ms, f) => setTimeout(f, ms);
+  // the 10 sounds: [name, what it sounds like, play]
+  var VOICES = [
+    ['Hup!', 'quick hop-up', () => voice({ pitch: 300, glide: 1.25, f1: 500, f2: 1000, f1b: 650, dur: .13 })],
+    ['Hyah!', 'big effort, rising', () => { voice({ pitch: 260, glide: 1.1, f1: 400, f2: 2100, dur: .06, vol: .15 }); after(55, () => voice({ pitch: 300, glide: 1.3, f1: 800, f2: 1250, dur: .22 })); }],
+    ['Hah!', 'short and punchy', () => voice({ pitch: 320, glide: .85, f1: 820, f2: 1300, dur: .14 })],
+    ['Wheee!', 'happy rising squeal', () => voice({ pitch: 280, glide: 1.9, f1: 320, f2: 2300, dur: .42, vol: .18 })],
+    ['Oof!', 'little bump', () => voice({ pitch: 260, glide: .72, f1: 380, f2: 800, dur: .16 })],
+    ['Hey-yah!', 'two-part throw', () => { voice({ pitch: 290, glide: 1.05, f1: 550, f2: 1900, dur: .1 }); after(105, () => voice({ pitch: 330, glide: 1.25, f1: 780, f2: 1200, dur: .2 })); }],
+    ['Whoa!', 'surprised, falling', () => voice({ pitch: 340, glide: .7, f1: 450, f2: 900, f1b: 750, f2b: 1150, dur: .3 })],
+    ['Yip!', 'tiny squeak', () => voice({ pitch: 360, glide: 1.35, f1: 350, f2: 2400, dur: .09, vol: .17 })],
+    ['Hmph!', 'grumpy effort', () => voice({ pitch: 230, glide: .9, f1: 300, f2: 700, dur: .175, vol: .2 })],
+    ['Woo-hoo!', 'cheer', () => { voice({ pitch: 280, glide: 1.15, f1: 350, f2: 800, dur: .14 }); after(150, () => voice({ pitch: 330, glide: 1.35, f1: 380, f2: 850, dur: .24 })); }],
+  ];
+  // seeing stars: a soft bonk, a woozy wobbling "ooo-wah-wah", then twinkling stars
+  function dizzySnd() {
+    if (!sndOn()) return; const c = actx(); if (!c) return; const t = c.currentTime + .01;
+    const k = c.createOscillator(), kg = c.createGain(); k.type = 'triangle'; k.frequency.setValueAtTime(180, t); k.frequency.exponentialRampToValueAtTime(55, t + .2);
+    kg.gain.setValueAtTime(.35, t); kg.gain.exponentialRampToValueAtTime(.001, t + .25); k.connect(kg).connect(c.destination); k.start(t); k.stop(t + .3);
+    after(160, () => voice({ pitch: 300, glide: .62, f1: 420, f2: 900, f1b: 750, f2b: 1200, dur: .75, vol: .16, wob: .09 }));
+    [0, 1, 2, 3, 4].forEach(i => after(420 + i * 110, () => { const o = c.createOscillator(), g = c.createGain(), tt = c.currentTime;
+      o.type = 'sine'; o.frequency.value = [1760, 2093, 2349, 2093, 2637][i]; g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(.07, tt + .01); g.gain.exponentialRampToValueAtTime(.0008, tt + .35);
+      o.connect(g).connect(c.destination); o.start(tt); o.stop(tt + .4); }));
+  }
+  
+  var lastV = -1;
+  function voiceSnd(){ if (!sndOn() || !actx()) return; var i; do { i = Math.floor(Math.random() * VOICES.length); } while (i === lastV && VOICES.length > 1); lastV = i; try { VOICES[i][2](); } catch(e){} }
   // ---------- pick up, move and toss (2026-11-19) ----------
   // Press and hold the avatar on the game to lift it; drop it anywhere and it stays there (this game, this device: localStorage
   // mtg_avatar_park_v1:<page>); let go while moving fast and it flies, bounces off the screen edges, sees stars after a hard hit and
@@ -2608,7 +2655,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     var r = perch.getBoundingClientRect(), ox = e.clientX - r.left, oy = e.clientY - r.top, sx = e.clientX, sy = e.clientY, held = false, pts = [];
     var mv = function(ev){
       if (!held && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 7) return;
-      if (!held) { held = true; pDragged = 1; pBusy = 1; perch.classList.add('mav-held'); pAv.dataset.idle = 'sit'; }
+      if (!held) { held = true; pDragged = 1; pBusy = 1; perch.classList.add('mav-held'); pAv.dataset.idle = 'sit'; voiceSnd(); }
       ev.preventDefault();
       var x = ev.clientX - ox, y = ev.clientY - oy; perch.style.left = x + 'px'; perch.style.top = y + 'px';
       pts.push([ev.clientX, ev.clientY, performance.now()]); if (pts.length > 6) pts.shift();
@@ -2625,7 +2672,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     addEventListener('pointermove', mv, { passive: false }); addEventListener('pointerup', up); addEventListener('pointercancel', up);
   }
   function toss(vx, vy){
-    pFly = 1; perch.classList.add('mav-fly'); pAv.dataset.idle = 'sit';
+    pFly = 1; perch.classList.add('mav-fly'); pAv.dataset.idle = 'sit'; voiceSnd();
     var r = perch.getBoundingClientRect(), x = r.left, y = r.top, w = r.width, h = r.height, g = .0022, last = performance.now(), rest = 0, hits = 0;
     vx = Math.max(-3, Math.min(3, vx)); vy = Math.max(-3, Math.min(3, vy));
     var hit = function(sp){ if (sp > .35) { perch.classList.remove('mav-squash'); void perch.offsetWidth; perch.classList.add('mav-squash'); try { tone(140 + Math.random() * 60, 0, .08, .05); } catch(e){} } if (sp > 1.1) hits++; };
@@ -2641,7 +2688,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     var land = function(x2, y2){
       if (!pFly) return; clearTimeout(dog);
       pFly = 0; perch.classList.remove('mav-fly'); park(x2, y2); pSpot = { t: null, m: 'stand', parked: 1 };
-      if (hits) { perch.classList.add('mav-dizzy'); pAv.dataset.idle = look.idle; setTimeout(function(){ perch.classList.remove('mav-dizzy'); delete pAv.dataset.act; void pAv.offsetWidth; pAv.dataset.act = 'scratch'; setTimeout(function(){ delete pAv.dataset.act; }, 1000); }, 1300); }
+      if (hits) { dizzySnd(); perch.classList.add('mav-dizzy'); pAv.dataset.idle = look.idle; setTimeout(function(){ perch.classList.remove('mav-dizzy'); delete pAv.dataset.act; void pAv.offsetWidth; pAv.dataset.act = 'scratch'; setTimeout(function(){ delete pAv.dataset.act; }, 1000); }, 1300); }
       perchDraw(); perchPlace();
     };
     var dog = setTimeout(function(){ land(Math.max(0, Math.min(innerWidth - w, x)), Math.max(0, Math.min(innerHeight - h, y))); }, 6000);   // a hidden tab pauses animation: land anyway
@@ -2956,6 +3003,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
         if (b.dataset.do === 'try') { play(pick([draft.happy, draft.aww, draft.dance])); return; }
         if (b.dataset.do === 'save' || b.dataset.do === 'close') { dlg.close(); return; }
         if (b.dataset.do === 'undo') { tick(); draft = wearOwned(clean(Object.assign({}, undoLook))); trying = null; commit(); render(); drawBig(1); return; }
+        if (b.dataset.do === 'snd') { try { localStorage.setItem(SNDK, sndOn() ? '0' : '1'); } catch(e){} b.setAttribute('aria-pressed', sndOn()); b.querySelector('i').textContent = sndOn() ? '🔊' : '🔇'; if (sndOn()) voiceSnd(); return; }
         if (b.dataset.do === 'hand') { tick(); gearHand = +b.dataset.v === 2 ? 2 : 1; render(); return; }
         if (b.dataset.do === 'pname') { tick(); note = '<b>Name your ' + ((ITEMS.filter(function(x){ return x.slot === 'pet' && x.id === shown().pet; })[0] || {}).name || 'pet').toLowerCase() + '</b><br><input class="mav-pin" maxlength="12" value="' + esc(petName()) + '" aria-label="Pet name"> <button type="button" class="mav-btn" data-do="pnsave">Save name</button>'; render(); note = ''; var inp = dlg.querySelector('.mav-pin'); if (inp) { inp.focus(); inp.select(); inp.onkeydown = function(e){ if (e.key === 'Enter') { var sb = dlg.querySelector('[data-do="pnsave"]'); if (sb) sb.click(); } }; } return; }
         if (b.dataset.do === 'pnsave') { var pi = dlg.querySelector('.mav-pin'); setPetName(pi ? pi.value : ''); tick(); render(); play(look.happy); return; }
@@ -2967,6 +3015,7 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     draft = Object.assign({}, look); undoLook = Object.assign({}, look); trying = null; note = ''; tab = 'home';
     dlg.innerHTML = '<div class="mav-wrap"><div class="mav-left"><div class="mav-stage"><div class="mav-beam"></div><div class="mav-big av"></div></div><div class="mav-pname"></div>'
       + '<div class="mav-lo" aria-label="Saved outfits"></div><div class="mav-leftbtns"><button type="button" class="mav-ib" data-do="try"><i>▶</i>Move</button><button type="button" class="mav-ib" data-do="random"><i>🎲</i>Random</button>'
+      + '<button type="button" class="mav-ib" data-do="snd" aria-pressed="' + sndOn() + '" title="Avatar sounds on or off"><i>' + (sndOn() ? '🔊' : '🔇') + '</i>Sounds</button>'
       + (PERCH.length ? '<button type="button" class="mav-ib" data-do="perch" aria-pressed="' + perchWanted() + '" title="Show your avatar sitting on the game, or only in the corner"><i>🪑</i>On game</button>' : '') + '</div></div>'
       + '<div class="mav-right"><div class="mav-top"><h2>MY LOCKER</h2>'
       + (P ? '<div class="mav-wallet"><button type="button" data-do="coinfo" title="What are coins?">' + COIN + ' <b class="mav-c"></b></button><button type="button" data-do="stinfo" title="What are Stars?">★ <b class="mav-p"></b></button></div>'
