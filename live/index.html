@@ -1268,6 +1268,15 @@ window.addEventListener('load', draw, { once: true });
 .mav-big1 .av{width:240px;height:288px;margin:0 auto}.mav-big1 .av svg{width:100%;height:100%}.mav-big1 h3{margin:4px 0;font-size:22px}
 
 .av .mav-float{animation:mav-float 2.6s ease-in-out infinite}@keyframes mav-float{50%{transform:translateY(-3px)}}
+
+/* ---- pick up, move and toss the avatar on the game (2026-11-19, David 'go for it') ---- */
+.mav-perch.mav-held{transform:scale(1.08) rotate(-4deg);transition:none;filter:drop-shadow(0 10px 10px rgba(0,0,0,.35))}
+.mav-perch.mav-held .head,.mav-perch.mav-held .root>path{cursor:grabbing}
+.mav-perch.mav-fly{transition:none}.mav-perch.mav-fly .head,.mav-perch.mav-fly .root>path{pointer-events:none}
+.mav-perch.mav-squash{animation:mav-squash .22s ease-out}@keyframes mav-squash{40%{transform:scale(1.18,.8)}100%{transform:none}}
+.mav-perch.mav-dizzy::after{content:'💫';position:absolute;left:50%;top:-6%;font-size:min(28px,40%);transform:translateX(-50%);animation:mav-dz .5s linear infinite}
+@keyframes mav-dz{0%{transform:translateX(-80%) rotate(0)}50%{transform:translateX(-20%) rotate(180deg)}100%{transform:translateX(-80%) rotate(360deg)}}
+.mav-perch .head,.mav-perch .root>path{touch-action:none}
 </style>
 <script id="mtg-avatar" data-mount="nav.top" data-perch="">
 /* Avatar, build step 1 (added 2026-11-16; spec: Claude outputs/avatar-spec.md). A small cartoon avatar sits right after the
@@ -2068,7 +2077,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     if (perch || !PERCH.length || OFF) return;
     perch = document.createElement('div'); perch.className = 'mav-perch'; perch.style.display = 'none';
     perch.title = 'Your avatar: click to change how it looks'; perch.innerHTML = '<div class="av" data-idle="sit"></div>'; pAv = perch.firstChild;
-    perch.addEventListener('click', openBuilder);
+    perch.addEventListener('click', perchTap);
+    perch.addEventListener('pointerdown', perchGrab);
     document.body.appendChild(perch); perchDraw(); perchPlace();
     setInterval(perchPlace, 600); addEventListener('resize', perchPlace); addEventListener('scroll', perchPlace, { passive: true });
   }
@@ -2086,9 +2096,10 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     return true;
   }
   function perchPlace(){
-    if (!perch || pBusy) return;
-    var w = pSize(), h = Math.round(w * 1.2), spot = null, x = 0, y = 0;
-    if (perchWanted() && !OFF) {
+    if (!perch || pBusy || pFly) return;
+    var w = pSize(), h = Math.round(w * 1.2), spot = null, x = 0, y = 0, pk = parked();
+    if (pk && perchWanted() && !OFF) { x = Math.max(0, Math.min(innerWidth - w, pk.x * innerWidth)); y = Math.max(0, Math.min(innerHeight - h, pk.y * innerHeight)); spot = { t: null, m: 'stand', parked: 1 }; }
+    else if (perchWanted() && !OFF) {
       perch.style.visibility = 'hidden';
       for (var i = 0; i < PERCH.length && !spot; i++) {
         var list; try { list = document.querySelectorAll(PERCH[i].sel); } catch(e){ list = []; }
@@ -2117,8 +2128,65 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     perch.style.left = Math.round(x) + 'px'; perch.style.top = Math.round(y) + 'px';
     if (!was || was.m !== spot.m) perchDraw();
   }
+  // ---------- pick up, move and toss (2026-11-19) ----------
+  // Press and hold the avatar on the game to lift it; drop it anywhere and it stays there (this game, this device: localStorage
+  // mtg_avatar_park_v1:<page>); let go while moving fast and it flies, bounces off the screen edges, sees stars after a hard hit and
+  // lands where it stops. Double-tap = back to its normal spot. Not on test pages. One tap still opens the Locker.
+  var PARKK = 'mtg_avatar_park_v1:' + location.pathname, pFly = 0, pTapT = 0, pDragged = 0, TOSS = !/[?&]test=/.test(location.search);
+  function parked(){ var v = null; try { v = JSON.parse(localStorage.getItem(PARKK) || 'null'); } catch(e){} return v && isFinite(v.x) && isFinite(v.y) ? v : null; }
+  function park(x, y){ try { localStorage.setItem(PARKK, JSON.stringify({ x: x / innerWidth, y: y / innerHeight })); } catch(e){} }
+  function unpark(){ try { localStorage.removeItem(PARKK); } catch(e){} pSpot = null; perchPlace(); perchDraw(); }
+  function perchTap(e){
+    if (pDragged) { pDragged = 0; return; }
+    if (pTapT) { clearTimeout(pTapT); pTapT = 0; if (parked()) { unpark(); pop('🏠 Back to its spot', '#7be0c3'); } return; }   // double-tap
+    pTapT = setTimeout(function(){ pTapT = 0; openBuilder(); }, 280);
+  }
+  function perchGrab(e){
+    if (!TOSS || pFly || !perch || perch.style.display === 'none' || (e.button != null && e.button !== 0)) return;
+    var r = perch.getBoundingClientRect(), ox = e.clientX - r.left, oy = e.clientY - r.top, sx = e.clientX, sy = e.clientY, held = false, pts = [];
+    var mv = function(ev){
+      if (!held && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 7) return;
+      if (!held) { held = true; pDragged = 1; pBusy = 1; perch.classList.add('mav-held'); pAv.dataset.idle = 'sit'; }
+      ev.preventDefault();
+      var x = ev.clientX - ox, y = ev.clientY - oy; perch.style.left = x + 'px'; perch.style.top = y + 'px';
+      pts.push([ev.clientX, ev.clientY, performance.now()]); if (pts.length > 6) pts.shift();
+    };
+    var up = function(ev){
+      removeEventListener('pointermove', mv); removeEventListener('pointerup', up); removeEventListener('pointercancel', up);
+      if (!held) return;
+      perch.classList.remove('mav-held'); pBusy = 0;
+      var a = pts[0], b = pts[pts.length - 1], dt = a && b ? Math.max(16, b[2] - a[2]) : 16, vx = a ? (b[0] - a[0]) / dt : 0, vy = a ? (b[1] - a[1]) / dt : 0;
+      if (Math.hypot(vx, vy) > .55 && performance.now() - (b ? b[2] : 0) < 120) toss(vx, vy);
+      else { var rr = perch.getBoundingClientRect(); park(Math.max(0, Math.min(innerWidth - rr.width, rr.left)), Math.max(0, Math.min(innerHeight - rr.height, rr.top))); pSpot = { t: null, m: 'stand', parked: 1 }; perchDraw(); perchPlace(); }
+      setTimeout(function(){ pDragged = 0; }, 50);
+    };
+    addEventListener('pointermove', mv, { passive: false }); addEventListener('pointerup', up); addEventListener('pointercancel', up);
+  }
+  function toss(vx, vy){
+    pFly = 1; perch.classList.add('mav-fly'); pAv.dataset.idle = 'sit';
+    var r = perch.getBoundingClientRect(), x = r.left, y = r.top, w = r.width, h = r.height, g = .0022, last = performance.now(), rest = 0, hits = 0;
+    vx = Math.max(-3, Math.min(3, vx)); vy = Math.max(-3, Math.min(3, vy));
+    var hit = function(sp){ if (sp > .35) { perch.classList.remove('mav-squash'); void perch.offsetWidth; perch.classList.add('mav-squash'); try { tone(140 + Math.random() * 60, 0, .08, .05); } catch(e){} } if (sp > 1.1) hits++; };
+    var step = function(now){
+      var dt = Math.min(32, now - last); last = now; vy += g * dt; x += vx * dt; y += vy * dt;
+      if (x < 0) { x = 0; hit(Math.abs(vx)); vx = -vx * .7; } else if (x + w > innerWidth) { x = innerWidth - w; hit(Math.abs(vx)); vx = -vx * .7; }
+      if (y < 0) { y = 0; hit(Math.abs(vy)); vy = -vy * .6; }
+      var floor = innerHeight - h; if (y > floor) { y = floor; hit(Math.abs(vy)); vy = -vy * .55; vx *= .82; if (Math.abs(vy) < .12) { vy = 0; rest++; } }
+      perch.style.left = x + 'px'; perch.style.top = y + 'px';
+      if ((rest > 2 && Math.abs(vx) < .03) || rest > 90) return land(x, y);
+      if (pFly) requestAnimationFrame(step);
+    };
+    var land = function(x2, y2){
+      if (!pFly) return; clearTimeout(dog);
+      pFly = 0; perch.classList.remove('mav-fly'); park(x2, y2); pSpot = { t: null, m: 'stand', parked: 1 };
+      if (hits) { perch.classList.add('mav-dizzy'); pAv.dataset.idle = look.idle; setTimeout(function(){ perch.classList.remove('mav-dizzy'); delete pAv.dataset.act; void pAv.offsetWidth; pAv.dataset.act = 'scratch'; setTimeout(function(){ delete pAv.dataset.act; }, 1000); }, 1300); }
+      perchDraw(); perchPlace();
+    };
+    var dog = setTimeout(function(){ land(Math.max(0, Math.min(innerWidth - w, x)), Math.max(0, Math.min(innerHeight - h, y))); }, 6000);   // a hidden tab pauses animation: land anyway
+    requestAnimationFrame(step);
+  }
   function perchDo(kind){
-    if (!perch || !pSpot || perch.style.display === 'none' || pBusy) return;
+    if (!perch || !pSpot || perch.style.display === 'none' || pBusy || pFly) return;
     var mv = kind === 'right' ? look.happy : kind === 'miss' ? look.aww : look.dance;
     function pAct(m, ms){ delete pAv.dataset.act; void pAv.offsetWidth; pAv.dataset.act = m; setTimeout(function(){ delete pAv.dataset.act; }, ms || LEN[m] || 1000); }
     function cls(c, ms, done){ perch.classList.remove(c); void perch.offsetWidth; perch.classList.add(c); pBusy = 1; setTimeout(function(){ perch.classList.remove(c); pBusy = 0; if (done) done(); }, ms); }
