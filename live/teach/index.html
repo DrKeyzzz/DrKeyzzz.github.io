@@ -604,7 +604,7 @@ function pulseCard() {
       ${lost.length ? `<div class="namechips" style="margin-top:8px">${lost.map(x => `<button type="button" class="chip no" data-act="unlost" data-id="${esc(x.id)}" title="Clear ${esc(hidName(x))}'s I'm lost">${esc(hidName(x))} ✕</button>`).join('')}
         <button type="button" class="btn sm" data-act="unlost" data-id="*">Clear all</button></div><p class="dim small" style="margin:6px 0 0">Students can tap "I'm lost" once; it stays on until you clear it.</p>` : ''}</div>
     <div><div class="row between"><span class="label">Confidence</span><b class="mono">${P.length ? avg.toFixed(1) : '–'} / 5</b></div><div class="meter vio" style="margin-top:6px"><i style="width:${avg * 20}%"></i></div></div>
-    ${S.live && S.live.q ? `<div><span class="label">Not answered yet</span><div class="namechips" style="margin-top:6px">${un.length ? un.map(x => `<span class="chip">${esc(hidName(x))}</span>`).join('') : P.length ? '<span class="chip ok">Everyone is in</span>' : '<span class="muted small">Nobody has joined yet.</span>'}</div></div>` : ''}
+    ${S.live && S.live.q ? `<div><span class="label">Not answered yet</span><div class="namechips" style="margin-top:6px">${un.length ? un.map(x => `<button type="button" class="chip" data-act="nudge" data-id="${esc(x.id)}" title="Send ${esc(hidName(x))} a short note">✉ ${esc(hidName(x))}</button>`).join('') + (S.nudge ? `<div class="stack" style="gap:6px;margin-top:6px;width:100%"><input id="nudgetxt" maxlength="140" placeholder="Note to ${esc(S.nudge.name)} (only they see it)" value="Hey, are you with us? Pick your best answer!"><div class="row"><button class="btn sm pri" type="button" data-act="nudgesend">Send</button><button class="btn sm" type="button" data-act="nudgex">Cancel</button></div></div>` : '') : P.length ? '<span class="chip ok">Everyone is in</span>' : '<span class="muted small">Nobody has joined yet.</span>'}</div></div>` : ''}
     <p class="dim small" style="margin:0">Students who opened Live Class in the last 3 hours.</p></section>`;
 }
 function inboxCard() {
@@ -792,6 +792,10 @@ app.addEventListener('click', async e => {
   if (act === 'gtime') { const p = gpick(); p.t = Number(t.dataset.v); savePick(p); if (S.live && S.live.q) toast('Timer ' + (p.t ? p.t + ' s' : 'off') + ' from the next question.'); draw(); return; }
   if (act === 'qchord') { const p = gpick(), v = t.dataset.v, c = (p.o.chords || []).map(String); if (!v) p.o.chords = []; else { const i = c.indexOf(v); if (i >= 0) c.splice(i, 1); else c.push(v); p.o.chords = c; } savePick(p); if (S.cust) S.cust = { o: { ...gpick().o }, sample: null }; draw(); return; }
   if (act === 'qset') { const p = gpick(); p.o = { ...p.o, [t.dataset.k]: t.dataset.v }; savePick(p); toast('From the next question.'); draw(); return; }
+  if (act === 'nudge') { const x = S.pulses.find(y => y.id === t.dataset.id); if (x) S.nudge = { id: x.id, name: hidName(x) }; draw(); setTimeout(() => { const i = $('nudgetxt'); if (i) { i.focus(); i.select(); } }, 30); return; }
+  if (act === 'nudgex') { S.nudge = null; draw(); return; }
+  if (act === 'nudgesend') { const n = S.nudge, text = ($('nudgetxt') ? $('nudgetxt').value : '').trim().slice(0, 140); if (!n || !text) return;   // a short note to a student who hasn't answered (2026-11-20)
+    try { await db.set('bc_note/' + n.id, { class_code: S.code, owner: S.email, text, at: NOW }); toast('✉ Sent to ' + n.name.replace(/\.$/, '') + '.'); S.nudge = null; } catch (e) { S.err = ERR(e); } draw(); return; }
   if (act === 'gdiff') { const p = gpick(); p.d = t.dataset.v; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
   if (act === 'go') { S.cust = null; return goGame(false); }
   if (act === 'lead') { if (S.lead) return stopLead(); return startLead(); }

@@ -1377,6 +1377,18 @@ service cloud.firestore {
     // teacher's console posts questions to bc_live, so a student can never post anything themselves.
     // ⭐ Give a Star (2026-11-19): the class owner gives a student up to 3 Stars a day. Doc id = <class>_<short hash of the student id>;
     // { class_code, owner, day 'YYYY-MM-DD', n 1-3 (today's total), at }. The student's own page reads it and adds the new Stars once.
+    // A note from the teacher to one student in Live Class (2026-11-20): doc id = the student's device key (as bc_pulse);
+    // { class_code, owner, text (1-140), at }. Only the class owner writes; the student's page reads its own doc by its secret key.
+    match /bc_note/{key} {
+      allow get: if true;
+      allow list: if false;
+      allow create, update: if bcKeyOk(key) && ownsClass(request.resource.data.class_code)
+        && request.resource.data.keys().hasOnly(['class_code', 'owner', 'text', 'at'])
+        && request.resource.data.owner == request.auth.token.email
+        && request.resource.data.text is string && request.resource.data.text.size() >= 1 && request.resource.data.text.size() <= 140
+        && request.resource.data.at == request.time;
+      allow delete: if isAdmin() || ownsClass(resource.data.class_code);
+    }
     match /bc_gift/{id} {
       allow get: if true;
       allow list: if false;
