@@ -793,6 +793,8 @@ const endText = (a, f) => a.end === OPEN_END ? 'no end date' : f(a.end);
 const dayList = (a, b) => { const out = []; for (let d = new Date(a + 'T12:00:00'); ymd(d) <= b && out.length < 120; d.setDate(d.getDate() + 1)) out.push(ymd(d)); return out; };
 const taskName = t => { const g = G[t.game], keys = t.game === 'scale' && t.settings && Array.isArray(t.settings.keys) ? t.settings.keys : [], sk = [].concat(t.skills || t.skill || []).filter(Boolean);
   const ksl = t.game === 'scale' && t.settings && t.settings.ksLevel >= 1 ? t.settings.ksLevel : 0;   // Scale Quest key signature ladder
+  const mw = t.unit === 'levels' && t.settings ? +t.settings.map - 1 : -1;   // Scale Quest Map levels (2026-11-20)
+  if (mw >= 0 && mw < 5) return `Scale Quest: Map World ${mw + 1} ${['Sharp Keys', 'Flat Keys', 'Minor', 'Key Signatures', 'Modes'][mw]}, levels ${+t.settings.mapFrom || 1} to ${+t.settings.mapTo || [8, 7, 9, 9, 8][mw]}`;
   return `${g ? g.name : 'Any game'}${ksl ? ': Key signatures, level ' + ksl : keys.length ? ': ' + keys.join(', ') : sk.length ? ': ' + sk.join(', ') : ''}`; };
 // Preview (David, 2026-11-15): open each task the way the student's home page card does (hub index.html taskLink), so a teacher
 // can try an assignment before it starts. Same ?settings=<base64url JSON> and &focus=<skill> links; 'Any game' tasks have no link.
@@ -816,6 +818,11 @@ const previewBtns = (a, cls = '') => (a.tasks || []).map(t => [t, previewLink(t)
 function taskCount(t, recs) {   // recs: one student's practice records in the date range
   const mine = recs.filter(r => t.game === 'any' || r.game === t.game);
   if (t.unit === 'minutes') return { done: Math.round(mine.reduce((a, r) => a + r.minutes, 0)), right: null, all: null };
+  if (t.unit === 'levels') {   // Scale Quest Map levels: distinct levels cleared (1+ star) in the world and range, from scale_progress.levels {"w:i": stars}
+    const M = t.settings || {}, w = (+M.map || 0) - 1, lo = (+M.mapFrom || 1) - 1, hi = +M.mapTo ? +M.mapTo - 1 : 99, seen = new Set();
+    mine.forEach(r => Object.entries((r.raw && r.raw.levels) || {}).forEach(([k, st]) => { const [x, i] = k.split(':').map(Number); if (x === w && i >= lo && i <= hi && st >= 1) seen.add(k); }));
+    return { done: seen.size, right: null, all: null };
+  }
   let done = 0, right = 0;
   const areas = t.game === 'brainwaves' ? [].concat(t.skills || t.skill || []).map(k => BW_AREA_ID[k]).filter(Boolean) : [];
   const cll = t.game === 'listen' ? [].concat(t.skills || t.skill || []).map(k => CLL_ID[k]).filter(Boolean) : [];
@@ -853,7 +860,7 @@ const ptsOf = (pct, out) => pct == null ? '' : `${Math.floor(Math.min(100, pct) 
 function gradePick() {
   S.gradeList = gradeList(S.classes.find(x => x.code === S.code));
   S.gradeA = S.gradeOpen === '' ? null : S.gradeList.find(a => aKey(a) === S.gradeOpen) || S.gradeList[0] || null;
-  COLS.grades = [{ k: 'name', h: 'Student', t: 's' }].concat((S.gradeA ? S.gradeA.tasks : []).flatMap((t, i) => [{ k: 't' + i, h: `${taskName(t)} (goal ${t.goal} ${t.unit === 'minutes' ? 'min' : 'answers'})`, t: 'n', num: 1, f: r => r['t' + i] == null ? '—' : `${r['t' + i] >= t.goal ? '✓ ' : ''}${fmtN(r['t' + i])} / ${t.goal}` }].concat(
+  COLS.grades = [{ k: 'name', h: 'Student', t: 's' }].concat((S.gradeA ? S.gradeA.tasks : []).flatMap((t, i) => [{ k: 't' + i, h: `${taskName(t)} (goal ${t.goal} ${t.unit === 'minutes' ? 'min' : t.unit === 'levels' ? 'levels' : 'answers'})`, t: 'n', num: 1, f: r => r['t' + i] == null ? '—' : `${r['t' + i] >= t.goal ? '✓ ' : ''}${fmtN(r['t' + i])} / ${t.goal}` }].concat(
     lvAreas(t).map(a => ({ k: `lv${i}_${a}`, h: `${BW_AREA_NAME[a]}: level reached`, t: 'n', num: 1, f: r => r[`lv${i}_${a}`] ? `Level ${r[`lv${i}_${a}`]} of ${BW_LEVELS[a]}` : '<span style="opacity:.55">no test run</span>' })))),
     [{ k: 'acc', h: 'Accuracy', t: 'n', num: 1, f: r => accCell(r.acc) }, { k: 'grade', h: 'Grade', t: 'n', num: 1, f: r => `<b>${r.grade}%</b>` }, { k: 'points', h: 'Points', t: 's', num: 1, f: r => gradeCell(r.points) }, { k: 'status', h: 'Status', t: 's', f: r => r.grade >= 100 ? '<b style="color:#2fbf71">✓ Done</b>' : r.status }, { k: 'dateMs', h: 'Last practiced', t: 'n', f: r => esc(fmtDate(r.dateMs)) }]);
 }
@@ -878,7 +885,7 @@ function mergedList() {
   const twhen = t => t.closes_at ? (tstate(t) === 'open' ? 'Closes ' : 'Closed ') + fmtWhen(t.closes_at) : t.opens_at && tstate(t) === 'scheduled' ? 'Opens ' + fmtWhen(t.opens_at) : tstate(t) === 'open' ? 'Open until you close it' : '';
   const item = x => x.k === 'p'
     ? `<button type="button" class="gi${x.on ? ' on' : ''}" data-mi="p" data-key="${esc(aKey(x.a))}" aria-expanded="${x.on}"><span class="mk p">🎯 Practice</span><span class="gs ${x.st[1]}">${x.st[0]}</span>`
-      + `<span class="mn">${esc(fmtDay(x.a.start))}${x.a.end !== x.a.start ? ' – ' + esc(endText(x.a, fmtDay)) : ''}</span><span class="mw">${x.a.tasks.map(t => esc(taskName(t)) + ', ' + t.goal + (t.unit === 'minutes' ? ' min' : ' answers')).join(' · ')}</span></button>`
+      + `<span class="mn">${esc(fmtDay(x.a.start))}${x.a.end !== x.a.start ? ' – ' + esc(endText(x.a, fmtDay)) : ''}</span><span class="mw">${x.a.tasks.map(t => esc(taskName(t)) + ', ' + t.goal + (t.unit === 'minutes' ? ' min' : t.unit === 'levels' ? ' levels' : ' answers')).join(' · ')}</span></button>`
       + (x.on && !PREVIEW_NOLINK(x.a) ? `<div class="gprev">Try it as a student:${previewBtns(x.a)}</div>` : '')
     : `<button type="button" class="gi${x.on ? ' on' : ''}" data-mi="t" data-key="${esc(x.t.id)}" aria-expanded="${x.on}"><span class="mk t">📝 Test</span><span class="gs ${x.st[1]}">${x.st[0]}</span>`
       + `<span class="mn">${esc(x.t.name || 'Test')}</span><span class="mw">${esc([twhen(x.t), tline(x.t)].filter(Boolean).join(' · '))}</span></button>`;
@@ -889,7 +896,7 @@ function renderGradeList() {
   const today = ymd(new Date()), open = S.gradeA ? aKey(S.gradeA) : '';
   const item = (a, i) => { const on = aKey(a) === open, st = !live.has(aKey(a)) ? ['Ended', 'end'] : a.start > today ? ['Upcoming', 'up'] : ['Now', 'now'];
     return `<button type="button" class="gi${on ? ' on' : ''}" data-ga="${i}" aria-expanded="${on}"><span class="gar" aria-hidden="true">▸</span><span class="gd">${esc(fmtDay(a.start))}${a.end !== a.start ? ' – ' + esc(endText(a, fmtDay)) : ''}</span>`
-      + `<span class="gw">${a.tasks.map(t => esc(taskName(t)) + ', ' + t.goal + (t.unit === 'minutes' ? ' min' : ' answers')).join(' · ')}</span><span class="gs ${st[1]}">${st[0]}</span></button>`; };
+      + `<span class="gw">${a.tasks.map(t => esc(taskName(t)) + ', ' + t.goal + (t.unit === 'minutes' ? ' min' : t.unit === 'levels' ? ' levels' : ' answers')).join(' · ')}</span><span class="gs ${st[1]}">${st[0]}</span></button>`; };
   $('aedit').disabled = $('adelete').disabled = PREVIEW || !S.gradeA || !!S.assignmentBusy;
   $('anew').disabled = PREVIEW || !S.code || !!S.assignmentBusy;
   $('aout').disabled = !!S.assignmentBusy;
@@ -1400,7 +1407,7 @@ function renderTeacherPage() {
     const LA = liveAssigns(c, today);
     (LA.length ? LA : [c.hub_assignment]).forEach(a => { if (a && Array.isArray(a.tasks)) {
       const st = a.start > today ? ['Upcoming', ''] : a.end < today ? ['Past', ''] : ['Active', ' on'];
-      const what = a.tasks.map(t => `${GNAMES[t.game] || t.game}${[].concat(t.skills || t.skill || []).filter(Boolean).length ? ': ' + [].concat(t.skills || t.skill).filter(Boolean).join(', ') : ''} · ${t.goal} ${t.unit === 'minutes' ? 'min' : 'answers'}${t.settings ? ' (' + setsText(t.settings) + ')' : ''}`).join('<br>');
+      const what = a.tasks.map(t => `${GNAMES[t.game] || t.game}${[].concat(t.skills || t.skill || []).filter(Boolean).length ? ': ' + [].concat(t.skills || t.skill).filter(Boolean).join(', ') : ''} · ${t.goal} ${t.unit === 'minutes' ? 'min' : t.unit === 'levels' ? 'levels' : 'answers'}${t.settings ? ' (' + setsText(t.settings) + ')' : ''}`).join('<br>');
       asg.push({ key: (st[0] === 'Active' ? 0 : st[0] === 'Upcoming' ? 1 : 2) + a.end, html: `<tr><td>${esc(cname(c.code))}</td><td class="wrap">${what.split('<br>').map(esc).join('<br>')}</td><td>${esc(fmtDay(a.start))} – ${esc(endText(a, fmtDay))}</td><td><span class="st${st[1]}">${st[0]}</span></td></tr>` });
     } });
     Object.entries(OLD_ASSIGN).forEach(([k, gname]) => { const v = c[k]; if (v && typeof v === 'object' && Object.keys(v).length) asg.push({ key: '3', html: `<tr><td>${esc(cname(c.code))}</td><td class="wrap">${esc(gname)} (set inside the game) · ${esc(setsText(v).slice(0, 160))}</td><td></td><td><span class="st">In game</span></td></tr>` }); });
@@ -1537,7 +1544,7 @@ async function loadUpcoming() {
 function upItems() {
   const today = ymd(new Date()), now = Date.now(), cn = code => (S.classes.find(c => c.code === code) || {}).name || code, soon = [], live = [];
   S.classes.forEach(c => liveAssigns(c, today).forEach(a => {
-    const what = a.tasks.map(t => `${(G[t.game] || {}).name || 'Any game'}${(t.skills && t.skills.length) ? ': ' + t.skills.join(', ') : ''}, ${t.goal} ${t.unit === 'minutes' ? 'min' : 'answers'}`).join(' · ');
+    const what = a.tasks.map(t => `${(G[t.game] || {}).name || 'Any game'}${(t.skills && t.skills.length) ? ': ' + t.skills.join(', ') : ''}, ${t.goal} ${t.unit === 'minutes' ? 'min' : t.unit === 'levels' ? 'levels' : 'answers'}`).join(' · ');
     const it = { kind: 'Assignment', cls: cn(c.code), code: c.code, name: what, view: 'grades', color: '#4ea1ff', asg: a };
     if (a.start > today) soon.push({ ...it, ms: dayMs(a.start), when: dayText(a.start) + (a.end === OPEN_END ? ', no end date' : a.end !== a.start ? ' to ' + dayText(a.end) : ''), sub: 'Starts ' + dayText(a.start) });
     else live.push({ ...it, ms: dayMs(a.end), when: a.end === OPEN_END ? 'No end date' : 'Ends ' + dayText(a.end), sub: 'Running now' });

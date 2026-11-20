@@ -901,7 +901,7 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 function cleanAssign(a) {
   if (!a || !DATE_RE.test(a.start) || !DATE_RE.test(a.end) || !Array.isArray(a.tasks)) return null;
   const tasks = a.tasks.filter(t => t && (GAME[t.game] || t.game === 'any') && Number(t.goal) > 0).slice(0, 3)
-    .map(t => ({ game: t.game, skill: t.game === 'any' ? '' : String(t.skill || ''), ...(t.game !== 'any' && Array.isArray(t.skills) && t.skills.length > 1 ? { skills: t.skills.filter(x => typeof x === 'string' && x).slice(0, 12).map(String) } : {}), goal: Math.min(500, Math.round(Number(t.goal))), unit: t.unit === 'minutes' ? 'minutes' : 'answers',
+    .map(t => ({ game: t.game, skill: t.game === 'any' ? '' : String(t.skill || ''), ...(t.game !== 'any' && Array.isArray(t.skills) && t.skills.length > 1 ? { skills: t.skills.filter(x => typeof x === 'string' && x).slice(0, 12).map(String) } : {}), goal: Math.min(500, Math.round(Number(t.goal))), unit: t.unit === 'minutes' ? 'minutes' : t.unit === 'levels' && t.game === 'scale' ? 'levels' : 'answers',
       ...(t.game !== 'any' && t.settings && typeof t.settings === 'object' && !Array.isArray(t.settings) && Object.keys(t.settings).length ? { settings: t.settings } : {}) }));
   return tasks.length ? { start: a.start, end: a.end, tasks } : null;
 }
@@ -929,7 +929,21 @@ const dueText = end => {
 };
 // progress inside the assignment's dates, from the practice history: answers in that skill (or in the game, or in every game), or minutes played
 const skl = t => (t.skills && t.skills.length ? t.skills : t.skill ? [t.skill] : []);
+// "World 2 Flat Keys, levels 3 to 7" for a Scale Quest Map levels task (2026-11-20; worlds as in scale-quest MAP_WORLDS)
+const MAP_WORLD_NAMES = ['Sharp Keys', 'Flat Keys', 'Minor', 'Key Signatures', 'Modes'], MAP_WORLD_LEN = [8, 7, 9, 9, 8];
+function mapWhat(t) {
+  const M = t.unit === 'levels' && t.settings, w = M ? +M.map - 1 : -1; if (!(w >= 0 && w < 5)) return '';
+  return `Map World ${w + 1} ${MAP_WORLD_NAMES[w]}, levels ${+M.mapFrom || 1} to ${+M.mapTo || MAP_WORLD_LEN[w]}`;
+}
 function assignDone(days, a, t) {
+  if (t.unit === 'levels') {   // Scale Quest Map levels (2026-11-20): distinct levels cleared (1+ star) in the assigned world and range (scale.lv {"w:i": stars})
+    const M = t.settings || {}, w = (+M.map || 0) - 1, lo = (+M.mapFrom || 1) - 1, hi = +M.mapTo ? +M.mapTo - 1 : 99, seen = new Set();
+    for (const [d, games] of Object.entries(days)) {
+      if (d < a.start || d > a.end) continue;
+      for (const [k, st] of Object.entries((games.scale || {}).lv || {})) { const [x, i] = k.split(':').map(Number); if (x === w && i >= lo && i <= hi && st >= 1) seen.add(k); }
+    }
+    return seen.size;
+  }
   const gids = t.game === 'any' ? [...GAMES.map(g => g.id), 'listen'] : [t.game];
   let n = 0;
   for (const [d, games] of Object.entries(days)) {
@@ -1004,8 +1018,8 @@ function teacherCards(p, days) {
     if (!a || a.start > today || a.end < today) continue;
     for (const t of a.tasks) {
       if (out.length >= 4) break;
-      const g = GAME[t.game] || null, what = skl(t).join(', ') || (t.settings && Array.isArray(t.settings.keys) && t.settings.keys.length ? t.settings.keys.slice(0, 6).join(', ') + (t.settings.keys.length > 6 ? '…' : '') : 'any practice'), title = `${g ? g.name : 'Any game'}: ${what}`;
-      const v = assignDone(days, a, t), done = v >= t.goal, unit = t.unit === 'minutes' ? 'min' : 'answers';
+      const g = GAME[t.game] || null, what = mapWhat(t) || skl(t).join(', ') || (t.settings && Array.isArray(t.settings.keys) && t.settings.keys.length ? t.settings.keys.slice(0, 6).join(', ') + (t.settings.keys.length > 6 ? '…' : '') : 'any practice'), title = `${g ? g.name : 'Any game'}: ${what}`;
+      const v = assignDone(days, a, t), done = v >= t.goal, unit = t.unit === 'minutes' ? 'min' : t.unit === 'levels' ? 'levels' : 'answers';
       const href = g ? taskLink(g, t) : '#games';
       out.push(`<article class="q tq${done ? ' done' : ' must'}" style="--accent:${g ? g.acc : 'var(--gold)'}"><p class="qk"><i></i>From your teacher · ${esc(dueText(a.end))}</p>
         <b class="qn">${esc(title)}</b>${cs.length > 1 ? `<p class="qt">${esc(c.name || c.code)}</p>` : ''}
