@@ -427,6 +427,8 @@ function perfectShow(L) {
   const mine = Object.values(SD.done).filter(x => x.show === id);
   return mine.length >= asked && mine.every(x => x.ok) ? liveBonus('perfect:' + id, 3, 'Perfect Show') : 0;
 }
+// the teacher's ⭐ stays on screen until the next question (2026-11-20, David: the pop-up went too fast)
+const giftBanner = () => S.gift && (S.live && S.live.round || '') === S.gift.round ? '<section class="card" style="border:2px solid #ffc85c;background:rgba(255,200,92,.14);text-align:center"><b style="font-size:22px">⭐ Your teacher gave you a Star!</b></section>' : '';
 function questionCard() {
   const L = S.live;
   if (!S.loaded) return '<section class="card"><p class="muted empty">Connecting…</p></section>';
@@ -606,7 +608,7 @@ function draw() {
   const a = document.activeElement, keep = a && a.id ? { id: a.id, s: a.selectionStart, e: a.selectionEnd } : null;
   const pq = $('pq') ? $('pq').value : '';
   app.innerHTML = shell(`<h1 style="font-size:clamp(26px,5vw,36px)">Live Class</h1><p class="msg" role="alert">${esc(S.err)}</p>
-    <div class="cols"><div class="stack">${leadCard()}${questionCard()}${spotCard()}${histCard()}</div><aside class="stack">${helpCard()}</aside></div>`);
+    <div class="cols"><div class="stack">${leadCard()}${giftBanner()}${questionCard()}${spotCard()}${histCard()}</div><aside class="stack">${helpCard()}</aside></div>`);
   if ($('pq')) $('pq').value = pq;
   if (keep && $(keep.id)) { const el = $(keep.id); el.focus(); try { if (keep.s != null) el.setSelectionRange(keep.s, keep.e); } catch {} }
 }
@@ -698,7 +700,7 @@ leadWatch();
 const localDay = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 if (code && sid) db.watchDoc('bc_gift/' + code + '_' + LC.hid(sid), d => {
   if (!d || d.day !== localDay()) return;
-  for (let k = 1; k <= Math.min(3, d.n || 0); k++) liveBonus('gift:' + d.day + ':' + k, 1, 'from your teacher');
+  for (let k = 1; k <= Math.min(3, d.n || 0); k++) { const key = 'gift:' + d.day + ':' + k, had = ME.bonus && ME.bonus[key]; if (liveBonus(key, 1, 'from your teacher') && !had) { S.gift = { round: (S.live && S.live.round) || '' }; draw(); } }
 }, () => {});
 db.watchDoc('bc_live/' + code, d => {
   const before = S.live; S.live = d; S.loaded = true;
