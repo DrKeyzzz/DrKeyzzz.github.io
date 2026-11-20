@@ -166,6 +166,8 @@
   .qhead .ksbox { width: min(100%, 250px); }
   .quickrow .seg button { padding: 3px 9px; font-size: 13px; white-space: nowrap; }
   .quickrow .label { font-size: 11px; }
+  [data-act="nudge"] { position: relative; }
+  sup.miss { position: absolute; top: -7px; right: -7px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #ff7a9a; color: #1a0a10; font: 800 11px/18px Outfit, system-ui, sans-serif; text-align: center; }
   .startq:has(.chordrow) .diff { padding: 8px; } .startq:has(.chordrow) .diff small { display: none; }
   .gtiles .gtile { padding: 9px 12px; }  /* 2026-11-18: a little shorter so the key panel fits 768 px */
   .kpanel .kskeys .btn[aria-pressed="true"] { border-color: var(--gold); background: rgba(255,200,92,.2); }
@@ -392,6 +394,16 @@ async function giveStar(sid, nm) {
   g.n[sid] = n; g.t[sid] = Date.now(); try { localStorage.setItem(GFK(), JSON.stringify(g)); } catch {}
   toast('⭐ Star sent' + (nm && !S.curtain ? ' to ' + nm.replace(/\.$/, '') : '') + '.'); draw();
 }
+// Missed in a row (2026-11-20, David): when a question locks, everyone in the room who didn't answer gets +1, anyone who answered goes back to 0.
+// Shown as a small number on their name under 'Not answered yet' (2 or more). Kept on this computer per class for today.
+const MK = () => 'mtg_live_miss_v1:' + S.code;
+function misses() { const day = new Date().toDateString(); let o = null; try { o = JSON.parse(localStorage.getItem(MK()) || 'null'); } catch {} return o && o.day === day ? o : { day, n: {}, seen: [] }; }
+function missTally(d) {
+  if (!d || !d.q || d.open) return; const m = misses(); if (m.seen.includes(d.round)) return;
+  const got = new Set(S.ans.map(a => a.sid)); room().forEach(sid => { m.n[sid] = got.has(sid) ? 0 : (m.n[sid] || 0) + 1; });
+  m.seen = m.seen.concat(d.round).slice(-200); try { localStorage.setItem(MK(), JSON.stringify(m)); } catch {}
+}
+const missBadge = sid => { const n = (misses().n[sid] || 0) + 1; return n >= 2 ? `<sup class="miss" title="${n} questions in a row without an answer">${n}</sup>` : ''; };
 async function finishShow() {
   const A = G().auto; if (A) { A.on = false; saveG(); } clearTimeout(S.autoT);
   const L = S.live; if (!L || !L.q) return;
@@ -436,7 +448,7 @@ function openClass(code) {
   S.offs.forEach(f => f && f()); S.offs = []; if (S.offA) S.offA(); S.offA = null;
   S.code = code; S.live = null; S.ans = []; S.pulses = []; S.priv = []; S.round = ''; S.err = '';
   const fail = e => { S.err = ERR(e); draw(); };
-  db.watchDoc(livePath(), d => { S.live = d; try { clsTally(d); } catch {} if (d && d.game && d.round && d.updated_at && !G().starts[d.round]) { G().starts[d.round] = d.updated_at; saveG(); } watchAnswers(); draw(); }, fail).then(f => S.offs.push(f));
+  db.watchDoc(livePath(), d => { S.live = d; try { clsTally(d); } catch {} try { missTally(d); } catch {} if (d && d.game && d.round && d.updated_at && !G().starts[d.round]) { G().starts[d.round] = d.updated_at; saveG(); } watchAnswers(); draw(); }, fail).then(f => S.offs.push(f));
   db.watchCol('bc_pulse', { class_code: code, owner: S.email }, l => { S.pulses = l; draw(); }, fail).then(f => S.offs.push(f));
   db.watchCol('bc_private', { class_code: code, owner: S.email }, l => { S.priv = l; draw(); }, fail).then(f => S.offs.push(f));
   let pin = null; try { pin = localStorage.getItem(LK()); } catch {} watchLead(pin);
@@ -604,7 +616,7 @@ function pulseCard() {
       ${lost.length ? `<div class="namechips" style="margin-top:8px">${lost.map(x => `<button type="button" class="chip no" data-act="unlost" data-id="${esc(x.id)}" title="Clear ${esc(hidName(x))}'s I'm lost">${esc(hidName(x))} ✕</button>`).join('')}
         <button type="button" class="btn sm" data-act="unlost" data-id="*">Clear all</button></div><p class="dim small" style="margin:6px 0 0">Students can tap "I'm lost" once; it stays on until you clear it.</p>` : ''}</div>
     <div><div class="row between"><span class="label">Confidence</span><b class="mono">${P.length ? avg.toFixed(1) : '–'} / 5</b></div><div class="meter vio" style="margin-top:6px"><i style="width:${avg * 20}%"></i></div></div>
-    ${S.live && S.live.q ? `<div><span class="label">Not answered yet</span><div class="namechips" style="margin-top:6px">${un.length ? un.map(x => `<button type="button" class="chip" data-act="nudge" data-id="${esc(x.id)}" title="Send ${esc(hidName(x))} a short note">✉ ${esc(hidName(x))}</button>`).join('') + (S.nudge ? `<div class="stack" style="gap:6px;margin-top:6px;width:100%"><input id="nudgetxt" maxlength="140" placeholder="Note to ${esc(S.nudge.name)} (only they see it)" value="Hey, are you with us? Pick your best answer!"><div class="row"><button class="btn sm pri" type="button" data-act="nudgesend">Send</button><button class="btn sm" type="button" data-act="nudgex">Cancel</button></div></div>` : '') : P.length ? '<span class="chip ok">Everyone is in</span>' : '<span class="muted small">Nobody has joined yet.</span>'}</div></div>` : ''}
+    ${S.live && S.live.q ? `<div><span class="label">Not answered yet</span><div class="namechips" style="margin-top:6px">${un.length ? un.map(x => `<button type="button" class="chip" data-act="nudge" data-id="${esc(x.id)}" title="Send ${esc(hidName(x))} a short note">✉ ${esc(hidName(x))}${missBadge(x.sid)}</button>`).join('') + (S.nudge ? `<div class="stack" style="gap:6px;margin-top:6px;width:100%"><input id="nudgetxt" maxlength="140" placeholder="Note to ${esc(S.nudge.name)} (only they see it)" value="Hey, are you with us? Pick your best answer!"><div class="row"><button class="btn sm pri" type="button" data-act="nudgesend">Send</button><button class="btn sm" type="button" data-act="nudgex">Cancel</button></div></div>` : '') : P.length ? '<span class="chip ok">Everyone is in</span>' : '<span class="muted small">Nobody has joined yet.</span>'}</div></div>` : ''}
     <p class="dim small" style="margin:0">Students who opened Live Class in the last 3 hours.</p></section>`;
 }
 function inboxCard() {
