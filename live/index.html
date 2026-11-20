@@ -1331,7 +1331,7 @@ window.addEventListener('load', draw, { once: true });
     brows:[['arch','Arched'],['flat','Straight'],['thick','Thick'],['none','None']],
     nose:[['dot','Dot'],['button','Button'],['none','None']],
     mouth:[['smile','Smile'],['grin','Big grin'],['o','Ooh'],['smirk','Smirk'],['tongue','Silly'],['braces','Braces']],   // Braces: David 2026-11-18
-    hair:[['short','Short'],['buzz','Buzz'],['curly','Curly'],['afro','Afro'],['long','Long'],['braids','Braids'],['bun','Bun'],['spiky','Spiky'],['swoop','Swoop'],['part','Side part'],['waves','Waves'],['bob','Bob'],['bald','None']],
+    hair:[['short','Short'],['buzz','Buzz'],['curly','Curly'],['afro','Afro'],['long','Long'],['longcurly','Long curly'],['braids','Braids'],['bun','Bun'],['spiky','Spiky'],['swoop','Swoop'],['part','Side part'],['waves','Waves'],['bob','Bob'],['bald','None']],
     cover:[['none','None'],['hijab','Hijab'],['wrap','Head wrap'],['turban','Turban'],['patka','Patka'],['kippah','Kippah'],['kufi','Kufi'],['durag','Durag'],['scarf','Headscarf']],
     glasses:[['none','None'],['round','Round'],['square','Square'],['shades','Aviator shades']],
     beard:[['none','None'],['stubble','Stubble'],['mustache','Mustache'],['goatee','Goatee'],['short','Short beard'],['full','Full beard']],   // David 2026-11-16; same color as the hair
@@ -1467,6 +1467,11 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
     if (showHair || OUT === 'astronaut' || OUT === 'hero' || OUT === 'rockstar') {
       if (L.hair === 'afro') hairBack += `<circle cx="50" cy="35" r="27" fill="${hc}"/>`;
       if (L.hair === 'long') hairBack += `<path d="M28 36 Q28 15 50 15 Q72 15 72 36 L74 70 Q67 75 62 67 L62 42 L38 42 L38 67 Q33 75 26 70Z" fill="${hc}"/>`;
+      if (L.hair === 'longcurly') {   // long curly hair (2026-11-20, requested by a student): curl clusters falling past the shoulders
+        const cd = shade(hc, .72), curls = [[25, 33, 7.5], [22.5, 42, 7.6], [22, 51, 7.6], [23, 60, 7.4], [25.5, 68.5, 7], [30.5, 74.5, 6.2], [35, 77, 4.6]];
+        hairBack += `<circle cx="50" cy="31" r="22.5" fill="${hc}"/><path d="M25 32 H75 V44 H25Z M25 44 H38 V72 H25Z M62 44 H75 V72 H62Z" fill="${hc}"/>`
+          + curls.concat(curls.map(([x, y, r]) => [100 - x, y, r])).map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${hc}"/><path d="M${x - r * .45} ${y + r * .1} q${r * .45} ${r * .55} ${r * .9} 0" fill="none" stroke="${cd}" stroke-width="1" stroke-linecap="round"/>`).join('');
+      }
       if (L.hair === 'waves') hairBack += `<path d="M27 37C25 14 75 14 73 37Q70 48 75 55Q80 64 72 72Q66 72 62 64L38 64Q33 73 26 71Q19 64 25 54Q30 46 27 37Z" fill="${hc}"/>`;
       if (L.hair === 'bob') hairBack += `<path d="M28 35Q29 15 50 15Q71 15 72 35L74 57Q50 66 26 57Z" fill="${hc}"/>`;
       if (L.hair === 'braids') hairBack += [29, 71].map(x => [46, 52, 58, 64, 70].map(y => `<circle cx="${x}" cy="${y}" r="3.4" fill="${hc}" stroke="${shade(hc, .7)}" stroke-width=".6"/>`).join('')).join('');
@@ -1536,6 +1541,8 @@ function shade(hex, f) { const n = parseInt(hex.slice(1), 16); const c = s => Ma
         curly: `<path d="M29 39Q24 33 28 28Q27 21 34 20Q35 14 42 15Q48 10 53 14Q60 11 65 17Q73 17 73 24Q78 32 70 39Q67 34 66 29Q61 32 56 26Q51 31 46 26Q42 32 36 30Q33 37 29 39Z"/>`,
         afro: [[32, 28], [38, 21], [46, 17.5], [54, 17.5], [62, 21], [68, 28]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="8"/>`).join(''),
         long: `<path d="M29 40 Q28 16 50 16 Q72 16 71 40 Q65 26 50 27 Q36 27 29 40Z"/>`,
+        longcurly: `<path d="M28.5 41Q23.5 34 27.5 28.5Q26.5 20.5 34 19.5Q35 13.5 42 14.5Q48 9.5 53 13.5Q60 10.5 65 16.5Q73.5 16.5 73 24Q78.5 32.5 71.5 41Q68 35 66.5 29.5Q61 32.5 56 26.5Q51 31.5 46 26.5Q42 32.5 36 30.5Q33 38 28.5 41Z"/>`
+          + [[34, 21.5], [42.5, 17.5], [51.5, 16.5], [60.5, 18.5], [67.5, 23.5]].map(([x, y]) => `<path d="M${x - 2.2} ${y + .6} q2.2 2 4.4 0" fill="none" stroke="${shade(hc, .72)}" stroke-width=".9" stroke-linecap="round"/>`).join(''),
         braids: `<path d="M29.5 37 Q29 17 50 17 Q71 17 70.5 37 Q61 26 50 26 Q39 26 29.5 37Z"/><path d="M50 17 V26" stroke="${shade(hc, .7)}" stroke-width="1"/>`,
         bun: `<circle cx="50" cy="13" r="7.5"/><path d="M30.5 36 Q31 18 50 18 Q69 18 69.5 36 Q60 26 50 26 Q40 26 30.5 36Z"/>`,
         spiky: `<path d="M29 38 Q27 30 32 24 Q33 21 37 20 L38 16 Q43 16 46 18 L49 13 Q55 14 58 18 L63 16 Q67 19 68 23 Q74 27 71 38 Q68 34 66 30 Q62 27 57 28 Q49 24 43 28 Q36 27 32 33Z"/>`,
