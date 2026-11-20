@@ -162,7 +162,10 @@
   @media (max-width: 600px) { .kpanel .kskeys { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
   .kpanel .kqt button { padding: 4px 10px; font-size: 13px; }
   .chordrow .chipset button { padding: 3px 9px; font-size: 13px; }
-  .quickrow .qseg button { padding: 4px 10px; font-size: 13px; }
+  .quickrow { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; overflow-x: auto; }
+  .qhead .ksbox { width: min(100%, 250px); }
+  .quickrow .seg button { padding: 3px 9px; font-size: 13px; white-space: nowrap; }
+  .quickrow .label { font-size: 11px; }
   .startq:has(.chordrow) .diff { padding: 8px; } .startq:has(.chordrow) .diff small { display: none; }
   .gtiles .gtile { padding: 9px 12px; }  /* 2026-11-18: a little shorter so the key panel fits 768 px */
   .kpanel .kskeys .btn[aria-pressed="true"] { border-color: var(--gold); background: rgba(255,200,92,.2); }
@@ -526,10 +529,11 @@ function leadCard() {
 }
 // Quick settings under Lock / Skip / Next (2026-11-20, David: 'I have to click Question bank, then hunt for Customize'): the game's question type and
 // clef, one tap, applied from the next question. Same settings as Customize. Not shown in Mix games.
+const short = l => { const m = String(l).match(/^(\S+) (Treble|Bass|Alto)$/); if (m) return m[1]; const t = String(l).replace(/^Name the /, ''); return t === l ? t : t[0].toUpperCase() + t.slice(1) + 's'; };
 function quickRow() {
-  const p = gpick(), G = qgame(p.g); if (!G || p.mixOn || G.pick) return '';
-  const rows = ['type', 'clef'].filter(k => G.opts[k]).map(k => `<span class="seg qseg">${G.opts[k].map(([v, l]) => `<button type="button" data-act="qset" data-k="${k}" data-v="${esc(v)}" aria-pressed="${String(p.o[k] ?? OPT_DEF[k]) === String(v)}">${esc(l)}</button>`).join('')}</span>`);
-  return rows.length ? `<div class="row quickrow" style="gap:8px;align-items:center"><span class="label">Next: ${esc(G.name)}</span>${rows.join('')}</div>` : '';
+  const p = gpick(), G = qgame(p.g); if (!G) return '';   // the timer shows for every game, Mix and key tiles too (2026-11-20)
+  const rows = (p.mixOn || G.pick ? [] : ['type', 'clef']).filter(k => G.opts[k]).map(k => `<span class="seg qseg">${G.opts[k].map(([v, l]) => `<button type="button" data-act="qset" data-k="${k}" data-v="${esc(v)}" aria-pressed="${String(p.o[k] ?? OPT_DEF[k]) === String(v)}" title="${esc(l)}">${esc(short(l))}</button>`).join('')}</span>`);
+  return `<div class="quickrow" title="Applies from the next question"><span class="label">Next</span>${rows.join('')}${timerSeg(p).replace('margin-left:auto', 'margin-left:0')}</div>`;
 }
 function gameControls(L) {
   const G = qgame(L.gen.g), p = gpick(), cl = custLabel(qgame(p.g) || G, p.o), A = AUTO();
@@ -785,7 +789,7 @@ app.addEventListener('click', async e => {
   if (act === 'kkey') { const p = gpick(), k = kpick(p), n = Number(t.dataset.v), a = k.keys.map(Number), i = a.indexOf(n); if (i >= 0) a.splice(i, 1); else a.push(n); p.k = { ...k, keys: a }; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
   if (act === 'kqt') { const p = gpick(), k = kpick(p), own = ((k.qt || {})[p.g] || []).length, a = own ? kTypes(p).slice() : [], i = a.indexOf(t.dataset.v); if (!own) a.push(t.dataset.v); else if (i >= 0) { if (a.length > 1) a.splice(i, 1); } else a.push(t.dataset.v); /* first tap = only that type; then tap to add or remove */ p.k = { ...k, qt: { ...(k.qt || {}), [p.g]: a } }; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
   if (act === 'kclear') { const p = gpick(); p.k = { ...kpick(p), keys: [] }; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
-  if (act === 'gtime') { const p = gpick(); p.t = Number(t.dataset.v); savePick(p); draw(); return; }
+  if (act === 'gtime') { const p = gpick(); p.t = Number(t.dataset.v); savePick(p); if (S.live && S.live.q) toast('Timer ' + (p.t ? p.t + ' s' : 'off') + ' from the next question.'); draw(); return; }
   if (act === 'qchord') { const p = gpick(), v = t.dataset.v, c = (p.o.chords || []).map(String); if (!v) p.o.chords = []; else { const i = c.indexOf(v); if (i >= 0) c.splice(i, 1); else c.push(v); p.o.chords = c; } savePick(p); if (S.cust) S.cust = { o: { ...gpick().o }, sample: null }; draw(); return; }
   if (act === 'qset') { const p = gpick(); p.o = { ...p.o, [t.dataset.k]: t.dataset.v }; savePick(p); toast('From the next question.'); draw(); return; }
   if (act === 'gdiff') { const p = gpick(); p.d = t.dataset.v; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
