@@ -162,6 +162,7 @@
   @media (max-width: 600px) { .kpanel .kskeys { grid-template-columns: repeat(5, minmax(0, 1fr)); } }
   .kpanel .kqt button { padding: 4px 10px; font-size: 13px; }
   .chordrow .chipset button { padding: 3px 9px; font-size: 13px; }
+  .quickrow .qseg button { padding: 4px 10px; font-size: 13px; }
   .startq:has(.chordrow) .diff { padding: 8px; } .startq:has(.chordrow) .diff small { display: none; }
   .gtiles .gtile { padding: 9px 12px; }  /* 2026-11-18: a little shorter so the key panel fits 768 px */
   .kpanel .kskeys .btn[aria-pressed="true"] { border-color: var(--gold); background: rgba(255,200,92,.2); }
@@ -523,10 +524,18 @@ function leadCard() {
     <p class="muted small" style="margin:0">${S.lead.by ? `<b>${esc(S.lead.by)}</b> has the controls.` : 'The student opens musictheoryacademy.org/live, taps <b>🎓 Lead the class</b> and types this code.'} Keep this page open: it posts their questions.</p></div>
     <button class="btn" type="button" data-act="leadStop">Take back</button></section>`;
 }
+// Quick settings under Lock / Skip / Next (2026-11-20, David: 'I have to click Question bank, then hunt for Customize'): the game's question type and
+// clef, one tap, applied from the next question. Same settings as Customize. Not shown in Mix games.
+function quickRow() {
+  const p = gpick(), G = qgame(p.g); if (!G || p.mixOn || G.pick) return '';
+  const rows = ['type', 'clef'].filter(k => G.opts[k]).map(k => `<span class="seg qseg">${G.opts[k].map(([v, l]) => `<button type="button" data-act="qset" data-k="${k}" data-v="${esc(v)}" aria-pressed="${String(p.o[k] ?? OPT_DEF[k]) === String(v)}">${esc(l)}</button>`).join('')}</span>`);
+  return rows.length ? `<div class="row quickrow" style="gap:8px;align-items:center"><span class="label">Next: ${esc(G.name)}</span>${rows.join('')}</div>` : '';
+}
 function gameControls(L) {
   const G = qgame(L.gen.g), p = gpick(), cl = custLabel(qgame(p.g) || G, p.o), A = AUTO();
   return `<div class="gbtns">${L.open ? `<button class="btn big pri" type="button" data-act="lock">👁 Lock &amp; reveal</button><button class="btn big" type="button" data-act="skip" title="Pull this question: nothing counts">⏭ Skip</button>` : ''}
       ${A?.manual ? `${L.open ? '' : '<button class="btn big pri" type="button" data-act="sdnext">Next question ▶</button>'}<button class="btn big" type="button" data-act="podium">🎭 Curtain call</button>` : A ? `<button class="btn big ${AUTO().paused ? 'pri' : ''}" type="button" data-act="sdpause">${AUTO().paused ? '▶ Resume' : '⏸ Pause'}</button><button class="btn big" type="button" data-act="podium">⏹ End now</button><span class="chip gold" style="align-self:center">Question ${AUTO().i}${AUTO().n ? ' of ' + AUTO().n : ''}${!L.open && !AUTO().paused ? ' · next one in a few seconds' : ''}</span>` : `<button class="btn big ${L.open ? '' : 'pri'}" type="button" data-act="next">Next ▶</button>`}</div>
+    ${quickRow()}
     <div class="qbankrow"><button class="btn qbank" type="button" data-act="change" aria-expanded="${S.startOpen}"><span class="qb-ic">📚</span><span><b>Question bank</b><small>Next: ${p.mixOn ? '🎲 Mix of ' + p.mix.length + ' games · ' + esc(DIFFS[p.d] || '') : `${esc((qgame(p.g) || G).name)} · ${esc((qgame(p.g) || {}).pick ? kLabel(p) : DIFFS[p.d] || '')}${cl ? ' · ' + esc(cl) : ''}`}</small></span></button>
       <span class="grow"></span>${PREVIEW ? '<button class="btn sm" type="button" data-act="sim">🤖 Pretend students answer</button>' : ''}${S.confirm === 'end' ? '<button class="btn sm warn" type="button" data-act="end">End and clear the screen?</button>' : '<button class="btn sm" type="button" data-act="confirm" data-v="end">End</button>'}</div>`;
 }
@@ -669,6 +678,7 @@ function ksMaker() {
 }
 function draw() {
   if (!S.code) return;
+  setTimeout(() => { if (!S.jumpAt || Date.now() - S.jumpAt > 5000 || !S.live || S.live.round === S.jumpFrom) return; S.jumpAt = 0; const h = document.querySelector('.qhead'); if (h && h.getBoundingClientRect().top < 0) h.scrollIntoView({ block: 'start' }); }, 0);
   const a = document.activeElement, keep = a && a.id ? { id: a.id, s: a.selectionStart, e: a.selectionEnd } : null;
   const L = S.live && S.live.q ? S.live : null;
   app.innerHTML = shell(`${headCard()}${leadCard()}<p class="msg" role="alert">${esc(S.err)}</p>
@@ -720,6 +730,7 @@ async function goGame(skip) {
   const p = mg ? { ...p0, g: mg, o: mg === p0.g ? p0.o : { ...OPT_DEF } } : p0, q = makeQ(p.g, p.d, { ...gopts(p), keySequence: S.code }), L = S.live;   // 🎲 Mix: a random game each time (2026-11-18)
   if (skip && L && L.round) { const l = asked(); if (l.length && l[l.length - 1].round === L.round) { l.pop(); saveAsked(l); } }
   S.comp = { ...q, timer: gtimer(p) };   // Showdown with the timer Off still gets GT seconds (post)
+  S.jumpFrom = L && L.round; S.jumpAt = Date.now();   // never scroll up to see the new question (2026-11-20): draw() jumps once it is on screen
   await post({ skip: !!skip });
   if (LC.isSound(S.live) && !projOpen()) setTimeout(() => playLive(S.live, true), 600);
 }
@@ -776,6 +787,7 @@ app.addEventListener('click', async e => {
   if (act === 'kclear') { const p = gpick(); p.k = { ...kpick(p), keys: [] }; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
   if (act === 'gtime') { const p = gpick(); p.t = Number(t.dataset.v); savePick(p); draw(); return; }
   if (act === 'qchord') { const p = gpick(), v = t.dataset.v, c = (p.o.chords || []).map(String); if (!v) p.o.chords = []; else { const i = c.indexOf(v); if (i >= 0) c.splice(i, 1); else c.push(v); p.o.chords = c; } savePick(p); if (S.cust) S.cust = { o: { ...gpick().o }, sample: null }; draw(); return; }
+  if (act === 'qset') { const p = gpick(); p.o = { ...p.o, [t.dataset.k]: t.dataset.v }; savePick(p); toast('From the next question.'); draw(); return; }
   if (act === 'gdiff') { const p = gpick(); p.d = t.dataset.v; savePick(p); if (S.cust) S.cust.sample = null; draw(); return; }
   if (act === 'go') { S.cust = null; return goGame(false); }
   if (act === 'lead') { if (S.lead) return stopLead(); return startLead(); }
